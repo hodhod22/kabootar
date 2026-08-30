@@ -201,19 +201,19 @@ fn assert_true(v, msg) {
     assert_eq(tHas, 1, "assign to tokens uses store_local tokens not column")
 }
 
-// -- && emits and opcode -------------------------------------------
+// -- && short-circuit ----------------------------------------------
 {
-    let ast = parseTokens(tokenize("fn f() { if cd >= 65 && cd <= 90 { ok = 1 } }"))
+    let ast = parseTokens(tokenize("fn f() { return a && b }"))
     let bc = emit(ast)
     tHas = 0
     tI = 0
     while tI < len(bc.functions[0].ops) {
-        if bc.functions[0].ops[tI].op == OP_AND {
+        if bc.functions[0].ops[tI].op == OP_JUMP_IF_FALSE {
             tHas = 1
         }
         tI = tI + 1
     }
-    assert_eq(tHas, 1, "&& emits and")
+    assert_eq(tHas, 1, "&& emits jump_if_false")
 }
 
 // -- expr stmt after call (eExprStmt; not eBxL) --------------------
@@ -314,6 +314,21 @@ fn assert_true(v, msg) {
     assert_eq(bc.functions[0]["sym"], "id$Number", "id$Number from let n = 42")
 }
 
+{
+    let ast = parseTokens(tokenize("fn pair<A, B>(a, b) { return [a, b] }; pair(1, " + "\"x\"" + ")"))
+    let bc = emit(ast)
+    assert_eq(len(bc.functions), 1, "one pair spec")
+    assert_eq(bc.functions[0]["sym"], "pair$Number_String", "pair$Number_String")
+}
+
+{
+    let src = "enum Result<T, E> { Ok(T), Err(E) }; Result<Number, String>.Ok(42)"
+    let ast = parseTokens(tokenize(src))
+    let bc = emit(ast)
+    assert_eq(len(bc.enums), 1, "one Result spec")
+    assert_eq(bc.enums[0]["sym"], "Result$Number_String", "Result$Number_String")
+}
+
 // -- generic class ctor monomorph (G8) -----------------------------
 {
     let ast = parseTokens(tokenize("class Box<T> { }; Box(42)"))
@@ -329,6 +344,38 @@ fn assert_true(v, msg) {
         tI = tI + 1
     }
     assert_eq(tHas, 0, "no unspecialized Box class")
+}
+
+{
+    let ast = parseTokens(tokenize("class Box<T> { }; Box<String>(" + "\"hi\"" + ")"))
+    let bc = emit(ast)
+    tHas = 0
+    tI = 0
+    while tI < len(bc.classes) {
+        if bc.classes[tI]["sym"] == "Box$String" {
+            tHas = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "Box$String from Box<String>")
+}
+
+{
+    let src = "class Base<T> { tag: number; fn init(v) { this.tag = 1 } } class Child<T> extends Base<T> { } Child(42)"
+    let ast = parseTokens(tokenize(src))
+    let bc = emit(ast)
+    tHas = 0
+    tExt = ""
+    tI = 0
+    while tI < len(bc.classes) {
+        if bc.classes[tI]["sym"] == "Child$Number" {
+            tHas = 1
+            tExt = bc.classes[tI]["extends"]
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "Child$Number class")
+    assert_eq(tExt, "Base$Number", "Child$Number extends Base$Number")
 }
 
 // -- generic enum ctor monomorph (G9) ------------------------------
@@ -347,6 +394,26 @@ fn assert_true(v, msg) {
     let bc = emit(ast)
     assert_eq(len(bc.enums), 1, "enum from typed member")
     assert_eq(bc.enums[0]["sym"], "Option$Number", "Option$Number from Option<Number>.None")
+}
+
+{
+    let src = "enum Option<T> { Some(T), None }; Option.Some(1); Option<String>.None"
+    let ast = parseTokens(tokenize(src))
+    let bc = emit(ast)
+    tHas = 0
+    tHasS = 0
+    tI = 0
+    while tI < len(bc.enums) {
+        if bc.enums[tI]["sym"] == "Option$Number" {
+            tHas = 1
+        }
+        if bc.enums[tI]["sym"] == "Option$String" {
+            tHasS = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "Option$Number present")
+    assert_eq(tHasS, 1, "Option$String present")
 }
 
 // -- generic class method template (G7) ----------------------------
@@ -378,6 +445,26 @@ fn assert_true(v, msg) {
         tI = tI + 1
     }
     assert_eq(tHas, 0, "no unspecialized echo method")
+}
+
+{
+    let src = "class Holder { fn echo<T>(x) { return x } }; let h = Holder(); h.echo(1); h.echo(" + "\"x\"" + ")"
+    let ast = parseTokens(tokenize(src))
+    let bc = emit(ast)
+    tHas = 0
+    tHasS = 0
+    tI = 0
+    while tI < len(bc.classes[0]["methods"]) {
+        if bc.classes[0]["methods"][tI]["sym"] == "echo$Number" {
+            tHas = 1
+        }
+        if bc.classes[0]["methods"][tI]["sym"] == "echo$String" {
+            tHasS = 1
+        }
+        tI = tI + 1
+    }
+    assert_eq(tHas, 1, "echo$Number")
+    assert_eq(tHasS, 1, "echo$String")
 }
 
 // -- generic method on specialized class (G8.1) --------------------

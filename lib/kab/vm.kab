@@ -1,11 +1,12 @@
 @version "1.0.0"
 
 // H6e hard path: Kab VM first. `vmAppHostFallback` is false — evalKbc does not call host VM.
-// KABOOTAR_VM=kab-only → Rust eval_program has no host run_module for apps.
+// Unset / kab / kab-only → Rust eval_program has no host run_module for apps (`rust`|`host` opt-in).
 // KEEP <=~7 top-level pub fn.
 
 import "kab/boot"
 import "self_host/deserialize"
+import "self_host/deserialize_kbcb"
 import "self_host/vm"
 import "self_host/compile"
 
@@ -23,18 +24,28 @@ fn kabVmCoreOk() {
     let callOk = evalSourceKabVm("fn add(a, b) { return a + b }; return add(1, 2)") == 3
     let nativeOk = evalSourceKabVm("return len([1, 2, 3])") == 3
     let classOk = evalSourceKabVm("class Box { fn init(n) { this.n = n } } return Box(7).n") == 7
+    let methodOk = evalSourceKabVm("class Box { fn tag() { return 1 } } return Box().tag()") == 1
     let arithOk = evalSourceKabVm("return 3 * 4 + 2") == 14
     let unaryOk = evalSourceKabVm("return !false && -3 + 5 == 2") == true
     let orOk = evalSourceKabVm("return false || 9") == 9
-    return n == 42 && callOk && nativeOk && classOk && arithOk && unaryOk && orOk
+    return n == 42 && callOk && nativeOk && classOk && methodOk && arithOk && unaryOk && orOk
 }
 
 fn maxKbcBytes() {
     return bootPolicy("maxKbc")
 }
 
+fn maxKbcbBytes() {
+    return bootPolicy("maxKbcb")
+}
+
 fn tryKabVm(kbc) {
     let bc = deserializeKbc(kbc)
+    return runModule(bc)
+}
+
+fn tryKabVmKbcb(bytes) {
+    let bc = deserializeKbcb(bytes)
     return runModule(bc)
 }
 
@@ -55,8 +66,26 @@ pub fn kabVmRunEnabled() {
     return kabVmRunOk
 }
 
-/// Kab-only `.kbc` run — no host VM fallback (H6e / KABOOTAR_VM=kab-only).
+/// Kab-only `.kbc` text, kbcb v2 Number array, or Uint8Array — no host VM fallback.
 pub fn evalKbcKabOnly(kbc) {
+    if typeof(kbc) == "array" {
+        let cap = maxKbcbBytes()
+        if len(kbc) > cap {
+            throw "evalKbcKabOnly: .kbcb exceeds bootPolicy maxKbcb"
+        }
+        return tryKabVmKbcb(kbc)
+    }
+    if typeof(kbc) == "object" {
+        if kbc != null {
+            if kbc["__kab_u8"] == true {
+                let cap = maxKbcbBytes()
+                if kbc["byteLength"] > cap {
+                    throw "evalKbcKabOnly: .kbcb exceeds bootPolicy maxKbcb"
+                }
+                return tryKabVmKbcb(kbc)
+            }
+        }
+    }
     let s = "" + kbc
     let cap = maxKbcBytes()
     if len(s) > cap {
@@ -116,8 +145,9 @@ pub fn evalKabVmPipelineOk() {
     let arrOk = evalSourceKabVm("let a = [10, 20]; return a[1]") == 20
     let ifOk = evalSourceKabVm("if 1 < 2 { return 9 } else { return 0 }") == 9
     let classOk = evalKbcKabOnly(bootCompile("class Box { fn init(n) { this.n = n } } return Box(7).n")) == 7
+    let methodKbc = evalKbcKabOnly(bootCompile("class Box { fn tag() { return 1 } } return Box().tag()")) == 1
     let kbcPath = evalKbcKabOnly(bootCompile("return 21 + 21")) == 42
     let arithKbc = evalKbcKabOnly(bootCompile("return (2 * 3) ** 2 + 1")) == 37
     let unaryKbc = evalKbcKabOnly(bootCompile("return !false")) == true
-    return core && objOk && arrOk && ifOk && classOk && kbcPath && arithKbc && unaryKbc
+    return core && objOk && arrOk && ifOk && classOk && methodKbc && kbcPath && arithKbc && unaryKbc
 }

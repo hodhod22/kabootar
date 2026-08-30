@@ -57,13 +57,22 @@ let mixed = [1, 2.5, "x"];
 
 Returnerar `Array` — samma typ som `cplx()` och SQL-resultat.
 
+`let [a, ...rest] = nums` (self-host + Kab-VM `array_slice_rest`).
+`let { a, ...rest } = obj` (self-host + Kab-VM `object_rest`).
+Nested: `let { x: [a, b] } = o` (self-host + Kab-VM `get_member`/`index_get`).
+Array-spread: `[1, ...xs]` (self-host + Kab-VM `concat_array`).
+Objekt-spread: `{ a: 1, ...obj }` (self-host + Kab-VM `merge_object`).
+Objekt-shorthand: `{ a }` → `{ a: a }` (self-host + Kab-VM `make_object`).
+Objekt-metod: `{ add(a, b) { return a + b } }` (self-host + Kab-VM `make_arrow_fn`).
+Computed nyckel: `{ [k]: v }` (self-host + Kab-VM `index_set`).
+
 ## Kontrollflöde
 
 - `if` / `else`
 - `while` / `break` / `continue`
 - `for … in` / `for … of`
 - `match` (Rust-liknande)
-- Python-lån: `pass`, `raise` (alias `throw`), `assert`, `with x as name { }`, `is` / `is not`, `not x`
+- Python-lån: `pass`/`assert`/`not`/`raise` (self-host + Kab-VM), `with x as name { }`, `is` / `is not` (self-host + Kab-VM `object_is`)
 
 ## Funktioner
 
@@ -71,7 +80,17 @@ Returnerar `Array` — samma typ som `cplx()` och SQL-resultat.
 fn add(a, b) {
     return a + b
 }
+
+fn greet(name, hello = "hi") {
+    return hello
+}
 ```
+
+Spread i anrop: `f(...xs)` och `Pair(...args)` (self-host parse/emit + Kab-VM `call_from_array` / `new_instance_from_array`).
+
+Rest-parametrar: `fn f(a, ...xs)`, `(a, ...xs) =>`, klassmetod `fn rest(a, ...xs)`, objekt-metod `{ rest(a, ...xs) {} }` och trait default-metod `fn rest(a, ...xs)` (self-host + Kab-VM packar extra args till en array; rust `try_compile` vägrar rest).
+
+Default-parametrar: `fn f(a, b = 3)`, `(a, b = 3) =>`, klassmetod `fn add(a, b = 3)`, objekt-metod `{ add(a, b = 3) {} }` och trait default-metod `fn add(a, b = 3)` (self-host + Kab-VM via `jump_if_not_nullish`; rust bytecode-compile vägrar defaults). Missing args är `undefined` och får default. Rust `try_compile` är inte produktväg.
 
 Parametriska funktioner (`fn id<T>(x: T)`) är **planerade** — se [GENERICS.md](GENERICS.md). Inte tillgängligt i motorn än.
 
@@ -140,10 +159,33 @@ Kabootar som systemspråk — vad som finns idag vs. roadmap. Kör `lang_info()`
 | 7 | Web-native | 🔶 | `html! { }` → Kv8 |
 | 8 | Verktygskedja | 🔶 | `compile`, `fmt`, `registry_*` |
 | 9 | Statisk binär | 🔶 | `cargo build --release` |
-| 10 | Match + guards | ✅ host; self-host array/objekt/enum + `if let`/`while let` | `match x { 1 => …, _ => … }` — self-host: const/`_`/var/`Some`/`None`/`Ok`/`Err` + guards + array/objekt + `Type.Variant` ([ROADMAP L6](ROADMAP.md#våg-l--language-systems-ready--subset)) |
+| 10 | Match + guards | ✅ host; self-host array/objekt/`n @ pat`/or/range/enum | `n @ { a, ...r }` / `n @ [h, ...t]` / `n @ 1..=5 if n != 3` ([ROADMAP L6](ROADMAP.md#våg-l--language-systems-ready--subset)) |
 | 10b | User `enum` | ✅ host + self-host unit/payload | `enum Color { Red, Green }`, `Color.Red`, `Msg.Move(x)` |
 | 10c | `if let` / `while let` | ✅ host; self-host socker | `if let Some(x) = opt { }`, `while let Ok(v) = r { }` |
 | 10d | Class field types | ✅ | `age: number` valideras vid tilldelning |
+| 10e | `struct` + `&self` | ✅ host; self-host parse+emit + **`struct Box<T>`** med fälttyp `T` | `fn get(&self)`; `let b = Box(42)` ([ROADMAP R3](ROADMAP.md)/[R4](ROADMAP.md#våg-r--struct-rust-inspirerat-)) |
+| 10f | Trait default-metoder | ✅ host; self-host emit+inject | `trait HasId { fn id() { return 1 } }` + `class C implements HasId` ([ROADMAP T5](ROADMAP.md)) |
+| 10g | Associated types på klass | ✅ host; self-host parse+emit | `type Item = Number` i `implements Iter` ([ROADMAP T3](ROADMAP.md)) |
+| 10h | `where T: Trait` | ✅ host fn/metod; self-host emit på generiska fn, metoder **och klasser** | `class Box<T> where T: Show` ([ROADMAP T1](ROADMAP.md)) |
+| 10j | Generisk metod på `Box<T>` | ✅ host; self-host emit | `let b = Box(42); b.echo(1)` → `echo$Number` ([GENERICS.md G8.1](GENERICS.md)) |
+| 10k | Generisk enum `Option<T>` / `Result<T,E>` | ✅ host Option; self-host ctor, **två typparametrar**, `match` | `Option.Some(42)`; `Result<Number, String>.Ok(42)` ([GENERICS.md G9](GENERICS.md)) |
+| 10l | Generiskt klassarv | ✅ host; self-host emit; **kab-only default** kbcb-eval `Child().tag()` / `Child<Number>().tag()` | `class Child<T> extends Base<T>` → `Child$Number` extends `Base$Number`; **`super.tag()`** / **`super.init(...)`** → `get_super_method`; **`super.count = 1`** / **`super.n += 2`**; **`let m = super.tag; m()`**; **`this.run(super.f)`**; **`(super.f)(4)`** |
+| 10m | Explicit type-args + två specs | ✅ host; self-host emit | `id<Number>(42)`; `id(id(42))`; `pair$Number_String`; **`len(pair(x, s))`** / **`len(wrap(1))`** → `get_length`; `Box<String>("hi")`; `h.echo(1)` + `h.echo("x")`; `id(b)` → `id$Box` |
+| 10n | Logical assign + `??` | ✅ host; self-host lexer/parse/emit; **kab-only default** | `a \|\|= 5`; `b &&= 9`; `c ??= 3`; `null ?? 4` → `jump_if_not_nullish` |
+| 10o | Optional chaining | ✅ host; self-host parse+emit; **kab-only default** | `o?.x` / `xs?.[0]` via `__opt_member` / `__opt_index`; `f?.()` via `jump_if_not_nullish` + `call` |
+| 10p | Ternary `? :` | ✅ host; self-host parse+emit; **kab-only default** | `n > 3 ? 10 : 0`; nästlad `true ? false ? 1 : 2 : 3` |
+| 10q | Result `?` | ✅ host; self-host parse+emit; **kab-only default** | `step()?` unwrap `Ok`; `bad()?` behåller `Err` (`match` → inner) → `result_question` |
+| 10r | `switch` | ✅ host; self-host parse+emit + explicit **`fallthrough`**; **kab-only default** (match + default + fallthrough) | `switch (n) { case 2: { …; fallthrough } case 3: { … } }` |
+| 10s | `do`/`while` | ✅ host; self-host parse+emit; **kab-only default** | `do { n = n + 1 } while (false)` kör kroppen minst en gång |
+| 10t | Index/member `+=` | ✅ host; self-host parse+emit; **kab-only default** | `xs[0] += 3` via `iatmp`/`index_set`; **`o.x += 3`** / **`o.a.b += 4`** via `matmp`/`member_set`; **`o.items[0] +=`** store-back via `member_set`; **`xs[0].x +=`**; **`xs[0][0] +=`** Index-av-Index store-back |
+| 10u | Template literals | ✅ host; self-host lexer/parse+emit; **kab-only default** | `` `n=${n}` `` desugaras till sträng-`+` |
+| 10v | `is` / `instanceof` | ✅ host; self-host parse+emit; **kab-only default** | `is(obj, "Class")` → `instanceof` CALL; Kab-VM `vInstanceofS` på `vmC` + `extends` |
+| 10w | Python-lån (`pass`/`raise`/`assert`/`not`) | ✅ host eval; self-host parse+emit; **kab-only default** | `pass`; `assert cond, msg`; `not x` → `!` / `OP_NOT`; `raise e` / `throw e` + `try`/`catch` (`fn_try_region`; densify-fix `bodyStart`) |
+| 10x | `with` + `is`/`is not` | ✅ host eval; self-host parse+emit + Kab-VM | `with rsrc as r { }`; `a is b` → `object_is` CALL |
+| 10y | `using` | ✅ host eval; self-host parse+emit | `using x = r` i `{ }` (pEnterBody-block, inte tom pStmts-push) → `dispose`/`close` vid block-slut. Kab-VM: `store_global` från anropad `close` syns inte i anroparen (trampolin-COW) |
+| 10z | `import.meta` / `import()` | ✅ host eval; self-host parse+emit; **kab-only default** för **`import.meta`** | `import.meta.url` / `.path` → `import_meta()`; `import("math")` → `dynamic_import` (inte Kab-VM-proven) |
+| 10aa | `delete` | ✅ host eval; self-host parse+emit; **kab-only default** | `delete o.z` → `object_delete_prop` + store-back på var (rust `try_compile` vägrar `delete`) |
+| 10ab | Klassisk `for` | ✅ host eval; self-host parse+emit; **kab-only default** | `for let i = 0; i < n; i = i + 1 { }` (även `for (let …)`); `for x of xs` oförändrad |
 | 11 | Effect system | 🔶 | `@pure` `@io` `@disk` (strippas) |
 | 12 | Benchmark | 🔶 | `lang_benchmark`, `@benchmark` |
 | 13 | Doc-exempel | 🔶 | `@example` planerat |

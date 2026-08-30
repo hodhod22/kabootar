@@ -1,4 +1,5 @@
 import "self_host/ast_defs"
+import "self_host/lexer_scan"
 
 // --- parser_postfix_arr ---
 pub fn parsePostfix_arr(sess) {
@@ -10,16 +11,21 @@ pub fn parsePostfix_arr(sess) {
         return 0
     }
     bump(sess)
-    sess["pArgs"] = []
+    // Nested `[a, f(x)]` / `f([1], g(y))` must not share sess["pArgs"] (wipes outer list).
+    let arrElems = []
     while sess["pCur"].type != "]" {
-        let elem = pCallCompare(sess)
-        sess["pArgs"] = push(sess["pArgs"], elem)
+        if sess["pCur"].type == "..." {
+            bump(sess)
+            arrElems = push(arrElems, { "kind": AST_SPREAD, "expr": pCallCompare(sess) })
+        } else {
+            arrElems = push(arrElems, pCallCompare(sess))
+        }
         if sess["pCur"].type == "," {
             bump(sess)
         }
     }
     bump(sess)
-    sess["pLeft"] = { "kind": AST_ARRAY, "elems": sess["pArgs"] }
+    sess["pLeft"] = { "kind": AST_ARRAY, "elems": arrElems }
     return 0
 }
 
@@ -100,13 +106,57 @@ pub fn parsePostfix_lit_ident(sess) {
         sess["pLeft"] = { "kind": AST_VAR, "sym": "this" }
         return 0
     }
+    if sess["pTok"].type == TOKEN_SUPER {
+        bump(sess)
+        sess["pLeft"] = { "kind": AST_SUPER }
+        return 0
+    }
+    if sess["pTok"].type == TOKEN_IS {
+        bump(sess)
+        sess["pLeft"] = { "kind": AST_VAR, "sym": "instanceof" }
+        return 0
+    }
+    if sess["pTok"].type == TOKEN_IMPORT {
+        bump(sess)
+        if sess["pCur"].type == "." {
+            bump(sess)
+            sess["pTok"] = sess["pCur"]
+            if !(sess["pTok"].type == TOKEN_IDENT && sess["pTok"].value == "meta") {
+                throw "import expression expects .meta or (specifier)"
+            }
+            bump(sess)
+            sess["pLeft"] = {
+                "kind": AST_CALL,
+                "callee": { "kind": AST_VAR, "sym": "import_meta" },
+                "args": [],
+                "typeArgs": []
+            }
+            return 0
+        }
+        if sess["pCur"].type == "(" {
+            bump(sess)
+            let spec = pCallCompare(sess)
+            if sess["pCur"].type != ")" {
+                throw "Expected )"
+            }
+            bump(sess)
+            sess["pLeft"] = {
+                "kind": AST_CALL,
+                "callee": { "kind": AST_VAR, "sym": "dynamic_import" },
+                "args": [spec],
+                "typeArgs": []
+            }
+            return 0
+        }
+        throw "import expression expects .meta or (specifier)"
+    }
     return 0
 }
 
 // --- parser_postfix_lit_num ---
 pub fn parsePostfix_lit_num(sess) {
     sess["pTok"] = sess["pCur"]
-    if sess["pTok"].type == TOKEN_NUMBER {
+    if sess["pTok"].type == TOKEN_NUMBER || sess["pTok"].type == TOKEN_FLOAT {
         bump(sess)
         sess["pLeft"] = { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": sess["pTok"].value }
         return 1
@@ -116,7 +166,66 @@ pub fn parsePostfix_lit_num(sess) {
         sess["pLeft"] = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": sess["pTok"].value }
         return 1
     }
+    if sess["pTok"].type == TOKEN_TEMPLATE {
+        let tParts = sess["pTok"].value
+        bump(sess)
+        sess["pLeft"] = parseTemplateParts(sess, tParts)
+        return 1
+    }
     return 0
+}
+
+pub fn parseTemplateInterp(sess, src) {
+    let toks = tokenizeExec(src)
+    let saveToks = sess["pToks"]
+    let saveLen = sess["pToksLen"]
+    let savePos = sess["pPos"]
+    let saveCur = sess["pCur"]
+    let saveTok = sess["pTok"]
+    let saveLeft = sess["pLeft"]
+    let saveTypeArgs = sess["pTypeArgs"]
+    sess["pToks"] = toks
+    sess["pToksLen"] = len(toks)
+    sess["pPos"] = 0
+    if sess["pToksLen"] > 0 {
+        sess["pCur"] = toks[0]
+    } else {
+        sess["pCur"] = sess["pEofTok"]
+    }
+    sess["pLeft"] = null
+    sess["pTypeArgs"] = []
+    let expr = pCallCompare(sess)
+    sess["pToks"] = saveToks
+    sess["pToksLen"] = saveLen
+    sess["pPos"] = savePos
+    sess["pCur"] = saveCur
+    sess["pTok"] = saveTok
+    sess["pLeft"] = saveLeft
+    sess["pTypeArgs"] = saveTypeArgs
+    return expr
+}
+
+pub fn parseTemplateParts(sess, parts) {
+    let acc = null
+    let pi = 0
+    while pi < len(parts) {
+        let piece = null
+        if parts[pi]["t"] == "s" {
+            piece = { "kind": AST_LITERAL, "lit": LIT_STRING, "value": parts[pi]["v"] }
+        } else {
+            piece = parseTemplateInterp(sess, parts[pi]["v"])
+        }
+        if acc == null {
+            acc = piece
+        } else {
+            acc = { "kind": AST_BINARY, "op": "+", "left": acc, "right": piece }
+        }
+        pi = pi + 1
+    }
+    if acc == null {
+        return { "kind": AST_LITERAL, "lit": LIT_STRING, "value": "" }
+    }
+    return acc
 }
 
 // --- parser_postfix_lit_wrap ---
@@ -148,6 +257,22 @@ pub fn parsePostfix_lit_wrap(sess) {
 }
 
 // --- parser_postfix_obj ---
+pub fn parsePostfix_objMethod(sess, key) {
+    bump(sess)
+    let scanned = parsePostfix_paren_scan(sess)
+    if scanned["ok"] != 1 {
+        throw "Expected method params"
+    }
+    if sess["pCur"].type != "{" {
+        throw "Expected {"
+    }
+    bump(sess)
+    pEnterBody(sess)
+    pParseBodyUntilRBrace(sess, "Unclosed object method")
+    let ab = pLeaveBody(sess)
+    return { "key": key, "value": { "kind": AST_ARROW, "params": scanned["params"], "paramDefaults": scanned["defaults"], "rest": scanned["rest"], "body": { "kind": AST_BLOCK, "body": ab } } }
+}
+
 pub fn parsePostfix_obj(sess) {
     if sess["pLeft"] != null {
         return 0
@@ -157,37 +282,64 @@ pub fn parsePostfix_obj(sess) {
         return 0
     }
     bump(sess)
-    sess["pObjFields"] = []
+    let objFields = []
     while sess["pCur"].type != "}" {
-        sess["pTok"] = sess["pCur"]
-        if sess["pTok"].type == TOKEN_IDENT {
+        if sess["pCur"].type == "..." {
             bump(sess)
-            sess["pSaveSym"] = poolPush(sess, sess["pTok"].value)
+            objFields = push(objFields, { "kind": AST_SPREAD, "expr": pCallCompare(sess) })
         } else {
-            if sess["pTok"].type == TOKEN_STRING {
+            if sess["pCur"].type == "[" {
                 bump(sess)
-                sess["pSaveSym"] = poolPush(sess, sess["pTok"].value)
+                let keyExpr = pCallCompare(sess)
+                if sess["pCur"].type != "]" {
+                    throw "Expected ]"
+                }
+                bump(sess)
+                if sess["pCur"].type != ":" {
+                    throw "Expected :"
+                }
+                bump(sess)
+                objFields = push(objFields, { "kind": AST_COMPUTED, "key": keyExpr, "value": pCallCompare(sess) })
             } else {
-                throw "Expected object key"
+                sess["pTok"] = sess["pCur"]
+                let key = ""
+                if sess["pTok"].type == TOKEN_IDENT {
+                    bump(sess)
+                    key = poolPush(sess, sess["pTok"].value)
+                } else {
+                    if sess["pTok"].type == TOKEN_STRING {
+                        bump(sess)
+                        key = poolPush(sess, sess["pTok"].value)
+                    } else {
+                        throw "Expected object key"
+                    }
+                }
+                if sess["pCur"].type == "(" {
+                    objFields = push(objFields, parsePostfix_objMethod(sess, key))
+                } else {
+                    if sess["pCur"].type == ":" {
+                        bump(sess)
+                        objFields = push(objFields, { "key": key, "value": pCallCompare(sess) })
+                    } else {
+                        if sess["pTok"].type != TOKEN_IDENT {
+                            throw "Expected :"
+                        }
+                        objFields = push(objFields, { "key": key, "value": { "kind": AST_VAR, "sym": key } })
+                    }
+                }
             }
         }
-        if sess["pCur"].type != ":" {
-            throw "Expected :"
-        }
-        bump(sess)
-        sess["pVal"] = pCallCompare(sess)
-        object_array_push(sess, "pObjFields", { "key": sess["pSaveSym"], "value": sess["pVal"] })
         if sess["pCur"].type == "," {
             bump(sess)
         }
     }
     bump(sess)
-    sess["pLeft"] = { "kind": AST_OBJECT, "fields": sess["pObjFields"] }
+    sess["pLeft"] = { "kind": AST_OBJECT, "fields": objFields }
     return 0
 }
 
 // --- parser_postfix_paren_arrow ---
-pub fn parsePostfix_paren_arrow(sess, arrowParams) {
+pub fn parsePostfix_paren_arrow(sess, scanned) {
     bump(sess)
     let arrowBody = null
     if sess["pCur"].type == "{" {
@@ -199,7 +351,13 @@ pub fn parsePostfix_paren_arrow(sess, arrowParams) {
     } else {
         arrowBody = pCallCompare(sess)
     }
-    sess["pLeft"] = { "kind": AST_ARROW, "params": arrowParams, "body": arrowBody }
+    sess["pLeft"] = {
+        "kind": AST_ARROW,
+        "params": scanned["params"],
+        "paramDefaults": scanned["defaults"],
+        "rest": scanned["rest"],
+        "body": arrowBody
+    }
     return 0
 }
 
@@ -223,12 +381,31 @@ pub fn parsePostfix_paren_group(sess, savePos) {
 // --- parser_postfix_paren_scan ---
 pub fn parsePostfix_paren_scan(sess) {
     let arrowParams = []
+    let arrowDefaults = []
+    let arrowRest = ""
     let arrowOk = 1
+    let sawDefault = 0
     if sess["pCur"].type == ")" {
         bump(sess)
-        return { "ok": arrowOk, "params": arrowParams }
+        return { "ok": arrowOk, "params": arrowParams, "defaults": arrowDefaults, "rest": arrowRest }
     }
     while sess["pCur"].type != ")" {
+        if sess["pCur"].type == "..." {
+            bump(sess)
+            if sess["pCur"].type != TOKEN_IDENT {
+                arrowOk = 0
+                break
+            }
+            sess["pTok"] = sess["pCur"]
+            bump(sess)
+            arrowRest = sess["pTok"].value
+            arrowParams = push(arrowParams, arrowRest)
+            arrowDefaults = push(arrowDefaults, null)
+            if sess["pCur"].type == "," {
+                arrowOk = 0
+            }
+            break
+        }
         if sess["pCur"].type != TOKEN_IDENT {
             arrowOk = 0
             break
@@ -236,6 +413,18 @@ pub fn parsePostfix_paren_scan(sess) {
         sess["pTok"] = sess["pCur"]
         bump(sess)
         arrowParams = push(arrowParams, sess["pTok"].value)
+        let def = null
+        if sess["pCur"].type == "=" {
+            bump(sess)
+            sawDefault = 1
+            def = pCallCompare(sess)
+        } else {
+            if sawDefault == 1 {
+                arrowOk = 0
+                break
+            }
+        }
+        arrowDefaults = push(arrowDefaults, def)
         if sess["pCur"].type == "," {
             bump(sess)
         } else {
@@ -252,7 +441,7 @@ pub fn parsePostfix_paren_scan(sess) {
             bump(sess)
         }
     }
-    return { "ok": arrowOk, "params": arrowParams }
+    return { "ok": arrowOk, "params": arrowParams, "defaults": arrowDefaults, "rest": arrowRest }
 }
 
 // --- parser_postfix_tail_call ---
@@ -267,11 +456,18 @@ pub fn parsePostfix_tail_call(sess) {
     let savedCallee = sess["pCallee"]
     let savedTypeArgs = sess["pTypeArgs"]
     bump(sess)
-    sess["pArgs"] = []
+    // Nested `len(wrap(1))` / `str_slice(s, 2, len(s))`: inner call must not reset outer pArgs.
+    let callArgs = []
     if sess["pCur"].type != ")" {
         while true {
-            let arg = pCallCompare(sess)
-            sess["pArgs"] = push(sess["pArgs"], arg)
+            let arg = null
+            if sess["pCur"].type == "..." {
+                bump(sess)
+                arg = { "kind": AST_SPREAD, "expr": pCallCompare(sess) }
+            } else {
+                arg = pCallCompare(sess)
+            }
+            callArgs = push(callArgs, arg)
             if sess["pCur"].type == "," {
                 bump(sess)
             } else {
@@ -283,7 +479,7 @@ pub fn parsePostfix_tail_call(sess) {
         throw "Expected )"
     }
     bump(sess)
-    sess["pLeft"] = { "kind": AST_CALL, "callee": savedCallee, "args": sess["pArgs"], "typeArgs": savedTypeArgs }
+    sess["pLeft"] = { "kind": AST_CALL, "callee": savedCallee, "args": callArgs, "typeArgs": savedTypeArgs }
     sess["pTypeArgs"] = []
     return 1
 }
@@ -390,7 +586,7 @@ pub fn parsePostfix_paren(sess) {
     bump(sess)
     let scanned = parsePostfix_paren_scan(sess)
     if scanned["ok"] == 1 && sess["pCur"].type == "=>" {
-        parsePostfix_paren_arrow(sess, scanned["params"])
+        parsePostfix_paren_arrow(sess, scanned)
     } else {
         parsePostfix_paren_group(sess, savePos)
     }
@@ -412,6 +608,55 @@ pub fn parsePostfix_tail_member(sess) {
         "typeArgs": sess["pTypeArgs"]
     }
     sess["pTypeArgs"] = []
+    return 1
+}
+
+// --- parser_postfix_tail_opt ---
+pub fn parsePostfix_tail_opt(sess) {
+    if sess["pCur"].type != "?." {
+        return 0
+    }
+    bump(sess)
+    if sess["pCur"].type == "[" {
+        bump(sess)
+        let indexObj = sess["pLeft"]
+        let index = pCallCompare(sess)
+        if sess["pCur"].type != "]" {
+            throw "Expected ]"
+        }
+        bump(sess)
+        sess["pLeft"] = { "kind": AST_OPTIONAL_INDEX, "object": indexObj, "index": index }
+        return 1
+    }
+    if sess["pCur"].type == "(" {
+        let savedCallee = sess["pLeft"]
+        bump(sess)
+        let callArgs = []
+        if sess["pCur"].type != ")" {
+            while true {
+                let arg = pCallCompare(sess)
+                callArgs = push(callArgs, arg)
+                if sess["pCur"].type == "," {
+                    bump(sess)
+                } else {
+                    break
+                }
+            }
+        }
+        if sess["pCur"].type != ")" {
+            throw "Expected )"
+        }
+        bump(sess)
+        sess["pLeft"] = { "kind": AST_OPTIONAL_CALL, "callee": savedCallee, "args": callArgs }
+        return 1
+    }
+    parsePostfix_tail_member_name(sess)
+    sess["pMemberName"] = poolPush(sess, sess["pMemberName"])
+    sess["pLeft"] = {
+        "kind": AST_OPTIONAL_MEMBER,
+        "object": sess["pLeft"],
+        "field": sess["pMemberName"]
+    }
     return 1
 }
 
@@ -440,6 +685,8 @@ pub fn parsePostfix_tail(sess) {
             if g == -1 {
                 break
             }
+            let o = parsePostfix_tail_opt(sess)
+            if o == 0 {
             let c = parsePostfix_tail_call(sess)
             if c == 0 {
                 let m = parsePostfix_tail_member(sess)
@@ -450,19 +697,106 @@ pub fn parsePostfix_tail(sess) {
                     }
                 }
             }
+            }
         }
     }
     return sess["pLeft"]
 }
 
-pub fn parseMatchPat(sess) {
+pub fn matchPatRangeHiMissing(sess) {
     let t = sess["pCur"].type
+    if t == "=>" {
+        return 1
+    }
+    if t == "|" {
+        return 1
+    }
+    if t == TOKEN_IF {
+        return 1
+    }
+    if t == "," {
+        return 1
+    }
+    if t == "}" {
+        return 1
+    }
+    if t == "=" {
+        return 1
+    }
+    return 0
+}
+
+pub fn parseMatchPatRangeOp(sess) {
+    let rt = sess["pCur"].type
+    let inc = 0
+    if rt == "..=" {
+        inc = 1
+    }
+    bump(sess)
+    return inc
+}
+
+pub fn parseMatchPatPrimary(sess) {
+    let t = sess["pCur"].type
+    if t == ".." || t == "..=" {
+        let inc = parseMatchPatRangeOp(sess)
+        let hi = parseMatchPatAtom(sess)
+        return { "kind": "range", "lo": null, "hi": hi, "inc": inc }
+    }
+    let first = parseMatchPatAtom(sess)
+    let rt = sess["pCur"].type
+    if rt != ".." && rt != "..=" {
+        return first
+    }
+    let inc = parseMatchPatRangeOp(sess)
+    if matchPatRangeHiMissing(sess) == 1 {
+        return { "kind": "range", "lo": first, "hi": null, "inc": inc }
+    }
+    let hi = parseMatchPatAtom(sess)
+    return { "kind": "range", "lo": first, "hi": hi, "inc": inc }
+}
+
+pub fn parseMatchPat(sess) {
+    let first = parseMatchPatPrimary(sess)
+    if sess["pCur"].type != "|" {
+        return first
+    }
+    let alts = []
+    alts = push(alts, first)
+    while sess["pCur"].type == "|" {
+        bump(sess)
+        alts = push(alts, parseMatchPatPrimary(sess))
+    }
+    return { "kind": "or", "alts": alts }
+}
+
+pub fn parseMatchPatAtom(sess) {
+    let t = sess["pCur"].type
+    if t == "(" {
+        bump(sess)
+        let inner = parseMatchPat(sess)
+        if sess["pCur"].type != ")" {
+            throw "Expected ) in pattern"
+        }
+        bump(sess)
+        return inner
+    }
     if t == "[" {
         bump(sess)
         let pieces = []
         while sess["pCur"].type != "]" {
             if sess["pCur"].type == "," {
                 bump(sess)
+                continue
+            }
+            if sess["pCur"].type == "..." {
+                bump(sess)
+                let rname = ""
+                if sess["pCur"].type == TOKEN_IDENT {
+                    bump(sess)
+                    rname = sess["pTok"]["value"]
+                }
+                pieces = push(pieces, { "kind": "rest", "sym": rname })
                 continue
             }
             pieces = push(pieces, { "kind": "item", "pat": parseMatchPat(sess) })
@@ -476,6 +810,16 @@ pub fn parseMatchPat(sess) {
         while sess["pCur"].type != "}" {
             if sess["pCur"].type == "," {
                 bump(sess)
+                continue
+            }
+            if sess["pCur"].type == "..." {
+                bump(sess)
+                let rname = ""
+                if sess["pCur"].type == TOKEN_IDENT {
+                    bump(sess)
+                    rname = sess["pTok"]["value"]
+                }
+                fields = push(fields, { "kind": "rest", "sym": rname })
                 continue
             }
             bump(sess)
@@ -501,8 +845,34 @@ pub fn parseMatchPat(sess) {
         }
         if sess["pCur"].type == "." {
             bump(sess)
-            bump(sess)
-            let variant = sess["pTok"]["value"]
+            sess["pTok"] = sess["pCur"]
+            let variant = ""
+            if sess["pTok"].type == TOKEN_IDENT {
+                bump(sess)
+                variant = sess["pTok"].value
+            } else {
+                if sess["pTok"].type == TOKEN_SOME {
+                    bump(sess)
+                    variant = "Some"
+                } else {
+                    if sess["pTok"].type == TOKEN_NONE {
+                        bump(sess)
+                        variant = "None"
+                    } else {
+                        if sess["pTok"].type == TOKEN_OK {
+                            bump(sess)
+                            variant = "Ok"
+                        } else {
+                            if sess["pTok"].type == TOKEN_ERR {
+                                bump(sess)
+                                variant = "Err"
+                            } else {
+                                throw "Expected enum variant name"
+                            }
+                        }
+                    }
+                }
+            }
             let fields = []
             if sess["pCur"].type == "(" {
                 bump(sess)
@@ -516,6 +886,11 @@ pub fn parseMatchPat(sess) {
                 bump(sess)
             }
             return { "kind": "enum", "typeName": name, "variant": variant, "fields": fields }
+        }
+        if sess["pCur"].type == "@" {
+            bump(sess)
+            let inner = parseMatchPat(sess)
+            return { "kind": "at", "sym": name, "inner": inner }
         }
         return { "kind": "var", "sym": name }
     }
@@ -542,6 +917,10 @@ pub fn parseMatchPat(sess) {
     if t == TOKEN_UNDEFINED {
         bump(sess)
         return { "kind": "const", "undef": 1 }
+    }
+    if t == TOKEN_NAN {
+        bump(sess)
+        return { "kind": "const", "nan": 1 }
     }
     if t == TOKEN_NONE {
         bump(sess)

@@ -91,8 +91,11 @@ pub const SELF_HOST_SKIP_LISTED_LEAVES: &[&str] = &[];
 /// H6e: same ceiling as `kab/boot` `bootPolicy("maxBytes")` (parity smoke).
 pub const SELF_HOST_MAX_SOURCE_BYTES: usize = 64 * 1024;
 
-/// Loader mirror of `kab/boot` `bootPolicy("maxKbc")`.
+/// Loader mirror of `kab/boot` `bootPolicy("maxKbc")` (text `.kbc` only).
 pub const KAB_VM_MAX_KBC_BYTES: usize = 262144;
+
+/// Loader mirror of `kab/boot` `bootPolicy("maxKbcb")` (packed v2).
+pub const KAB_VM_MAX_KBCB_BYTES: usize = 8 * 1024 * 1024;
 
 fn should_attempt_self_host(path: &str, source: &str) -> bool {
     let norm = path.replace('\\', "/");
@@ -137,12 +140,17 @@ pub fn self_host_is_skip_listed(path: &str) -> bool {
     }
 }
 
-fn kab_vm_only_mode() -> bool {
-    // Process-wide strict only via env. Nested Kab eval may still host-load toolchain shards.
+/// Host bytecode VM is opt-in (`KABOOTAR_VM=rust|host`). Unset / kab / kab-only = no host for apps.
+fn kab_vm_host_opt_in() -> bool {
     matches!(
         std::env::var("KABOOTAR_VM").as_deref(),
-        Ok("kab-only") | Ok("only") | Ok("kab_only")
+        Ok("rust") | Ok("host")
     )
+}
+
+fn kab_vm_only_mode() -> bool {
+    // Nested Kab eval may still host-load toolchain shards (`KAB_VM_EXEC_ACTIVE`).
+    !kab_vm_host_opt_in()
 }
 
 fn rough_stmt_count(source: &str) -> usize {
@@ -329,8 +337,6 @@ pub fn compile_file_prefer(
 }
 
 static PARSE_CACHE: OnceLock<Mutex<HashMap<String, CachedProgram>>> = OnceLock::new();
-static KAB_VM_RUN_ENABLED: OnceLock<Mutex<Option<bool>>> = OnceLock::new();
-static KAB_VM_POLICY_PROBE: AtomicBool = AtomicBool::new(false);
 static KAB_VM_EXEC_ACTIVE: AtomicBool = AtomicBool::new(false);
 
 thread_local! {
@@ -355,50 +361,22 @@ pub fn reset_self_host_toolchain_cache() {
     SELF_HOST_TOOLCHAIN.with(|s| *s.borrow_mut() = None);
 }
 
-fn kab_vm_run_enabled(env: &mut Environment) -> Result<bool, String> {
-    // Prefer Kab VM for small .kbc when policy is healthy; evalKbc falls back to host VM
-    // unless KABOOTAR_VM=kab-only (strict delete-gate: no Rust run_module).
-    // KABOOTAR_VM=rust|host forces host; kab|kabootar|self|kab-only forces prefer Kab.
-    if KAB_VM_POLICY_PROBE.load(Ordering::Acquire) || KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
-        return Ok(false);
+fn kab_vm_run_enabled() -> bool {
+    // Nested Kab eval / self-host toolchain stays on host (the Kab VM runs there).
+    if KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
+        return false;
     }
-    match std::env::var("KABOOTAR_VM").as_deref() {
-        Ok("rust") | Ok("host") => return Ok(false),
-        Ok("kab") | Ok("kabootar") | Ok("self") | Ok("kab-only") | Ok("only") | Ok("kab_only") => {
-            return Ok(true)
-        }
-        _ => {}
-    }
-    let slot = KAB_VM_RUN_ENABLED.get_or_init(|| Mutex::new(None));
-    if let Ok(guard) = slot.lock() {
-        if let Some(cached) = *guard {
-            return Ok(cached);
-        }
-    }
-    KAB_VM_POLICY_PROBE.store(true, Ordering::Release);
-    let probed = (|| {
-        modules::import_module("kab/vm", env)?;
-        let f = env
-            .get("kabVmRunEnabled")
-            .ok_or("kab/vm: missing kabVmRunEnabled")?;
-        let v = call_value(f, vec![], &[], &[], &[], &[], env)?;
-        drain_all_microtasks(env)?;
-        Ok::<bool, String>(v.is_truthy())
-    })();
-    KAB_VM_POLICY_PROBE.store(false, Ordering::Release);
-    let enabled = probed.unwrap_or(false);
-    if let Ok(mut guard) = slot.lock() {
-        *guard = Some(enabled);
-    }
-    Ok(enabled)
+    // SH6: kab-only is default (`vmPrefer=kab`, `vmAppHostFallback=false`).
+    // rust|host still forces the host VM.
+    !kab_vm_host_opt_in()
 }
 
+#[allow(dead_code)]
 fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String> {
     KAB_VM_EXEC_ACTIVE.store(true, Ordering::Release);
     let result = (|| {
         modules::import_module("kab/vm", env)?;
-        // When Kab VM path is selected (healthy probe or KABOOTAR_VM=kab*), run
-        // kab-only — no soft host `bytecode_run_kbc` fallback.
+        // When Kab VM path is selected, run kab-only — no soft host bytecode_run_kbc.
         let f = env
             .get("evalKbcKabOnly")
             .ok_or("kab/vm: missing evalKbcKabOnly")?;
@@ -416,6 +394,106 @@ fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String
     })();
     KAB_VM_EXEC_ACTIVE.store(false, Ordering::Release);
     result
+}
+
+fn eval_kbcb_view_via_kab_vm(view: Value, env: &mut Environment) -> Result<Value, String> {
+    KAB_VM_EXEC_ACTIVE.store(true, Ordering::Release);
+    let result = (|| {
+        modules::import_module("kab/vm", env)?;
+        let f = env
+            .get("evalKbcKabOnly")
+            .ok_or("kab/vm: missing evalKbcKabOnly")?;
+        let v = call_value(f, vec![view], &[], &[], &[], &[], env)?;
+        drain_all_microtasks(env)?;
+        Ok(v)
+    })();
+    KAB_VM_EXEC_ACTIVE.store(false, Ordering::Release);
+    result
+}
+
+fn eval_kbcb_via_kab_vm(bytes: &[u8], env: &mut Environment) -> Result<Value, String> {
+    let view = crate::runtime::shared_memory::uint8_array_from_bytes(bytes)?;
+    eval_kbcb_view_via_kab_vm(view, env)
+}
+
+/// SH6: mmap a packed `.kbcb` and eval on Kab VM (no SAB fill, no host deserialize).
+pub fn eval_kbcb_file(path: &Path, env: &mut Environment) -> Result<Value, String> {
+    let view = crate::runtime::shared_memory::uint8_array_from_mmap_file(path)?;
+    eval_kbcb_view_via_kab_vm(view, env)
+}
+
+fn file_looks_like_kbcb(path: &Path) -> bool {
+    use std::io::Read;
+    let mut buf = [0u8; 9];
+    let Ok(mut f) = fs::File::open(path) else {
+        return false;
+    };
+    f.read_exact(&mut buf).is_ok() && looks_like_kbcb(&buf)
+}
+
+fn kbcb_file_ok_for_kab_vm(path: &Path) -> bool {
+    if !path.is_file() {
+        return false;
+    }
+    let n = fs::metadata(path)
+        .ok()
+        .map(|m| m.len() as usize)
+        .unwrap_or(0);
+    n > 0 && n <= KAB_VM_MAX_KBCB_BYTES && file_looks_like_kbcb(path)
+}
+
+/// CA or path-keyed `.kbcb` when fingerprint matches — mmap eval skips host deserialize.
+fn cached_kbcb_path_for_eval(path: &str) -> Option<PathBuf> {
+    let base = std::env::current_dir().ok()?;
+    if let Ok(source) = fs::read_to_string(path) {
+        let fp = source_fingerprint(path, &source);
+        let ca = cache_path_kbcb_ca(&base, &fp);
+        if kbcb_file_ok_for_kab_vm(&ca) {
+            return Some(ca);
+        }
+        let kbcb_path = cache_path_kbcb(&base, path);
+        if kbcb_file_ok_for_kab_vm(&kbcb_path) {
+            let marker = cache_path_for(&base, path);
+            if let Ok(text) = fs::read_to_string(&marker) {
+                if let Some(line) = text.lines().find(|l| l.starts_with("fingerprint=")) {
+                    let got = line.trim_start_matches("fingerprint=");
+                    if got != fp {
+                        return None;
+                    }
+                }
+                let norm = |p: &str| p.replace('\\', "/");
+                if let Some(line) = text.lines().find(|l| l.starts_with("source=")) {
+                    let cached_src = line.trim_start_matches("source=");
+                    if norm(cached_src) != norm(path) {
+                        return None;
+                    }
+                }
+            }
+            return Some(kbcb_path);
+        }
+    }
+    None
+}
+
+fn eval_kbcb_file_kab_or_err(kbcb_path: &Path, env: &mut Environment) -> Result<Value, String> {
+    match eval_kbcb_file(kbcb_path, env) {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            let detail = crate::runtime::stdlib::error::format_runtime_error(&e);
+            Err(format!("SH6: Kab VM failed (no host fallback): {detail}"))
+        }
+    }
+}
+
+/// Warm CA/path-keyed `.kbcb` → mmap Kab VM. `None` if no cache file (caller compiles).
+fn try_mmap_cached_kbcb(path: &str, env: &mut Environment) -> Result<Option<Value>, String> {
+    if !kab_vm_run_enabled() {
+        return Ok(None);
+    }
+    match cached_kbcb_path_for_eval(path) {
+        Some(kbcb_path) => eval_kbcb_file_kab_or_err(&kbcb_path, env).map(Some),
+        None => Ok(None),
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -544,11 +622,13 @@ fn compile_file_prefer_cached_src(
             "SH1: no compiler-image seed for `{path}` (run KABOOTAR_SH1_WARM=1 / write_compiler_dag_seeds)"
         ));
     }
-    // H6e delete-gate: kab-only must not live-Rust-compile skip-listed leaves.
-    // Soften while the self-host toolchain / Kab VM is already executing
-    // (`KAB_VM_EXEC_ACTIVE`), and when the caller forced `--rust` / KABOOTAR_COMPILE=rust.
-    if kab_vm_only_mode()
-        && prefer != CompilePrefer::Rust
+    // H6e: explicit `KABOOTAR_VM=kab-only` still refuses live-Rust-compile of
+    // files `should_attempt_self_host` rejects. Default kab-only *eval* does not
+    // widen this compile gate (SH16 already blocks app `--rust`).
+    if matches!(
+        std::env::var("KABOOTAR_VM").as_deref(),
+        Ok("kab-only") | Ok("only") | Ok("kab_only")
+    ) && prefer != CompilePrefer::Rust
         && !KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire)
     {
         let source = fs::read_to_string(path).unwrap_or_default();
@@ -569,12 +649,12 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
     crate::runtime::ownership::set_memory_mode(env, program.memory_mode);
     if let Some(bytecode) = &program.bytecode {
         if bytecode.uses_bytecode() {
-            if kab_vm_run_enabled(env)? {
-                let kbc = serialize(bytecode);
-                // SH6: healthy/forced Kab VM — no silent host run_module on small .kbc.
-                // Oversize still uses host unless kab-only.
-                if kbc.len() <= KAB_VM_MAX_KBC_BYTES {
-                    match eval_kbc_via_kab_vm(&kbc, env) {
+            if kab_vm_run_enabled() {
+                let kbcb = serialize_kbcb(bytecode);
+                // SH6: Kab VM is default via packed kbcb v2 (no text deserializeKbc).
+                // Text maxKbc still applies only to evalKbcKabOnly(string).
+                if kbcb.len() <= KAB_VM_MAX_KBCB_BYTES {
+                    match eval_kbcb_via_kab_vm(&kbcb, env) {
                         Ok(v) => return Ok(v),
                         Err(e) => {
                             let detail = crate::runtime::stdlib::error::format_runtime_error(&e);
@@ -582,7 +662,7 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
                         }
                     }
                 } else if kab_vm_only_mode() {
-                    return Err("Kab VM only: .kbc exceeds bootPolicy maxKbc".into());
+                    return Err("Kab VM only: .kbcb exceeds bootPolicy maxKbcb".into());
                 }
             }
             if kab_vm_only_mode() {
@@ -618,11 +698,35 @@ pub fn load_program_for_file(path: &str, source: &str) -> Result<CompiledProgram
     Ok(program)
 }
 
+fn path_looks_like_packed_kbcb(path: &str) -> bool {
+    let lower = path.replace('\\', "/").to_ascii_lowercase();
+    lower.ends_with(".kbcb") && kbcb_file_ok_for_kab_vm(Path::new(path))
+}
+
 pub fn eval_file_cached(path: &str, env: &mut Environment) -> Result<Value, String> {
+    // Packed `.kbcb` image (not source): mmap → Kab VM, or host VM if rust|host.
+    // Not a compile — skip SH16 rust-compile refuse.
+    if path_looks_like_packed_kbcb(path) {
+        if kab_vm_run_enabled() {
+            return eval_kbcb_file_kab_or_err(Path::new(path), env);
+        }
+        let bc = deserialize_kbcb_file(Path::new(path))?;
+        let result = run_module(&bc, env)?;
+        drain_all_microtasks(env)?;
+        return Ok(result);
+    }
     // Product run path: self-host first. SH16: rust env/flag is toolchain-only.
     let prefer = CompilePrefer::from_args_and_env(&[]);
     refuse_app_rust_compile(path, prefer)?;
+    // Warm CA `.kbcb`: mmap → Kab VM (no host deserialize, no SAB fill).
+    if let Some(v) = try_mmap_cached_kbcb(path, env)? {
+        return Ok(v);
+    }
     let (program, _) = compile_file_prefer_cached(path, prefer)?;
+    // Compile just wrote CA/path-keyed `.kbcb` — mmap that instead of serialize+SAB.
+    if let Some(v) = try_mmap_cached_kbcb(path, env)? {
+        return Ok(v);
+    }
     eval_program(&program, env)
 }
 

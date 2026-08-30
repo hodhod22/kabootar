@@ -177,7 +177,7 @@ pub fn runOpDataOptionSome(S, name, arg, op, pool, globals, functions) {
 
 // --- vm_ops_data_set_member ---
 pub fn runOpDataSetMember(S, name, arg, op, pool, globals, functions) {
-    if name == "set_member" {
+    if name == "member_set" {
         let key = poolKey(pool, arg)
         let val = vPopS(S)
         let obj = vPopS(S)
@@ -213,6 +213,24 @@ pub fn runOpDataIndexPeekFromEnd(S, name, arg, op, pool, globals, functions) {
         throw "IndexPeekFromEnd index out of range"
     }
     vPushS(S, arr[len(arr) - fromEnd])
+    vBumpIpS(S)
+    return 1
+}
+
+pub fn runOpDataArraySliceFrom(S, name, arg, op, pool, globals, functions) {
+    if name != "array_slice_from" {
+        return 0
+    }
+    let arr = vPopS(S)
+    if typeof(arr) != "array" {
+        throw "ArraySliceFrom requires an array"
+    }
+    let start = arg
+    if start >= len(arr) {
+        vPushS(S, [])
+    } else {
+        vPushS(S, slice(arr, start, len(arr)))
+    }
     vBumpIpS(S)
     return 1
 }
@@ -296,13 +314,39 @@ pub fn runOpDataMake(S, name, arg, op, pool, globals, functions) {
     return runOpDataMakeArray(S, name, arg, op, pool, globals, functions)
 }
 
+// --- vm_ops_data_result_question ---
+// SH6: `?` on Result. Same contract as host Opcode::ResultQuestion:
+// Ok → inner; Err → keep Err; else throw. Uses session stack S (no module globals).
+pub fn runOpDataResultQuestion(S, name, arg, op, pool, globals, functions) {
+    if name != "result_question" {
+        return 0
+    }
+    let v = vPopS(S)
+    let tag = vObjGet(v, "vmResult")
+    if tag == "ok" {
+        vPushS(S, vObjGet(v, "v"))
+        vBumpIpS(S)
+        return 1
+    }
+    if tag == "err" {
+        vPushS(S, v)
+        vBumpIpS(S)
+        return 1
+    }
+    throw "? operator requires Result (Ok/Err)"
+}
+
 // --- vm_ops_data_result ---
 pub fn runOpDataResult(S, name, arg, op, pool, globals, functions) {
     let st = runOpDataOk(S, name, arg, op, pool, globals, functions)
     if st != 0 {
         return st
     }
-    return runOpDataErr(S, name, arg, op, pool, globals, functions)
+    st = runOpDataErr(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    return runOpDataResultQuestion(S, name, arg, op, pool, globals, functions)
 }
 
 // --- vm_ops_data_option ---
@@ -329,6 +373,10 @@ pub fn runOpDataStack(S, name, arg, op, pool, globals, functions) {
         return st
     }
     st = runOpDataIndexPeekFromEnd(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    st = runOpDataArraySliceFrom(S, name, arg, op, pool, globals, functions)
     if st != 0 {
         return st
     }

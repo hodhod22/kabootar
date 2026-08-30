@@ -2,10 +2,84 @@ import "self_host/vm_s_stack"
 import "self_host/vm_run_new_run"
 import "self_host/vm_run_dispatch_plain"
 import "self_host/vm_run_call"
+import "self_host/vm_ops_mem_a"
+import "self_host/vm_ops_arith_a"
+import "self_host/vm_ops_jump_a"
+import "self_host/vm_ops_cmp_a"
+import "self_host/vm_ops_ctrl_a"
+
+// Family letter per kbcb v2 tag (96): m mem, a arith, c cmp, d data, J jump, C call, N new, t ctrl.
+let KBCB_OP_FAM = "mmmmmmaaaaaacccccccccaaaaaaJcaaJJCddddddmmmmmmmmmmmmmcddddCddddJddJJJJJJJJJJJJJJJJJtddddNNcdJttt"
+
+// --- vm_run_ops_tagged ---
+/// Packed tag → leaf (hot loop ops) or family. Skips the full name miss-chain.
+pub fn runOpTaggedS(S, tag, name, arg, op, pool, globals, functions) {
+    if tag == 0 {
+        return runOpMemConst(S, name, arg, op, pool, globals, functions)
+    }
+    if tag == 1 {
+        return runOpMemLoadLocal(S, name, arg, op, pool, globals, functions)
+    }
+    if tag == 2 {
+        return runOpMemStoreLocal(S, name, arg, op, pool, globals, functions)
+    }
+    if tag == 6 {
+        return runOpArithAdd(S, name, arg, op, pool, globals, functions)
+    }
+    if tag == 14 {
+        return runOpCmpLt(S, name, arg, op, pool, globals, functions)
+    }
+    if tag == 31 {
+        return runOpJumpGoto(S, name, arg, op, pool, globals, functions)
+    }
+    if tag == 32 {
+        return runOpJumpIfFalse(S, name, arg, op, pool, globals, functions)
+    }
+    if tag == 47 {
+        return runOpMemAccAddLocal(S, name, arg, op, pool, globals, functions)
+    }
+    if tag == 94 {
+        return runOpCtrlReturnRet(S, name, arg, op, pool, globals, functions)
+    }
+    if tag == 95 {
+        return runOpCtrlReturnHalt(S, name, arg, op, pool, globals, functions)
+    }
+    let fam = str_slice(KBCB_OP_FAM, tag, tag + 1)
+    if fam == "m" {
+        return runOpMemS(S, name, arg, op, pool, globals, functions)
+    }
+    if fam == "a" {
+        return runOpArithS(S, name, arg, op, pool, globals, functions)
+    }
+    if fam == "c" {
+        return runOpCmpS(S, name, arg, op, pool, globals, functions)
+    }
+    if fam == "d" {
+        return runOpDataS(S, name, arg, op, pool, globals, functions)
+    }
+    if fam == "J" {
+        return runOpJumpS(S, name, arg, op, pool, globals, functions)
+    }
+    if fam == "C" {
+        return runOpCallS(S, name, arg, op, pool, globals, functions)
+    }
+    if fam == "N" {
+        return runOpsNewInstS(S, name, arg, op, pool, globals, functions)
+    }
+    if fam == "t" {
+        return runOpCtrlS(S, name, arg, op, pool, globals, functions)
+    }
+    return 0
+}
 
 // --- vm_run_ops_new ---
-/// Handle new_instance only. 0=miss, 1=ok.
+/// Handle new_instance / new_instance_from_array. 0=miss, 1=ok.
 pub fn runOpsNewInstS(S, name, arg, op, pool, globals, functions) {
+    if name == "new_instance_from_array" {
+        vPushS(S, vNewInstanceFromArrayS(S, arg, pool, globals, functions))
+        vBumpIpS(S)
+        return 1
+    }
     if name != "new_instance" {
         return 0
     }
@@ -29,14 +103,21 @@ pub fn runOpsPlainNewS(S, name, arg, op, pool, globals, functions) {
 }
 
 // --- vm_run_ops_step_raw ---
-/// Dispatch plain/new then call. Returns raw st (0/1/2).
+/// Dispatch tagged family, else plain/new then call. Returns raw st (0/1/2).
 pub fn runOpsStepRawS(S, ops, pool, globals, functions) {
     let op = ops[S["ip"]]
     let name = op["op"]
     let arg = op["arg"]
-    let st = runOpsPlainNewS(S, name, arg, op, pool, globals, functions)
+    let tag = op["tag"]
+    let st = 0
+    if tag != undefined && tag >= 0 && tag <= 95 {
+        st = runOpTaggedS(S, tag, name, arg, op, pool, globals, functions)
+    }
     if st == 0 {
-        st = runOpCallS(S, name, arg, op, pool, globals, functions)
+        st = runOpsPlainNewS(S, name, arg, op, pool, globals, functions)
+        if st == 0 {
+            st = runOpCallS(S, name, arg, op, pool, globals, functions)
+        }
     }
     return { "st": st, "name": name }
 }

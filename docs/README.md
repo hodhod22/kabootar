@@ -6,20 +6,23 @@
 
 **Kabootar** (tidigare *Nova*) är ett fullstack-programmeringsspråk med inbyggd runtime för frontend, backend, databas och operativsystem.
 
+**Slutmål:** hela produkten är `.kab` — kompilator, VM, JIT, GC, CLI, stdlib, OS, browser. Rust i `src/` är **skuld** som ska **ersättas och raderas** ([SH28](ROADMAP.md#kabootar-på-egna-fötter--noll-rust)). Ny `.rs`-feature är regression. En användare ska bygga och köra Kabootar **utan rustc**. `cargo` / rustc nedan är **bootstrap för CI och toolchain**, inte taket.
+
 ## Snabbstart
 
 ```bash
-# Exploration REPL (persistent env, :science, _)
+# Produkt-CLI när den finns (idag: samma REPL via rustc-bootstrap)
+kabootar
+# rustc-bootstrap / skuld — inte produktvägen
 cargo run
-# eller: kabootar
 
 # Notebook
 kabootar notebook run examples/explore_smoke.knb --science
 
-# Tester
+# Host-tester (skuld tills SH25/SH28: kabootar test)
 cargo test
 
-# Language Server (IDE)
+# Language Server (IDE) — rustc-bootstrap
 cargo build --features lsp
 
 # DocAI — fråga dokumentationen
@@ -28,7 +31,7 @@ cargo run --bin kabootar-docai
 # VS Code / Cursor extension
 cd editor/vscode-kabootar && npm install && npm run compile
 
-# WASM (webbläsare)
+# WASM (webbläsare) — rustc-bootstrap tills SH27/SH28
 cargo build --release --target wasm32-unknown-unknown
 wasm-bindgen target/wasm32-unknown-unknown/release/kabootar_lib.wasm --out-dir pkg --target web
 ```
@@ -72,31 +75,20 @@ wasm-bindgen target/wasm32-unknown-unknown/release/kabootar_lib.wasm --out-dir p
 | [EXPLORATION.md](EXPLORATION.md) | REPL + `.knb` notebook |
 | [DOCAI.md](DOCAI.md) | DocAI — fråga dokumentationen |
 | [RUNTIME.md](RUNTIME.md) | DOM, OS, databas |
-| [ROADMAP.md](ROADMAP.md) | Implementationsplan |
+| [ROADMAP.md](ROADMAP.md) | Implementationsplan — **noll Rust**, SH-ordning, **Nästa** |
 
 *Ny i språket och kan redan JS? Börja med [JAVASCRIPT.md](JAVASCRIPT.md), inte [LANGUAGE.md](LANGUAGE.md).*
 
 ## Projektstruktur
 
 ```
-src/
-  lexer.rs, parser.rs, ast.rs   # Språkfront-end
-  value.rs                      # Typmodell
-  evaluator.rs                  # Tolk
-  class/                        # Klassystem
-  kml/                          # KML-parser och renderer
-  sql/                          # SQL-motor
-  modules/                      # import-system
-  editor/vscode-kabootar/       # VS Code/Cursor extension
-  runtime/
-    os/                         # Kabootar OS (kernel + vfs)
-    http.rs                     # HTTP router
-    browser_dom.rs              # Värd-webbläsarens DOM
-    kabootar_dom.rs             # Egen DOM (KML)
-    game/                       # Spel + XR FFI
-    shared_memory.rs            # Typed arrays / SAB
-lib/                            # Fil-moduler (game, std, science, …)
-self_host/                      # Self-host compiler + seed/compiler.kbcb (SH1 image)
+self_host/                      # Produktkompilator (.kab) + seed/compiler.kbcb
+lib/kab/                        # Produkt-VM och primitives (.kab)
+lib/                            # Fil-moduler (game, std, science, kos, kbrowser, …)
+src/                            # Rust-skuld — ersätts och raderas (SH28). Inte språkets tak.
+  lexer.rs, parser.rs, …        # gammal host-compiler (appar: self-host, SH16)
+  bytecode/vm.rs                # host-VM (körning: Kab-VM kab-only default, SH6)
+  evaluator.rs                  # AST-tolk — skuld, inte produktväg
 docs/                           # Denna dokumentation
 ```
 

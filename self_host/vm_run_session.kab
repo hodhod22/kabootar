@@ -62,9 +62,13 @@ pub fn vFillHostGlobals(S, globals) {
     let fillI = 0
     while fillI < len(globals) {
         if S["globals"][fillI] == undefined {
-            let fillH = bytecode_host_get("" + globals[fillI])
-            if fillH != undefined {
-                S["globals"][fillI] = fillH
+            if globals[fillI] == "instanceof" {
+                S["globals"][fillI] = { "vmInstof": 1 }
+            } else {
+                let fillH = bytecode_host_get("" + globals[fillI])
+                if fillH != undefined {
+                    S["globals"][fillI] = fillH
+                }
             }
         }
         fillI = fillI + 1
@@ -220,7 +224,14 @@ pub fn runMethodBodyS(S, meth, pool, globals, functions, recv, callArgs) {
     let out = null
     let err = null
     try {
-        out = vCallRunFn(S, meth, pool, globals, functions, callArgs, null)
+        let mpool = meth["constants"]
+        if mpool == undefined {
+            mpool = pool
+        }
+        if len(mpool) == 0 {
+            mpool = pool
+        }
+        out = vCallRunFn(S, meth, mpool, globals, functions, callArgs, null)
     } catch (e) {
         err = e
     }

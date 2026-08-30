@@ -51,6 +51,130 @@ fn assert_kind(node, kind, msg) {
     assert_eq(ast.body[0].sym, "x", "assign sym")
 }
 
+{
+    let ast = parseTokens(tokenize("n += 2"))
+    assert_kind(ast.body[0], AST_ASSIGN, "compound assign stmt")
+    assert_eq(ast.body[0].sym, "n", "compound assign sym")
+    assert_kind(ast.body[0].rhs, AST_BINARY, "compound assign desugars to +")
+    assert_eq(ast.body[0].rhs.op, "+", "compound +=")
+}
+
+{
+    let ast = parseTokens(tokenize("c ??= 3"))
+    assert_kind(ast.body[0], AST_ASSIGN, "nullish assign stmt")
+    assert_eq(ast.body[0].rhs.op, "??", "compound ??=")
+}
+
+{
+    let ast = parseTokens(tokenize("o?.x"))
+    assert_kind(ast.body[0].expr, AST_OPTIONAL_MEMBER, "optional member")
+    assert_eq(ast.body[0].expr.field, "x", "optional member field")
+}
+
+{
+    let ast = parseTokens(tokenize("1 ? 2 : 3"))
+    assert_kind(ast.body[0].expr, AST_TERNARY, "ternary expr")
+    assert_kind(ast.body[0].expr["cond"], AST_LITERAL, "ternary cond")
+}
+
+{
+    let ast = parseTokens(tokenize("Ok(1)?"))
+    assert_kind(ast.body[0].expr, AST_RESULT_QUESTION, "result ?")
+}
+
+{
+    let ast = parseTokens(tokenize("switch (n) { case 1: { x = 1 } default: { x = 0 } }"))
+    assert_kind(ast.body[0], AST_SWITCH, "switch stmt")
+    assert_eq(len(ast.body[0].cases), 1, "switch case count")
+}
+
+{
+    let ast = parseTokens(tokenize("switch (n) { case 1: { x = 1; fallthrough } case 2: { x = 2 } }"))
+    assert_kind(ast.body[0].cases[0].body.body[1], AST_FALLTHROUGH, "switch fallthrough stmt")
+}
+
+{
+    let ast = parseTokens(tokenize("do { n = 1 } while (false)"))
+    assert_kind(ast.body[0], AST_DO_WHILE, "do while stmt")
+}
+
+{
+    let bt = from_char_code(96)
+    let ast = parseTokens(tokenize("return " + bt + "a${n}b" + bt))
+    assert_kind(ast.body[0].value, AST_BINARY, "template concat")
+    assert_eq(ast.body[0].value.op, "+", "template +")
+}
+
+{
+    let q = from_char_code(34)
+    let ast = parseTokens(tokenize("is(obj, " + q + "Dog" + q + ")"))
+    assert_kind(ast.body[0].expr, AST_CALL, "is() call")
+    assert_eq(ast.body[0].expr.callee.sym, "instanceof", "is() is instanceof")
+}
+
+{
+    let ast = parseTokens(tokenize("pass"))
+    assert_kind(ast.body[0], AST_PASS, "pass stmt")
+}
+
+{
+    let ast = parseTokens(tokenize("assert n == 0"))
+    assert_kind(ast.body[0], AST_ASSERT, "assert stmt")
+}
+
+{
+    let ast = parseTokens(tokenize("raise 1"))
+    assert_kind(ast.body[0], AST_THROW, "raise is throw")
+}
+
+{
+    let ast = parseTokens(tokenize("not x"))
+    assert_kind(ast.body[0].expr, AST_UNARY, "not unary")
+    assert_eq(ast.body[0].expr.op, "!", "not is !")
+}
+
+{
+    let ast = parseTokens(tokenize("delete o.z"))
+    assert_kind(ast.body[0].expr, AST_UNARY, "delete unary")
+    assert_eq(ast.body[0].expr.op, "delete", "delete op")
+    assert_kind(ast.body[0].expr.expr, AST_MEMBER, "delete member")
+}
+
+{
+    let ast = parseTokens(tokenize("a is null"))
+    assert_kind(ast.body[0].expr, AST_BINARY, "is binary")
+    assert_eq(ast.body[0].expr.op, "is", "is op")
+}
+
+{
+    let ast = parseTokens(tokenize("a is not undefined"))
+    assert_eq(ast.body[0].expr.op, "is not", "is not op")
+}
+
+{
+    let ast = parseTokens(tokenize("with x as r { r }"))
+    assert_kind(ast.body[0], AST_WITH, "with stmt")
+    assert_eq(ast.body[0].name, "r", "with bind")
+}
+
+{
+    let ast = parseTokens(tokenize("using x = r"))
+    assert_kind(ast.body[0], AST_USING, "using stmt")
+    assert_eq(ast.body[0].name, "x", "using name")
+}
+
+{
+    let ast = parseTokens(tokenize("import.meta"))
+    assert_kind(ast.body[0].expr, AST_CALL, "import.meta call")
+    assert_eq(ast.body[0].expr.callee.sym, "import_meta", "import.meta callee")
+}
+
+{
+    let ast = parseTokens(tokenize("import(\"math\")"))
+    assert_kind(ast.body[0].expr, AST_CALL, "import() call")
+    assert_eq(ast.body[0].expr.callee.sym, "dynamic_import", "import() callee")
+}
+
 // -- return --------------------------------------------------------
 {
     let ast = parseTokens(tokenize("return 1"))
@@ -82,6 +206,14 @@ fn assert_kind(node, kind, msg) {
     let ast = parseTokens(tokenize("while x == 0 { x = 1 }"))
     assert_kind(ast.body[0], AST_WHILE, "while stmt")
     assert_kind(ast.body[0].body, AST_BLOCK, "while body")
+}
+
+{
+    let ast = parseTokens(tokenize("for let i = 0; i < 3; i = i + 1 { s = s + i }"))
+    assert_kind(ast.body[0], AST_FOR, "classic for")
+    assert_kind(ast.body[0].init, AST_LET, "for init let")
+    assert_kind(ast.body[0].cond, AST_BINARY, "for cond")
+    assert_kind(ast.body[0].step, AST_ASSIGN, "for step assign")
 }
 
 // -- while cond not clobbered by inner if --------------------------
@@ -164,6 +296,36 @@ fn assert_kind(node, kind, msg) {
     assert_eq(len(ast.body[0].params), 2, "fn param count")
 }
 
+{
+    let ast = parseTokens(tokenize("fn add(a, b = 3) { return a + b }"))
+    assert_kind(ast.body[0], AST_FN, "fn default stmt")
+    assert_eq(len(ast.body[0].paramDefaults), 2, "fn default count")
+    assert_eq(ast.body[0].paramDefaults[0], null, "first param has no default")
+    assert_kind(ast.body[0].paramDefaults[1], AST_LITERAL, "second param default lit")
+    assert_eq(ast.body[0].paramDefaults[1].value, 3, "second param default 3")
+}
+
+{
+    let ast = parseTokens(tokenize("fn f(a, ...xs) { return a }"))
+    assert_kind(ast.body[0], AST_FN, "fn rest stmt")
+    assert_eq(len(ast.body[0].params), 2, "fn rest param count")
+    assert_eq(ast.body[0].rest, "xs", "fn rest name")
+}
+
+{
+    let ast = parseTokens(tokenize("let f = (a, b = 3) => a"))
+    assert_kind(ast.body[0].init, AST_ARROW, "arrow default")
+    assert_eq(len(ast.body[0].init.params), 2, "arrow default param count")
+    assert_kind(ast.body[0].init.paramDefaults[1], AST_LITERAL, "arrow default lit")
+    assert_eq(ast.body[0].init.paramDefaults[1].value, 3, "arrow default 3")
+}
+
+{
+    let ast = parseTokens(tokenize("let g = (a, ...xs) => a"))
+    assert_kind(ast.body[0].init, AST_ARROW, "arrow rest")
+    assert_eq(ast.body[0].init.rest, "xs", "arrow rest name")
+}
+
 // -- generic fn type params + annotations --------------------------
 {
     let ast = parseTokens(tokenize("fn id<T>(x: T) -> T { return x }"))
@@ -213,6 +375,20 @@ fn assert_kind(node, kind, msg) {
     assert_eq(ast.body[0].variants[0].name, "Some", "Some variant")
 }
 
+{
+    let ast = parseTokens(tokenize("match x { Option.Some(n) => n, Option.None => 0 }"))
+    let m = ast.body[0]
+    if m.kind == AST_EXPR {
+        m = m.expr
+    }
+    assert_kind(m, AST_MATCH, "generic enum match")
+    assert_eq(m.arms[0].pattern.kind, "enum", "Some arm enum")
+    assert_eq(m.arms[0].pattern.typeName, "Option", "Some arm type")
+    assert_eq(m.arms[0].pattern.variant, "Some", "Some arm variant")
+    assert_eq(m.arms[1].pattern.kind, "enum", "None arm enum")
+    assert_eq(m.arms[1].pattern.variant, "None", "None arm variant")
+}
+
 // -- member type args Option<Number>.None --------------------------
 {
     let ast = parseTokens(tokenize("Option<Number>.None"))
@@ -252,7 +428,22 @@ fn assert_kind(node, kind, msg) {
     assert_eq(ast.body[0].sym, "Point", "struct sym")
     assert_eq(len(ast.body[0].fields), 1, "struct field count")
     assert_eq(len(ast.body[0].methods), 1, "struct method count")
-    assert_eq(ast.body[0].methods[0].params[0], "self", "self param")
+    assert_eq(len(ast.body[0].methods[0].params), 0, "self is receiver not param")
+}
+
+{
+    let src = "struct Point { x: number; fn sum(&self) { return self.x } }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_CLASS, "struct &self stmt")
+    assert_eq(len(ast.body[0].methods[0].params), 0, "&self is receiver not param")
+}
+
+{
+    let src = "struct Point { x: number; fn bump(&mut self, n) { self.x = n } }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_CLASS, "struct &mut self stmt")
+    assert_eq(len(ast.body[0].methods[0].params), 1, "&mut self extra param count")
+    assert_eq(ast.body[0].methods[0].params[0], "n", "&mut self extra param")
 }
 
 // -- trait (T5) ----------------------------------------------------
@@ -284,6 +475,34 @@ fn assert_kind(node, kind, msg) {
     assert_eq(len(ast.body[0].methods), 1, "trait method after assoc")
 }
 
+{
+    let src = "trait HasId { fn id() { return 1 } } class Thing implements HasId { fn init() {} }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_INTERFACE, "trait before implements")
+    assert_kind(ast.body[1], AST_CLASS, "class implements")
+    assert_eq(len(ast.body[1]["implements"]), 1, "implements count")
+    assert_eq(ast.body[1]["implements"][0], "HasId", "implements HasId")
+}
+
+{
+    let src = "trait Show<T> { fn show(); } class Point implements Show<Number> { fn init() {} fn show() { return 1 } }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_INTERFACE, "generic trait")
+    assert_eq(len(ast.body[0].typeParams), 1, "trait type params")
+    assert_eq(ast.body[0].typeParams[0], "T", "trait type param T")
+    assert_eq(ast.body[1]["implements"][0], "Show$Number", "implements mangled")
+}
+
+{
+    let src = "trait Iter { type Item; fn next(); } class Counter implements Iter { type Item = Number; n: number; fn init() {} fn next() { return 1 } }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[1], AST_CLASS, "class assoc type")
+    assert_eq(len(ast.body[1].associatedTypes), 1, "class assoc count")
+    assert_eq(ast.body[1].associatedTypes[0].name, "Item", "class assoc name")
+    assert_eq(ast.body[1].associatedTypes[0]["type"], "Number", "class assoc value")
+    assert_eq(len(ast.body[1].fields), 1, "field after assoc")
+}
+
 // -- where clause on fn (T5) ---------------------------------------
 {
     let src = "fn id<T>(x) where T: Show { return x }"
@@ -294,11 +513,46 @@ fn assert_kind(node, kind, msg) {
     assert_eq(ast.body[0].whereClause[0].traitName, "Show", "where trait")
 }
 
+{
+    let src = "class Box { fn init() {} fn show_it<T>(x) where T: Show { return 42 } }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_CLASS, "class method where")
+    assert_eq(len(ast.body[0].methods[1].whereClause), 1, "method where count")
+    assert_eq(ast.body[0].methods[1].whereClause[0].typeParam, "T", "method where param")
+    assert_eq(ast.body[0].methods[1].whereClause[0].traitName, "Show", "method where trait")
+}
+
+{
+    let src = "class Box<T> where T: Show { fn init() {} }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_CLASS, "generic class where")
+    assert_eq(len(ast.body[0].typeParams), 1, "class type params")
+    assert_eq(len(ast.body[0].whereClause), 1, "class where count")
+    assert_eq(ast.body[0].whereClause[0].typeParam, "T", "class where param")
+    assert_eq(ast.body[0].whereClause[0].traitName, "Show", "class where trait")
+}
+
+{
+    let src = "struct Box<T> { value: number; fn init(v) { self.value = v } }"
+    let ast = parseTokens(tokenize(src))
+    assert_kind(ast.body[0], AST_CLASS, "generic struct")
+    assert_eq(ast.body[0].isStruct, 1, "is struct")
+    assert_eq(len(ast.body[0].typeParams), 1, "struct type params")
+    assert_eq(ast.body[0].typeParams[0], "T", "struct T")
+}
+
 // -- block ---------------------------------------------------------
 {
     let ast = parseTokens(tokenize("{ let a = 1; return a }"))
     assert_kind(ast.body[0], AST_BLOCK, "block stmt")
     assert_eq(len(ast.body[0].body), 2, "block stmt count")
+}
+
+{
+    let ast = parseTokens(tokenize("{ using x = r }"))
+    assert_kind(ast.body[0], AST_BLOCK, "using block")
+    assert_eq(len(ast.body[0].body), 1, "using block count")
+    assert_kind(ast.body[0].body[0], AST_USING, "using in block")
 }
 
 // -- multi-statement program ---------------------------------------

@@ -2211,6 +2211,34 @@ fn self_host_emit_nested_call_argn_restore() {
     assert_eq!(format_value(&v), "cdefgh");
 }
 
+#[test]
+fn self_host_len_of_call_expr_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "fn wrap(x) { return [x, x] }\nreturn len(wrap(1))";
+    let program = std::thread::Builder::new()
+        .name("sh-len-call".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile len(wrap())"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("get_length"),
+        "expected get_length for len(call), snippet:\n{}",
+        kbc.chars().take(400).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
 /// Self-host parser+emit `match` (const + wildcard) — SH16 apps cannot use Rust-emit.
 #[test]
 fn self_host_match_const_wildcard_compile_run() {
@@ -2342,6 +2370,3155 @@ fn self_host_if_let_some_compile_run() {
     let mut env = create_global_env();
     let v = run_module(&module, &mut env).expect("run");
     assert_eq!(format_value(&v), "3");
+}
+
+#[test]
+fn self_host_if_let_or_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let x = 2\nif let 1 | 2 = x { return 9 }\nreturn 0";
+    let program = std::thread::Builder::new()
+        .name("sh-if-let-or".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile if let or"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "9");
+}
+
+#[test]
+fn self_host_if_let_at_bind_range_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let x = 4\nif let n @ 1..=5 = x { return n }\nreturn 0";
+    let program = std::thread::Builder::new()
+        .name("sh-if-let-at".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile if let at-bind"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_if_let_at_bind_some_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "if let n @ Some(x) = Some(3) { return x + 1 }\nreturn 0";
+    let program = std::thread::Builder::new()
+        .name("sh-if-let-at-some".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile if let at Some"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_while_let_or_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let x = 1\nlet n = 0\nwhile let 1 | 2 = x {\n  n = n + x\n  x = 0\n}\nreturn n";
+    let program = std::thread::Builder::new()
+        .name("sh-while-let-or".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile while let or"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_match_range_inclusive_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 5 { 1..=5 => 9, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-range-inc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match range inc"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("ge") && kbc.contains("le"),
+        "expected inclusive range IR, kbc snippet:\n{}",
+        kbc.chars().take(500).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "9");
+}
+
+#[test]
+fn self_host_match_range_exclusive_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 5 { 1..5 => 1, 1..=5 => 2, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-range-exc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match range exc"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
+#[test]
+fn self_host_match_range_or_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 8 { 1 | 2..=4 | 8..=10 => 7, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-range-or".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match range or"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "7");
+}
+
+#[test]
+fn self_host_match_range_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 3 { 1..=4 => 6, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-range-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match range kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-range-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run range under kab-only");
+    assert_eq!(formatted, "6");
+}
+
+#[test]
+fn self_host_match_open_range_to_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 3 { ..5 => 1, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-open-to".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile open range to"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_match_open_range_to_excl_miss_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 5 { ..5 => 1, ..=5 => 2, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-open-to-miss".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile open range to miss"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
+#[test]
+fn self_host_match_open_range_from_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 8 { 5.. => 1, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-open-from".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile open range from"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_match_open_range_from_miss_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 3 { 5.. => 1, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-open-from-miss".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile open range from miss"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "0");
+}
+
+#[test]
+fn self_host_if_let_open_range_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let x = 4\nif let 1.. = x { return 9 }\nreturn 0";
+    let program = std::thread::Builder::new()
+        .name("sh-if-let-open".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile if let open range"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "9");
+}
+
+#[test]
+fn self_host_match_open_range_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 2 { ..=4 => 8, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-open-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile open range kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-open-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run open range under kab-only");
+    assert_eq!(formatted, "8");
+}
+
+#[test]
+fn self_host_match_at_bind_range_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 4 { n @ 1..=5 => n, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-range".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind range"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_match_at_bind_miss_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 9 { n @ 1..=5 => n, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-miss".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind miss"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "0");
+}
+
+#[test]
+fn self_host_match_at_bind_or_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 2 { n @ 1 | 2 => n + 5, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-or".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind or"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "7");
+}
+
+#[test]
+fn self_host_match_paren_or_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 2 { (1 | 2) => 9, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-paren-or".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile paren or"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "9");
+}
+
+#[test]
+fn self_host_match_float_range_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 1.5 { 1.0..=2.0 => 9, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-float-range".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile float range"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "9");
+}
+
+#[test]
+fn self_host_match_at_bind_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 3 { n @ 1..=5 => n + 1, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-at-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run at-bind under kab-only");
+    assert_eq!(formatted, "4");
+}
+
+#[test]
+fn self_host_match_at_bind_enum_payload_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "enum Msg { Move(k) }\nreturn match Msg.Move(4) { v @ Msg.Move(x) => x, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-enum".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind enum"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_match_some_nested_at_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match Some(4) { Some(n @ 1..=5) => n, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-some-at".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Some nested at"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_if_let_at_bind_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "if let n @ Some(x) = Some(6) { return x }\nreturn 0";
+    let program = std::thread::Builder::new()
+        .name("sh-if-let-at-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile if let at kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-if-let-at-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run if-let at-bind under kab-only");
+    assert_eq!(formatted, "6");
+}
+
+#[test]
+fn self_host_match_array_at_rest_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match [1, 2, 3] { [n @ 1, ...r] => n + len(r), _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-arr-at".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile array at-rest"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "3");
+}
+
+#[test]
+fn self_host_match_ok_nested_at_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match Ok(4) { Ok(n @ 1..=5) => n, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-ok-at".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Ok nested at"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_match_err_nested_at_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match Err(2) { Err(n @ 1..=5) => n + 3, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-err-at".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Err nested at"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "5");
+}
+
+#[test]
+fn self_host_while_let_at_ok_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let r = Ok(2)\nlet n = 0\nwhile let w @ Ok(v) = r {\n  n = n + v\n  r = Err(0)\n}\nreturn n";
+    let program = std::thread::Builder::new()
+        .name("sh-while-let-at".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile while let at Ok"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
+#[test]
+fn self_host_match_ok_nested_at_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match Ok(3) { Ok(n @ 1..=5) => n + 1, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-ok-at-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Ok nested at kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-ok-at-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run Ok nested at under kab-only");
+    assert_eq!(formatted, "4");
+}
+
+#[test]
+fn self_host_match_object_field_at_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match { a: 4, b: 9 } { { a: n @ 1..=5, b } => n + b, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-obj-at".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile object field at"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "13");
+}
+
+#[test]
+fn self_host_match_object_field_at_rest_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match { a: 2, b: 7 } { { a: n @ 1..=5, ...r } => n + r.b, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-obj-at-rest".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile object field at rest"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "9");
+}
+
+#[test]
+fn self_host_match_at_bind_array_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match [3, 4] { n @ [a, b] => n[0] + a + b, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-arr".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind array"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "10");
+}
+
+#[test]
+fn self_host_if_let_at_bind_array_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "if let n @ [a, b] = [5, 6] { return n[0] + a + b }\nreturn 0";
+    let program = std::thread::Builder::new()
+        .name("sh-if-let-at-arr".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile if let at array"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "16");
+}
+
+#[test]
+fn self_host_match_object_field_at_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match { a: 3 } { { a: n @ 1..=5 } => n + 2, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-obj-at-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile object field at kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-obj-at-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run object field at under kab-only");
+    assert_eq!(formatted, "5");
+}
+
+#[test]
+fn self_host_match_at_bind_object_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match { a: 2, b: 5 } { n @ { a, b } => n.a + a + b, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-obj".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind object"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "9");
+}
+
+#[test]
+fn self_host_if_let_at_bind_object_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "if let n @ { a, b } = { a: 1, b: 8 } { return n.b + a + b }\nreturn 0";
+    let program = std::thread::Builder::new()
+        .name("sh-if-let-at-obj".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile if let at object"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "17");
+}
+
+#[test]
+fn self_host_match_at_bind_guard_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 4 { n @ 1..=5 if n != 3 => n + 1, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-guard".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind guard"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "5");
+}
+
+#[test]
+fn self_host_match_at_bind_guard_miss_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 3 { n @ 1..=5 if n != 3 => 1, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-guard-miss".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind guard miss"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "0");
+}
+
+#[test]
+fn self_host_match_at_bind_object_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match { a: 2 } { n @ { a } => n.a + a, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-obj-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind object kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-at-obj-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run at-bind object under kab-only");
+    assert_eq!(formatted, "4");
+}
+
+#[test]
+fn self_host_match_at_bind_object_rest_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match { a: 2, b: 5, c: 1 } { n @ { a, ...r } => n.a + r.b + r.c, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-obj-rest".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind object rest"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "8");
+}
+
+#[test]
+fn self_host_if_let_at_bind_object_rest_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "if let n @ { a, ...r } = { a: 3, b: 4 } { return n.a + r.b }\nreturn 0";
+    let program = std::thread::Builder::new()
+        .name("sh-if-let-at-obj-rest".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile if let at object rest"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "7");
+}
+
+#[test]
+fn self_host_match_at_bind_object_rest_guard_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match { a: 1, b: 9 } { n @ { a, ...r } if a == 1 => n.a + r.b, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-obj-rest-g".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind object rest guard"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "10");
+}
+
+#[test]
+fn self_host_match_at_bind_array_rest_wrap_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match [2, 3, 4] { n @ [h, ...t] => n[0] + h + t[0] + t[1], _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-arr-rest".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind array rest wrap"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "11");
+}
+
+#[test]
+fn self_host_match_at_bind_object_rest_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match { a: 2, b: 6 } { n @ { a, ...r } => n.a + r.b, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-at-obj-rest-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile at-bind object rest kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-at-obj-rest-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run at-bind object rest under kab-only");
+    assert_eq!(formatted, "8");
+}
+
+#[test]
+fn self_host_struct_ref_self_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "struct Point { x: number\n  fn init(a) { self.x = a }\n  fn get(&self) { return self.x }\n}\nlet p = Point(4)\nreturn p.get()";
+    let program = std::thread::Builder::new()
+        .name("sh-struct-ref-self".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile struct &self"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_struct_ref_mut_self_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "struct Point { x: number\n  fn init(a) { self.x = a }\n  fn set(&mut self, n) { self.x = n }\n  fn get(&self) { return self.x }\n}\nlet p = Point(1)\np.set(7)\nreturn p.get()";
+    let program = std::thread::Builder::new()
+        .name("sh-struct-ref-mut".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile struct &mut self"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "7");
+}
+
+#[test]
+fn self_host_generic_struct_box_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "struct Box<T> {\n  value: T;\n  fn init(v) { self.value = v }\n  fn get(&self) { return self.value }\n}\nlet b = Box(42)\nreturn b.get()";
+    let program = std::thread::Builder::new()
+        .name("sh-r3-box".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile generic struct"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let box_num = bc
+        .classes
+        .iter()
+        .find(|c| c.name == "Box$Number")
+        .expect("Box$Number");
+    assert_eq!(
+        box_num.fields[0].type_name.as_deref(),
+        Some("Number"),
+        "T should specialize to Number"
+    );
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_generic_method_on_specialized_class_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Box<T> {\n  fn init(v) {}\n  fn echo<U>(x) { return x }\n}\nlet b = Box(42)\nreturn b.echo(1)";
+    let program = std::thread::Builder::new()
+        .name("sh-g81-echo".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile generic method on class"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let box_num = bc
+        .classes
+        .iter()
+        .find(|c| c.name == "Box$Number")
+        .expect("Box$Number class");
+    assert!(
+        box_num.methods.iter().any(|m| m.name == "echo$Number"),
+        "expected echo$Number, got {:?}",
+        box_num.methods.iter().map(|m| m.name.as_str()).collect::<Vec<_>>()
+    );
+    assert!(
+        !box_num.methods.iter().any(|m| m.name == "echo"),
+        "generic echo template should not appear as plain echo"
+    );
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_generic_class_inheritance_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base<T> {\n  tag: number;\n  fn init(v) { this.tag = 1 }\n}\nclass Child<T> extends Base<T> {}\nlet c = Child(42)\nreturn c.tag";
+    let program = std::thread::Builder::new()
+        .name("sh-g81-ext".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile generic class extends"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let child = bc
+        .classes
+        .iter()
+        .find(|c| c.name == "Child$Number")
+        .expect("Child$Number class");
+    assert_eq!(child.extends.as_deref(), Some("Base$Number"));
+    assert!(
+        bc.classes.iter().any(|c| c.name == "Base$Number"),
+        "expected Base$Number, got {:?}",
+        bc.classes.iter().map(|c| c.name.as_str()).collect::<Vec<_>>()
+    );
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_super_method_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  fn tag() { return 1 }\n}\nclass Child extends Base {\n  fn tag() { return super.tag() + 1 }\n}\nreturn Child().tag()";
+    let program = std::thread::Builder::new()
+        .name("sh-super".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super.tag"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
+#[test]
+fn self_host_generic_super_method_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base<T> {\n  fn tag() { return 1 }\n}\nclass Child<T> extends Base<T> {\n  fn tag() { return super.tag() + 1 }\n}\nreturn Child<Number>().tag()";
+    let program = std::thread::Builder::new()
+        .name("sh-g-super".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile generic super.tag"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    assert!(
+        bc.classes.iter().any(|c| c.name == "Child$Number"),
+        "expected Child$Number, got {:?}",
+        bc.classes.iter().map(|c| c.name.as_str()).collect::<Vec<_>>()
+    );
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method on generic Child, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
+/// SH6: generic `Child<T>` / `super.tag()` must run on Kab-VM.
+#[test]
+fn self_host_generic_super_method_ok_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base<T> {\n  fn tag() { return 1 }\n}\nclass Child<T> extends Base<T> {\n  fn tag() { return super.tag() + 1 }\n}\nreturn Child<Number>().tag()";
+    let program = std::thread::Builder::new()
+        .name("sh-g-super-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile generic super.tag kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    assert!(
+        bytecode.classes.iter().any(|c| c.name == "Child$Number"),
+        "expected Child$Number, got {:?}",
+        bytecode.classes.iter().map(|c| c.name.as_str()).collect::<Vec<_>>()
+    );
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method on generic Child, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-g-super-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = match result {
+        Ok(s) => s,
+        Err(e) => panic!("run Child<Number>().tag() under kab-only: {e}"),
+    };
+    assert_eq!(formatted, "2");
+}
+
+#[test]
+fn self_host_super_init_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  name: string;\n  fn init(n) { this.name = n }\n}\nclass Child extends Base {\n  breed: string;\n  fn init(n, b) {\n    super.init(n)\n    this.breed = b\n  }\n}\nlet d = Child(\"Rex\", \"lab\")\nreturn d.name + \" \" + d.breed";
+    let program = std::thread::Builder::new()
+        .name("sh-super-init".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super.init"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method for super.init, snippet:\n{}",
+        kbc.chars().take(900).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "Rex lab");
+}
+
+#[test]
+fn self_host_super_member_assign_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  count: number;\n  fn init() { this.count = 0 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.count = 1\n  }\n}\nreturn Child().count";
+    let program = std::thread::Builder::new()
+        .name("sh-super-asgn".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super.count ="))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_compound_assign_local_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let n = 1\nn += 2\nreturn n";
+    let program = std::thread::Builder::new()
+        .name("sh-add-eq".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile n +="))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "3");
+}
+
+#[test]
+fn self_host_logical_assign_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let a = 0\na ||= 5\nlet b = 1\nb &&= 9\nlet c = null\nc ??= 3\nreturn a + b + c";
+    let program = std::thread::Builder::new()
+        .name("sh-log-eq".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile logical assign"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("jump_if_not_nullish"),
+        "expected jump_if_not_nullish for ??=, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "17");
+}
+
+#[test]
+fn self_host_nullish_coalesce_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return null ?? 4";
+    let program = std::thread::Builder::new()
+        .name("sh-nullish".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile ??"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_optional_chain_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let o = { \"x\": 1 }\nlet a = o?.x\nlet b = null?.z\nlet xs = [9]\nlet c = xs?.[0]\nlet d = null?.[0]\nfn hi() { return 7 }\nlet e = hi?.()\nlet f = null\nlet g = f?.()\nif b != undefined { return 0 }\nif d != undefined { return 0 }\nif g != undefined { return 0 }\nreturn a + c + e";
+    let program = std::thread::Builder::new()
+        .name("sh-opt-ch".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile ?."))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("__opt_member"),
+        "expected __opt_member, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "17");
+}
+
+#[test]
+fn self_host_ternary_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let a = 4 > 3 ? 10 : 0\nlet b = 1 > 2 ? 9 : 7\nlet c = true ? false ? 1 : 2 : 3\nreturn a + b + c";
+    let program = std::thread::Builder::new()
+        .name("sh-ternary".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile ternary"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "19");
+}
+
+#[test]
+fn self_host_switch_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let n = 2\nlet a = 0\nswitch (n) {\n  case 1: { a = 10 }\n  case 2: { a = 20 }\n  default: { a = 0 }\n}\nlet m = 9\nlet b = 0\nswitch (m) {\n  case 1: { b = 10 }\n  default: { b = 7 }\n}\nreturn a + b";
+    let program = std::thread::Builder::new()
+        .name("sh-switch".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile switch"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "27");
+}
+
+#[test]
+fn self_host_switch_fallthrough_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let a = 0\nswitch (1) {\n  case 1: { a = a + 1\n    fallthrough }\n  case 2: { a = a + 10 }\n  default: { a = a + 100 }\n}\nreturn a";
+    let program = std::thread::Builder::new()
+        .name("sh-sw-ft".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile switch fallthrough"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "11");
+}
+
+#[test]
+fn self_host_super_callback_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  fn f() { return 2 }\n}\nclass Child extends Base {\n  fn run(cb) { return cb() }\n  fn via() { return this.run(super.f) }\n  fn call() { return (super.f)() }\n}\nlet c = Child()\nreturn c.via() + c.call()";
+    let program = std::thread::Builder::new()
+        .name("sh-super-cb".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super as callback"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_index_compound_assign_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let xs = [1, 2]\nxs[0] += 3\nreturn xs[0]";
+    let program = std::thread::Builder::new()
+        .name("sh-idx-add".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile xs[0] +="))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_template_literal_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let n = 3\nreturn `n=${n}`";
+    let program = std::thread::Builder::new()
+        .name("sh-tmpl".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile template literal"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "n=3");
+}
+
+#[test]
+fn self_host_is_class_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  fn tag() { return 1 }\n}\nclass Child extends Base {\n  fn tag() { return 2 }\n}\nlet c = Child()\nlet n = 0\nif is(c, \"Child\") { n = n + 1 }\nif is(c, \"Base\") { n = n + 2 }\nif instanceof(c, \"Child\") { n = n + 4 }\nif is(42, \"Number\") { n = n + 8 }\nreturn n";
+    let program = std::thread::Builder::new()
+        .name("sh-is".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile is()"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("instanceof"),
+        "expected load of instanceof native, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "7");
+}
+
+#[test]
+fn self_host_pass_assert_not_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let n = 0\npass\nassert true\nif not false { n = n + 1 }\nassert n == 1, \"n\"\nreturn n";
+    let program = std::thread::Builder::new()
+        .name("sh-pass".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile pass/assert/not"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_is_identity_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let a = null\nlet n = 0\nif a is null { n = n + 1 }\nif a is not undefined { n = n + 2 }\nreturn n";
+    let program = std::thread::Builder::new()
+        .name("sh-is-id".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile is/is not"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("object_is"),
+        "expected object_is for infix is, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "3");
+}
+
+#[test]
+fn self_host_with_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let closed = 0\nfn mark() { closed = 1 }\nlet box = { value: 7, close: mark }\nlet out = 0\nwith box as r { out = r.value }\nreturn out + closed";
+    let program = std::thread::Builder::new()
+        .name("sh-with".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile with"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "8");
+}
+
+#[test]
+fn self_host_using_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let closed = 0\nfn do_close() { closed = 1 }\nlet r = { close: do_close }\n{\n  using x = r\n}\nreturn closed";
+    let program = std::thread::Builder::new()
+        .name("sh-using".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile using"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_import_meta_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let m = import.meta\nif m.url != \"kabootar:///main\" { return 0 }\nif m.path != \"main\" { return 0 }\nreturn 1";
+    let program = std::thread::Builder::new()
+        .name("sh-import-meta".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile import.meta"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_delete_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let o = { z: 1 }\ndelete o.z\nif object_has(o, \"z\") { return 0 }\nreturn 1";
+    let program = std::thread::Builder::new()
+        .name("sh-delete".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile delete"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_classic_for_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let sum = 0\nfor let i = 0; i < 5; i = i + 1 {\n  sum = sum + i\n}\nreturn sum";
+    let program = std::thread::Builder::new()
+        .name("sh-classic-for".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile classic for"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "10");
+}
+
+#[test]
+fn self_host_assert_fail_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+
+    let src = "assert false, \"nope\"";
+    let program = std::thread::Builder::new()
+        .name("sh-assert-fail".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile assert fail"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let err = run_module(&module, &mut env).expect_err("assert false should throw");
+    let shown = kabootar_lib::runtime::stdlib::error::format_runtime_error(&err);
+    assert!(
+        shown.contains("nope"),
+        "expected thrown message nope, got {shown}"
+    );
+}
+
+#[test]
+fn self_host_do_while_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let a = 0\ndo { a = a + 1 } while (false)\nlet b = 0\ndo { b = b + 1 } while (b < 3)\nreturn a + b";
+    let program = std::thread::Builder::new()
+        .name("sh-dowhile".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile do while"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "4");
+}
+
+#[test]
+fn self_host_result_question_ok_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "fn step() { return Ok(42) }\nreturn step()?";
+    let program = std::thread::Builder::new()
+        .name("sh-rq-ok".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Result ?"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("result_question"),
+        "expected result_question, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_result_question_err_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "fn bad() { return Err(3) }\nreturn bad()?";
+    let program = std::thread::Builder::new()
+        .name("sh-rq-err".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Result ? err"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "Err(3)");
+}
+
+/// SH6: `result_question` (`?`) must run on Kab-VM, not host `run_module`.
+#[test]
+fn self_host_result_question_ok_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return Ok(42)?";
+    let program = std::thread::Builder::new()
+        .name("sh-rq-ok-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Result ? kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    assert!(
+        kbc.contains("result_question"),
+        "expected result_question, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-rq-ok-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = match result {
+        Ok(s) => s,
+        Err(e) => panic!("run result_question under kab-only: {e}"),
+    };
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: class method `get_member`+`call` must run on Kab-VM (`Box().tag()`, not only `Box(7).n`).
+#[test]
+fn self_host_class_method_ok_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Box { fn tag() { return 1 } } return Box().tag()";
+    let program = std::thread::Builder::new()
+        .name("sh-meth-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Box().tag"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    assert!(
+        kbc.contains("get_member"),
+        "expected get_member, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-meth-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = match result {
+        Ok(s) => s,
+        Err(e) => panic!("run Box().tag() under kab-only: {e}"),
+    };
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: `get_super_method` must run on Kab-VM (`Child().tag()` via `super.tag()`).
+#[test]
+fn self_host_super_method_ok_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  fn tag() { return 1 }\n}\nclass Child extends Base {\n  fn tag() { return super.tag() + 1 }\n}\nreturn Child().tag()";
+    let program = std::thread::Builder::new()
+        .name("sh-super-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super.tag kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-super-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = match result {
+        Ok(s) => s,
+        Err(e) => panic!("run Child().tag() / super.tag() under kab-only: {e}"),
+    };
+    assert_eq!(formatted, "2");
+}
+
+/// SH6: `super.init(...)` must run on Kab-VM (parent ctor + child fields).
+#[test]
+fn self_host_super_init_ok_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  name: string;\n  fn init(n) { this.name = n }\n}\nclass Child extends Base {\n  breed: string;\n  fn init(n, b) {\n    super.init(n)\n    this.breed = b\n  }\n}\nlet d = Child(\"Rex\", \"lab\")\nreturn d.name + \" \" + d.breed";
+    let program = std::thread::Builder::new()
+        .name("sh-super-init-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super.init kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method for super.init, snippet:\n{}",
+        kbc.chars().take(900).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-super-init-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = match result {
+        Ok(s) => s,
+        Err(e) => panic!("run super.init under kab-only: {e}"),
+    };
+    assert_eq!(formatted, "Rex lab");
+}
+
+/// SH6: `super.count =` is `this` + `member_set` after `super.init()`.
+#[test]
+fn self_host_super_member_assign_ok_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  count: number;\n  fn init() { this.count = 0 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.count = 1\n  }\n}\nreturn Child().count";
+    let program = std::thread::Builder::new()
+        .name("sh-super-asgn-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super.count = kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method for super.init before super.count =, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-super-asgn-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = match result {
+        Ok(s) => s,
+        Err(e) => panic!("run super.count = under kab-only: {e}"),
+    };
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: bound `super.tag` (`let m = super.tag; m()`) must run on Kab-VM.
+#[test]
+fn self_host_super_bound_method_ok_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  fn tag() { return 1 }\n}\nclass Child extends Base {\n  fn run() {\n    let m = super.tag\n    return m()\n  }\n}\nreturn Child().run()";
+    let program = std::thread::Builder::new()
+        .name("sh-super-bnd-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile bound super.tag kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method for bound super.tag, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-super-bnd-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = match result {
+        Ok(s) => s,
+        Err(e) => panic!("run bound super.tag under kab-only: {e}"),
+    };
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: `super.n +=` is get_super_method field + add + member_set on this.
+#[test]
+fn self_host_super_compound_assign_ok_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  n: number;\n  fn init() { this.n = 1 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.n += 2\n  }\n}\nreturn Child().n";
+    let program = std::thread::Builder::new()
+        .name("sh-super-add-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super.n += kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method for super.n +=, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-super-add-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = match result {
+        Ok(s) => s,
+        Err(e) => panic!("run super.n += under kab-only: {e}"),
+    };
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: `this.run(super.f)` / `(super.f)()` — bound super method as value.
+#[test]
+fn self_host_super_callback_ok_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  fn f() { return 2 }\n}\nclass Child extends Base {\n  fn run(cb) { return cb() }\n  fn via() { return this.run(super.f) }\n  fn call() { return (super.f)() }\n}\nlet c = Child()\nreturn c.via() + c.call()";
+    let program = std::thread::Builder::new()
+        .name("sh-super-cb-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super callback kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method for super as callback, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-super-cb-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = match result {
+        Ok(s) => s,
+        Err(e) => panic!("run super as callback under kab-only: {e}"),
+    };
+    assert_eq!(formatted, "4");
+}
+
+#[test]
+fn self_host_super_compound_assign_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  n: number;\n  fn init() { this.n = 1 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.n += 2\n  }\n}\nreturn Child().n";
+    let program = std::thread::Builder::new()
+        .name("sh-super-add".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super.n +="))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "3");
+}
+
+#[test]
+fn self_host_super_bound_method_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  fn tag() { return 1 }\n}\nclass Child extends Base {\n  fn run() {\n    let m = super.tag\n    return m()\n  }\n}\nreturn Child().run()";
+    let program = std::thread::Builder::new()
+        .name("sh-super-bnd".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile bound super.tag"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("get_super_method"),
+        "expected get_super_method for bound super.tag, snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_generic_super_init_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base<T> {\n  val: number;\n  fn init(v) { this.val = v }\n}\nclass Child<T> extends Base<T> {\n  fn init(v) { super.init(v) }\n}\nreturn Child(42).val";
+    let program = std::thread::Builder::new()
+        .name("sh-g-super-init".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile generic super.init"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    assert!(
+        bc.classes.iter().any(|c| c.name == "Child$Number"),
+        "expected Child$Number, got {:?}",
+        bc.classes.iter().map(|c| c.name.as_str()).collect::<Vec<_>>()
+    );
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_generic_enum_some_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "enum Option<T> { Some(T), None }\nOption.Some(42)\nreturn 1";
+    let program = std::thread::Builder::new()
+        .name("sh-g9-some".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Option.Some"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    assert!(
+        bc.enums.iter().any(|e| e.name == "Option$Number"),
+        "expected Option$Number, got {:?}",
+        bc.enums.iter().map(|e| e.name.as_str()).collect::<Vec<_>>()
+    );
+    assert!(
+        !bc.enums.iter().any(|e| e.name == "Option"),
+        "generic Option template should not appear as plain Option"
+    );
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_generic_enum_none_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "enum Option<T> { Some(T), None }\nlet x = Option<Number>.None\nreturn 1";
+    let program = std::thread::Builder::new()
+        .name("sh-g9-none".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Option.None"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    assert!(
+        bc.enums.iter().any(|e| e.name == "Option$Number"),
+        "expected Option$Number from None, got {:?}",
+        bc.enums.iter().map(|e| e.name.as_str()).collect::<Vec<_>>()
+    );
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_generic_enum_match_some_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "enum Option<T> { Some(T), None }\nlet x = Option.Some(42)\nlet y = match x {\n  Option.Some(n) => n\n  Option.None => 0\n}\nreturn y";
+    let program = std::thread::Builder::new()
+        .name("sh-g9-match".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Option match"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("jump_unless_enum_variant") && kbc.contains("unpack_enum_fields"),
+        "expected generic enum match IR, kbc snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_generic_enum_two_specializations_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "enum Option<T> { Some(T), None }\nOption.Some(1)\nOption.Some(\"x\")\nreturn 1";
+    let program = std::thread::Builder::new()
+        .name("sh-g10-2enum".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile two Option specs"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let names: Vec<&str> = bc.enums.iter().map(|e| e.name.as_str()).collect();
+    assert!(names.contains(&"Option$Number"), "got {names:?}");
+    assert!(names.contains(&"Option$String"), "got {names:?}");
+    let opt_n = bc.enums.iter().find(|e| e.name == "Option$Number").unwrap();
+    assert_eq!(opt_n.variants[0].fields, vec!["Number"]);
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_generic_class_two_specializations_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Box<T> {\n  tag: number;\n  fn init(v) { this.tag = 1 }\n}\nlet a = Box(42)\nlet b = Box(\"x\")\nreturn a.tag + b.tag";
+    let program = std::thread::Builder::new()
+        .name("sh-g10-2cls".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile two Box specs"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let names: Vec<&str> = bc.classes.iter().map(|c| c.name.as_str()).collect();
+    assert!(names.contains(&"Box$Number"), "got {names:?}");
+    assert!(names.contains(&"Box$String"), "got {names:?}");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
+#[test]
+fn self_host_generic_class_explicit_type_arg_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Box<T> {\n  tag: number;\n  fn init(v) { this.tag = 1 }\n}\nlet b = Box<String>(\"hi\")\nreturn b.tag";
+    let program = std::thread::Builder::new()
+        .name("sh-g8-expl".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Box<String>"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    assert!(
+        bc.classes.iter().any(|c| c.name == "Box$String"),
+        "expected Box$String, got {:?}",
+        bc.classes.iter().map(|c| c.name.as_str()).collect::<Vec<_>>()
+    );
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_generic_class_method_two_specializations_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Holder {\n  fn init() {}\n  fn echo<T>(x) { return x }\n}\nlet h = Holder()\nlet a = h.echo(1)\nlet b = h.echo(\"x\")\nreturn a + len(b)";
+    let program = std::thread::Builder::new()
+        .name("sh-g7-2echo".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile two echo specs"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let holder = bc
+        .classes
+        .iter()
+        .find(|c| c.name == "Holder")
+        .expect("Holder");
+    let methods: Vec<&str> = holder.methods.iter().map(|m| m.name.as_str()).collect();
+    assert!(methods.contains(&"echo$Number"), "got {methods:?}");
+    assert!(methods.contains(&"echo$String"), "got {methods:?}");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
+#[test]
+fn self_host_generic_infer_from_class_instance_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Box {\n  value: number;\n  fn init(v) { this.value = v }\n}\nfn id<T>(x) { return x }\nlet b = Box(42)\nlet r = id(b)\nreturn r.value";
+    let program = std::thread::Builder::new()
+        .name("sh-g6-idbox".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile id(Box)"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    assert!(
+        bc.functions.iter().any(|f| f.name == "id$Box"),
+        "expected id$Box, got {:?}",
+        bc.functions.iter().map(|f| f.name.as_str()).collect::<Vec<_>>()
+    );
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_generic_pair_two_type_params_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "fn pair<A, B>(a, b) { return [a, b] }\nlet x = 1\nlet s = \"a\"\nreturn len(pair(x, s))";
+    let program = std::thread::Builder::new()
+        .name("sh-g6-pair".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile pair<A,B>"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    assert!(
+        bc.functions.iter().any(|f| f.name == "pair$Number_String"),
+        "expected pair$Number_String, got {:?}",
+        bc.functions.iter().map(|f| f.name.as_str()).collect::<Vec<_>>()
+    );
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("get_length"),
+        "len(pair(...)) should use get_length, snippet:\n{}",
+        kbc.chars().take(500).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "2");
+}
+
+#[test]
+fn self_host_generic_nested_id_call_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "fn id<T>(x) { return x }\nreturn id(id(42))";
+    let program = std::thread::Builder::new()
+        .name("sh-g10-nid".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile id(id())"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    assert!(
+        bc.functions.iter().any(|f| f.name == "id$Number"),
+        "expected id$Number, got {:?}",
+        bc.functions.iter().map(|f| f.name.as_str()).collect::<Vec<_>>()
+    );
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_generic_fn_two_specializations_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "fn id<T>(x) { return x }\nlet n = id(1)\nlet s = id(\"hi\")\nreturn n + len(s)";
+    let program = std::thread::Builder::new()
+        .name("sh-g4-2id".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile two id specs"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let names: Vec<&str> = bc.functions.iter().map(|f| f.name.as_str()).collect();
+    assert!(names.contains(&"id$Number"), "got {names:?}");
+    assert!(names.contains(&"id$String"), "got {names:?}");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "3");
+}
+
+#[test]
+fn self_host_generic_fn_explicit_type_arg_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "fn id<T>(x) { return x }\nreturn id<Number>(42)";
+    let program = std::thread::Builder::new()
+        .name("sh-g4-expl".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile id<Number>"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    assert!(
+        bc.functions.iter().any(|f| f.name == "id$Number"),
+        "expected id$Number, got {:?}",
+        bc.functions.iter().map(|f| f.name.as_str()).collect::<Vec<_>>()
+    );
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_generic_result_two_params_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "enum Result<T, E> { Ok(T), Err(E) }\nlet x = Result<Number, String>.Ok(42)\nlet y = match x {\n  Result.Ok(n) => n\n  Result.Err(e) => 0\n}\nreturn y";
+    let program = std::thread::Builder::new()
+        .name("sh-g9-result".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Result<T,E>"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    assert!(
+        bc.enums.iter().any(|e| e.name == "Result$Number_String"),
+        "expected Result$Number_String, got {:?}",
+        bc.enums.iter().map(|e| e.name.as_str()).collect::<Vec<_>>()
+    );
+    let res = bc
+        .enums
+        .iter()
+        .find(|e| e.name == "Result$Number_String")
+        .unwrap();
+    assert_eq!(res.variants[0].fields, vec!["Number"]);
+    assert_eq!(res.variants[1].fields, vec!["String"]);
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_trait_default_method_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "trait HasId { fn id() { return 1 } }\nclass Thing implements HasId {\n  fn init() {}\n}\nlet obj = Thing()\nreturn obj.id()";
+    let program = std::thread::Builder::new()
+        .name("sh-trait-default".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile trait default method"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("iface_method_default"),
+        "expected default method in kbc"
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_trait_assoc_type_kbc() {
+    use kabootar_lib::compile::compile_source_self_host;
+
+    let src = "trait Iter { type Item; fn next(); }\nreturn 0";
+    let program = std::thread::Builder::new()
+        .name("sh-trait-assoc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile trait assoc type"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("interface_assoc_types"),
+        "expected associated types in kbc:\n{kbc}"
+    );
+    assert!(kbc.contains("Item"), "expected Item in kbc");
+}
+
+#[test]
+fn self_host_generic_trait_type_params_kbc() {
+    use kabootar_lib::compile::compile_source_self_host;
+
+    let src = "trait Show<T> { fn show(); }\nreturn 0";
+    let program = std::thread::Builder::new()
+        .name("sh-t2-kbc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile generic trait"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("interface_type_params"),
+        "expected interface_type_params in kbc:\n{kbc}"
+    );
+    assert!(kbc.contains("T"), "expected T in kbc");
+}
+
+#[test]
+fn self_host_generic_trait_implements_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "trait Show<T> { fn show(); }\nclass Point implements Show<Number> {\n  x: number;\n  fn init(n) { this.x = n }\n  fn show() { return this.x }\n}\nlet p = Point(3)\nreturn p.show()";
+    let program = std::thread::Builder::new()
+        .name("sh-t2-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile Show<T>"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "3");
+}
+
+#[test]
+fn self_host_class_assoc_type_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "trait Iter { type Item; fn next(); }\nclass Counter implements Iter {\n  type Item = Number;\n  n: number;\n  fn init() { this.n = 0 }\n  fn next() { this.n = this.n + 1; return this.n }\n}\nlet c = Counter()\nreturn c.next()";
+    let program = std::thread::Builder::new()
+        .name("sh-class-assoc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile class assoc type"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("class_assoc_types"),
+        "expected class_assoc_types in kbc"
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "1");
+}
+
+#[test]
+fn self_host_class_assoc_type_missing() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+
+    let src = "trait Iter { type Item; fn next(); }\nclass Counter implements Iter {\n  n: number;\n  fn init() { this.n = 0 }\n  fn next() { return 1 }\n}\nreturn Counter()";
+    let program = std::thread::Builder::new()
+        .name("sh-class-assoc-miss".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile missing assoc"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let err = run_module(&module, &mut env).expect_err("missing assoc type should fail");
+    assert!(
+        err.contains("associated type") || err.contains("Item"),
+        "unexpected err: {err}"
+    );
+}
+
+#[test]
+fn self_host_where_bound_accepts_implemented() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "trait Show { fn show(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nfn show_it<T>(x) where T: Show { return 42 }\nreturn show_it<Shown>(Shown())";
+    let program = std::thread::Builder::new()
+        .name("sh-where-ok".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile where ok"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_where_bound_rejects_unimplemented() {
+    use kabootar_lib::compile::compile_source_self_host;
+
+    let src = "trait Show { fn show(); }\nclass Nope { fn init() {} }\nfn show_it<T>(x) where T: Show { return 1 }\nreturn show_it<Nope>(Nope())";
+    let err = std::thread::Builder::new()
+        .name("sh-where-no".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(err.contains("where"), "unexpected err: {err}");
+}
+
+#[test]
+fn self_host_where_method_bound_accepts_implemented() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "trait Show { fn show(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Box {\n  fn init() {}\n  fn show_it<T>(x) where T: Show { return 42 }\n}\nreturn Box().show_it<Shown>(Shown())";
+    let program = std::thread::Builder::new()
+        .name("sh-where-meth-ok".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile method where ok"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_where_method_bound_rejects_unimplemented() {
+    use kabootar_lib::compile::compile_source_self_host;
+
+    let src = "trait Show { fn show(); }\nclass Nope { fn init() {} }\nclass Box {\n  fn init() {}\n  fn show_it<T>(x) where T: Show { return 1 }\n}\nreturn Box().show_it<Nope>(Nope())";
+    let err = std::thread::Builder::new()
+        .name("sh-where-meth-no".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("method where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(err.contains("where"), "unexpected err: {err}");
+}
+
+#[test]
+fn self_host_where_class_bound_accepts_implemented() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "trait Show { fn show(); }\nclass Shown implements Show {\n  fn init() {}\n  fn show() { return 1 }\n}\nclass Box<T> where T: Show {\n  fn init() {}\n  fn tag() { return 42 }\n}\nreturn Box<Shown>().tag()";
+    let program = std::thread::Builder::new()
+        .name("sh-where-cls-ok".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile class where ok"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
+#[test]
+fn self_host_where_class_bound_rejects_unimplemented() {
+    use kabootar_lib::compile::compile_source_self_host;
+
+    let src = "trait Show { fn show(); }\nclass Nope { fn init() {} }\nclass Box<T> where T: Show {\n  fn init() {}\n}\nreturn Box<Nope>()";
+    let err = std::thread::Builder::new()
+        .name("sh-where-cls-no".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect_err("class where should reject"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    assert!(err.contains("where"), "unexpected err: {err}");
 }
 
 #[test]
@@ -2522,6 +5699,258 @@ fn self_host_match_enum_payload_kab_only() {
     }
     let formatted = result.expect("run enum payload under kab-only");
     assert_eq!(formatted, "4");
+}
+
+#[test]
+fn self_host_match_array_rest_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match [1, 2, 3, 4] { [h, ...t] => h + t[0] + t[1] + t[2], _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-arest".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match array rest"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("array_slice_rest"),
+        "expected array rest match IR, kbc snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "10");
+}
+
+#[test]
+fn self_host_match_object_rest_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match { a: 1, b: 2, c: 3 } { { a, ...r } => a + r.b + r.c, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-orest".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match object rest"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("object_rest"),
+        "expected object rest match IR, kbc snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "6");
+}
+
+#[test]
+fn self_host_match_array_rest_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match [9, 1, 2] { [h, ...t] => h + t[0] + t[1], _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-arest-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match array rest kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-arest-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run array rest under kab-only");
+    assert_eq!(formatted, "12");
+}
+
+#[test]
+fn self_host_match_array_mid_rest_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match [1, 2, 3, 4, 5] { [a, ...m, b] => a + b + len(m), _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-mid".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match mid rest"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("array_slice_rest") && kbc.contains("index_peek_from_end"),
+        "expected mid-rest match IR, kbc snippet:\n{}",
+        kbc.chars().take(800).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "9");
+}
+
+#[test]
+fn self_host_match_array_anon_mid_rest_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match [1, 9, 9, 2] { [a, ..., b] => a + b, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-amid".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match anon mid rest"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "3");
+}
+
+#[test]
+fn self_host_match_or_pattern_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 2 { 1 | 2 | 3 => 9, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-or".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match or"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    assert!(
+        kbc.contains("jump_unless_const_eq"),
+        "expected or-pattern const IR, kbc snippet:\n{}",
+        kbc.chars().take(500).collect::<String>()
+    );
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "9");
+}
+
+#[test]
+fn self_host_match_or_pattern_miss_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 8 { 1 | 2 => 1, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-or-miss".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match or miss"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "0");
+}
+
+#[test]
+fn self_host_match_or_pattern_kab_only() {
+    use kabootar_lib::bytecode::deserialize;
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::value::format_value;
+
+    let src = "return match 3 { 1 | 3 => 7, _ => 0 }";
+    let program = std::thread::Builder::new()
+        .name("sh-match-or-kab".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile match or kab"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bytecode = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bytecode);
+    let module = deserialize(&kbc).expect("deserialize");
+
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::set_var("KABOOTAR_VM", "kab-only");
+    let result: Result<String, String> = std::thread::Builder::new()
+        .name("sh-match-or-kab-run".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::evaluator::create_global_env;
+            let mut env = create_global_env();
+            kabootar_lib::compile::eval_program(
+                &kabootar_lib::compile::CompiledProgram {
+                    stmts: Vec::new(),
+                    bytecode: Some(module.clone()),
+                    stmt_count: 1,
+                    memory_mode: module.memory_mode,
+                },
+                &mut env,
+            )
+            .map(|v| format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(v) => std::env::set_var("KABOOTAR_VM", v),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    let formatted = result.expect("run or-pattern under kab-only");
+    assert_eq!(formatted, "7");
 }
 
 /// H6e: kab-only may compile thin impl leaves live (skip-list empty).

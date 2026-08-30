@@ -179,7 +179,137 @@ pub fn emitStmt_block(E) {
             eCallStmt(E, stmt)
             si = si + 1
         }
+        emitDisposeUsings(E, stmts)
         return true
+    return true
+}
+
+pub fn emitDisposeName(E, name) {
+    eCallExpr(E, {
+        "kind": AST_OPTIONAL_CALL,
+        "callee": {
+            "kind": AST_MEMBER,
+            "object": { "kind": AST_VAR, "sym": name },
+            "field": "dispose"
+        },
+        "args": []
+    })
+    emitOp(E, OP_POP, 0)
+    eCallExpr(E, {
+        "kind": AST_OPTIONAL_CALL,
+        "callee": {
+            "kind": AST_MEMBER,
+            "object": { "kind": AST_VAR, "sym": name },
+            "field": "close"
+        },
+        "args": []
+    })
+    emitOp(E, OP_POP, 0)
+    return 0
+}
+
+pub fn emitDisposeUsings(E, stmts) {
+    let ui = 0
+    while ui < len(stmts) {
+        let us = stmts[ui]
+        if us != null {
+            if us["kind"] == AST_USING {
+                emitDisposeName(E, us["name"])
+            }
+        }
+        ui = ui + 1
+    }
+    return 0
+}
+
+pub fn emitStmt_switch(E) {
+    if E["eNode"].kind != AST_SWITCH {
+        return false
+    }
+    let swScrut = E["eNode"]["scrutinee"]
+    let swCases = E["eNode"]["cases"]
+    let swDef = E["eNode"]["defaultBody"]
+    let swN = E["eForCounter"]
+    E["eForCounter"] = swN + 1
+    let tmp = "swtmp" + swN
+    eCallExpr(E, swScrut)
+    emitSym(E, 1, tmp)
+    let testStarts = []
+    let failPatches = []
+    let enterJumps = []
+    let ci = 0
+    while ci < len(swCases) {
+        testStarts = push(testStarts, opsLen(E))
+        emitSym(E, 0, tmp)
+        eCallExpr(E, swCases[ci]["value"])
+        emitOp(E, OP_EQ, 0)
+        let fail = opsLen(E)
+        emitOp(E, OP_JUMP_IF_FALSE, 0)
+        failPatches = push(failPatches, fail)
+        let enter = opsLen(E)
+        emitOp(E, OP_JUMP, 0)
+        enterJumps = push(enterJumps, enter)
+        ci = ci + 1
+    }
+    let noMatch = opsLen(E)
+    emitOp(E, OP_JUMP, 0)
+    ci = 0
+    while ci < len(failPatches) {
+        if ci + 1 < len(testStarts) {
+            patchJumpTo(E, failPatches[ci], testStarts[ci + 1])
+        } else {
+            patchJumpTo(E, failPatches[ci], noMatch)
+        }
+        ci = ci + 1
+    }
+    let endJumps = []
+    ci = 0
+    while ci < len(swCases) {
+        patchJumpAt(E, enterJumps[ci])
+        eCallStmt(E, swCases[ci]["body"])
+        if switchBodyFallsThrough(swCases[ci]["body"]) == 0 {
+            let ej = opsLen(E)
+            emitOp(E, OP_JUMP, 0)
+            endJumps = push(endJumps, ej)
+        }
+        ci = ci + 1
+    }
+    patchJumpAt(E, noMatch)
+    if swDef != null {
+        eCallStmt(E, swDef)
+    }
+    let ji = 0
+    while ji < len(endJumps) {
+        patchJumpAt(E, endJumps[ji])
+        ji = ji + 1
+    }
+    return true
+}
+
+pub fn switchBodyFallsThrough(node) {
+    if node == null {
+        return 0
+    }
+    if node.kind == AST_FALLTHROUGH {
+        return 1
+    }
+    if node.kind == AST_BLOCK {
+        let b = node["body"]
+        if b == undefined {
+            return 0
+        }
+        if len(b) == 0 {
+            return 0
+        }
+        return switchBodyFallsThrough(b[len(b) - 1])
+    }
+    return 0
+}
+
+pub fn emitStmt_fallthrough(E) {
+    if E["eNode"].kind != AST_FALLTHROUGH {
+        return false
+    }
     return true
 }
 
@@ -204,6 +334,13 @@ pub fn emitStmt_break(E) {
 let eMi = 0
 let eMeth = null
 let eMethTypeParams = null
+let eIi = 0
+let eIface = null
+let eHas = 0
+let eJi = 0
+let eDef = null
+let eFoundMeth = 0
+let eKi = 0
 
 pub fn emitStmt_class(E) {
     if E["eNode"].kind != AST_CLASS {
@@ -215,16 +352,88 @@ pub fn emitStmt_class(E) {
             E["eTypeParams"] = []
         }
         if len(E["eTypeParams"]) > 0 {
-            object_array_push(E, "eGenericClassTemplates", {
+            let classWhere = E["eNode"]["whereClause"]
+            if classWhere == undefined {
+                classWhere = []
+            }
+            let classFields = E["eNode"]["fields"]
+            if classFields == undefined {
+                classFields = []
+            }
+            let classImpl = E["eNode"]["implements"]
+            if classImpl == undefined {
+                classImpl = []
+            }
+            let classAssoc = E["eNode"]["associatedTypes"]
+            if classAssoc == undefined {
+                classAssoc = []
+            }
+            let classIsStruct = E["eNode"]["isStruct"]
+            if classIsStruct == undefined {
+                classIsStruct = 0
+            }
+            let classExtends = E["eNode"]["extends"]
+            if classExtends == undefined {
+                classExtends = ""
+            }
+            let classExtendsTA = E["eNode"]["extendsTypeArgs"]
+            if classExtendsTA == undefined {
+                classExtendsTA = []
+            }
+            E["eGenericClassTemplates"] = push(E["eGenericClassTemplates"], {
                 "sym": E["eFnSave"],
                 "typeParams": arrUtil(E, "snap",E["eTypeParams"]),
-                "methods": arrUtil(E, "snap",E["eNode"]["methods"])
+                "methods": arrUtil(E, "snap",E["eNode"]["methods"]),
+                "whereClause": arrUtil(E, "snap", classWhere),
+                "isStruct": classIsStruct,
+                "fields": arrUtil(E, "snap", classFields),
+                "implements": arrUtil(E, "snap", classImpl),
+                "associatedTypes": arrUtil(E, "snap", classAssoc),
+                "extends": classExtends,
+                "extendsTypeArgs": arrUtil(E, "snap", classExtendsTA)
             })
             return true
         }
         // Snap before emitStmt — emitStmt overwrites module-global E["eNode"].
         E["eClassMethodsSrc"] = E["eNode"]["methods"]
         E["eClassIsStruct"] = E["eNode"]["isStruct"]
+        E["eClassImplements"] = E["eNode"]["implements"]
+        if E["eClassImplements"] == undefined {
+            E["eClassImplements"] = []
+        }
+        E["eClassImplements"] = arrUtil(E, "snap", E["eClassImplements"])
+        let implMap = E["eTraitImpls"]
+        if implMap == undefined {
+            implMap = {}
+        }
+        implMap[E["eFnSave"]] = E["eClassImplements"]
+        E["eTraitImpls"] = implMap
+        E["eClassAssoc"] = E["eNode"]["associatedTypes"]
+        if E["eClassAssoc"] == undefined {
+            E["eClassAssoc"] = []
+        }
+        E["eClassAssoc"] = arrUtil(E, "snap", E["eClassAssoc"])
+        E["eClassExtends"] = E["eNode"]["extends"]
+        if E["eClassExtends"] == undefined {
+            E["eClassExtends"] = ""
+        }
+        let classExtendsTA = E["eNode"]["extendsTypeArgs"]
+        if classExtendsTA == undefined {
+            classExtendsTA = []
+        }
+        if len(classExtendsTA) > 0 {
+            let saveTA = E["eTypeArgs"]
+            E["eTypeArgs"] = arrUtil(E, "snap", classExtendsTA)
+            E["eParentMangled"] = E["eClassExtends"]
+            emitMangleWithTypeArgs(E, "eParentMangled")
+            E["eTypeArgs"] = saveTA
+            E["eClassExtends"] = E["eParentMangled"]
+        }
+        E["eClassFields"] = E["eNode"]["fields"]
+        if E["eClassFields"] == undefined {
+            E["eClassFields"] = []
+        }
+        E["eClassFields"] = arrUtil(E, "snap", E["eClassFields"])
         E["eClassMethods"] = []
         eMi = 0
         while eMi < len(E["eClassMethodsSrc"]) {
@@ -234,43 +443,116 @@ pub fn emitStmt_class(E) {
                 eMethTypeParams = []
             }
             if len(eMethTypeParams) > 0 {
-                object_array_push(E, "eGenericMethodTemplates", {
+                let methWhere = eMeth["whereClause"]
+                if methWhere == undefined {
+                    methWhere = []
+                }
+                E["eGenericMethodTemplates"] = push(E["eGenericMethodTemplates"], {
                     "classSym": E["eFnSave"],
                     "methodSym": eMeth["sym"],
                     "typeParams": arrUtil(E, "snap",eMethTypeParams),
                     "params": arrUtil(E, "snap",eMeth["params"]),
-                    "body": eMeth["body"]
+                    "paramDefaults": eMeth["paramDefaults"],
+                    "rest": eMeth["rest"],
+                    "body": eMeth["body"],
+                    "whereClause": arrUtil(E, "snap", methWhere)
                 })
             } else {
                 E["eInFn"] = 1
-                object_array_clear(E, "eFnOps")
+                E["eFnOps"] = []
                 E["eFnOpsN"] = 0
-                object_array_clear(E, "eFnGlobals")
-                object_array_clear(E, "eFnLocals")
+                E["eFnGlobals"] = []
+                E["eFnLocals"] = []
                 resetLocalMap(E)
+                if E["eClassIsStruct"] == 1 {
+                    symIndex(E, "local", "self")
+                } else {
+                    symIndex(E, "local", "this")
+                }
                 E["eParams"] = eMeth["params"]
                 E["eParamI"] = 0
                 while E["eParamI"] < len(E["eParams"]) {
                     E["eLoopSave"] = E["eParamI"]
-                    symIndex(E, "local",E["eParams"][E["eParamI"]])
+                    if E["eParams"][E["eParamI"]] != "self" {
+                        if E["eParams"][E["eParamI"]] != "this" {
+                            symIndex(E, "local", E["eParams"][E["eParamI"]])
+                        }
+                    }
                     E["eParamI"] = E["eLoopSave"] + 1
                 }
+                emitFnMarkRest(E, eMeth["rest"])
+                emitFnParamDefaults(E, E["eParams"], eMeth["paramDefaults"])
+                emitOp(E, OP_MAKE_NONE, 0)
+                emitOp(E, OP_POP, 0)
                 eCallStmt(E, eMeth["body"])
-                object_array_push(E, "eClassMethods", {
+                E["eClassMethods"] = push(E["eClassMethods"], {
                     "sym": eMeth["sym"],
                     "params": arrUtil(E, "snap",E["eParams"]),
                     "locals": arrUtil(E, "snap",E["eFnLocals"]),
                     "globals": arrUtil(E, "snap",E["eFnGlobals"]),
+                    "constants": arrUtil(E, "snap", E["eConsts"]),
                     "ops": arrUtil(E, "snap",E["eFnOps"])
                 })
                 E["eInFn"] = 0
             }
             eMi = eMi + 1
         }
-        object_array_push(E, "eClasses", {
+        eIi = 0
+        while eIi < len(E["eInterfaces"]) {
+            eIface = E["eInterfaces"][eIi]
+            eHas = 0
+            eJi = 0
+            while eJi < len(E["eClassImplements"]) {
+                let implName = E["eClassImplements"][eJi]
+                if implName == eIface["sym"] {
+                    eHas = 1
+                } else {
+                    let dollar = str_index_of("" + implName, "$")
+                    if dollar > 0 {
+                        if str_slice("" + implName, 0, dollar) == eIface["sym"] {
+                            eHas = 1
+                        }
+                    }
+                }
+                eJi = eJi + 1
+            }
+            if eHas == 1 {
+                eMi = 0
+                while eMi < len(eIface["methods"]) {
+                    eDef = eIface["methods"][eMi]
+                    if eDef["default"] == 1 {
+                        eFoundMeth = 0
+                        eKi = 0
+                        while eKi < len(E["eClassMethods"]) {
+                            if E["eClassMethods"][eKi]["sym"] == eDef["sym"] {
+                                eFoundMeth = 1
+                            }
+                            eKi = eKi + 1
+                        }
+                        if eFoundMeth == 0 {
+                            E["eClassMethods"] = push(E["eClassMethods"], {
+                                "sym": eDef["sym"],
+                                "params": arrUtil(E, "snap", eDef["params"]),
+                                "locals": arrUtil(E, "snap", eDef["locals"]),
+                                "globals": arrUtil(E, "snap", eDef["globals"]),
+                                "constants": arrUtil(E, "snap", eDef["constants"]),
+                                "ops": arrUtil(E, "snap", eDef["ops"])
+                            })
+                        }
+                    }
+                    eMi = eMi + 1
+                }
+            }
+            eIi = eIi + 1
+        }
+        E["eClasses"] = push(E["eClasses"], {
             "sym": E["eFnSave"],
-            "methods": E["eClassMethods"],
-            "isStruct": E["eClassIsStruct"]
+            "methods": arrUtil(E, "snap", E["eClassMethods"]),
+            "fields": arrUtil(E, "snap", E["eClassFields"]),
+            "implements": arrUtil(E, "snap", E["eClassImplements"]),
+            "associatedTypes": arrUtil(E, "snap", E["eClassAssoc"]),
+            "isStruct": E["eClassIsStruct"],
+            "extends": E["eClassExtends"]
         })
         E["eClassesN"] = E["eClassesN"] + 1
         return true
@@ -309,7 +591,7 @@ pub fn emitStmt_enum(E) {
             E["eTypeParams"] = []
         }
         if len(E["eTypeParams"]) > 0 {
-            object_array_push(E, "eGenericEnumTemplates", {
+            E["eGenericEnumTemplates"] = push(E["eGenericEnumTemplates"], {
                 "sym": E["eNode"]["sym"],
                 "typeParams": arrUtil(E, "snap",E["eTypeParams"]),
                 "variants": arrUtil(E, "snap",E["eNode"]["variants"])
@@ -370,13 +652,20 @@ pub fn emitStmt_fn(E) {
         if E["eTypeParams"] == undefined {
             E["eTypeParams"] = []
         }
+        E["eWhereClause"] = E["eNode"]["whereClause"]
+        if E["eWhereClause"] == undefined {
+            E["eWhereClause"] = []
+        }
         if len(E["eTypeParams"]) > 0 {
-            object_array_push(E, "eGenericTemplates", {
+            E["eGenericTemplates"] = push(E["eGenericTemplates"], {
                 "sym": E["eFnSave"],
                 "typeParams": arrUtil(E, "snap",E["eTypeParams"]),
                 "params": arrUtil(E, "snap",E["eParams"]),
+                "paramDefaults": E["eNode"]["paramDefaults"],
+                "rest": E["eNode"]["rest"],
                 "body": E["eFnBody"],
-                "isPub": E["eFnPub"]
+                "isPub": E["eFnPub"],
+                "whereClause": arrUtil(E, "snap", E["eWhereClause"])
             })
             if E["eFnPub"] == 1 {
                 eCallRet = ("" + E["eFnSave"]) + ""
@@ -397,6 +686,8 @@ pub fn emitStmt_fn(E) {
             symIndex(E, "local",E["eParams"][E["eParamI"]])
             E["eParamI"] = E["eLoopSave"] + 1
         }
+        emitFnMarkRest(E, E["eNode"]["rest"])
+        emitFnParamDefaults(E, E["eParams"], E["eNode"]["paramDefaults"])
         eCallStmt(E, E["eFnBody"])
         E["eFunctions"] = push(E["eFunctions"], {
             "sym": E["eFnSave"],
@@ -489,21 +780,209 @@ pub fn emitStmt_for_of(E) {
     return true
 }
 
+pub fn emitStmt_for_in(E) {
+    if E["eNode"].kind != AST_FOR_IN {
+        return false
+    }
+    if E["eInFn"] != 1 {
+        throw "for-in only supported inside fn (self-host emit)"
+    }
+    let forSym = E["eNode"]["sym"]
+    let forIter = E["eNode"]["iterable"]
+    let forBody = E["eNode"]["body"]
+    let n = E["eForCounter"]
+    E["eForCounter"] = n + 1
+    let src = "fisrc" + n
+    let idx = "fiidx" + n
+    let flag = "fiflag" + n
+    let srcIdx = symIndex(E, "local", src)
+    let idxI = symIndex(E, "local", idx)
+    let flagI = symIndex(E, "local", flag)
+    let varIdx = symIndex(E, "local", forSym)
+    eCallExpr(E, forIter)
+    emitOp(E, OP_STORE_LOCAL, srcIdx)
+    emitOp(E, OP_LOAD_LOCAL, srcIdx)
+    let jmpNotObj = E["eFnOpsN"]
+    emitOp(E, OP_JUMP_UNLESS_OBJECT, 0)
+    emitOp(E, OP_POP, 0)
+    emitOp(E, OP_LOAD_LOCAL, srcIdx)
+    emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", "keys"))
+    emitOp(E, OP_CALL, 1)
+    emitOp(E, OP_STORE_LOCAL, srcIdx)
+    eCallExpr(E, { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": 1 })
+    emitOp(E, OP_STORE_LOCAL, flagI)
+    let jmpAfterKeys = E["eFnOpsN"]
+    emitOp(E, OP_JUMP, 0)
+    patchRelJump(E, OP_JUMP_UNLESS_OBJECT, jmpNotObj)
+    emitOp(E, OP_POP, 0)
+    eCallExpr(E, { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": 0 })
+    emitOp(E, OP_STORE_LOCAL, flagI)
+    patchRelJump(E, OP_JUMP, jmpAfterKeys)
+    eCallExpr(E, { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": 0 })
+    emitOp(E, OP_STORE_LOCAL, idxI)
+    arrUtil(E, "pushLenKey", "eBreakFromStack", E["eBreakIdxs"])
+    let loopStart = E["eFnOpsN"]
+    object_array_push(E, "eWhileHeads", loopStart)
+    emitOp(E, OP_LOAD_LOCAL, idxI)
+    emitOp(E, OP_LOAD_LOCAL, srcIdx)
+    emitOp(E, OP_GET_LENGTH, 0)
+    emitOp(E, OP_LT, 0)
+    let jmpExit = E["eFnOpsN"]
+    emitOp(E, OP_JUMP_IF_FALSE, 0)
+    emitOp(E, OP_LOAD_LOCAL, flagI)
+    let jmpIdx = E["eFnOpsN"]
+    emitOp(E, OP_JUMP_IF_FALSE, 0)
+    emitOp(E, OP_LOAD_LOCAL, srcIdx)
+    emitOp(E, OP_LOAD_LOCAL, idxI)
+    emitOp(E, OP_INDEX_GET, 0)
+    let jmpBound = E["eFnOpsN"]
+    emitOp(E, OP_JUMP, 0)
+    patchRelJump(E, OP_JUMP_IF_FALSE, jmpIdx)
+    emitOp(E, OP_LOAD_LOCAL, idxI)
+    patchRelJump(E, OP_JUMP, jmpBound)
+    emitOp(E, OP_STORE_LOCAL, varIdx)
+    eCallStmt(E, forBody)
+    emitOp(E, OP_LOAD_LOCAL, idxI)
+    eCallExpr(E, { "kind": AST_LITERAL, "lit": LIT_NUMBER, "value": 1 })
+    emitOp(E, OP_ADD, 0)
+    emitOp(E, OP_STORE_LOCAL, idxI)
+    emitOp(E, OP_JUMP, loopStart - E["eFnOpsN"] - 1)
+    patchRelJump(E, OP_JUMP_IF_FALSE, jmpExit)
+    let loopEnd = E["eFnOpsN"]
+    eCallRet = len(E["eBreakFromStack"]) - 1
+    E["eBf"] = E["eBreakFromStack"][eCallRet]
+    E["eBi"] = E["eBf"]
+    while E["eBi"] < len(E["eBreakIdxs"]) {
+        eCallRet = loopEnd - E["eBreakIdxs"][E["eBi"]]
+        E["eJumpOff"] = eCallRet - 1
+        E["eFnOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+        E["eBi"] = E["eBi"] + 1
+    }
+    object_array_truncate(E, "eBreakIdxs", E["eBf"])
+    if len(E["eWhileHeads"]) > 0 {
+        object_array_pop(E, "eWhileHeads")
+    }
+    if len(E["eBreakFromStack"]) > 0 {
+        object_array_pop(E, "eBreakFromStack")
+    }
+    return true
+}
+
+pub fn emitStmt_for(E) {
+    if E["eNode"].kind != AST_FOR {
+        return false
+    }
+    let forInit = E["eNode"]["init"]
+    let forCond = E["eNode"]["cond"]
+    let forStep = E["eNode"]["step"]
+    let forBody = E["eNode"]["body"]
+    if forInit != null {
+        eCallStmt(E, forInit)
+    }
+    arrUtil(E, "pushLenKey", "eBreakFromStack", E["eBreakIdxs"])
+    let loopStart = opsLen(E)
+    object_array_push(E, "eWhileHeads", loopStart)
+    if forCond == null {
+        eCallExpr(E, { "kind": AST_LITERAL, "lit": LIT_BOOL, "value": true })
+    } else {
+        eCallExpr(E, forCond)
+    }
+    let jmpExit = opsLen(E)
+    emitOp(E, OP_JUMP_IF_FALSE, 0)
+    eCallStmt(E, forBody)
+    if forStep != null {
+        eCallStmt(E, forStep)
+    }
+    if E["eInFn"] == 1 {
+        E["eJumpOff"] = loopStart - E["eFnOpsN"] - 1
+    } else {
+        E["eJumpOff"] = loopStart - E["eOpsN"] - 1
+    }
+    emitOp(E, OP_JUMP, E["eJumpOff"])
+    patchRelJump(E, OP_JUMP_IF_FALSE, jmpExit)
+    if E["eInFn"] == 1 {
+        E["eEnd"] = E["eFnOpsN"]
+    } else {
+        E["eEnd"] = E["eOpsN"]
+    }
+    eCallRet = len(E["eBreakFromStack"]) - 1
+    E["eBf"] = E["eBreakFromStack"][eCallRet]
+    E["eBi"] = E["eBf"]
+    while E["eBi"] < len(E["eBreakIdxs"]) {
+        eCallRet = E["eEnd"] - E["eBreakIdxs"][E["eBi"]]
+        E["eJumpOff"] = eCallRet - 1
+        if E["eInFn"] == 1 {
+            E["eFnOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+        } else {
+            E["eOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+        }
+        E["eBi"] = E["eBi"] + 1
+    }
+    object_array_truncate(E, "eBreakIdxs", E["eBf"])
+    if len(E["eWhileHeads"]) > 0 {
+        object_array_pop(E, "eWhileHeads")
+    }
+    if len(E["eBreakFromStack"]) > 0 {
+        object_array_pop(E, "eBreakFromStack")
+    }
+    return true
+}
+
 // --- emit_stmt_index_assign ---
 pub fn emitStmt_index_assign(E) {
     if E["eNode"].kind != AST_INDEX_ASSIGN {
         return false
     }
-        E["eBxL"] = E["eNode"]["object"]
-        E["eBxR"] = E["eNode"]["index"]
-        E["eBxRhs"] = E["eNode"]["rhs"]
-        eCallExpr(E, E["eBxL"])
-        eCallExpr(E, E["eBxR"])
-        eCallExpr(E, E["eBxRhs"])
-        emitOp(E, OP_INDEX_SET, 0)
-        emitOp(E, OP_POP, 0)
-        emitOp(E, OP_POP, 0)
-        return true
+    let iaObj = E["eNode"]["object"]
+    let iaIdx = E["eNode"]["index"]
+    let iaRhs = E["eNode"]["rhs"]
+    eCallExpr(E, iaRhs)
+    let iaN = E["eForCounter"]
+    E["eForCounter"] = iaN + 1
+    let iaTmp = "iatmp" + iaN
+    emitSym(E, 1, iaTmp)
+    eCallExpr(E, iaObj)
+    eCallExpr(E, iaIdx)
+    emitSym(E, 0, iaTmp)
+    emitOp(E, OP_INDEX_SET, 0)
+    emitOp(E, OP_POP, 0)
+    if iaObj.kind == AST_VAR {
+        emitSym(E, 1, iaObj["sym"])
+    } else {
+        if iaObj.kind == AST_MEMBER {
+            let iaN2 = E["eForCounter"]
+            E["eForCounter"] = iaN2 + 1
+            let iaTmp2 = "iatmp" + iaN2
+            emitSym(E, 1, iaTmp2)
+            eCallExpr(E, iaObj["object"])
+            emitSym(E, 0, iaTmp2)
+            eCallRet = symIndex(E, "const", iaObj["field"])
+            emitOp(E, OP_SET_MEMBER, eCallRet)
+            emitOp(E, OP_POP, 0)
+            emitOp(E, OP_POP, 0)
+        } else {
+            if iaObj.kind == AST_INDEX {
+                let iaOuter = iaObj["object"]
+                let iaOuterIdx = iaObj["index"]
+                let iaN2 = E["eForCounter"]
+                E["eForCounter"] = iaN2 + 1
+                let iaTmp2 = "iatmp" + iaN2
+                emitSym(E, 1, iaTmp2)
+                eCallExpr(E, iaOuter)
+                eCallExpr(E, iaOuterIdx)
+                emitSym(E, 0, iaTmp2)
+                emitOp(E, OP_INDEX_SET, 0)
+                emitOp(E, OP_POP, 0)
+                if iaOuter.kind == AST_VAR {
+                    emitSym(E, 1, iaOuter["sym"])
+                } else {
+                    emitOp(E, OP_POP, 0)
+                }
+            } else {
+                emitOp(E, OP_POP, 0)
+            }
+        }
+    }
     return true
 }
 
@@ -512,7 +991,81 @@ pub fn emitStmt_interface(E) {
     if E["eNode"].kind != AST_INTERFACE {
         return false
     }
-        return true
+    E["eIfaceSym"] = "" + E["eNode"]["sym"]
+    E["eIfaceAssoc"] = E["eNode"]["associatedTypes"]
+    if E["eIfaceAssoc"] == undefined {
+        E["eIfaceAssoc"] = []
+    }
+    E["eIfaceAssoc"] = arrUtil(E, "snap", E["eIfaceAssoc"])
+    E["eIfaceTypeParams"] = E["eNode"]["typeParams"]
+    if E["eIfaceTypeParams"] == undefined {
+        E["eIfaceTypeParams"] = []
+    }
+    E["eIfaceTypeParams"] = arrUtil(E, "snap", E["eIfaceTypeParams"])
+    E["eIfaceMethodsSrc"] = E["eNode"]["methods"]
+    if E["eIfaceMethodsSrc"] == undefined {
+        E["eIfaceMethodsSrc"] = []
+    }
+    E["eIfaceMethods"] = []
+    eMi = 0
+    while eMi < len(E["eIfaceMethodsSrc"]) {
+        eMeth = E["eIfaceMethodsSrc"][eMi]
+        if eMeth["body"] != undefined {
+            E["eInFn"] = 1
+            E["eFnOps"] = []
+            E["eFnOpsN"] = 0
+            E["eFnGlobals"] = []
+            E["eFnLocals"] = []
+            resetLocalMap(E)
+            symIndex(E, "local", "this")
+            E["eParams"] = eMeth["params"]
+            if E["eParams"] == undefined {
+                E["eParams"] = []
+            }
+            E["eParamI"] = 0
+            while E["eParamI"] < len(E["eParams"]) {
+                E["eLoopSave"] = E["eParamI"]
+                if E["eParams"][E["eParamI"]] != "this" {
+                    if E["eParams"][E["eParamI"]] != "self" {
+                        symIndex(E, "local", E["eParams"][E["eParamI"]])
+                    }
+                }
+                E["eParamI"] = E["eLoopSave"] + 1
+            }
+            emitFnMarkRest(E, eMeth["rest"])
+            emitFnParamDefaults(E, E["eParams"], eMeth["paramDefaults"])
+            emitOp(E, OP_MAKE_NONE, 0)
+            emitOp(E, OP_POP, 0)
+            eCallStmt(E, eMeth["body"])
+            E["eIfaceMethods"] = push(E["eIfaceMethods"], {
+                "sym": eMeth["sym"],
+                "params": arrUtil(E, "snap", E["eParams"]),
+                "default": 1,
+                "locals": arrUtil(E, "snap", E["eFnLocals"]),
+                "globals": arrUtil(E, "snap", E["eFnGlobals"]),
+                "constants": arrUtil(E, "snap", E["eConsts"]),
+                "ops": arrUtil(E, "snap", E["eFnOps"])
+            })
+            E["eInFn"] = 0
+        } else {
+            E["eParams"] = eMeth["params"]
+            if E["eParams"] == undefined {
+                E["eParams"] = []
+            }
+            E["eIfaceMethods"] = push(E["eIfaceMethods"], {
+                "sym": eMeth["sym"],
+                "params": arrUtil(E, "snap", E["eParams"]),
+                "default": 0
+            })
+        }
+        eMi = eMi + 1
+    }
+    E["eInterfaces"] = push(E["eInterfaces"], {
+        "sym": E["eIfaceSym"],
+        "typeParams": E["eIfaceTypeParams"],
+        "associatedTypes": E["eIfaceAssoc"],
+        "methods": arrUtil(E, "snap", E["eIfaceMethods"])
+    })
     return true
 }
 
@@ -530,11 +1083,14 @@ pub fn emitStmt_letCtorGeneric(E) {
         return 0
     }
     E["eCtorArgs"] = E["eLitNode"]["args"]
-    emitInferTypeArgsFrom(E, "eCtorArgs", "", 0)
+    let saveNode = E["eNode"]
+    E["eNode"] = E["eLitNode"]
+    emitResolveTypeArgs(E, "eCtorArgs", "", 0)
+    E["eNode"] = saveNode
     E["eMangled"] = E["eCtorName"]
     emitMangleWithTypeArgs(E, "eMangled")
-    object_array_push(E, "eBindingSyms", E["eAssignSym"])
-    object_array_push(E, "eBindingTypes", E["eMangled"])
+    E["eBindingSyms"] = push(E["eBindingSyms"], E["eAssignSym"])
+    E["eBindingTypes"] = push(E["eBindingTypes"], E["eMangled"])
     return 0
 }
 
@@ -549,8 +1105,8 @@ pub fn emitStmt_letCtorLookup(E) {
     E["eGenI"] = 0
     while E["eGenI"] < E["eClassesN"] {
         if E["eClasses"][E["eGenI"]]["sym"] == E["eCtorName"] {
-            object_array_push(E, "eBindingSyms", E["eAssignSym"])
-            object_array_push(E, "eBindingTypes", E["eCtorName"])
+            E["eBindingSyms"] = push(E["eBindingSyms"], E["eAssignSym"])
+            E["eBindingTypes"] = push(E["eBindingTypes"], E["eCtorName"])
             E["eFound"] = 1
         }
         E["eGenI"] = E["eGenI"] + 1
@@ -563,17 +1119,24 @@ pub fn emitStmt_member_assign(E) {
     if E["eNode"].kind != AST_MEMBER_ASSIGN {
         return false
     }
-        E["eBxL"] = E["eNode"]["object"]
-        E["eMemberFld"] = E["eNode"]["field"]
-        E["eBxRhs"] = E["eNode"]["rhs"]
-        eCallExpr(E, E["eBxL"])
-        eCallExpr(E, E["eBxRhs"])
-        eCallRet = symIndex(E, "const", E["eMemberFld"])
-        E["eIdx"] = eCallRet
-        emitOp(E, OP_SET_MEMBER, eCallRet)
-        emitOp(E, OP_POP, 0)
-        emitOp(E, OP_POP, 0)
-        return true
+    let maObj = E["eNode"]["object"]
+    let maFld = E["eNode"]["field"]
+    let maRhs = E["eNode"]["rhs"]
+    eCallExpr(E, maRhs)
+    let maN = E["eForCounter"]
+    E["eForCounter"] = maN + 1
+    let maTmp = "matmp" + maN
+    emitSym(E, 1, maTmp)
+    if maObj.kind == AST_SUPER {
+        emitSym(E, 0, "this")
+    } else {
+        eCallExpr(E, maObj)
+    }
+    emitSym(E, 0, maTmp)
+    eCallRet = symIndex(E, "const", maFld)
+    emitOp(E, OP_SET_MEMBER, eCallRet)
+    emitOp(E, OP_POP, 0)
+    emitOp(E, OP_POP, 0)
     return true
 }
 
@@ -603,7 +1166,58 @@ pub fn emitStmt_throw(E) {
     return true
 }
 
-// --- emit_stmt_try ---
+pub fn emitStmt_pass(E) {
+    if E["eNode"].kind != AST_PASS {
+        return false
+    }
+    return true
+}
+
+pub fn emitStmt_assert(E) {
+    if E["eNode"].kind != AST_ASSERT {
+        return false
+    }
+    let asCond = E["eNode"]["cond"]
+    let asMsg = E["eNode"]["message"]
+    eCallExpr(E, asCond)
+    emitOp(E, OP_NOT, 0)
+    let skip = opsLen(E)
+    emitOp(E, OP_JUMP_IF_FALSE, 0)
+    if asMsg != null {
+        eCallExpr(E, asMsg)
+    } else {
+        eCallRet = symIndex(E, "const", "Assertion failed")
+        emitOp(E, OP_CONST, eCallRet)
+    }
+    emitOp(E, OP_THROW, 0)
+    patchJumpAt(E, skip)
+    return true
+}
+
+pub fn emitStmt_with(E) {
+    if E["eNode"].kind != AST_WITH {
+        return false
+    }
+    let wName = E["eNode"]["name"]
+    let wVal = E["eNode"]["value"]
+    let wBody = E["eNode"]["body"]
+    eCallExpr(E, wVal)
+    emitSym(E, 1, wName)
+    eCallStmt(E, wBody)
+    emitDisposeName(E, wName)
+    return true
+}
+
+pub fn emitStmt_using(E) {
+    if E["eNode"].kind != AST_USING {
+        return false
+    }
+    let uName = E["eNode"]["name"]
+    let uInit = E["eNode"]["init"]
+    eCallExpr(E, uInit)
+    emitSym(E, 1, uName)
+    return true
+}
 pub fn emitStmt_try(E) {
     if E["eNode"].kind != AST_TRY {
         return false
@@ -614,6 +1228,7 @@ pub fn emitStmt_try(E) {
         let tryBody = E["eNode"]["body"]
         let tryHandler = E["eNode"]["handler"]
         let errName = E["eNode"]["errName"]
+        let bodyStart = E["eFnOpsN"]
         eCallStmt(E, tryBody)
         let bodyEnd = E["eFnOpsN"]
         // Statement try: jump over catch on success (throw uses tryRegions).
@@ -695,6 +1310,54 @@ pub fn emitStmt_while(E) {
     return true
 }
 
+pub fn emitStmt_do_while(E) {
+    if E["eNode"].kind != AST_DO_WHILE {
+        return false
+    }
+    let doBody = E["eNode"]["body"]
+    let doCond = E["eNode"]["cond"]
+    arrUtil(E, "pushLenKey", "eBreakFromStack", E["eBreakIdxs"])
+    let loopStart = opsLen(E)
+    object_array_push(E, "eWhileHeads", loopStart)
+    eCallStmt(E, doBody)
+    eCallExpr(E, doCond)
+    let exitJ = opsLen(E)
+    emitOp(E, OP_JUMP_IF_FALSE, 0)
+    if E["eInFn"] == 1 {
+        E["eJumpOff"] = loopStart - E["eFnOpsN"] - 1
+    } else {
+        E["eJumpOff"] = loopStart - E["eOpsN"] - 1
+    }
+    emitOp(E, OP_JUMP, E["eJumpOff"])
+    patchJumpAt(E, exitJ)
+    if E["eInFn"] == 1 {
+        E["eEnd"] = E["eFnOpsN"]
+    } else {
+        E["eEnd"] = E["eOpsN"]
+    }
+    eCallRet = len(E["eBreakFromStack"]) - 1
+    E["eBf"] = E["eBreakFromStack"][eCallRet]
+    E["eBi"] = E["eBf"]
+    while E["eBi"] < len(E["eBreakIdxs"]) {
+        eCallRet = E["eEnd"] - E["eBreakIdxs"][E["eBi"]]
+        E["eJumpOff"] = eCallRet - 1
+        if E["eInFn"] == 1 {
+            E["eFnOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+        } else {
+            E["eOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+        }
+        E["eBi"] = E["eBi"] + 1
+    }
+    object_array_truncate(E, "eBreakIdxs", E["eBf"])
+    if len(E["eWhileHeads"]) > 0 {
+        object_array_pop(E, "eWhileHeads")
+    }
+    if len(E["eBreakFromStack"]) > 0 {
+        object_array_pop(E, "eBreakFromStack")
+    }
+    return true
+}
+
 // --- emit_stmt_let_ctor_bind ---
 pub fn emitStmt_letCtorBind(E) {
     if emitStmt_letCtorLookup(E) != 0 {
@@ -712,12 +1375,12 @@ pub fn emitStmt_letBind(E) {
     E["eLitNode"] = E["eNode"]["init"]
     if E["eLitNode"]["kind"] == AST_LITERAL {
         if E["eLitNode"]["lit"] == LIT_NUMBER {
-            object_array_push(E, "eBindingSyms", E["eAssignSym"])
-            object_array_push(E, "eBindingTypes", "Number")
+            E["eBindingSyms"] = push(E["eBindingSyms"], E["eAssignSym"])
+            E["eBindingTypes"] = push(E["eBindingTypes"], "Number")
         }
         if E["eLitNode"]["lit"] == LIT_STRING {
-            object_array_push(E, "eBindingSyms", E["eAssignSym"])
-            object_array_push(E, "eBindingTypes", "String")
+            E["eBindingSyms"] = push(E["eBindingSyms"], E["eAssignSym"])
+            E["eBindingTypes"] = push(E["eBindingTypes"], "String")
         }
     }
     if E["eLitNode"]["kind"] == AST_CALL {
@@ -726,10 +1389,142 @@ pub fn emitStmt_letBind(E) {
     return 0
 }
 
+pub fn emitStmt_letBindPat(E, pat) {
+    if pat.kind == "name" {
+        emitSym(E, 1, pat["sym"])
+        return 0
+    }
+    if pat.kind == "array" {
+        emitStmt_letArrayBind(E, pat["items"])
+        return 0
+    }
+    if pat.kind == "object" {
+        emitStmt_letObjectBind(E, pat["fields"])
+        return 0
+    }
+    emitOp(E, OP_POP, 0)
+    return 0
+}
+
+pub fn emitStmt_letArrayItem(E, item, i) {
+    emitOp(E, OP_DUP, 0)
+    let ci = symIndex(E, "const", i)
+    emitOp(E, OP_CONST, ci)
+    emitOp(E, OP_INDEX_GET, 0)
+    emitStmt_letBindPat(E, item)
+    return 0
+}
+
+pub fn emitStmt_letArrayBind(E, items) {
+    let restAt = -1
+    let i = 0
+    while i < len(items) {
+        if items[i].kind == "rest" {
+            restAt = i
+        }
+        i = i + 1
+    }
+    if restAt < 0 {
+        i = 0
+        while i < len(items) {
+            emitStmt_letArrayItem(E, items[i], i)
+            i = i + 1
+        }
+        emitOp(E, OP_POP, 0)
+        return 0
+    }
+    i = 0
+    while i < restAt {
+        emitStmt_letArrayItem(E, items[i], i)
+        i = i + 1
+    }
+    let afterN = len(items) - restAt - 1
+    let rname = items[restAt]["sym"]
+    if rname != "" && rname != null && rname != undefined {
+        emitOp(E, OP_DUP, 0)
+        emitOp2(E, OP_ARRAY_SLICE_REST, restAt, afterN)
+        emitSym(E, 1, rname)
+    }
+    i = 0
+    while i < afterN {
+        let item = items[restAt + 1 + i]
+        emitOp(E, OP_DUP, 0)
+        emitOp(E, OP_INDEX_PEEK_FROM_END, afterN - i)
+        emitStmt_letBindPat(E, item)
+        i = i + 1
+    }
+    emitOp(E, OP_POP, 0)
+    return 0
+}
+
+pub fn emitStmt_letArray(E, items) {
+    eCallExpr(E, E["eNode"]["init"])
+    emitStmt_letArrayBind(E, items)
+    return 0
+}
+
+pub fn emitStmt_letObjectBind(E, fields) {
+    let boundKeys = []
+    let fi = 0
+    while fi < len(fields) {
+        let f = fields[fi]
+        if f.kind == "shorthand" {
+            let ki = symIndex(E, "const", f.key)
+            emitOp(E, OP_DUP, 0)
+            emitOp(E, OP_GET_MEMBER, ki)
+            emitSym(E, 1, f.key)
+            boundKeys = push(boundKeys, f.key)
+        }
+        if f.kind == "field" {
+            let ki = symIndex(E, "const", f.key)
+            emitOp(E, OP_DUP, 0)
+            emitOp(E, OP_GET_MEMBER, ki)
+            emitStmt_letBindPat(E, f["pat"])
+            boundKeys = push(boundKeys, f.key)
+        }
+        if f.kind == "rest" {
+            let rname = f["sym"]
+            if rname != "" && rname != null && rname != undefined {
+                emitOp(E, OP_DUP, 0)
+                if len(boundKeys) == 0 {
+                    emitSym(E, 1, rname)
+                } else {
+                    let bi = 0
+                    while bi < len(boundKeys) {
+                        let restCi = symIndex(E, "const", boundKeys[bi])
+                        emitOp(E, OP_CONST, restCi)
+                        bi = bi + 1
+                    }
+                    emitOp(E, OP_OBJECT_REST, len(boundKeys))
+                    emitSym(E, 1, rname)
+                }
+            }
+        }
+        fi = fi + 1
+    }
+    emitOp(E, OP_POP, 0)
+    return 0
+}
+
+pub fn emitStmt_letObject(E, fields) {
+    eCallExpr(E, E["eNode"]["init"])
+    emitStmt_letObjectBind(E, fields)
+    return 0
+}
+
 // --- emit_stmt_let ---
 pub fn emitStmt_let(E) {
     if E["eNode"].kind != AST_LET {
         return false
+    }
+    let letPat = E["eNode"]["pat"]
+    if letPat != undefined && letPat["kind"] == "array" {
+        emitStmt_letArray(E, letPat["items"])
+        return true
+    }
+    if letPat != undefined && letPat["kind"] == "object" {
+        emitStmt_letObject(E, letPat["fields"])
+        return true
     }
     E["eAssignSym"] = E["eNode"]["sym"]
     emitStmt_letBind(E)
@@ -793,12 +1588,36 @@ pub fn emitStmtBody(E, node) {
         emitStmt_throw(E)
         return
     }
+    if kind == AST_PASS {
+        emitStmt_pass(E)
+        return
+    }
+    if kind == AST_ASSERT {
+        emitStmt_assert(E)
+        return
+    }
+    if kind == AST_WITH {
+        emitStmt_with(E)
+        return
+    }
+    if kind == AST_USING {
+        emitStmt_using(E)
+        return
+    }
     if kind == AST_TRY {
         emitStmt_try(E)
         return
     }
     if kind == AST_FOR_OF {
         emitStmt_for_of(E)
+        return
+    }
+    if kind == AST_FOR_IN {
+        emitStmt_for_in(E)
+        return
+    }
+    if kind == AST_FOR {
+        emitStmt_for(E)
         return
     }
     if kind == AST_RETURN {
@@ -819,6 +1638,18 @@ pub fn emitStmtBody(E, node) {
     }
     if kind == AST_WHILE {
         emitStmt_while(E)
+        return
+    }
+    if kind == AST_DO_WHILE {
+        emitStmt_do_while(E)
+        return
+    }
+    if kind == AST_SWITCH {
+        emitStmt_switch(E)
+        return
+    }
+    if kind == AST_FALLTHROUGH {
+        emitStmt_fallthrough(E)
         return
     }
     if kind == AST_ENUM {

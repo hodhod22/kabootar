@@ -28,6 +28,18 @@ pub fn runOpCtrlReturnRet(S, name, arg, op, pool, globals, functions) {
     return 0
 }
 
+// SH6: `await` — same contract as host Opcode::Await (identity or drain via await_all).
+pub fn runOpCtrlAwait(S, name, arg, op, pool, globals, functions) {
+    if name != "await" {
+        return 0
+    }
+    let v = vPopS(S)
+    let arr = await_all([v])
+    vPushS(S, arr[0])
+    vBumpIpS(S)
+    return 1
+}
+
 // --- vm_ops_ctrl_throw ---
 pub fn runOpCtrlThrow(S, name, arg, op, pool, globals, functions) {
     if name == "throw" {
@@ -54,7 +66,11 @@ pub fn runOpCtrlReturn(S, name, arg, op, pool, globals, functions) {
 
 // --- vm_ops_ctrl_a ---
 pub fn runOpCtrlA(S, name, arg, op, pool, globals, functions) {
-    let st = runOpCtrlThrow(S, name, arg, op, pool, globals, functions)
+    let st = runOpCtrlAwait(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    st = runOpCtrlThrow(S, name, arg, op, pool, globals, functions)
     if st != 0 {
         return st
     }

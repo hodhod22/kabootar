@@ -86,6 +86,9 @@ pub fn bootPolicy(key, a) {
     if key == "maxKbc" {
         return 262144
     }
+    if key == "maxKbcb" {
+        return 8388608
+    }
     if key == "vmAppHostFallback" {
         return false
     }

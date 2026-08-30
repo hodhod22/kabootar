@@ -1,3 +1,5 @@
+import "self_host/vm_s_stack"
+
 // --- vm_run_prep_fn_caps ---
 pub fn vPrepFnCaps(S, fnDef, caps) {
     if caps == null || caps == undefined {
@@ -31,11 +33,81 @@ pub fn vPrepFnNames(S, fnDef) {
 // --- vm_run_prep_fn_params ---
 pub fn vPrepFnParams(S, fnDef, callArgs) {
     let pi = 0
-    while pi < len(fnDef["params"]) {
+    let params = fnDef["params"]
+    if params == undefined {
+        params = []
+    }
+    let names = S["localNames"]
+    let restMark = 0
+    let hi = 0
+    while hi < len(names) {
+        if names[hi] == "kab_fn_rest" {
+            restMark = 1
+            break
+        }
+        hi = hi + 1
+    }
+    let nBind = len(params)
+    if restMark == 1 {
+        if nBind > 0 {
+            nBind = nBind - 1
+        }
+    }
+    while pi < nBind {
         if pi < len(callArgs) {
-            S["locals"][pi] = callArgs[pi]
+            let pname = params[pi]
+            let li = 0
+            let found = 0
+            while li < len(names) {
+                if names[li] == pname {
+                    S["locals"][li] = callArgs[pi]
+                    found = 1
+                    break
+                }
+                li = li + 1
+            }
+            if found == 0 {
+                if pi < len(S["locals"]) {
+                    S["locals"][pi] = callArgs[pi]
+                }
+            }
         }
         pi = pi + 1
+    }
+    if restMark == 1 {
+        if len(params) > 0 {
+            let restArgs = []
+            let ai = nBind
+            while ai < len(callArgs) {
+                restArgs = push(restArgs, callArgs[ai])
+                ai = ai + 1
+            }
+            let rname = params[len(params) - 1]
+            let rli = 0
+            let rfound = 0
+            while rli < len(names) {
+                if names[rli] == rname {
+                    S["locals"][rli] = restArgs
+                    rfound = 1
+                    break
+                }
+                rli = rli + 1
+            }
+            if rfound == 0 {
+                if nBind < len(S["locals"]) {
+                    S["locals"][nBind] = restArgs
+                }
+            }
+        }
+    }
+    let ti = 0
+    while ti < len(names) {
+        if names[ti] == "self" || names[ti] == "this" {
+            if S["locals"][ti] == undefined {
+                S["locals"][ti] = vThisS(S)
+            }
+        }
+        ti = ti + 1
     }
 }
 

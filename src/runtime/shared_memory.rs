@@ -3,14 +3,44 @@
 use crate::value::{Environment, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ops::Deref;
+use std::path::Path;
 use std::sync::atomic::{AtomicI32, AtomicU64, Ordering};
 use std::sync::{Condvar, Mutex, OnceLock};
 
 static NEXT_SAB: AtomicU64 = AtomicU64::new(1);
 static NEXT_SAB_TRANSFER: AtomicU64 = AtomicU64::new(1);
 
+/// Heap SAB, or a read-only file mmap (SH6 kbcb — no fill copy).
+enum SharedBytes {
+    Heap(Box<[u8]>),
+    #[cfg(not(target_arch = "wasm32"))]
+    FileMap(memmap2::Mmap),
+}
+
+impl Deref for SharedBytes {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        match self {
+            SharedBytes::Heap(b) => b,
+            #[cfg(not(target_arch = "wasm32"))]
+            SharedBytes::FileMap(m) => m,
+        }
+    }
+}
+
+impl SharedBytes {
+    fn write_ptr(&self) -> Result<*mut u8, String> {
+        match self {
+            SharedBytes::Heap(b) => Ok(b.as_ptr() as *mut u8),
+            #[cfg(not(target_arch = "wasm32"))]
+            SharedBytes::FileMap(_) => Err("mmap SharedArrayBuffer is read-only".into()),
+        }
+    }
+}
+
 struct SharedBlock {
-    bytes: Box<[u8]>,
+    bytes: SharedBytes,
 }
 
 thread_local! {
@@ -72,7 +102,8 @@ fn atomic_i32_at(block: &SharedBlock, byte_offset: usize) -> Result<&AtomicI32, 
     if byte_offset.saturating_add(4) > block.bytes.len() {
         return Err("Int32Array index out of range".into());
     }
-    Ok(unsafe { &*(block.bytes.as_ptr().add(byte_offset) as *const AtomicI32) })
+    let ptr = block.bytes.write_ptr()?;
+    Ok(unsafe { &*(ptr.add(byte_offset) as *const AtomicI32) })
 }
 
 pub fn is_uint8_array(v: &Value) -> bool {
@@ -96,7 +127,7 @@ pub fn fill_uint8_array(view: &Value, bytes: &[u8]) -> Result<(), String> {
         ));
     }
     let block = block_for_sab(sab_id)?;
-    let ptr = block.bytes.as_ptr() as *mut u8;
+    let ptr = block.bytes.write_ptr()?;
     // SAFETY: single-byte writes within the view range; Arc shared across threads.
     unsafe {
         for (i, b) in bytes.iter().enumerate() {
@@ -173,7 +204,7 @@ pub fn sab_new(byte_length: usize) -> Result<Value, String> {
         return Err("SharedArrayBuffer byteLength must be > 0".into());
     }
     let padded = (byte_length + 3) & !3;
-    let bytes = vec![0u8; padded].into_boxed_slice();
+    let bytes = SharedBytes::Heap(vec![0u8; padded].into_boxed_slice());
     let block = std::sync::Arc::new(SharedBlock { bytes });
     let id = NEXT_SAB.fetch_add(1, Ordering::Relaxed);
     LOCAL_SABS.with(|m| m.borrow_mut().insert(id, block));
@@ -243,6 +274,65 @@ fn sab_is_shared_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     Ok(Value::Bool(sab_id(args.first().ok_or("sab_is_shared(sab)")?).is_ok()))
 }
 
+/// Packed byte view over `sab`. `buffer` is the SAB so Kab can cut subviews
+/// (`uint8_array_new(view.buffer, off, n)`) without a Number-array copy.
+pub fn uint8_array_new(sab: &Value, offset: usize, length: usize) -> Result<Value, String> {
+    let sab_id = sab_id(sab)?;
+    let total = block_for_sab(sab_id)?.bytes.len();
+    if offset.saturating_add(length) > total {
+        return Err("Uint8Array range exceeds SharedArrayBuffer".into());
+    }
+    let mut m = HashMap::new();
+    m.insert("__kab_u8".into(), Value::Bool(true));
+    m.insert("__kab_sab_id".into(), Value::Number(sab_id as i64));
+    m.insert("byteOffset".into(), Value::Number(offset as i64));
+    m.insert("byteLength".into(), Value::Number(length as i64));
+    m.insert("buffer".into(), sab.clone());
+    Ok(Value::from_object(m))
+}
+
+/// Host glue: copy `bytes` into a SAB-backed Uint8Array. Not a Kab native.
+pub fn uint8_array_from_bytes(bytes: &[u8]) -> Result<Value, String> {
+    if bytes.is_empty() {
+        return Err("uint8_array_from_bytes: empty".into());
+    }
+    let sab = sab_new(bytes.len())?;
+    let view = uint8_array_new(&sab, 0, bytes.len())?;
+    fill_uint8_array(&view, bytes)?;
+    Ok(view)
+}
+
+/// Host glue: map a file as a read-only Uint8Array. Not a Kab native.
+/// wasm32 has no mmap — falls back to a heap copy.
+pub fn uint8_array_from_mmap_file(path: &Path) -> Result<Value, String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let bytes = std::fs::read(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+        return uint8_array_from_bytes(&bytes);
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let meta = std::fs::metadata(path)
+            .map_err(|e| format!("stat {}: {e}", path.display()))?;
+        let n = meta.len() as usize;
+        if n == 0 {
+            return Err("uint8_array_from_mmap_file: empty".into());
+        }
+        let file = std::fs::File::open(path)
+            .map_err(|e| format!("open {}: {e}", path.display()))?;
+        let map = unsafe { memmap2::Mmap::map(&file) }
+            .map_err(|e| format!("mmap {}: {e}", path.display()))?;
+        let byte_length = map.len();
+        let block = std::sync::Arc::new(SharedBlock {
+            bytes: SharedBytes::FileMap(map),
+        });
+        let id = NEXT_SAB.fetch_add(1, Ordering::Relaxed);
+        LOCAL_SABS.with(|m| m.borrow_mut().insert(id, block));
+        let sab = sab_object(id, byte_length);
+        uint8_array_new(&sab, 0, byte_length)
+    }
+}
+
 fn uint8_array_new_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let sab = args.first().ok_or("uint8_array_new(sab, offset?, length?)")?;
     let sab_id = sab_id(sab)?;
@@ -255,15 +345,7 @@ fn uint8_array_new_native(args: &[Value], _env: &mut Environment) -> Result<Valu
         Some(v) => usize_arg(v, "uint8_array_new length")?,
         None => total.saturating_sub(offset),
     };
-    if offset.saturating_add(length) > total {
-        return Err("Uint8Array range exceeds SharedArrayBuffer".into());
-    }
-    let mut m = HashMap::new();
-    m.insert("__kab_u8".into(), Value::Bool(true));
-    m.insert("__kab_sab_id".into(), Value::Number(sab_id as i64));
-    m.insert("byteOffset".into(), Value::Number(offset as i64));
-    m.insert("byteLength".into(), Value::Number(length as i64));
-    Ok(Value::from_object(m))
+    uint8_array_new(sab, offset, length)
 }
 
 fn uint8_array_get_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -293,7 +375,7 @@ fn uint8_array_set_native(args: &[Value], _env: &mut Environment) -> Result<Valu
     }
     let block = block_for_sab(sab_id)?;
     // SAFETY: single-byte write; Arc shared across threads.
-    let ptr = block.bytes.as_ptr() as *mut u8;
+    let ptr = block.bytes.write_ptr()?;
     unsafe {
         *ptr.add(offset + index) = value;
     }
@@ -451,7 +533,7 @@ fn float64_array_set_native(args: &[Value], _env: &mut Environment) -> Result<Va
     };
     let (sab_id, byte_offset) = f64_index_byte_offset(view, index)?;
     let block = block_for_sab(sab_id)?;
-    let ptr = block.bytes.as_ptr() as *mut u8;
+    let ptr = block.bytes.write_ptr()?;
     unsafe {
         let slice = std::slice::from_raw_parts_mut(ptr, block.bytes.len());
         write_f64_le(slice, byte_offset, value)?;
@@ -554,7 +636,7 @@ fn float32_array_set_native(args: &[Value], _env: &mut Environment) -> Result<Va
     };
     let (sab_id, byte_offset) = f32_index_byte_offset(view, index)?;
     let block = block_for_sab(sab_id)?;
-    let ptr = block.bytes.as_ptr() as *mut u8;
+    let ptr = block.bytes.write_ptr()?;
     unsafe {
         let slice = std::slice::from_raw_parts_mut(ptr, block.bytes.len());
         write_f32_le(slice, byte_offset, value)?;
@@ -592,7 +674,7 @@ pub fn float64_array_write_slice(view: &Value, data: &[f64]) -> Result<(), Strin
     let block = block_for_sab(sab_id)?;
     // SAFETY: SharedArrayBuffer block is process-local; science writes are single-threaded here.
     unsafe {
-        let ptr = block.bytes.as_ptr() as *mut u8;
+        let ptr = block.bytes.write_ptr()?;
         let slice = std::slice::from_raw_parts_mut(ptr, block.bytes.len());
         for (i, v) in data.iter().enumerate() {
             write_f64_le(slice, offset + i * 8, *v)?;
@@ -709,7 +791,7 @@ fn data_view_set_float64_native(args: &[Value], _env: &mut Environment) -> Resul
         return Err("DataView write out of range".into());
     }
     let block = block_for_sab(sab_id)?;
-    let ptr = block.bytes.as_ptr() as *mut u8;
+    let ptr = block.bytes.write_ptr()?;
     unsafe {
         let slice = std::slice::from_raw_parts_mut(ptr, block.bytes.len());
         write_f64_le(slice, base + rel, value)?;
@@ -983,6 +1065,35 @@ mod tests {
         };
         let sab2 = sab_from_transfer(tok).unwrap();
         assert_eq!(sab_byte_length(&sab2).unwrap(), 8);
+    }
+
+    #[test]
+    fn uint8_array_from_bytes_keeps_packed_bytes() {
+        let view = uint8_array_from_bytes(&[75, 66, 67, 66, 2]).unwrap();
+        assert!(is_uint8_array(&view));
+        assert_eq!(uint8_array_byte_length(&view).unwrap(), 5);
+        assert_eq!(uint8_array_to_vec(&view).unwrap(), vec![75, 66, 67, 66, 2]);
+        let Value::Object(o) = &view else {
+            panic!("expected Uint8Array object");
+        };
+        assert!(matches!(o.get("buffer"), Some(Value::Object(_))));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn uint8_array_from_mmap_file_is_readonly_packed() {
+        let dir = std::env::temp_dir().join(format!("kab_mmap_u8_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("tiny.kbcb");
+        let bytes = [75u8, 66, 67, 66, 2, 1, 0, 0, 0, 99];
+        std::fs::write(&path, bytes).expect("write");
+        let view = uint8_array_from_mmap_file(&path).expect("mmap");
+        assert!(is_uint8_array(&view));
+        assert_eq!(uint8_array_byte_length(&view).unwrap(), bytes.len());
+        assert_eq!(uint8_array_to_vec(&view).unwrap(), bytes);
+        let err = fill_uint8_array(&view, &bytes).expect_err("mmap must be read-only");
+        assert!(err.contains("read-only"), "{err}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
