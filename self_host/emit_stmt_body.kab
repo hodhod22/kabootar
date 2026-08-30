@@ -723,12 +723,14 @@ pub fn emitStmt_for_of(E) {
         let forBody = E["eNode"]["body"]
         let n = E["eForCounter"]
         E["eForCounter"] = n + 1
-        let src = "__kab_f" + n + "_src"
-        let res = "__kab_f" + n + "_r"
+        let src = "fosrc" + n
+        let res = "fores" + n
         let srcIdx = symIndex(E, "local", src)
         let resIdx = symIndex(E, "local", res)
         let varIdx = symIndex(E, "local", forSym)
         eCallExpr(E, forIter)
+        let doneIdx = symIndex(E, "const", "done")
+        let valIdx = symIndex(E, "const", "value")
         emitOp(E, OP_STORE_LOCAL, srcIdx)
         emitOp(E, OP_LOAD_LOCAL, srcIdx)
         emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", "iterator_begin"))
@@ -742,7 +744,7 @@ pub fn emitStmt_for_of(E) {
         emitOp(E, OP_STORE_LOCAL, resIdx)
         emitOp(E, OP_STORE_LOCAL, srcIdx)
         emitOp(E, OP_LOAD_LOCAL, resIdx)
-        emitOp(E, OP_CONST, symIndex(E, "const", "done"))
+        emitOp(E, OP_CONST, doneIdx)
         emitOp(E, OP_INDEX_GET, 0)
         let jmpDoneIdx = E["eFnOpsN"]
         emitOp(E, OP_JUMP_IF_FALSE, 0)
@@ -752,7 +754,7 @@ pub fn emitStmt_for_of(E) {
         eCallRet = bodyStart - jmpDoneIdx - 1
         E["eFnOps"][jmpDoneIdx] = { "op": OP_JUMP_IF_FALSE, "arg": eCallRet }
         emitOp(E, OP_LOAD_LOCAL, resIdx)
-        emitOp(E, OP_CONST, symIndex(E, "const", "value"))
+        emitOp(E, OP_CONST, valIdx)
         emitOp(E, OP_INDEX_GET, 0)
         emitOp(E, OP_STORE_LOCAL, varIdx)
         eCallStmt(E, forBody)
@@ -776,6 +778,13 @@ pub fn emitStmt_for_of(E) {
         if len(E["eBreakFromStack"]) > 0 {
             object_array_pop(E, "eBreakFromStack")
         }
+        while len(E["eConsts"]) <= doneIdx {
+            object_array_push(E, "eConsts", "done")
+        }
+        while len(E["eConsts"]) <= valIdx {
+            object_array_push(E, "eConsts", "value")
+        }
+        E["eConstN"] = len(E["eConsts"])
         return true
     return true
 }
@@ -946,41 +955,46 @@ pub fn emitStmt_index_assign(E) {
     emitSym(E, 0, iaTmp)
     emitOp(E, OP_INDEX_SET, 0)
     emitOp(E, OP_POP, 0)
-    if iaObj.kind == AST_VAR {
-        emitSym(E, 1, iaObj["sym"])
-    } else {
-        if iaObj.kind == AST_MEMBER {
-            let iaN2 = E["eForCounter"]
+    let iaCur = iaObj
+    let iaWalk = 1
+    let iaOuter = iaObj
+    let iaOuterIdx = iaIdx
+    let iaN2 = 0
+    let iaTmp2 = "iatmp"
+    while iaWalk == 1 {
+        if iaCur.kind == AST_INDEX {
+            iaOuter = iaCur["object"]
+            iaOuterIdx = iaCur["index"]
+            iaN2 = E["eForCounter"]
             E["eForCounter"] = iaN2 + 1
-            let iaTmp2 = "iatmp" + iaN2
+            iaTmp2 = "iatmp" + iaN2
             emitSym(E, 1, iaTmp2)
-            eCallExpr(E, iaObj["object"])
+            eCallExpr(E, iaOuter)
+            eCallExpr(E, iaOuterIdx)
             emitSym(E, 0, iaTmp2)
-            eCallRet = symIndex(E, "const", iaObj["field"])
+            emitOp(E, OP_INDEX_SET, 0)
+            emitOp(E, OP_POP, 0)
+            iaCur = iaOuter
+        } else {
+            iaWalk = 0
+        }
+    }
+    if iaCur.kind == AST_VAR {
+        emitSym(E, 1, iaCur["sym"])
+    } else {
+        if iaCur.kind == AST_MEMBER {
+            iaN2 = E["eForCounter"]
+            E["eForCounter"] = iaN2 + 1
+            iaTmp2 = "iatmp" + iaN2
+            emitSym(E, 1, iaTmp2)
+            eCallExpr(E, iaCur["object"])
+            emitSym(E, 0, iaTmp2)
+            eCallRet = symIndex(E, "const", iaCur["field"])
             emitOp(E, OP_SET_MEMBER, eCallRet)
             emitOp(E, OP_POP, 0)
             emitOp(E, OP_POP, 0)
         } else {
-            if iaObj.kind == AST_INDEX {
-                let iaOuter = iaObj["object"]
-                let iaOuterIdx = iaObj["index"]
-                let iaN2 = E["eForCounter"]
-                E["eForCounter"] = iaN2 + 1
-                let iaTmp2 = "iatmp" + iaN2
-                emitSym(E, 1, iaTmp2)
-                eCallExpr(E, iaOuter)
-                eCallExpr(E, iaOuterIdx)
-                emitSym(E, 0, iaTmp2)
-                emitOp(E, OP_INDEX_SET, 0)
-                emitOp(E, OP_POP, 0)
-                if iaOuter.kind == AST_VAR {
-                    emitSym(E, 1, iaOuter["sym"])
-                } else {
-                    emitOp(E, OP_POP, 0)
-                }
-            } else {
-                emitOp(E, OP_POP, 0)
-            }
+            emitOp(E, OP_POP, 0)
         }
     }
     return true
@@ -1136,7 +1150,52 @@ pub fn emitStmt_member_assign(E) {
     eCallRet = symIndex(E, "const", maFld)
     emitOp(E, OP_SET_MEMBER, eCallRet)
     emitOp(E, OP_POP, 0)
-    emitOp(E, OP_POP, 0)
+    if maObj.kind == AST_INDEX {
+        let maCur = maObj
+        let maWalk = 1
+        let maOuter = maObj
+        let maOuterIdx = maObj
+        let maN2 = 0
+        let maTmp2 = "matmp"
+        while maWalk == 1 {
+            if maCur.kind == AST_INDEX {
+                maOuter = maCur["object"]
+                maOuterIdx = maCur["index"]
+                maN2 = E["eForCounter"]
+                E["eForCounter"] = maN2 + 1
+                maTmp2 = "matmp" + maN2
+                emitSym(E, 1, maTmp2)
+                eCallExpr(E, maOuter)
+                eCallExpr(E, maOuterIdx)
+                emitSym(E, 0, maTmp2)
+                emitOp(E, OP_INDEX_SET, 0)
+                emitOp(E, OP_POP, 0)
+                maCur = maOuter
+            } else {
+                maWalk = 0
+            }
+        }
+        if maCur.kind == AST_VAR {
+            emitSym(E, 1, maCur["sym"])
+        } else {
+            if maCur.kind == AST_MEMBER {
+                maN2 = E["eForCounter"]
+                E["eForCounter"] = maN2 + 1
+                maTmp2 = "matmp" + maN2
+                emitSym(E, 1, maTmp2)
+                eCallExpr(E, maCur["object"])
+                emitSym(E, 0, maTmp2)
+                eCallRet = symIndex(E, "const", maCur["field"])
+                emitOp(E, OP_SET_MEMBER, eCallRet)
+                emitOp(E, OP_POP, 0)
+                emitOp(E, OP_POP, 0)
+            } else {
+                emitOp(E, OP_POP, 0)
+            }
+        }
+    } else {
+        emitOp(E, OP_POP, 0)
+    }
     return true
 }
 

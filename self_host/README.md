@@ -2,7 +2,7 @@
 
 **Slutmål (nolltolerans):** hela stacken är `.kab`. Rust är skuld tills [SH28](../docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust). Plan: [docs/ROADMAP.md — Kabootar på egna fötter](../docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust).
 
-Produktkompilatorn är `self_host/compile.kab`. Plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)**. SH6: Kab-VM **kab-only default**; packed `.kbcb` run; **`in`**; **`await`**; **`array_slice_from`**; **`new_instance_from_array`**; self-host **`let [a, ...rest]`** / **`let { a, ...rest }`** / **`let { x: [a, b] }`** / **`[1, ...xs]`** / **`{ ...obj }`** / **`{ a }`** / **`{ foo() {} }`** / **`{ [k]: v }`** / **`is`/`is not`** / **`fn f(a, b = 3)`** / **`fn f(a, ...xs)`** / **`(a, b = 3) =>`** / **`(a, ...xs) =>`** / **`class C { fn add(a, b = 3) }`** / **`fn rest(a, ...xs)`** / **`{ add(a, b = 3) {} }`** / **`{ rest(a, ...xs) {} }`** / **`trait T { fn add(a, b = 3) }`** / **`fn rest(a, ...xs)`** / **`o?.x`** / **`xs?.[0]`** / **`f?.()`** / **`delete o.z`** / **`switch`** / **`fallthrough`** / **`do while`** / **`xs[0] +=`** / **`step()?`/`bad()?`** / **`? :`** / **`import.meta`** / **`` `n=${n}` ``** / **`||=` `&&=` `??=`** / **`??`** / **`for let i = 0`** / **`is(obj, "Class")`** / **`pass`/`assert`/`not`** / **`raise`** / **`o.x +=`** / **`o.a.b +=`** / **`o.items[0] +=`** / **`xs[0].x +=`** / **`xs[0][0] +=`**. 100 loop / 200 unrolled. 1k+ loop är nested-interpreter. Text-`maxKbc` oförändrad. Inte `noll_*`. Språkparitet i `.kab`, inte `src/`.
+Produktkompilatorn är `self_host/compile.kab`. Plan: **[docs/ROADMAP.md — Våg SH](../docs/ROADMAP.md)**. SH6: Kab-VM **kab-only default**; packed `.kbcb` run; **`in`**; **`await`**; **`array_slice_from`**; **`new_instance_from_array`**; self-host **`let [a, ...rest]`** / **`let { a, ...rest }`** / **`let { x: [a, b] }`** / **`[1, ...xs]`** / **`{ ...obj }`** / **`{ a }`** / **`{ foo() {} }`** / **`{ [k]: v }`** / **`is`/`is not`** / **`fn f(a, b = 3)`** / **`fn f(a, ...xs)`** / **`(a, b = 3) =>`** / **`(a, ...xs) =>`** / **`class C { fn add(a, b = 3) }`** / **`fn rest(a, ...xs)`** / **`{ add(a, b = 3) {} }`** / **`{ rest(a, ...xs) {} }`** / **`trait T { fn add(a, b = 3) }`** / **`fn rest(a, ...xs)`** / **`o?.x`** / **`xs?.[0]`** / **`f?.()`** / **`delete o.z`** / **`switch`** / **`fallthrough`** / **`do while`** / **`xs[0] +=`** / **`step()?`/`bad()?`** / **`? :`** / **`import.meta`** / **`` `n=${n}` ``** / **`||=` `&&=` `??=`** / **`??`** / **`for let i = 0`** / **`for x of`** / **`for k in`** / **`match 1 { 1 => 2, _ => 0 }`** / **`match [x, y]`** / **`match { p, q }`** / **`if let Some(x)`** / **`while let Ok(v)`** / **`match 1..=5`** / **`n @ 1..=5`** / **`1 | 2 | 3`** / **`..5`** / **`5..`** / **`[h, ...t]`** / **`{ k, ...s }`** / **`[h, ...mid, last]`** / **`n @ 1..=5 if n != 3`** / **`Color.Red`** / **`Msg.Move(p)`** / **`xs @ [p, q]`** / **`wrap @ { k, ...s }`** / **`{ k: n @ 1..=5 }`** / **`[n @ 1, ...r]`** / **`Ok(n @ 1..=5)`** / **`Some(n @ 1..=5)`** / **`if let 1 | 2`** / **`while let 1 | 2`** / **`(1 | 2)`** / **`Option.Some(n)`** / **`Option<Number>.None`** / **`1.0..=2.0`** / **`is(obj, "Class")`** / **`pass`/`assert`/`not`** / **`raise`** / **`o.x +=`** / **`o.a.b +=`** / **`o.items[0] +=`** / **`o.items[0][0] +=`** / **`xs[0].x +=`** / **`xs[0][0].x +=`** / **`o.items[0][0].x +=`** / **`xs[0][0] +=`** / **`xs[0][0][0] +=`**. 100 loop / 200 unrolled. 1k+ loop är nested-interpreter. Text-`maxKbc` oförändrad. Inte `noll_*`. Språkparitet i `.kab`, inte `src/`.
 
 **Dok efter varje deepen:** uppdatera [docs/ROADMAP.md](../docs/ROADMAP.md) (status + **Nästa**) och den här filen (nuläge + milstolpar + tester) i samma pass. Språkparitet: även [docs/LANGUAGE.md](../docs/LANGUAGE.md).
 
@@ -119,6 +119,26 @@ cargo test --test sh_wave sh6_self_host_import_meta_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_template_literal_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_logical_assign_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_classic_for_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_for_of_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_for_in_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_const_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_array_object_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_if_while_let_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_range_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_or_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_open_range_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_rest_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_mid_rest_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_guard_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_enum_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_at_nested_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_field_at_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_elem_at_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_payload_at_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_if_while_let_or_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_paren_or_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_option_enum_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_match_float_range_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_is_class_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_pass_assert_not_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_raise_ok -- --test-threads=1
@@ -126,6 +146,10 @@ cargo test --test sh_wave sh6_self_host_member_compound_assign_ok -- --test-thre
 cargo test --test sh_wave sh6_self_host_nested_member_compound_assign_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_mixed_compound_assign_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_nested_index_compound_assign_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_triple_index_compound_assign_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_member_nested_index_compound_assign_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_nested_index_member_compound_assign_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_member_nested_index_member_compound_assign_ok -- --test-threads=1
 cargo test --test sh_wave sh6_kbcb_oversize_string_const_ok -- --test-threads=1
 cargo test --test sh_wave sh6_kbcb_loop_100_ok -- --test-threads=1
 cargo test --test sh_wave sh6_kbcb_unrolled_200_ok -- --test-threads=1
@@ -272,7 +296,7 @@ Kort ordning:
     - Run-only: `self_host_compile_kbc_run_only` (kräver `_compile_full_out.kbc`).
     - Bygg KBC: `python scripts/profile_emit_compile.py compile compile.kab`
 
-13. ~~**Generics (språk):** Rust v1 + self-host G4~~ ✅ — `fn id<T>`, monomorphisering, `tests/generics.rs`, `test_parser.kab` / `test_emit.kab`. Design: [docs/GENERICS.md](../docs/GENERICS.md). **Struct** ✅ — `self` / `&self` / `&mut self` (self-host parse+emit); **`struct Box<T>`** med fälttyp `T` → `Number`; **G8.1** `b.echo(1)` → `echo$Number`; **`class Child<T> extends Base<T>`** → `Child$Number` extends `Base$Number`; **`super.tag()`** / **`super.init(...)`** → `get_super_method`; **`super.count = 1`** / **`super.n += 2`**; **`||=` `&&=` `??=`**; **`?.`**; **`? :`**; **`step()?`**; **`switch`+`fallthrough`**; **`do`/`while`**; **`this.run(super.f)`**; **`xs[0] += 3`**; **template `` `n=${n}` ``**; **`is(obj, "Class")`**; **`pass`/`raise`/`assert`/`not`**; **`with`/`is`/`is not`**; **`using x = expr`**; **`import.meta`**; **`delete o.x`**; **`for let i = 0; …`**; **G9** `Option.Some(42)` → `Option$Number`; **`match Option.Some(n)`** compile-run; **G10** två `Option`/`Box`/`echo`/`id`-specialiseringar; **`pair$Number_String`**; **`id(id(42))`**; **`Result<Number, String>.Ok`**; **`Box<String>(…)`** explicit; **`id(b)`** → `id$Box`. **T5** ✅ — trait default-metoder emit+inject på `implements`; **`type Item = Number`** på klass (`class_assoc_types`); **`where T: Trait`** på generiska fn, metoder och klasser (`emitCheckWhere`); **`trait Show<T>`** (`interface_type_params`, `implements Show$Number`). Kvarvarande self-host-arbete: **P6b** leaf-budget ([seed/README.md](seed/README.md)). Semikolon förblir valfria.
+13. ~~**Generics (språk):** Rust v1 + self-host G4~~ ✅ — `fn id<T>`, monomorphisering, `tests/generics.rs`, `test_parser.kab` / `test_emit.kab`. Design: [docs/GENERICS.md](../docs/GENERICS.md). **Struct** ✅ — `self` / `&self` / `&mut self` (self-host parse+emit); **`struct Box<T>`** med fälttyp `T` → `Number`; **G8.1** `b.echo(1)` → `echo$Number`; **`class Child<T> extends Base<T>`** → `Child$Number` extends `Base$Number`; **`super.tag()`** / **`super.init(...)`** → `get_super_method`; **`super.count = 1`** / **`super.n += 2`**; **`||=` `&&=` `??=`**; **`?.`**; **`? :`**; **`step()?`**; **`switch`+`fallthrough`**; **`do`/`while`**; **`this.run(super.f)`**; **`xs[0] += 3`**; **template `` `n=${n}` ``**; **`is(obj, "Class")`**; **`pass`/`raise`/`assert`/`not`**; **`with`/`is`/`is not`**; **`using x = expr`**; **`import.meta`**; **`delete o.x`**; **`for let i = 0; …`**; **G9** `Option.Some(42)` → `Option$Number`; **`match Option.Some(n)`** / **`Option<Number>.None`** kab-only; **G10** två `Option`/`Box`/`echo`/`id`-specialiseringar; **`pair$Number_String`**; **`id(id(42))`**; **`Result<Number, String>.Ok`**; **`Box<String>(…)`** explicit; **`id(b)`** → `id$Box`. **T5** ✅ — trait default-metoder emit+inject på `implements`; **`type Item = Number`** på klass (`class_assoc_types`); **`where T: Trait`** på generiska fn, metoder och klasser (`emitCheckWhere`); **`trait Show<T>`** (`interface_type_params`, `implements Show$Number`). Kvarvarande self-host-arbete: **P6b** leaf-budget ([seed/README.md](seed/README.md)). Semikolon förblir valfria.
 
 14. **Generics fas 2 (G6–G11):** ~~G6 inferens~~ ✅, ~~G7 klassmetoder~~ ✅, ~~G8 klasser~~ ✅, ~~G9 enum~~ ✅, ~~G10 self-host~~ ✅, ~~G11 LSP~~ ✅. Plan: [docs/GENERICS.md#fas-2--g6-planering](../docs/GENERICS.md#fas-2--g6-planering), roadmap **Våg F** i [docs/ROADMAP.md](../docs/ROADMAP.md).
 
