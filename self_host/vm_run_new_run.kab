@@ -16,10 +16,17 @@ pub fn vResolveInit(classDef) {
 /// Run class init via hook when present.
 pub fn vRunNewInitPresentS(S, info, pool, globals, functions) {
     let inst = info["inst"]
+    vHeapPut(S, inst)
     S["lastThis"] = inst
     vCallRunMeth(S, info["init"], pool, globals, functions, inst, info["ordered"])
-    if S["lastThis"] != null {
-        inst = S["lastThis"]
+    let hid = vInstId(inst)
+    let fresh = vHeapGet(S, hid)
+    if fresh != undefined {
+        inst = fresh
+    } else {
+        if S["lastThis"] != null {
+            inst = S["lastThis"]
+        }
     }
     return inst
 }
@@ -34,7 +41,8 @@ pub fn vAllocInstShell(S, classIdx, argc) {
     let ordered = vPopOrderedArgs(S, argc)
     let id = S["nextInstId"]
     S["nextInstId"] = S["nextInstId"] + 1
-    let inst = { "vmC": classIdx, "vmI": id }
+    let inst = { "vmC": classIdx, "vmI": id, "__kab_oid": id }
+    vHeapPut(S, inst)
     return {
         "inst": inst,
         "ordered": ordered,
@@ -83,7 +91,8 @@ pub fn vNewInstanceFromArrayS(S, classIdx, pool, globals, functions) {
     let classDef = S["classes"][classIdx]
     let id = S["nextInstId"]
     S["nextInstId"] = id + 1
-    let inst = { "vmC": classIdx, "vmI": id }
+    let inst = { "vmC": classIdx, "vmI": id, "__kab_oid": id }
+    vHeapPut(S, inst)
     let info = {
         "inst": inst,
         "init": vResolveInit(classDef),

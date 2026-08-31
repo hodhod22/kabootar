@@ -336,6 +336,16 @@ pub fn parseUnary(sess) {
         sess["pLeft"] = { "kind": AST_UNARY, "op": "await", "expr": pCallUnary(sess) }
         return sess["pLeft"]
     }
+    if sess["pCur"].type == TOKEN_YIELD {
+        bump(sess)
+        if sess["pCur"].type == "*" {
+            bump(sess)
+            sess["pLeft"] = { "kind": AST_UNARY, "op": "yield_star", "expr": pCallUnary(sess) }
+            return sess["pLeft"]
+        }
+        sess["pLeft"] = { "kind": AST_UNARY, "op": "yield", "expr": pCallUnary(sess) }
+        return sess["pLeft"]
+    }
     return pCallPostfix(sess)
 }
 

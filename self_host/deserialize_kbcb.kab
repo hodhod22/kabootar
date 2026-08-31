@@ -254,7 +254,7 @@ fn kbcbFn(r) {
     let immSkip = kbcbBools(r)
     let capSkip = kbcbBools(r)
     let arrowSkip = kbcbFns(r)
-    let asyncSkip = kbcbBool(r)
+    let isAsync = kbcbBool(r)
     let genSkip = kbcbBool(r)
     let tryRegions = kbcbTries(r)
     return {
@@ -263,7 +263,9 @@ fn kbcbFn(r) {
         "locals": locals,
         "ops": ops,
         "constants": constants,
-        "tryRegions": tryRegions
+        "tryRegions": tryRegions,
+        "isAsync": isAsync,
+        "isGen": genSkip
     }
 }
 

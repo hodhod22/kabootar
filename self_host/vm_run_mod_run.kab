@@ -20,6 +20,7 @@ pub fn vModEnterB(S, n) {
     S["arrows"] = n["arrows"]
     S["tryRegions"] = n["tryRegions"]
     S["localNames"] = n["localNames"]
+    S["globalNames"] = n["globals"]
     vBindFns(S, n["globals"], n["functions"])
     vAllocLocals(S, len(n["localNames"]))
     vResetExec(S)

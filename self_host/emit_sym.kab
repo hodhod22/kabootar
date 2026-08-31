@@ -417,7 +417,9 @@ pub fn emitNestedNamedFn(E) {
         "params": arrUtil(E, "snap", aParams),
         "locals": arrUtil(E, "snap", E["eFnLocals"]),
         "ops": arrUtil(E, "snap", E["eFnOps"]),
-        "tryRegions": arrUtil(E, "snap", E["eFnTryRegions"])
+        "tryRegions": arrUtil(E, "snap", E["eFnTryRegions"]),
+        "isAsync": E["eNode"]["isAsync"],
+        "isGen": E["eNode"]["isGen"]
     })
     E["eInFn"] = saveIn
     E["eFnOps"] = saveOps

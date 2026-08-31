@@ -4,7 +4,7 @@ import "self_host/ast_defs"
 pub let KBC_HEADER = "kabootar-bytecode/1"
 
 pub let IR_WITH_ARG = "|const|load_global|store_global|load_local|store_local|take_local|take_global|array_push_local|array_push_global|array_pop_local|array_pop_global|acc_add_local|acc_add_global|len_local|len_global|index_get_local|index_get_global|make_object|make_array|get_member|get_super_method|member_set|jump|jump_if_false|jump_if_true|jump_if_not_nullish|call|jump_if_result_err|make_arrow_fn|jump_unless_option_some|jump_unless_option_none|jump_unless_result_ok|jump_unless_result_err|jump_unless_array|jump_unless_object|jump_unless_object_empty|index_peek_from_end|object_rest|unpack_enum_fields|new_instance_from_array|"
-pub let IR_ZERO_ARG = "|pop|dup|swap|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|match_fail|unwrap_option_some|unwrap_result_ok|unwrap_result_err|get_length|result_question|concat_array|merge_object|call_from_array|"
+pub let IR_ZERO_ARG = "|pop|dup|swap|add|sub|mul|div|mod|pow|neg|not|eq|ne|lt|gt|ge|le|and|or|bit_and|bit_or|bit_xor|shl|shr|ushr|bit_not|index_get|index_set|return|throw|iterator_step_in_place|async_iterator_step_in_place|make_ok|make_err|make_some|make_none|halt|match_fail|unwrap_option_some|unwrap_result_ok|unwrap_result_err|get_length|result_question|concat_array|merge_object|call_from_array|await|yield|"
 
 pub fn serJoinComma(arr) {
     let params = ""
@@ -147,7 +147,10 @@ pub fn serIrOpLine(op) {
     if op == null {
         throw "serialize: null op in IR"
     }
-    let name = op.op
+    let name = op["op"]
+    if name == undefined {
+        name = op.op
+    }
     if name == OP_NEW_INSTANCE {
         return serIrOpTwoArg(op)
     }
@@ -328,6 +331,18 @@ pub fn serAppendOneFn(out, i, f) {
     out = serOutTagged(out, "fn", i, f.sym)
     out = serOutTagged(out, "fn_params", i, serJoinComma(f.params))
     out = serOutTagged(out, "fn_locals", i, serJoinComma(f.locals))
+    if f["isAsync"] == 1 {
+        out = out + CHAR_NL + "fn_async " + ("" + i)
+    }
+    if f["isAsync"] == true {
+        out = out + CHAR_NL + "fn_async " + ("" + i)
+    }
+    if f["isGen"] == 1 {
+        out = out + CHAR_NL + "fn_generator " + ("" + i)
+    }
+    if f["isGen"] == true {
+        out = out + CHAR_NL + "fn_generator " + ("" + i)
+    }
     if f["tryRegions"] != undefined {
         out = serAppendFnTries(out, i, f["tryRegions"])
     }
