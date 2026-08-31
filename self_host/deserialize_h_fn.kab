@@ -48,6 +48,28 @@ pub fn deserFn(st, line) {
         st["functions"][idx]["locals"] = commaList(list)
         return "ok"
     }
+    if starts_with(line, "fn_async ") {
+        let rest = trim(str_slice(line, 9, len(line)))
+        let fi = parse_int(rest)
+        let functions = st["functions"]
+        while len(functions) <= fi {
+            functions = push(functions, { "sym": "", "params": [], "locals": [], "ops": [], "tryRegions": [] })
+        }
+        functions[fi]["isAsync"] = 1
+        st["functions"] = functions
+        return "ok"
+    }
+    if starts_with(line, "fn_generator ") {
+        let rest = trim(str_slice(line, 13, len(line)))
+        let fi = parse_int(rest)
+        let functions = st["functions"]
+        while len(functions) <= fi {
+            functions = push(functions, { "sym": "", "params": [], "locals": [], "ops": [], "tryRegions": [] })
+        }
+        functions[fi]["isGen"] = 1
+        st["functions"] = functions
+        return "ok"
+    }
     if starts_with(line, "fn_op ") {
         let rest = str_slice(line, 6, len(line))
         let sp = str_index_of(rest, " ")

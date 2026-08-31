@@ -31,13 +31,44 @@ pub fn vPopOrderedArgs(S, argc) {
 
 // --- vm_run_call_apply_fn ---
 /// Apply fn|arrow via S["runFnBody"]. Returns null if not fn/arrow.
+pub fn vPromiseResolveOne(out) {
+    return vCallHost(bytecode_host_get("promise_resolve"), [out])
+}
+
+pub fn vIfAsyncWrap(f, out) {
+    if f == undefined {
+        return out
+    }
+    if f["isAsync"] == true {
+        return vPromiseResolveOne(out)
+    }
+    if f["isAsync"] == 1 {
+        return vPromiseResolveOne(out)
+    }
+    return out
+}
+
 pub fn vApplyFnArrowS(S, c, ordered, pool, globals, functions) {
     let kind = c["kind"]
     if kind == "fn" {
-        return vCallRunFn(S, functions[c["idx"]], pool, globals, functions, ordered, null)
+        let f = functions[c["idx"]]
+        if f["isGen"] == true {
+            return vMakeGeneratorS(S, f, c["idx"], ordered)
+        }
+        if f["isGen"] == 1 {
+            return vMakeGeneratorS(S, f, c["idx"], ordered)
+        }
+        return vIfAsyncWrap(f, vCallRunFn(S, f, pool, globals, functions, ordered, null))
     }
     if kind == "arrow" {
-        return vCallRunFn(S, S["arrows"][c["idx"]], pool, globals, functions, ordered, c["caps"])
+        let f = S["arrows"][c["idx"]]
+        if f["isGen"] == true {
+            return vMakeGeneratorS(S, f, c["idx"], ordered)
+        }
+        if f["isGen"] == 1 {
+            return vMakeGeneratorS(S, f, c["idx"], ordered)
+        }
+        return vIfAsyncWrap(f, vCallRunFn(S, f, pool, globals, functions, ordered, c["caps"]))
     }
     return undefined
 }
@@ -47,13 +78,31 @@ pub fn vApplyFnArrowS(S, c, ordered, pool, globals, functions) {
 pub fn vApplyMethHostS(S, c, ordered, pool, globals, functions) {
     let kind = c["kind"]
     if kind == "method" {
-        return vCallRunMeth(S, c["meth"], pool, globals, functions, c["recv"], ordered)
+        let out = vCallRunMeth(S, c["meth"], pool, globals, functions, c["recv"], ordered)
+        vWritebackAfterMethodS(S, c["recv"], S["lastThis"])
+        return out
     }
     if kind == "enumCtor" {
         return vApplyEnumCtor(c["ctor"], ordered)
     }
     if kind == "instof" {
         return vInstanceofS(S, ordered)
+    }
+    if kind == "genNext" {
+        return vResumeGeneratorS(S, c["recv"], pool, globals, functions)
+    }
+    if kind == "genReturn" {
+        return vCloseGeneratorS(c["recv"], ordered)
+    }
+    if kind == "iterBegin" {
+        let itb = ordered[0]
+        if vObjGet(itb, "vmGen") == 1 {
+            return itb
+        }
+        if vObjGet(itb, "vmGen") == true {
+            return itb
+        }
+        return vCallHost(bytecode_host_get("iterator_begin"), ordered)
     }
     return vCallHost(c["callee"], ordered)
 }
@@ -82,13 +131,20 @@ pub fn vClassifyMethHost(callee) {
     if vmM != undefined {
         return { "kind": "method", "meth": vmM, "recv": vObjGet(callee, "vmR") }
     }
-    if typeof(callee) == "object" && callee != null {
-        if callee["vmEnumCtor"] == 1 {
-            return { "kind": "enumCtor", "ctor": callee }
-        }
-        if callee["vmInstof"] == 1 {
-            return { "kind": "instof" }
-        }
+    if vObjGet(callee, "vmEnumCtor") == 1 {
+        return { "kind": "enumCtor", "ctor": callee }
+    }
+    if vObjGet(callee, "vmInstof") == 1 {
+        return { "kind": "instof" }
+    }
+    if vObjGet(callee, "vmGenNext") == 1 {
+        return { "kind": "genNext", "recv": vObjGet(callee, "vmR") }
+    }
+    if vObjGet(callee, "vmGenReturn") == 1 {
+        return { "kind": "genReturn", "recv": vObjGet(callee, "vmR") }
+    }
+    if vObjGet(callee, "vmIterBegin") == 1 {
+        return { "kind": "iterBegin" }
     }
     return { "kind": "host", "callee": callee }
 }

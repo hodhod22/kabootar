@@ -730,7 +730,9 @@ pub fn emitExpr_call_h2_spec(E) {
         "params": arrUtil(E, "snap", E["eParams"]),
         "locals": arrUtil(E, "snap", E["eFnLocals"]),
         "globals": arrUtil(E, "snap", E["eFnGlobals"]),
-        "ops": arrUtil(E, "snap", E["eFnOps"])
+        "ops": arrUtil(E, "snap", E["eFnOps"]),
+        "isAsync": E["eGenTmpl"]["isAsync"],
+        "isGen": E["eGenTmpl"]["isGen"]
     })
     symIndex(E, "global", E["eFnSave"])
     E["eSpecMangled"] = push(E["eSpecMangled"], E["eMangled"])
@@ -829,18 +831,25 @@ pub fn emitExpr_call_h3_gen(E) {
         return 0
     }
     emitSpecializeParentClass(E)
-    E["eClassIsStruct"] = E["eGenTmpl"]["isStruct"]
+    let specTmpl = E["eGenTmpl"]
+    E["eClassIsStruct"] = specTmpl["isStruct"]
     if E["eClassIsStruct"] == undefined {
         E["eClassIsStruct"] = 0
     }
+    let specMeths = specTmpl["methods"]
+    if specMeths == undefined || specMeths == null {
+        specMeths = []
+    }
     E["eClassMethods"] = []
     E["eMi"] = 0
-    while E["eMi"] < len(E["eGenTmpl"]["methods"]) {
-        E["eMeth"] = E["eGenTmpl"]["methods"][E["eMi"]]
+    while E["eMi"] < len(specMeths) {
+        E["eGenTmpl"] = specTmpl
+        E["eMeth"] = specMeths[E["eMi"]]
         emitGenClassMeth(E)
         E["eMi"] = E["eMi"] + 1
     }
-    let specFields = E["eGenTmpl"]["fields"]
+    E["eGenTmpl"] = specTmpl
+    let specFields = specTmpl["fields"]
     if specFields == undefined {
         specFields = []
     }
@@ -1367,6 +1376,76 @@ pub fn emitDeleteWriteback(E, delObj) {
     return 0
 }
 
+// Desugar `yield* xs` to for-of + yield (existing iterator_begin / iterator_step / yield).
+pub fn emitYieldStarLoop(E, iterExpr) {
+    if E["eInFn"] != 1 {
+        throw "yield* only supported inside fn (self-host emit)"
+    }
+    let n = E["eForCounter"]
+    E["eForCounter"] = n + 1
+    let src = "yssrc" + n
+    let res = "ysres" + n
+    let srcIdx = symIndex(E, "local", src)
+    let resIdx = symIndex(E, "local", res)
+    eCallExpr(E, iterExpr)
+    let doneIdx = symIndex(E, "const", "done")
+    let valIdx = symIndex(E, "const", "value")
+    emitOp(E, OP_STORE_LOCAL, srcIdx)
+    emitOp(E, OP_LOAD_LOCAL, srcIdx)
+    emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", "iterator_begin"))
+    emitOp(E, OP_CALL, 1)
+    emitOp(E, OP_STORE_LOCAL, srcIdx)
+    arrUtil(E, "pushLenKey", "eBreakFromStack", E["eBreakIdxs"])
+    let loopStart = E["eFnOpsN"]
+    object_array_push(E, "eWhileHeads", loopStart)
+    emitOp(E, OP_LOAD_LOCAL, srcIdx)
+    emitOp(E, OP_ITER_STEP, 0)
+    emitOp(E, OP_STORE_LOCAL, resIdx)
+    emitOp(E, OP_STORE_LOCAL, srcIdx)
+    emitOp(E, OP_LOAD_LOCAL, resIdx)
+    emitOp(E, OP_CONST, doneIdx)
+    emitOp(E, OP_INDEX_GET, 0)
+    let jmpDoneIdx = E["eFnOpsN"]
+    emitOp(E, OP_JUMP_IF_FALSE, 0)
+    let jmpExitIdx = E["eFnOpsN"]
+    emitOp(E, OP_JUMP, 0)
+    let bodyStart = E["eFnOpsN"]
+    eCallRet = bodyStart - jmpDoneIdx - 1
+    E["eFnOps"][jmpDoneIdx] = { "op": OP_JUMP_IF_FALSE, "arg": eCallRet }
+    emitOp(E, OP_LOAD_LOCAL, resIdx)
+    emitOp(E, OP_CONST, valIdx)
+    emitOp(E, OP_INDEX_GET, 0)
+    emitOp(E, OP_YIELD, 0)
+    emitOp(E, OP_JUMP, loopStart - E["eFnOpsN"] - 1)
+    let loopEnd = E["eFnOpsN"]
+    eCallRet = loopEnd - jmpExitIdx - 1
+    E["eFnOps"][jmpExitIdx] = { "op": OP_JUMP, "arg": eCallRet }
+    eCallRet = len(E["eBreakFromStack"]) - 1
+    E["eBf"] = E["eBreakFromStack"][eCallRet]
+    E["eBi"] = E["eBf"]
+    while E["eBi"] < len(E["eBreakIdxs"]) {
+        eCallRet = loopEnd - E["eBreakIdxs"][E["eBi"]]
+        E["eJumpOff"] = eCallRet - 1
+        E["eFnOps"][E["eBreakIdxs"][E["eBi"]]] = { "op": OP_JUMP, "arg": E["eJumpOff"] }
+        E["eBi"] = E["eBi"] + 1
+    }
+    object_array_truncate(E, "eBreakIdxs", E["eBf"])
+    if len(E["eWhileHeads"]) > 0 {
+        object_array_pop(E, "eWhileHeads")
+    }
+    if len(E["eBreakFromStack"]) > 0 {
+        object_array_pop(E, "eBreakFromStack")
+    }
+    while len(E["eConsts"]) <= doneIdx {
+        object_array_push(E, "eConsts", "done")
+    }
+    while len(E["eConsts"]) <= valIdx {
+        object_array_push(E, "eConsts", "value")
+    }
+    E["eConstN"] = len(E["eConsts"])
+    return 0
+}
+
 // --- emit_expr_unary ---
 pub fn emitExpr_unary(E) {
     if E["eNode"].kind != AST_UNARY {
@@ -1419,6 +1498,14 @@ pub fn emitExpr_unary(E) {
         }
         if uOp == "await" {
             emitOp(E, OP_AWAIT, 0)
+            return true
+        }
+        if uOp == "yield" {
+            emitOp(E, OP_YIELD, 0)
+            return true
+        }
+        if uOp == "yield_star" {
+            emitYieldStarLoop(E, uInner)
             return true
         }
         throw "Unsupported unary op: " + uOp

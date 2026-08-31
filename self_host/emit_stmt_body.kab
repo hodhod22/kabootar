@@ -629,6 +629,14 @@ pub fn emitStmt_expr(E) {
         E["eExprStmt"] = E["eNode"]["expr"]
         eCallExpr(E, E["eExprStmt"])
         if E["eExprStmt"].kind != AST_THROW {
+            if E["eExprStmt"].kind == AST_UNARY {
+                if E["eExprStmt"]["op"] == "yield" {
+                    return true
+                }
+                if E["eExprStmt"]["op"] == "yield_star" {
+                    return true
+                }
+            }
             emitOp(E, OP_POP, 0)
         }
         return true
@@ -646,6 +654,8 @@ pub fn emitStmt_fn(E) {
         }
         E["eFnSave"] = "" + E["eNode"]["sym"]
         E["eFnPub"] = E["eNode"]["isPub"]
+        E["eFnAsync"] = E["eNode"]["isAsync"]
+        E["eFnGen"] = E["eNode"]["isGen"]
         E["eParams"] = E["eNode"]["params"]
         E["eFnBody"] = E["eNode"]["body"]
         E["eTypeParams"] = E["eNode"]["typeParams"]
@@ -665,6 +675,8 @@ pub fn emitStmt_fn(E) {
                 "rest": E["eNode"]["rest"],
                 "body": E["eFnBody"],
                 "isPub": E["eFnPub"],
+                "isAsync": E["eFnAsync"],
+                "isGen": E["eFnGen"],
                 "whereClause": arrUtil(E, "snap", E["eWhereClause"])
             })
             if E["eFnPub"] == 1 {
@@ -696,7 +708,9 @@ pub fn emitStmt_fn(E) {
             "globals": arrUtil(E, "snap",E["eFnGlobals"]),
             "ops": arrUtil(E, "snap",E["eFnOps"]),
             "tryRegions": arrUtil(E, "snap", E["eFnTryRegions"]),
-            "arrows": arrUtil(E, "snap", E["eArrows"])
+            "arrows": arrUtil(E, "snap", E["eArrows"]),
+            "isAsync": E["eFnAsync"],
+            "isGen": E["eFnGen"]
         })
         E["eArrows"] = []
         E["eInFn"] = 0
@@ -721,6 +735,7 @@ pub fn emitStmt_for_of(E) {
         let forSym = E["eNode"]["sym"]
         let forIter = E["eNode"]["iterable"]
         let forBody = E["eNode"]["body"]
+        let forAsync = E["eNode"]["isAsync"]
         let n = E["eForCounter"]
         E["eForCounter"] = n + 1
         let src = "fosrc" + n
@@ -733,14 +748,23 @@ pub fn emitStmt_for_of(E) {
         let valIdx = symIndex(E, "const", "value")
         emitOp(E, OP_STORE_LOCAL, srcIdx)
         emitOp(E, OP_LOAD_LOCAL, srcIdx)
-        emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", "iterator_begin"))
+        let beginName = "iterator_begin"
+        if forAsync == 1 {
+            beginName = "async_iterator_begin"
+        }
+        emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", beginName))
         emitOp(E, OP_CALL, 1)
         emitOp(E, OP_STORE_LOCAL, srcIdx)
         arrUtil(E, "pushLenKey", "eBreakFromStack", E["eBreakIdxs"])
         let loopStart = E["eFnOpsN"]
         object_array_push(E, "eWhileHeads", loopStart)
         emitOp(E, OP_LOAD_LOCAL, srcIdx)
-        emitOp(E, OP_ITER_STEP, 0)
+        if forAsync == 1 {
+            emitOp(E, OP_ASYNC_ITER_STEP, 0)
+            emitOp(E, OP_AWAIT, 0)
+        } else {
+            emitOp(E, OP_ITER_STEP, 0)
+        }
         emitOp(E, OP_STORE_LOCAL, resIdx)
         emitOp(E, OP_STORE_LOCAL, srcIdx)
         emitOp(E, OP_LOAD_LOCAL, resIdx)
@@ -938,6 +962,113 @@ pub fn emitStmt_for(E) {
 }
 
 // --- emit_stmt_index_assign ---
+pub fn emitFreshIaTmp(E) {
+    let n = E["eForCounter"]
+    if n == undefined {
+        n = 0
+    }
+    E["eForCounter"] = n + 1
+    return "iatmp" + n
+}
+
+// Compound index-assign: evaluate each index expr once, then RMW + store-back.
+pub fn emitIndexAssignCompoundCached(E) {
+    let iaRhs = E["eNode"]["rhs"]
+    if iaRhs.kind != AST_BINARY {
+        return false
+    }
+    if iaRhs["compoundAssign"] != 1 {
+        return false
+    }
+    let left = iaRhs["left"]
+    if left.kind != AST_INDEX {
+        return false
+    }
+    let chain = []
+    let cur = left
+    while cur.kind == AST_INDEX {
+        chain = push(chain, cur)
+        cur = cur["object"]
+    }
+    let base = cur
+    let n = len(chain)
+    if n < 1 {
+        return false
+    }
+    let tNames = []
+    let iNames = []
+    let ti = 0
+    while ti <= n {
+        tNames = push(tNames, emitFreshIaTmp(E))
+        ti = ti + 1
+    }
+    ti = 0
+    while ti < n {
+        iNames = push(iNames, emitFreshIaTmp(E))
+        ti = ti + 1
+    }
+    if base.kind == AST_VAR {
+        emitSym(E, 0, base["sym"])
+    } else {
+        eCallExpr(E, base)
+    }
+    emitSym(E, 1, tNames[0])
+    let d = n
+    let slot = 0
+    while d > 0 {
+        d = d - 1
+        eCallExpr(E, chain[d]["index"])
+        emitSym(E, 1, iNames[d])
+        emitSym(E, 0, tNames[slot])
+        emitSym(E, 0, iNames[d])
+        emitOp(E, OP_INDEX_GET, 0)
+        slot = slot + 1
+        emitSym(E, 1, tNames[slot])
+    }
+    let vName = emitFreshIaTmp(E)
+    eCallExpr(E, {
+        "kind": AST_BINARY,
+        "op": iaRhs["op"],
+        "left": { "kind": AST_VAR, "sym": tNames[n] },
+        "right": iaRhs["right"]
+    })
+    emitSym(E, 1, vName)
+    d = 0
+    while d < n {
+        emitSym(E, 0, tNames[n - 1 - d])
+        emitSym(E, 0, iNames[d])
+        emitSym(E, 0, vName)
+        emitOp(E, OP_INDEX_SET, 0)
+        emitOp(E, OP_POP, 0)
+        emitSym(E, 1, tNames[n - 1 - d])
+        vName = tNames[n - 1 - d]
+        d = d + 1
+    }
+    if base.kind == AST_VAR {
+        emitSym(E, 0, tNames[0])
+        emitSym(E, 1, base["sym"])
+    } else {
+        if base.kind == AST_MEMBER {
+            let maTmp = emitFreshIaTmp(E)
+            emitSym(E, 0, tNames[0])
+            emitSym(E, 1, maTmp)
+            if base["object"].kind == AST_SUPER {
+                emitSym(E, 0, "this")
+            } else {
+                eCallExpr(E, base["object"])
+            }
+            emitSym(E, 0, maTmp)
+            eCallRet = symIndex(E, "const", base["field"])
+            emitOp(E, OP_SET_MEMBER, eCallRet)
+            emitOp(E, OP_POP, 0)
+            emitOp(E, OP_POP, 0)
+        } else {
+            emitOp(E, OP_POP, 0)
+        }
+    }
+    return true
+}
+
 pub fn emitStmt_index_assign(E) {
     if E["eNode"].kind != AST_INDEX_ASSIGN {
         return false
@@ -945,6 +1076,9 @@ pub fn emitStmt_index_assign(E) {
     let iaObj = E["eNode"]["object"]
     let iaIdx = E["eNode"]["index"]
     let iaRhs = E["eNode"]["rhs"]
+    if emitIndexAssignCompoundCached(E) {
+        return true
+    }
     eCallExpr(E, iaRhs)
     let iaN = E["eForCounter"]
     E["eForCounter"] = iaN + 1
@@ -955,6 +1089,7 @@ pub fn emitStmt_index_assign(E) {
     emitSym(E, 0, iaTmp)
     emitOp(E, OP_INDEX_SET, 0)
     emitOp(E, OP_POP, 0)
+    // One store-back walk for any index depth. Compound op is already in rhs (Binary).
     let iaCur = iaObj
     let iaWalk = 1
     let iaOuter = iaObj
@@ -1151,6 +1286,7 @@ pub fn emitStmt_member_assign(E) {
     emitOp(E, OP_SET_MEMBER, eCallRet)
     emitOp(E, OP_POP, 0)
     if maObj.kind == AST_INDEX {
+        // Same walk as index-assign: depth is a loop, not a per-nesting emit path.
         let maCur = maObj
         let maWalk = 1
         let maOuter = maObj

@@ -1,4 +1,5 @@
 import "self_host/vm_s_stack"
+import "self_host/vm_run_session"
 
 // --- vm_ops_data_concat ---
 pub fn runOpDataConcat(S, name, arg, op, pool, globals, functions) {
@@ -151,9 +152,35 @@ pub fn runOpDataOptionArrow(S, name, arg, op, pool, globals, functions) {
 pub fn runOpDataOptionIter(S, name, arg, op, pool, globals, functions) {
     if name == "iterator_step_in_place" {
         let it = vPopS(S)
+        if vObjGet(it, "vmGen") == 1 {
+            let r = vResumeGeneratorS(S, it, pool, globals, functions)
+            vPushS(S, it)
+            vPushS(S, r)
+            vBumpIpS(S)
+            return 1
+        }
+        if vObjGet(it, "vmGen") == true {
+            let r2 = vResumeGeneratorS(S, it, pool, globals, functions)
+            vPushS(S, it)
+            vPushS(S, r2)
+            vBumpIpS(S)
+            return 1
+        }
         let pair = bytecode_iterator_step_in_place(it)
         vPushS(S, pair[0])
         vPushS(S, pair[1])
+        vBumpIpS(S)
+        return 1
+    }
+    if name == "async_iterator_step_in_place" {
+        let it = vPopS(S)
+        let del = vObjGet(it, "__kab_async_sync_delegate")
+        if del != undefined {
+            it = del
+        }
+        let pair = bytecode_iterator_step_in_place(it)
+        vPushS(S, pair[0])
+        vPushS(S, vCallHost(bytecode_host_get("promise_resolve"), [pair[1]]))
         vBumpIpS(S)
         return 1
     }

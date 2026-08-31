@@ -298,6 +298,9 @@ pub fn serialize(module: &BytecodeModule) -> String {
         if f.async_fn {
             writeln!(out, "fn_async {fi}").unwrap();
         }
+        if f.generator_fn {
+            writeln!(out, "fn_generator {fi}").unwrap();
+        }
         write_fn_try_regions(&mut out, "fn_try_region", &fi.to_string(), &f.try_regions);
         for op in &f.code {
             writeln!(out, "fn_op {fi} {}", encode_op(op)).unwrap();
@@ -603,6 +606,14 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
                 .map_err(|_| format!("Invalid fn_async line: {line}"))?;
             ensure_fn(&mut functions, fi, String::new(), Vec::new(), Vec::new());
             functions[fi].async_fn = true;
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("fn_generator ") {
+            let fi: usize = rest
+                .parse()
+                .map_err(|_| format!("Invalid fn_generator line: {line}"))?;
+            ensure_fn(&mut functions, fi, String::new(), Vec::new(), Vec::new());
+            functions[fi].generator_fn = true;
             continue;
         }
         if let Some(rest) = line.strip_prefix("fn_immutable_local ") {
@@ -914,6 +925,13 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             classes[ci].methods[mi].async_fn = true;
             continue;
         }
+        if let Some(rest) = line.strip_prefix("class_method_generator ") {
+            let (ci, mi) = parse_class_method_indices(rest)?;
+            ensure_class(&mut classes, ci, String::new());
+            ensure_class_method(&mut classes[ci].methods, ci, mi, String::new());
+            classes[ci].methods[mi].generator_fn = true;
+            continue;
+        }
         if let Some(rest) = line.strip_prefix("class_method_immutable_local ") {
             let (ci, mi, li) = parse_class_method_local_indices(rest)?;
             ensure_class(&mut classes, ci, String::new());
@@ -1121,6 +1139,9 @@ fn write_embedded_fn(out: &mut String, prefix: &str, indices: &str, f: &Bytecode
     }
     if f.async_fn {
         writeln!(out, "{prefix}_async {indices}").unwrap();
+    }
+    if f.generator_fn {
+        writeln!(out, "{prefix}_generator {indices}").unwrap();
     }
     write_fn_try_regions(
         out,

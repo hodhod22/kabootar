@@ -40,6 +40,17 @@ pub fn runOpCtrlAwait(S, name, arg, op, pool, globals, functions) {
     return 1
 }
 
+pub fn runOpCtrlYield(S, name, arg, op, pool, globals, functions) {
+    if name != "yield" {
+        return 0
+    }
+    S["yieldVal"] = vPopS(S)
+    S["yielded"] = 1
+    S["done"] = true
+    vBumpIpS(S)
+    return 2
+}
+
 // --- vm_ops_ctrl_throw ---
 pub fn runOpCtrlThrow(S, name, arg, op, pool, globals, functions) {
     if name == "throw" {
@@ -66,7 +77,11 @@ pub fn runOpCtrlReturn(S, name, arg, op, pool, globals, functions) {
 
 // --- vm_ops_ctrl_a ---
 pub fn runOpCtrlA(S, name, arg, op, pool, globals, functions) {
-    let st = runOpCtrlAwait(S, name, arg, op, pool, globals, functions)
+    let st = runOpCtrlYield(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    st = runOpCtrlAwait(S, name, arg, op, pool, globals, functions)
     if st != 0 {
         return st
     }

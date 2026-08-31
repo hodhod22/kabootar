@@ -2727,6 +2727,348 @@ fn sh6_self_host_import_meta_ok() {
     assert_eq!(formatted, "main");
 }
 
+/// SH6: product self-host `await import("math")` via `dynamic_import` + Kab VM.
+#[test]
+fn sh6_self_host_dynamic_import_math_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let ns = await import(\"math\")\n  return ns.add(2, 3)\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-dyn-import".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("dynamic_import") {
+                return Err(format!(
+                    "expected dynamic_import, snippet:\n{}",
+                    kbc.chars().take(1500).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host dynamic import math");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: `async fn` compiles (`fn_async`) and Kab-VM wraps result with `promise_resolve`.
+#[test]
+fn sh6_self_host_async_fn_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "async fn add(a, b) {\n  return a + b\n}\nreturn await add(2, 3)";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-async-fn".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("fn_async") {
+                return Err(format!(
+                    "expected fn_async, snippet:\n{}",
+                    kbc.chars().take(1500).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host async fn");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: `for await x of [1,2,3]` in `async fn` (async_iterator_begin + step_in_place + await).
+#[test]
+fn sh6_self_host_for_await_array_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "async fn run() {\n  let sum = 0\n  for await x of [1, 2, 3] { sum = sum + x }\n  return sum\n}\nreturn await run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-await".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("async_iterator_begin") {
+                return Err(format!(
+                    "expected async_iterator_begin, snippet:\n{}",
+                    kbc.chars().take(1800).collect::<String>()
+                ));
+            }
+            if !kbc.contains("async_iterator_step_in_place") {
+                return Err(format!(
+                    "expected async_iterator_step_in_place, snippet:\n{}",
+                    kbc.chars().take(1800).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for await array");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "6");
+}
+
+/// SH6: `fn*` + `yield` — Kab-VM generator `.next().value` (no new opcode).
+#[test]
+fn sh6_self_host_generator_yield_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  yield 1\n  yield 2\n}\nlet g = gen()\nlet a = g.next()\nlet b = g.next()\nreturn a.value + b.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-yield".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("fn_generator") {
+                return Err(format!(
+                    "expected fn_generator, snippet:\n{}",
+                    kbc.chars().take(1800).collect::<String>()
+                ));
+            }
+            if !kbc.contains("\nyield\n") && !kbc.contains(" yield\n") && !kbc.contains("fn_op 0 yield") {
+                return Err(format!(
+                    "expected yield op, snippet:\n{}",
+                    kbc.chars().take(1800).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator yield");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: `yield*` over an array desugars to iterator_step + yield (Kab-VM generator).
+#[test]
+fn sh6_self_host_yield_star_array_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  yield* [1, 2]\n}\nlet g = gen()\nlet a = g.next()\nlet b = g.next()\nreturn a.value + b.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-yield-star".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("iterator_begin") {
+                return Err(format!(
+                    "expected iterator_begin for yield*, snippet:\n{}",
+                    kbc.chars().take(1800).collect::<String>()
+                ));
+            }
+            if !kbc.contains("fn_op 0 yield") {
+                return Err(format!(
+                    "expected yield in yield* loop, snippet:\n{}",
+                    kbc.chars().take(1800).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star array");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: `for x of gen()` — Kab-VM treats `vmGen` as iterator (begin identity + step resume).
+#[test]
+fn sh6_self_host_for_of_generator_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  yield 1\n  yield 2\n}\nfn run() {\n  let sum = 0\n  for x of gen() { sum = sum + x }\n  return sum\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-of-gen".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for-of generator");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: `yield*` over `fn*` — same iterator_begin identity as `for of gen()`.
+#[test]
+fn sh6_self_host_yield_star_generator_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  yield 1\n  yield 2\n}\nfn* gen() {\n  yield* inner()\n}\nlet g = gen()\nlet a = g.next()\nlet b = g.next()\nreturn a.value + b.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-yield-star-gen".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star generator");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: `fn*` `return` is the completion `.next()` `{value, done:true}` (Kab-VM).
+#[test]
+fn sh6_self_host_generator_return_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  yield 10\n  return 99\n}\nlet g = gen()\nlet a = g.next()\nlet b = g.next()\nreturn a.value + b.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-return".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator return");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "109");
+}
+
+/// SH6: Kab-VM `g.return(v)` closes generator (`done` + value, no resume).
+#[test]
+fn sh6_self_host_generator_method_return_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  yield 1\n  yield 2\n}\nlet g = gen()\ng.next()\nlet r = g.return(99)\nif r.done {\n  return r.value\n}\nreturn 0";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-meth-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator method return");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "99");
+}
+
 /// SH6: product self-host template `` `n=${n}` `` (desugar to string `+`) + Kab VM.
 #[test]
 fn sh6_self_host_template_literal_ok() {
@@ -4896,6 +5238,52 @@ fn sh6_self_host_super_bound_tag_ok() {
         .join()
         .expect("join")
         .expect("self-host bound super.tag");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: bound `super.tag` on generic `Child<T>` (`Child$Number`) + Kab VM.
+#[test]
+fn sh6_self_host_generic_super_bound_tag_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base<T> {\n  fn tag() { return 1 }\n}\nclass Child<T> extends Base<T> {\n  fn go() {\n    let m = super.tag\n    return m()\n  }\n}\nfn run() {\n  return Child<Number>().go()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-super-bound".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Child$Number") {
+                return Err(format!(
+                    "expected Child$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("get_super_method") {
+                return Err(format!(
+                    "expected get_super_method for Child<T> bound super.tag, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generic bound super.tag");
     match prev {
         Some(p) => std::env::set_var("KABOOTAR_VM", p),
         None => std::env::remove_var("KABOOTAR_VM"),
@@ -12841,6 +13229,1730 @@ fn sh6_self_host_member_index_pow_compound_assign_ok() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host nested `o.items[0][0] **= 2` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_pow_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[3]] }\n  o.items[0][0] **= 2\n  return o.items[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mnidx-pow".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("pow") {
+                return Err(format!(
+                    "expected pow, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index pow compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host mixed `xs[0][0].x **= 2` via MemberAssign + Index store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_member_pow_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[{ x: 3 }]]\n  xs[0][0].x **= 2\n  return xs[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidxm-pow".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("pow") {
+                return Err(format!(
+                    "expected pow, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index member pow compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host mixed `o.items[0][0].x **= 2` via MemberAssign Index chain + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_member_pow_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[{ x: 3 }]] }\n  o.items[0][0].x **= 2\n  return o.items[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midxm-pow".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("pow") {
+                return Err(format!(
+                    "expected pow, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index member pow compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host nested `xs[0][0] **= 2` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_pow_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[3]]\n  xs[0][0] **= 2\n  return xs[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-pow".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("pow") {
+                return Err(format!(
+                    "expected pow, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index pow compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host triple `xs[0][0][0] **= 2` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_triple_index_pow_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[[3]]]\n  xs[0][0][0] **= 2\n  return xs[0][0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-tidx-pow".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("pow") {
+                return Err(format!(
+                    "expected pow, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host triple index pow compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host `n %= 7` mod compound assign + Kab VM.
+#[test]
+fn sh6_self_host_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let n = 10\n  n %= 7\n  return n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mod-eq".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `o.x %= 7` member mod compound assign + Kab VM.
+#[test]
+fn sh6_self_host_member_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { x: 10 }\n  o.x %= 7\n  return o.x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mem-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `xs[0] %= 7` index mod compound assign + Kab VM.
+#[test]
+fn sh6_self_host_index_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [10]\n  xs[0] %= 7\n  return xs[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idx-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `this.n %= 7` mod compound assign on this + Kab VM.
+#[test]
+fn sh6_self_host_this_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.n = 10 }\n  fn rem() { this.n %= 7; return this.n }\n}\nfn run() {\n  return C().rem()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `super.n %= 7` mod compound on super via this + Kab VM.
+#[test]
+fn sh6_self_host_super_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.n = 10 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.n %= 7\n  }\n}\nfn run() {\n  return Child().n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `o.a.b %= 7` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_nested_member_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { a: { b: 10 } }\n  o.a.b %= 7\n  return o.a.b\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nest-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("matmp") {
+                return Err(format!(
+                    "expected matmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested member mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `xs[0].x %= 7` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_index_member_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [{ x: 10 }]\n  xs[0].x %= 7\n  return xs[0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idxmem-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index member mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `o.items[0] %= 7` via IndexAssign store-back + Kab VM.
+#[test]
+fn sh6_self_host_member_index_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [10] }\n  o.items[0] %= 7\n  return o.items[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-memidx-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member index mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `o.items[0][0] %= 7` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[10]] }\n  o.items[0][0] %= 7\n  return o.items[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mnidx-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `xs[0][0].x %= 7` via MemberAssign + Index store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_member_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[{ x: 10 }]]\n  xs[0][0].x %= 7\n  return xs[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidxm-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index member mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `o.items[0][0].x %= 7` via MemberAssign Index chain + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_member_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[{ x: 10 }]] }\n  o.items[0][0].x %= 7\n  return o.items[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midxm-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index member mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `xs[0][0] %= 7` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[10]]\n  xs[0][0] %= 7\n  return xs[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host triple `xs[0][0][0] %= 7` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_triple_index_mod_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[[10]]]\n  xs[0][0][0] %= 7\n  return xs[0][0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-tidx-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mod") {
+                return Err(format!(
+                    "expected mod, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host triple index mod compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `n -= 2` sub compound assign + Kab VM.
+#[test]
+fn sh6_self_host_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let n = 5\n  n -= 2\n  return n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-sub-eq".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `o.x -= 2` member sub compound assign + Kab VM.
+#[test]
+fn sh6_self_host_member_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { x: 5 }\n  o.x -= 2\n  return o.x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mem-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `xs[0] -= 2` index sub compound assign + Kab VM.
+#[test]
+fn sh6_self_host_index_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [5]\n  xs[0] -= 2\n  return xs[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idx-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `this.n -= 2` sub compound assign on this + Kab VM.
+#[test]
+fn sh6_self_host_this_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.n = 5 }\n  fn dec() { this.n -= 2; return this.n }\n}\nfn run() {\n  return C().dec()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `super.n -= 2` sub compound on super via this + Kab VM.
+#[test]
+fn sh6_self_host_super_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.n = 5 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.n -= 2\n  }\n}\nfn run() {\n  return Child().n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `o.a.b -= 2` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_nested_member_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { a: { b: 5 } }\n  o.a.b -= 2\n  return o.a.b\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nest-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("matmp") {
+                return Err(format!(
+                    "expected matmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested member sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `xs[0].x -= 2` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_index_member_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [{ x: 5 }]\n  xs[0].x -= 2\n  return xs[0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idxmem-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index member sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `o.items[0] -= 2` via IndexAssign store-back + Kab VM.
+#[test]
+fn sh6_self_host_member_index_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [5] }\n  o.items[0] -= 2\n  return o.items[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-memidx-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member index sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `o.items[0][0] -= 2` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[5]] }\n  o.items[0][0] -= 2\n  return o.items[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mnidx-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `xs[0][0].x -= 2` via MemberAssign + Index store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_member_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[{ x: 5 }]]\n  xs[0][0].x -= 2\n  return xs[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidxm-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index member sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `o.items[0][0].x -= 2` via MemberAssign Index chain + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_member_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[{ x: 5 }]] }\n  o.items[0][0].x -= 2\n  return o.items[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midxm-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index member sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `xs[0][0] -= 2` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[5]]\n  xs[0][0] -= 2\n  return xs[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host triple `xs[0][0][0] -= 2` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_triple_index_sub_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[[5]]]\n  xs[0][0][0] -= 2\n  return xs[0][0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-tidx-sub".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("sub") {
+                return Err(format!(
+                    "expected sub, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host triple index sub compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `n *= 3` mul compound assign + Kab VM.
+#[test]
+fn sh6_self_host_mul_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let n = 1\n  n *= 3\n  return n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mul-eq".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mul") {
+                return Err(format!(
+                    "expected mul, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host mul compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: same index-assign walk as `-=`/`%=`/`**=` — `xs[0][0][0] *= 3` is operator parity, not a new emit path.
+#[test]
+fn sh6_self_host_triple_index_mul_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[[1]]]\n  xs[0][0][0] *= 3\n  return xs[0][0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-tidx-mul".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("mul") {
+                return Err(format!(
+                    "expected mul, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host triple index mul compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: index exprs in compound assign evaluate once (`xs[bump(box)][bump(box)] +=`).
+#[test]
+fn sh6_self_host_index_compound_assign_eval_once_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn bump(box) {\n  box.n = box.n + 1\n  return 0\n}\nfn run() {\n  let box = { \"n\": 0 }\n  let xs = [[1, 2], [3, 4]]\n  xs[bump(box)][bump(box)] += 10\n  return xs[0][0] * 100 + box.n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idx-eval1".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index compound eval once");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1102");
+}
+
+/// SH6: method `this` writes write back to the caller local (instance heap by vmI).
+#[test]
+fn sh6_self_host_method_this_writeback_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Hit {\n  n: number;\n  fn init() { this.n = 0 }\n  fn bump() { this.n = this.n + 1; return this.n }\n}\nfn run() {\n  let b = Hit()\n  b.bump()\n  b.bump()\n  return b.n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-wb".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host method this writeback");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "2");
+}
+
+/// SH6: `using` class `close()` this-write is visible on the caller instance.
+#[test]
+fn sh6_self_host_using_class_close_writeback_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class R {\n  n: number;\n  fn init() { this.n = 0 }\n  fn close() { this.n = 1 }\n}\nfn run() {\n  let x = R()\n  {\n    using y = x\n  }\n  return x.n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-using-wb".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host using class close writeback");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
 }
 
 /// SH6: large string const exceeds text maxKbc but packed kbcb v2 still evals on Kab VM.

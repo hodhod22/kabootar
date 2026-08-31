@@ -369,7 +369,7 @@ pub fn parseStmt_expr(sess) {
     if cop != "" {
         bump(sess)
         sess["pInit"] = pCallCompare(sess)
-        return finishAssignStmt(lhs, { "kind": AST_BINARY, "op": cop, "left": lhs, "right": sess["pInit"] })
+        return finishAssignStmt(lhs, { "kind": AST_BINARY, "op": cop, "left": lhs, "right": sess["pInit"], "compoundAssign": 1 })
     }
     sess["pVal"] = lhs
     return { "kind": AST_EXPR, "expr": sess["pVal"] }
@@ -383,6 +383,8 @@ pub fn parseStmt_fn_body(sess) {
     // SH2: nested `fn` in the body clobbers sess pFnSym/pParams — snap before parse.
     let snapSym = "" + sess["pFnSym"]
     let snapPub = sess["pFnPub"]
+    let snapAsync = sess["pIsAsync"]
+    let snapGen = sess["pIsGen"]
     let snapParams = []
     let spi = 0
     while spi < len(sess["pParams"]) {
@@ -441,6 +443,8 @@ pub fn parseStmt_fn_body(sess) {
         "rest": snapRest,
         "returnType": snapRet,
         "whereClause": snapWhere,
+        "isAsync": snapAsync,
+        "isGen": snapGen,
         "body": { "kind": AST_BLOCK, "body": fnBody }
     }
 }
@@ -578,6 +582,7 @@ pub fn parseStmt_for_body_block(sess) {
 }
 
 pub fn parseStmt_for_of_from_ident(sess) {
+    let forAwait = sess["pForAwait"]
     sess["pTok"] = sess["pCur"]
     if sess["pTok"].type != TOKEN_IDENT {
         throw "Expected for binding"
@@ -599,6 +604,7 @@ pub fn parseStmt_for_of_from_ident(sess) {
         "kind": forKind,
         "sym": forSym,
         "iterable": forIter,
+        "isAsync": forAwait,
         "body": parseStmt_for_body_block(sess)
     }
 }
@@ -641,6 +647,11 @@ pub fn parseStmt_for(sess) {
     if sess["pCur"].type == "(" {
         bump(sess)
     }
+    sess["pForAwait"] = 0
+    if sess["pCur"].type == TOKEN_AWAIT {
+        bump(sess)
+        sess["pForAwait"] = 1
+    }
     if sess["pCur"].type == TOKEN_LET {
         let t2 = "EOF"
         if sess["pPos"] + 2 < sess["pToksLen"] {
@@ -650,7 +661,15 @@ pub fn parseStmt_for(sess) {
             bump(sess)
             return parseStmt_for_of_from_ident(sess)
         }
+        if sess["pForAwait"] == 1 {
+            throw "for await requires `of` iteration"
+        }
         return parseStmt_for_classic(sess)
+    }
+    if sess["pForAwait"] == 1 {
+        if sess["pCur"].type == TOKEN_IN {
+            throw "for await requires `of` iteration"
+        }
     }
     return parseStmt_for_of_from_ident(sess)
 }
@@ -1249,6 +1268,11 @@ pub fn parseStmt_enum_variant(sess) {
 // --- parser_stmt_fn_sig ---
 pub fn parseStmt_fn_sig(sess) {
     bump(sess)
+    sess["pIsGen"] = 0
+    if sess["pCur"].type == "*" {
+        bump(sess)
+        sess["pIsGen"] = 1
+    }
     sess["pTok"] = sess["pCur"]
     if sess["pTok"].type != TOKEN_IDENT {
         throw "Expected function name"
@@ -1614,9 +1638,22 @@ pub fn parseStmt(sess) {
         return null
     }
     sess["pIsPub"] = 0
+    sess["pIsAsync"] = 0
+    sess["pIsGen"] = 0
     if sess["pCur"].type == TOKEN_PUB {
         bump(sess)
         sess["pIsPub"] = 1
+    }
+    if sess["pCur"].type == TOKEN_ASYNC {
+        bump(sess)
+        sess["pIsAsync"] = 1
+        if sess["pCur"].type == TOKEN_PUB {
+            bump(sess)
+            sess["pIsPub"] = 1
+        }
+        if sess["pCur"].type != TOKEN_FN {
+            throw "`async` must be followed by `fn`"
+        }
     }
     let r = parseStmt_dispatch_decl(sess)
     if r != null {

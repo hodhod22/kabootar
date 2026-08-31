@@ -104,7 +104,7 @@ pub fn vPrepFnParams(S, fnDef, callArgs) {
     while ti < len(names) {
         if names[ti] == "self" || names[ti] == "this" {
             if S["locals"][ti] == undefined {
-                S["locals"][ti] = vThisS(S)
+                S["locals"][ti] = vCanonicalInstS(S, vThisS(S))
             }
         }
         ti = ti + 1

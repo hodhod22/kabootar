@@ -65,9 +65,13 @@ pub fn vFillHostGlobals(S, globals) {
             if globals[fillI] == "instanceof" {
                 S["globals"][fillI] = { "vmInstof": 1 }
             } else {
-                let fillH = bytecode_host_get("" + globals[fillI])
-                if fillH != undefined {
-                    S["globals"][fillI] = fillH
+                if globals[fillI] == "iterator_begin" {
+                    S["globals"][fillI] = { "vmIterBegin": 1 }
+                } else {
+                    let fillH = bytecode_host_get("" + globals[fillI])
+                    if fillH != undefined {
+                        S["globals"][fillI] = fillH
+                    }
                 }
             }
         }
@@ -135,6 +139,7 @@ pub fn vResetExec(S) {
     S["stack"] = []
     S["thisStack"] = []
     S["lastThis"] = null
+    S["insts"] = []
     S["ip"] = 0
     S["done"] = false
     S["result"] = null
@@ -151,8 +156,10 @@ pub fn vMakeSession() {
         "arrows": [],
         "tryRegions": [],
         "localNames": [],
+        "globalNames": [],
         "thisStack": [],
         "lastThis": null,
+        "insts": [],
         "nextInstId": 1,
         "ip": 0,
         "done": false,
@@ -202,6 +209,74 @@ pub fn vBindImports(S, globals, imports) {
         }
         ii = ii + 1
     }
+}
+
+pub fn vMakeGeneratorS(S, fnDef, idx, callArgs) {
+    let old = vSaveFnFrame(S)
+    vPrepareFnLocals(S, fnDef, callArgs, null)
+    let g = {
+        "vmGen": 1,
+        "idx": idx,
+        "ip": 0,
+        "locals": S["locals"],
+        "stack": [],
+        "done": 0
+    }
+    g["next"] = { "vmGenNext": 1, "vmR": g }
+    g["return"] = { "vmGenReturn": 1, "vmR": g }
+    vRestoreFnFrame(S, old)
+    return g
+}
+
+pub fn vCloseGeneratorS(g, ordered) {
+    if g["done"] == 1 {
+        return { "value": null, "done": true }
+    }
+    if g["done"] == true {
+        return { "value": null, "done": true }
+    }
+    g["done"] = 1
+    let v = null
+    if len(ordered) > 0 {
+        v = ordered[0]
+    }
+    return { "value": v, "done": true }
+}
+
+pub fn vResumeGeneratorS(S, g, pool, globals, functions) {
+    if g["done"] == 1 {
+        return { "value": null, "done": true }
+    }
+    if g["done"] == true {
+        return { "value": null, "done": true }
+    }
+    let fnDef = functions[g["idx"]]
+    let old = vSaveFnFrame(S)
+    S["stack"] = g["stack"]
+    S["locals"] = g["locals"]
+    S["localNames"] = fnDef["locals"]
+    S["ip"] = g["ip"]
+    S["done"] = false
+    S["yielded"] = 0
+    S["result"] = null
+    S["unsupported"] = false
+    vCallRunOps(S, fnDef["ops"], pool, globals, functions)
+    if S["unsupported"] == true {
+        vRestoreFnFrame(S, old)
+        throw "vm unsupported opcode in generator"
+    }
+    if S["yielded"] == 1 {
+        g["ip"] = S["ip"]
+        g["locals"] = S["locals"]
+        g["stack"] = S["stack"]
+        let v = S["yieldVal"]
+        vRestoreFnFrame(S, old)
+        return { "value": v, "done": false }
+    }
+    g["done"] = 1
+    let out = vTakeResult(S)
+    vRestoreFnFrame(S, old)
+    return { "value": out, "done": true }
 }
 
 // --- vm_run_fn_body ---

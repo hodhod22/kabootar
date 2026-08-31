@@ -258,6 +258,172 @@ pub fn vWriteThisS(S, updated) {
     S["thisStack"] = push(S["thisStack"], updated)
 }
 
+/// After a method returns, replace caller bindings that share `vmI` with `lastThis`.
+pub fn vSameVmI(a, b) {
+    if a == undefined || b == undefined {
+        return false
+    }
+    return ("" + a) == ("" + b)
+}
+
+pub fn vInstId(obj) {
+    if obj == null || obj == undefined {
+        return undefined
+    }
+    if typeof(obj) != "object" {
+        return undefined
+    }
+    let id = obj["vmI"]
+    if id == undefined {
+        id = vObjGet(obj, "vmI")
+    }
+    if id == undefined {
+        id = obj["__kab_oid"]
+    }
+    return id
+}
+
+pub fn vMergeInstInPlace(dst, src) {
+    if typeof(dst) != "object" || dst == null {
+        return
+    }
+    if typeof(src) != "object" || src == null {
+        return
+    }
+    let keys = object_keys(src)
+    let i = 0
+    while i < len(keys) {
+        let k = keys[i]
+        dst[k] = src[k]
+        i = i + 1
+    }
+    return
+}
+
+pub fn vHeapGet(S, id) {
+    if id == undefined {
+        return undefined
+    }
+    let heap = S["insts"]
+    if typeof(heap) != "array" {
+        return undefined
+    }
+    if id < 0 || id >= len(heap) {
+        return undefined
+    }
+    return heap[id]
+}
+
+pub fn vHeapPut(S, obj) {
+    let id = vInstId(obj)
+    if id == undefined {
+        return
+    }
+    let heap = S["insts"]
+    if typeof(heap) != "array" {
+        heap = []
+    }
+    while len(heap) <= id {
+        heap = push(heap, undefined)
+    }
+    heap[id] = obj
+    S["insts"] = heap
+    return
+}
+
+pub fn vCanonicalInstS(S, v) {
+    let id = vInstId(v)
+    let h = vHeapGet(S, id)
+    if h != undefined {
+        return h
+    }
+    if id != undefined {
+        vHeapPut(S, v)
+    }
+    return v
+}
+
+pub fn vPublishInstS(S, updated) {
+    if updated == null || updated == undefined {
+        return updated
+    }
+    if vInstId(updated) == undefined {
+        if len(S["thisStack"]) > 0 {
+            let cur = S["thisStack"][len(S["thisStack"]) - 1]
+            let cid = vInstId(cur)
+            if cid != undefined {
+                updated["vmI"] = cid
+                if cur["vmC"] != undefined {
+                    updated["vmC"] = cur["vmC"]
+                }
+            }
+        }
+    }
+    vHeapPut(S, updated)
+    if len(S["thisStack"]) > 0 {
+        let cur2 = S["thisStack"][len(S["thisStack"]) - 1]
+        if vSameVmI(vInstId(cur2), vInstId(updated)) {
+            vWriteThisS(S, updated)
+        }
+    }
+    return updated
+}
+
+pub fn vWritebackAfterMethodS(S, recv, updated) {
+    let id = vInstId(recv)
+    if id == undefined {
+        id = vInstId(updated)
+    }
+    let fresh = vHeapGet(S, id)
+    if fresh != undefined {
+        updated = fresh
+    }
+    if updated == null || updated == undefined {
+        return
+    }
+    if typeof(updated) != "object" {
+        return
+    }
+    if id == undefined {
+        vMergeInstInPlace(recv, updated)
+        return
+    }
+    updated["vmI"] = id
+    vHeapPut(S, updated)
+    vMergeInstInPlace(recv, updated)
+    S["locals"] = vReplaceByVmI(S["locals"], updated, id)
+    S["globals"] = vReplaceByVmI(S["globals"], updated, id)
+    return
+}
+
+pub fn vWritebackInstanceS(S, updated) {
+    vWritebackAfterMethodS(S, null, updated)
+}
+
+pub fn vReplaceByVmI(arr, updated, id) {
+    if arr == null || arr == undefined {
+        return arr
+    }
+    let out = []
+    let i = 0
+    let n = len(arr)
+    while i < n {
+        let v = arr[i]
+        let keep = v
+        if v != null {
+            if v != undefined {
+                let hit = vSameVmI(vInstId(v), id)
+                if hit {
+                    keep = updated
+                }
+            }
+        }
+        out = push(out, keep)
+        i = i + 1
+    }
+    return out
+}
+
 // --- vm_s_truthy ---
 // P6b: truthy helper (pure).
 pub fn vTruthy(v) {
@@ -430,7 +596,7 @@ pub let poolKey = poolKey
 
 // --- vm_s_member_set_push ---
 pub fn vMemberSetPush(S, obj, key, val) {
-    let updated = vMemberSet(obj, key, val)
+    let updated = vPublishInstS(S, vMemberSet(obj, key, val))
     if vIsCurrentThisS(S, obj) {
         vWriteThisS(S, updated)
     }
@@ -441,7 +607,7 @@ pub fn vMemberSetPush(S, obj, key, val) {
 
 // --- vm_s_index_set_push ---
 pub fn vIndexSetPush(S, container, idx, val) {
-    let updated = vIndexSet(container, idx, val)
+    let updated = vPublishInstS(S, vIndexSet(container, idx, val))
     if vIsCurrentThisS(S, container) {
         vWriteThisS(S, updated)
     }
