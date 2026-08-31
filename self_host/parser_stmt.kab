@@ -326,6 +326,18 @@ pub fn compoundAssignBinOp(tok) {
     if tok == "^=" {
         return "^"
     }
+    if tok == "<<=" {
+        return "<<"
+    }
+    if tok == ">>=" {
+        return ">>"
+    }
+    if tok == ">>>=" {
+        return ">>>"
+    }
+    if tok == "**=" {
+        return "**"
+    }
     return ""
 }
 

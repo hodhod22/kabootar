@@ -58,6 +58,10 @@ pub fn lxScanMulDiv(sess, c, line, col) {
         lxEat(sess)
         if lxStarts(sess, "*") == 1 {
             lxEat(sess)
+            if lxStarts(sess, "=") == 1 {
+                lxEat(sess)
+                return lxTok("**=", null, line, col)
+            }
             return lxTok("**", null, line, col)
         }
         if lxStarts(sess, "=") == 1 {
@@ -95,6 +99,10 @@ pub fn lxScanCmp(sess, c, line, col) {
         }
         if lxStarts(sess, "<") == 1 {
             lxEat(sess)
+            if lxStarts(sess, "=") == 1 {
+                lxEat(sess)
+                return lxTok("<<=", null, line, col)
+            }
             return lxTok("<<", null, line, col)
         }
         return lxTok("<", null, line, col)
@@ -109,7 +117,15 @@ pub fn lxScanCmp(sess, c, line, col) {
             lxEat(sess)
             if lxStarts(sess, ">") == 1 {
                 lxEat(sess)
+                if lxStarts(sess, "=") == 1 {
+                    lxEat(sess)
+                    return lxTok(">>>=", null, line, col)
+                }
                 return lxTok(">>>", null, line, col)
+            }
+            if lxStarts(sess, "=") == 1 {
+                lxEat(sess)
+                return lxTok(">>=", null, line, col)
             }
             return lxTok(">>", null, line, col)
         }
