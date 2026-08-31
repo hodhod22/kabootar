@@ -1037,7 +1037,7 @@ Bakgrund: `eMakeSession` / trampoliner / `*_step`-fn finns för **P6b leaf-budge
 - Ny Cranelift/IC/GC i Rust (det ska bli `.kab`).
 - Att checka in `_probe_*.kab` som produkt.
 
-**Nästa:** Compound assign är **en** emit-väg. Behåll eval-once. **Vägg 1–5** + **`fn*`/`yield`/`yield*`/`for of gen()`/`return` i `fn*`/`g.return(v)`** klara. Proven: `g.return(99)` → **99** (`sh6_self_host_generator_method_return_ok`). Inte `.throw()`. Inte `finally` i `.return()`. Inte `async fn*`. Inte SH17–SH28. 1k+ loop är SH17/JIT. Inte höja text-`maxKbc`. Inte `noll_*`. Inte rust-opcode för `is` eller rust-compile av default/rest-params.
+**Nästa:** Compound assign är **en** emit-väg. Behåll eval-once. **Vägg 1–5** + **`fn*`/`yield`/`yield*`/`for of gen()`/`return`/`g.return`/`g.throw`+`catch`** klara. Proven: `g.throw(99)` i `catch` → **990** (`sh6_self_host_generator_throw_catch_ok`). Inte `finally`. Inte `async fn*`. Inte SH17–SH28. 1k+ loop är SH17/JIT. Inte höja text-`maxKbc`. Inte `noll_*`. Inte rust-opcode för `is` eller rust-compile av default/rest-params.
 
 Se [COMPILE.md](COMPILE.md) § P10 och [self_host/README.md](../self_host/README.md).
 

@@ -556,6 +556,11 @@ pub fn parsePostfix_tail_member_name(sess) {
         sess["pMemberName"] = "return"
         return 0
     }
+    if sess["pTok"].type == TOKEN_THROW {
+        bump(sess)
+        sess["pMemberName"] = "throw"
+        return 0
+    }
     throw "Expected member name"
 }
 

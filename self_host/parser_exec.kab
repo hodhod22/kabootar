@@ -1,5 +1,6 @@
 // SH2/SH13: reuse session; tramp takes sess (do not read gSess — LoadGlobal IC can stale).
 // SH5: parseMain + pTramp + session live here (was parser_main / parser_tramp / parser_session).
+// SH6: yield e * 10 (mul loop); resume must not load tryRegions (breaks yield pause).
 import "self_host/ast_defs"
 import "self_host/parser_postfix"
 import "self_host/parser_stmt"
@@ -343,7 +344,13 @@ pub fn parseUnary(sess) {
             sess["pLeft"] = { "kind": AST_UNARY, "op": "yield_star", "expr": pCallUnary(sess) }
             return sess["pLeft"]
         }
-        sess["pLeft"] = { "kind": AST_UNARY, "op": "yield", "expr": pCallUnary(sess) }
+        let yExpr = pCallUnary(sess)
+        while sess["pCur"].type == "*" || sess["pCur"].type == "/" || sess["pCur"].type == "%" || sess["pCur"].type == "**" {
+            let yOp = sess["pCur"].type
+            bump(sess)
+            yExpr = { "kind": AST_BINARY, "op": yOp, "left": yExpr, "right": pCallUnary(sess) }
+        }
+        sess["pLeft"] = { "kind": AST_UNARY, "op": "yield", "expr": yExpr }
         return sess["pLeft"]
     }
     return pCallPostfix(sess)

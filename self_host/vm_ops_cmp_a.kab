@@ -93,6 +93,8 @@ pub fn runOpCmpMember(S, name, arg, op, pool, globals, functions) {
     if name == "get_member" {
         let key = poolKey(pool, arg)
         let obj = vPopS(S)
+        S["lastMemKey"] = "" + key
+        S["lastMemObj"] = obj
         vPushS(S, vMemberGetS(S, obj, key))
         vBumpIpS(S)
         return 1
@@ -238,6 +240,15 @@ pub fn runOpCmpA(S, name, arg, op, pool, globals, functions) {
 
 // --- vm_ops_cmp_c ---
 pub fn runOpCmpC(S, name, arg, op, pool, globals, functions) {
+    if name == "get_member" {
+        let key = poolKey(pool, arg)
+        let obj = vPopS(S)
+        S["lastMemKey"] = "" + key
+        S["lastMemObj"] = obj
+        vPushS(S, vMemberGetS(S, obj, key))
+        vBumpIpS(S)
+        return 1
+    }
     let st = runOpCmpIn(S, name, arg, op, pool, globals, functions)
     if st != 0 {
         return st

@@ -94,6 +94,9 @@ pub fn vApplyMethHostS(S, c, ordered, pool, globals, functions) {
     if kind == "genReturn" {
         return vCloseGeneratorS(c["recv"], ordered)
     }
+    if kind == "genThrow" {
+        return vThrowGeneratorS(S, c["recv"], ordered, pool, globals, functions)
+    }
     if kind == "iterBegin" {
         let itb = ordered[0]
         if vObjGet(itb, "vmGen") == 1 {
@@ -103,6 +106,15 @@ pub fn vApplyMethHostS(S, c, ordered, pool, globals, functions) {
             return itb
         }
         return vCallHost(bytecode_host_get("iterator_begin"), ordered)
+    }
+    if ("" + S["lastMemKey"]) == "throw" {
+        let gThrow = S["lastMemObj"]
+        if vObjGet(gThrow, "vmGen") == 1 {
+            return vThrowGeneratorS(S, gThrow, ordered, pool, globals, functions)
+        }
+        if vObjGet(gThrow, "vmGen") == true {
+            return vThrowGeneratorS(S, gThrow, ordered, pool, globals, functions)
+        }
     }
     return vCallHost(c["callee"], ordered)
 }
@@ -142,6 +154,9 @@ pub fn vClassifyMethHost(callee) {
     }
     if vObjGet(callee, "vmGenReturn") == 1 {
         return { "kind": "genReturn", "recv": vObjGet(callee, "vmR") }
+    }
+    if vObjGet(callee, "vmGenThrow") == 1 {
+        return { "kind": "genThrow", "recv": vObjGet(callee, "vmR") }
     }
     if vObjGet(callee, "vmIterBegin") == 1 {
         return { "kind": "iterBegin" }

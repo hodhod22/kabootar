@@ -192,7 +192,8 @@ Kabootar som systemspråk — vad som finns idag vs. roadmap. Kör `lang_info()`
 | 10af | `yield*` | ✅ host eval; self-host desugar till `iterator_begin` + `yield`; **kab-only** array + `fn*` | `fn* gen() { yield* [1, 2] }` → **3** (`sh6_self_host_yield_star_array_ok`); `yield* inner()` → **3** (`sh6_self_host_yield_star_generator_ok`). |
 | 10ag | `for x of gen()` | ✅ self-host + **kab-only** | `iterator_begin(vmGen)` identitet; `iterator_step_in_place` resume (`sh6_self_host_for_of_generator_ok`). Inte `async fn*`. |
 | 10ah | `fn*` `return` | ✅ host eval; self-host + **kab-only** completion `.next()` | `yield 10; return 99` → **109** (`sh6_self_host_generator_return_ok`). |
-| 10ai | `g.return(v)` | ✅ host eval; **kab-only** stäng utan resume | `g.next(); g.return(99)` → **99** (`sh6_self_host_generator_method_return_ok`). Inte `.throw()`. Inte `finally`. Inte `async fn*`. |
+| 10ai | `g.return(v)` | ✅ host eval; **kab-only** stäng utan resume | `g.next(); g.return(99)` → **99** (`sh6_self_host_generator_method_return_ok`). Inte `finally`. |
+| 10aj | `g.throw(e)` | ✅ host eval; **kab-only** resume in i `catch` runt `yield` | `g.throw(99)` → **990** (`sh6_self_host_generator_throw_catch_ok`). Utan catch: close med värdet. Inte `finally`. Inte `async fn*`. |
 | 11 | Effect system | 🔶 | `@pure` `@io` `@disk` (strippas) |
 | 12 | Benchmark | 🔶 | `lang_benchmark`, `@benchmark` |
 | 13 | Doc-exempel | 🔶 | `@example` planerat |
