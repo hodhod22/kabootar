@@ -1,6 +1,7 @@
 import "self_host/vm_s_stack"
 import "self_host/vm_run_session"
 
+
 // --- vm_ops_data_concat ---
 pub fn runOpDataConcat(S, name, arg, op, pool, globals, functions) {
     if name == "concat_array" {
@@ -203,6 +204,19 @@ pub fn runOpDataOptionSome(S, name, arg, op, pool, globals, functions) {
 }
 
 // --- vm_ops_data_set_member ---
+pub fn runOpDataGetMember(S, name, arg, op, pool, globals, functions) {
+    if name != "get_member" {
+        return 0
+    }
+    let key = poolKey(pool, arg)
+    let obj = vPopS(S)
+    S["lastMemKey"] = "" + key
+    S["lastMemObj"] = obj
+    vPushS(S, vMemberGetS(S, obj, key))
+    vBumpIpS(S)
+    return 1
+}
+
 pub fn runOpDataSetMember(S, name, arg, op, pool, globals, functions) {
     if name == "member_set" {
         let key = poolKey(pool, arg)
@@ -443,7 +457,11 @@ pub fn runOpDataD(S, name, arg, op, pool, globals, functions) {
 
 // --- vm_ops_data_b ---
 pub fn runOpDataB(S, name, arg, op, pool, globals, functions) {
-    let st = runOpDataSetMember(S, name, arg, op, pool, globals, functions)
+    let st = runOpDataGetMember(S, name, arg, op, pool, globals, functions)
+    if st != 0 {
+        return st
+    }
+    st = runOpDataSetMember(S, name, arg, op, pool, globals, functions)
     if st != 0 {
         return st
     }

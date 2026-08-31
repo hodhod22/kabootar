@@ -3069,6 +3069,36 @@ fn sh6_self_host_generator_method_return_ok() {
     assert_eq!(formatted, "99");
 }
 
+/// SH6: Kab-VM `g.throw(e)` resumes `catch` around `yield`.
+#[test]
+fn sh6_self_host_generator_throw_catch_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    yield 1\n    yield 2\n  } catch (e) {\n    yield e * 10\n  }\n}\nlet g = gen()\ng.next()\nlet r = g.throw(99)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "990");
+}
+
 /// SH6: product self-host template `` `n=${n}` `` (desugar to string `+`) + Kab VM.
 #[test]
 fn sh6_self_host_template_literal_ok() {

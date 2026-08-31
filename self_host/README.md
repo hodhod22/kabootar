@@ -381,6 +381,7 @@ cargo test --test sh_wave sh6_self_host_for_of_generator_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_yield_star_generator_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_generator_return_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_generator_method_return_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generator_throw_catch_ok -- --test-threads=1
 cargo test --test sh_wave sh6_kbcb_oversize_string_const_ok -- --test-threads=1
 cargo test --test sh_wave sh6_kbcb_loop_100_ok -- --test-threads=1
 cargo test --test sh_wave sh6_kbcb_unrolled_200_ok -- --test-threads=1

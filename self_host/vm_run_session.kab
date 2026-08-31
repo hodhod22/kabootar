@@ -224,8 +224,40 @@ pub fn vMakeGeneratorS(S, fnDef, idx, callArgs) {
     }
     g["next"] = { "vmGenNext": 1, "vmR": g }
     g["return"] = { "vmGenReturn": 1, "vmR": g }
+    g["throw"] = { "vmGenThrow": 1, "vmR": g }
     vRestoreFnFrame(S, old)
     return g
+}
+
+/// Copy generator frame into S. Do not assign tryRegions here — that breaks yield pause on .next().
+pub fn vPrepGeneratorResumeS(S, g, fnDef) {
+    S["stack"] = g["stack"]
+    S["locals"] = g["locals"]
+    S["localNames"] = fnDef["locals"]
+    S["ip"] = g["ip"]
+    S["done"] = false
+    S["yielded"] = 0
+    S["result"] = null
+    S["unsupported"] = false
+}
+
+pub fn vFinishGeneratorStepS(S, g, old) {
+    if S["unsupported"] == true {
+        vRestoreFnFrame(S, old)
+        throw "vm unsupported opcode in generator"
+    }
+    if S["yielded"] == 1 {
+        g["ip"] = S["ip"]
+        g["locals"] = S["locals"]
+        g["stack"] = S["stack"]
+        let v = S["yieldVal"]
+        vRestoreFnFrame(S, old)
+        return { "value": v, "done": false }
+    }
+    g["done"] = 1
+    let out = vTakeResult(S)
+    vRestoreFnFrame(S, old)
+    return { "value": out, "done": true }
 }
 
 pub fn vCloseGeneratorS(g, ordered) {
@@ -277,6 +309,34 @@ pub fn vResumeGeneratorS(S, g, pool, globals, functions) {
     let out = vTakeResult(S)
     vRestoreFnFrame(S, old)
     return { "value": out, "done": true }
+}
+
+pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
+    if g["done"] == 1 {
+        return { "value": null, "done": true }
+    }
+    if g["done"] == true {
+        return { "value": null, "done": true }
+    }
+    let reason = null
+    if len(ordered) > 0 {
+        reason = ordered[0]
+    }
+    let fnDef = functions[g["idx"]]
+    let old = vSaveFnFrame(S)
+    vPrepGeneratorResumeS(S, g, fnDef)
+    let tr = fnDef["tryRegions"]
+    if tr == undefined {
+        tr = []
+    }
+    S["tryRegions"] = tr
+    if vCatchThrow(S, reason) != 1 {
+        vRestoreFnFrame(S, old)
+        g["done"] = 1
+        return { "value": reason, "done": true }
+    }
+    vCallRunOps(S, fnDef["ops"], pool, globals, functions)
+    return vFinishGeneratorStepS(S, g, old)
 }
 
 // --- vm_run_fn_body ---

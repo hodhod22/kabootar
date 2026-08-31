@@ -557,6 +557,8 @@ pub fn vMemberGetS(S, obj, key) {
     if obj == null || obj == undefined {
         return undefined
     }
+    S["lastMemKey"] = "" + key
+    S["lastMemObj"] = obj
     if vObjGet(obj, "vmEnumNs") == 1 {
         return vEnumNsGet(obj, key)
     }
@@ -565,6 +567,17 @@ pub fn vMemberGetS(S, obj, key) {
     }
     if typeof(obj) == "array" {
         return vIndexGet(obj, key)
+    }
+    let ks = "" + key
+    if vObjGet(obj, "vmGen") == 1 {
+        if ks == "throw" {
+            return { "vmGenThrow": 1, "vmR": obj }
+        }
+    }
+    if vObjGet(obj, "vmGen") == true {
+        if ks == "throw" {
+            return { "vmGenThrow": 1, "vmR": obj }
+        }
     }
     return obj[key]
 }
@@ -619,6 +632,16 @@ pub fn vIndexSetPush(S, container, idx, val) {
 // --- vm_s_catch ---
 pub fn vCatchThrow(S, reason) {
     let region = vFindTry(S["tryRegions"], S["ip"])
+    if region == null {
+        if S["ip"] >= 1 {
+            region = vFindTry(S["tryRegions"], S["ip"] - 1)
+        }
+    }
+    if region == null {
+        if S["ip"] >= 2 {
+            region = vFindTry(S["tryRegions"], S["ip"] - 2)
+        }
+    }
     if region == null {
         return 0
     }
