@@ -12791,6 +12791,58 @@ fn sh6_self_host_index_member_pow_compound_assign_ok() {
     assert_eq!(formatted, "9");
 }
 
+/// SH6: product self-host mixed `o.items[0] **= 2` via IndexAssign store-back + Kab VM.
+#[test]
+fn sh6_self_host_member_index_pow_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [3] }\n  o.items[0] **= 2\n  return o.items[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-memidx-pow".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("pow") {
+                return Err(format!(
+                    "expected pow, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member index pow compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
 /// SH6: large string const exceeds text maxKbc but packed kbcb v2 still evals on Kab VM.
 #[test]
 fn sh6_kbcb_oversize_string_const_ok() {
