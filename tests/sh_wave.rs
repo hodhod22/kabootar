@@ -919,6 +919,36 @@ fn sh6_vm_policy_in_kab() {
         "SH6: self-host if let n @ Some(x) at-bind + Some unwrap"
     );
     assert!(
+        stmt.contains("parseStmt_ifLet")
+            && postfix.contains("matchPatRangeHiMissing")
+            && emit.contains("if hasLo == 1")
+            && emit.contains("emitMatchPatRange"),
+        "SH6: self-host if let 1.. = x open range desugar to match range"
+    );
+    assert!(
+        stmt.contains("parseStmt_while")
+            && stmt.contains("TOKEN_LET")
+            && stmt.contains("AST_BREAK")
+            && postfix.contains("matchPatRangeHiMissing")
+            && emit.contains("emitMatchPatRange"),
+        "SH6: self-host while let 1.. = r open range desugar to match range + break"
+    );
+    assert!(
+        stmt.contains("parseStmt_ifLet")
+            && postfix.contains("\"lo\": null")
+            && postfix.contains("\"hi\": hi")
+            && emit.contains("if hasHi == 1"),
+        "SH6: self-host if let ..5 = x open-to range desugar to match range"
+    );
+    assert!(
+        stmt.contains("parseStmt_while")
+            && stmt.contains("TOKEN_LET")
+            && stmt.contains("AST_BREAK")
+            && postfix.contains("\"lo\": null")
+            && postfix.contains("\"hi\": hi"),
+        "SH6: self-host while let ..5 = r open-to range desugar to match range + break"
+    );
+    assert!(
         emit.contains("k == \"at\"")
             && emit.contains("emitMatchPatOr")
             && postfix.contains("parseMatchPat"),
@@ -1236,6 +1266,34 @@ fn sh6_vm_policy_in_kab() {
             && stmt_emit.contains("classWhere")
             && emit.contains("throw whereMsg"),
         "SH6: self-host struct WBox<T> rejects WBox<Nope>"
+    );
+    assert!(
+        stmt_emit.contains("eDef[\"default\"] == 1")
+            && stmt_emit.contains("eFoundMeth == 0")
+            && ser.contains("iface_method_default")
+            && stmt_emit.contains("eIface[\"methods\"]"),
+        "SH6: self-host trait default inject Thing().id()"
+    );
+    assert!(
+        stmt_emit.contains("eDef[\"default\"] == 1")
+            && stmt_emit.contains("eFoundMeth = 1")
+            && stmt_emit.contains("eClassMethods\"][eKi][\"sym\"]")
+            && ser.contains("iface_method_default"),
+        "SH6: self-host trait default skipped when class defines id()"
+    );
+    assert!(
+        stmt_emit.contains("str_slice(\"\" + implName, 0, dollar) == eIface[\"sym\"]")
+            && stmt_emit.contains("eDef[\"default\"] == 1")
+            && ser.contains("iface_method_default")
+            && ser.contains("interface_type_params"),
+        "SH6: self-host trait Show<T> default inject on implements Show<Number>"
+    );
+    assert!(
+        stmt_emit.contains("str_slice(\"\" + implName, 0, dollar) == eIface[\"sym\"]")
+            && stmt_emit.contains("eFoundMeth = 1")
+            && stmt_emit.contains("eDef[\"default\"] == 1")
+            && ser.contains("interface_type_params"),
+        "SH6: self-host trait Show<T> default skipped when Point defines show()"
     );
     assert!(
         postfix.contains("matchPatRangeHiMissing")
@@ -5641,6 +5699,350 @@ fn sh6_self_host_where_struct_show_reject_ok() {
     );
 }
 
+/// SH6: product self-host trait default method inject `Thing().id()` + Kab VM.
+#[test]
+fn sh6_self_host_trait_default_id_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait HasId { fn id() { return 1 } }\nclass Thing implements HasId {\n  fn init() {}\n}\nfn run() {\n  let obj = Thing()\n  return obj.id()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-trait-default-id".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("iface_method_default") {
+                return Err(format!(
+                    "expected iface_method_default, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host trait default Thing().id()");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: product self-host class `fn id()` overrides trait default + Kab VM.
+#[test]
+fn sh6_self_host_trait_default_override_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait HasId { fn id() { return 1 } }\nclass Thing implements HasId {\n  fn init() {}\n  fn id() { return 42 }\n}\nfn run() {\n  let obj = Thing()\n  return obj.id()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-trait-default-override".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("iface_method_default") {
+                return Err(format!(
+                    "expected iface_method_default, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host trait default override Thing().id()");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `trait Show<T>` default inject on `implements Show<Number>` + Kab VM.
+#[test]
+fn sh6_self_host_trait_default_generic_show_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show<T> { fn show() { return 42 } }\nclass Point implements Show<Number> {\n  fn init() {}\n}\nfn run() {\n  return Point().show()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-trait-default-generic-show".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Show$Number") {
+                return Err(format!(
+                    "expected Show$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iface_method_default") {
+                return Err(format!(
+                    "expected iface_method_default, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("interface_type_params") {
+                return Err(format!(
+                    "expected interface_type_params, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host trait Show<T> default inject");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `trait Show<T>` default skipped when `Point` defines `show()` + Kab VM.
+#[test]
+fn sh6_self_host_trait_default_generic_show_override_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "trait Show<T> { fn show() { return 1 } }\nclass Point implements Show<Number> {\n  fn init() {}\n  fn show() { return 42 }\n}\nfn run() {\n  return Point().show()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-trait-default-generic-show-override".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("Show$Number") {
+                return Err(format!(
+                    "expected Show$Number, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iface_method_default") {
+                return Err(format!(
+                    "expected iface_method_default, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            if !kbc.contains("interface_type_params") {
+                return Err(format!(
+                    "expected interface_type_params, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host trait Show<T> default override");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: product self-host `if let 1.. = x` open range + Kab VM.
+#[test]
+fn sh6_self_host_if_let_open_range_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let x = 4\n  let a = 0\n  if let 1.. = x { a = a + 9 }\n  let y = 0\n  if let 1.. = y { a = a + 1 }\n  return a\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-if-let-open-range".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("fn_op 0 ge") {
+                return Err(format!(
+                    "expected fn_op 0 ge for if let 1.., snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host if let open range");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host `while let 1.. = r` open range + Kab VM.
+#[test]
+fn sh6_self_host_while_let_open_range_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let r = 4\n  let n = 0\n  while let 1.. = r {\n    n = n + 8\n    r = 0\n  }\n  return n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-while-let-open-range".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("fn_op 0 ge") {
+                return Err(format!(
+                    "expected fn_op 0 ge for while let 1.., snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host while let open range");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "8");
+}
+
+/// SH6: product self-host `if let ..5 = x` open-to range + Kab VM.
+#[test]
+fn sh6_self_host_if_let_open_to_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let x = 3\n  let a = 0\n  if let ..5 = x { a = a + 8 }\n  let y = 9\n  if let ..5 = y { a = a + 1 }\n  return a\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-if-let-open-to".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("fn_op 0 lt") {
+                return Err(format!(
+                    "expected fn_op 0 lt for if let ..5, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host if let open-to range");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "8");
+}
+
+/// SH6: product self-host `while let ..5 = r` open-to range + Kab VM.
+#[test]
+fn sh6_self_host_while_let_open_to_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let r = 3\n  let n = 0\n  while let ..5 = r {\n    n = n + 7\n    r = 9\n  }\n  return n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-while-let-open-to".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("fn_op 0 lt") {
+                return Err(format!(
+                    "expected fn_op 0 lt for while let ..5, snippet:\n{}",
+                    kbc.chars().take(2000).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}\nkbc:\n{}", kbc.chars().take(2500).collect::<String>()))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host while let open-to range");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
 /// SH6: product self-host `is(obj, "Class")` / `instanceof` + Kab VM (Child+Base).
 #[test]
 fn sh6_self_host_is_class_ok() {
@@ -6127,6 +6529,3762 @@ fn sh6_self_host_member_nested_index_member_compound_assign_ok() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host `o.x ||=` / `&&=` / `??=` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_member_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { x: 0, y: 1, z: null }\n  o.x ||= 5\n  o.y &&= 9\n  o.z ??= 3\n  return o.x + o.y + o.z\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mem-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_false") {
+                return Err(format!(
+                    "expected jump_if_false, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_not_nullish") {
+                return Err(format!(
+                    "expected jump_if_not_nullish, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "17");
+}
+
+/// SH6: product self-host `xs[0] ||=` / `??=` via IndexAssign store-back + Kab VM.
+#[test]
+fn sh6_self_host_index_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [0, null]\n  xs[0] ||= 5\n  xs[1] ??= 3\n  return xs[0] + xs[1]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idx-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_not_nullish") {
+                return Err(format!(
+                    "expected jump_if_not_nullish, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "8");
+}
+
+/// SH6: product self-host nested `o.a.b ??=` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_nested_member_nullish_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { a: { b: null } }\n  o.a.b ??= 4\n  return o.a.b\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nest-nq".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_not_nullish") {
+                return Err(format!(
+                    "expected jump_if_not_nullish, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested member nullish assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "4");
+}
+
+/// SH6: product self-host mixed `o.items[0] ||=` / `xs[0].x ??=` + Kab VM.
+#[test]
+fn sh6_self_host_mixed_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [0] }\n  o.items[0] ||= 5\n  let xs = [{ x: null }]\n  xs[0].x ??= 3\n  return o.items[0] + xs[0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mix-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_not_nullish") {
+                return Err(format!(
+                    "expected jump_if_not_nullish, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host mixed logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "8");
+}
+
+/// SH6: product self-host nested `xs[0][0] ||=` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[0]]\n  xs[0][0] ||= 7\n  return xs[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_false") {
+                return Err(format!(
+                    "expected jump_if_false, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `this.n ||=` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_this_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.n = 0 }\n  fn bump() { this.n ||= 5; return this.n }\n}\nfn run() {\n  return C().bump()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_false") {
+                return Err(format!(
+                    "expected jump_if_false, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host `o.items[0][0] ||=` via Index chain ending in MEMBER + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[0]] }\n  o.items[0][0] ||= 8\n  return o.items[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midx-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_false") {
+                return Err(format!(
+                    "expected jump_if_false, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "8");
+}
+
+/// SH6: product self-host `xs[0][0].x ??=` via MemberAssign Index-chain + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_member_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[{ x: null }]]\n  xs[0][0].x ??= 6\n  return xs[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-mem-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_not_nullish") {
+                return Err(format!(
+                    "expected jump_if_not_nullish, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index member logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "6");
+}
+
+/// SH6: product self-host `super.n ||=` (icke-generisk Child) + Kab VM.
+#[test]
+fn sh6_self_host_super_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  n: number;\n  fn init() { this.n = 0 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.n ||= 9\n  }\n}\nfn run() {\n  return Child().n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_false") {
+                return Err(format!(
+                    "expected jump_if_false, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host `o.items[0][0].x ??=` (MemberAssign Index chain ending in MEMBER) + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_member_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[{ x: null }]] }\n  o.items[0][0].x ??= 4\n  return o.items[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midx-mem-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_not_nullish") {
+                return Err(format!(
+                    "expected jump_if_not_nullish, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index member logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "4");
+}
+
+/// SH6: product self-host triple `xs[0][0][0] ||=` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_triple_index_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[[0]]]\n  xs[0][0][0] ||= 8\n  return xs[0][0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-tidx-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_false") {
+                return Err(format!(
+                    "expected jump_if_false, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host triple index logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "8");
+}
+
+/// SH6: product self-host `super.n ||=` on `Child<T>` (fält-set, inte methods-lookup) + Kab VM.
+#[test]
+fn sh6_self_host_generic_super_logical_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base<T> {\n  n: number;\n  fn init() { this.n = 0 }\n}\nclass Child<T> extends Base<T> {\n  fn init() {\n    super.init()\n    super.n ||= 9\n  }\n}\nfn run() {\n  return Child<Number>().n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-super-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("Child$Number") {
+                return Err(format!(
+                    "expected Child$Number, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("jump_if_false") {
+                return Err(format!(
+                    "expected jump_if_false, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generic super logical assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: product self-host nested `delete o.a.b` via delete snapshot store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { a: { b: 1, c: 2 } }\n  delete o.a.b\n  if o.a.b != undefined { return 0 }\n  return o.a.c\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nest-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "2");
+}
+
+/// SH6: product self-host `delete xs[0].x` via Index store-back + Kab VM.
+#[test]
+fn sh6_self_host_index_member_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [{ x: 1, y: 7 }]\n  delete xs[0].x\n  if xs[0].x != undefined { return 0 }\n  return xs[0].y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idx-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index member delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete o[k]` computed key + Kab VM.
+#[test]
+fn sh6_self_host_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let k = \"z\"\n  let o = { z: 1, y: 7 }\n  delete o[k]\n  if o.z != undefined { return 0 }\n  return o.y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-comp-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete o.items[0].x` (Index on member) + Kab VM.
+#[test]
+fn sh6_self_host_member_index_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [{ x: 1, y: 7 }] }\n  delete o.items[0].x\n  if o.items[0].x != undefined { return 0 }\n  return o.items[0].y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midx-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member index delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete xs[0][0].x` via Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_member_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[{ x: 1, y: 7 }]]\n  delete xs[0][0].x\n  if xs[0][0].x != undefined { return 0 }\n  return xs[0][0].y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index member delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete this.z` via MemberAssign-this store-back + Kab VM.
+#[test]
+fn sh6_self_host_this_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.z = 1; this.y = 7 }\n  fn dropz() { delete this.z; return this.y }\n}\nfn run() {\n  return C().dropz()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete o.items[0][0].x` (Index chain on member) + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_member_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[{ x: 1, y: 7 }]] }\n  delete o.items[0][0].x\n  if o.items[0][0].x != undefined { return 0 }\n  return o.items[0][0].y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midx2-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index member delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete o.a.b.c` nested member snapshot store-back + Kab VM.
+#[test]
+fn sh6_self_host_triple_member_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { a: { b: { c: 1, d: 7 } } }\n  delete o.a.b.c\n  if o.a.b.c != undefined { return 0 }\n  return o.a.b.d\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-trip-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host triple member delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete this.a.b` nested member on this + Kab VM.
+#[test]
+fn sh6_self_host_this_nested_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.a = { b: 1, c: 7 } }\n  fn dropb() { delete this.a.b; return this.a.c }\n}\nfn run() {\n  return C().dropb()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-ndel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this nested delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete o[k].x` computed then member + Kab VM.
+#[test]
+fn sh6_self_host_computed_member_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let k = \"a\"\n  let o = { a: { x: 1, y: 7 } }\n  delete o[k].x\n  if o.a.x != undefined { return 0 }\n  return o.a.y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ck-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host computed member delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete super.z` (fält via this, inte methods-lookup) + Kab VM.
+#[test]
+fn sh6_self_host_super_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.z = 1; this.y = 7 }\n}\nclass Child extends Base {\n  fn init() { super.init() }\n  fn dropz() { delete super.z; return this.y }\n}\nfn run() {\n  return Child().dropz()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete this[k]` computed on this + Kab VM.
+#[test]
+fn sh6_self_host_this_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.z = 1; this.y = 7 }\n  fn dropz() {\n    let k = \"z\"\n    delete this[k]\n    if this.z != undefined { return 0 }\n    return this.y\n  }\n}\nfn run() {\n  return C().dropz()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-cdel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete super[k]` computed on super via this + Kab VM.
+#[test]
+fn sh6_self_host_super_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.z = 1; this.y = 7 }\n}\nclass Child extends Base {\n  fn init() { super.init() }\n  fn dropz() {\n    let k = \"z\"\n    delete super[k]\n    if this.z != undefined { return 0 }\n    return this.y\n  }\n}\nfn run() {\n  return Child().dropz()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-cdel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete super.a.b` nested member on super via this + Kab VM.
+#[test]
+fn sh6_self_host_super_nested_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.a = { b: 1, c: 7 } }\n}\nclass Child extends Base {\n  fn init() { super.init() }\n  fn dropb() {\n    delete super.a.b\n    if this.a.b != undefined { return 0 }\n    return this.a.c\n  }\n}\nfn run() {\n  return Child().dropb()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-ndel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super nested delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete o[k][j]` nested computed index + Kab VM.
+#[test]
+fn sh6_self_host_nested_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let k = \"a\"\n  let j = \"x\"\n  let o = { a: { x: 1, y: 7 } }\n  delete o[k][j]\n  if o.a.x != undefined { return 0 }\n  return o.a.y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ncomp-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete super.a[k]` member then computed index on super via this + Kab VM.
+#[test]
+fn sh6_self_host_super_member_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.a = { x: 1, y: 7 } }\n}\nclass Child extends Base {\n  fn init() { super.init() }\n  fn dropx() {\n    let k = \"x\"\n    delete super.a[k]\n    if this.a.x != undefined { return 0 }\n    return this.a.y\n  }\n}\nfn run() {\n  return Child().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-mcdel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super member computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete this[k].x` computed index then member on this + Kab VM.
+#[test]
+fn sh6_self_host_this_computed_member_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.a = { x: 1, y: 7 } }\n  fn dropx() {\n    let k = \"a\"\n    delete this[k].x\n    if this.a.x != undefined { return 0 }\n    return this.a.y\n  }\n}\nfn run() {\n  return C().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-cmdel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this computed member delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete super[k].x` computed index then member on super via this + Kab VM.
+#[test]
+fn sh6_self_host_super_computed_member_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.a = { x: 1, y: 7 } }\n}\nclass Child extends Base {\n  fn init() { super.init() }\n  fn dropx() {\n    let k = \"a\"\n    delete super[k].x\n    if this.a.x != undefined { return 0 }\n    return this.a.y\n  }\n}\nfn run() {\n  return Child().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-cmdel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super computed member delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete this.a[k]` member then computed index on this + Kab VM.
+#[test]
+fn sh6_self_host_this_member_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.a = { x: 1, y: 7 } }\n  fn dropx() {\n    let k = \"x\"\n    delete this.a[k]\n    if this.a.x != undefined { return 0 }\n    return this.a.y\n  }\n}\nfn run() {\n  return C().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-mcdel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this member computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete o.a[k]` member then computed index + Kab VM.
+#[test]
+fn sh6_self_host_member_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let k = \"x\"\n  let o = { a: { x: 1, y: 7 } }\n  delete o.a[k]\n  if o.a.x != undefined { return 0 }\n  return o.a.y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mem-cdel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete this[k][j]` nested computed index on this + Kab VM.
+#[test]
+fn sh6_self_host_this_nested_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.a = { x: 1, y: 7 } }\n  fn dropx() {\n    let k = \"a\"\n    let j = \"x\"\n    delete this[k][j]\n    if this.a.x != undefined { return 0 }\n    return this.a.y\n  }\n}\nfn run() {\n  return C().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-ncd".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this nested computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete super[k][j]` nested computed index on super via this + Kab VM.
+#[test]
+fn sh6_self_host_super_nested_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.a = { x: 1, y: 7 } }\n}\nclass Child extends Base {\n  fn init() { super.init() }\n  fn dropx() {\n    let k = \"a\"\n    let j = \"x\"\n    delete super[k][j]\n    if this.a.x != undefined { return 0 }\n    return this.a.y\n  }\n}\nfn run() {\n  return Child().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-ncd".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super nested computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete o.items[0][k]` member-index then computed key + Kab VM.
+#[test]
+fn sh6_self_host_member_index_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let k = \"x\"\n  let o = { items: [{ x: 1, y: 7 }] }\n  delete o.items[0][k]\n  if o.items[0].x != undefined { return 0 }\n  return o.items[0].y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midx-cdel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member index computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete this.a.b[k]` nested member then computed key + Kab VM.
+#[test]
+fn sh6_self_host_this_nested_member_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.a = { b: { x: 1, y: 7 } } }\n  fn dropx() {\n    let k = \"x\"\n    delete this.a.b[k]\n    if this.a.b.x != undefined { return 0 }\n    return this.a.b.y\n  }\n}\nfn run() {\n  return C().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-nmc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this nested member computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete o.a.b[k]` nested member then computed key + Kab VM.
+#[test]
+fn sh6_self_host_nested_member_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let k = \"x\"\n  let o = { a: { b: { x: 1, y: 7 } } }\n  delete o.a.b[k]\n  if o.a.b.x != undefined { return 0 }\n  return o.a.b.y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nmem-cdel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested member computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete xs[0][0][k]` nested index then computed key on object + Kab VM.
+#[test]
+fn sh6_self_host_triple_index_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let k = \"x\"\n  let xs = [[{ x: 1, y: 7 }]]\n  delete xs[0][0][k]\n  if xs[0][0].x != undefined { return 0 }\n  return xs[0][0].y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-tidx-cdel".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host triple index computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete super.a.b[k]` nested member on super then computed key + Kab VM.
+#[test]
+fn sh6_self_host_super_nested_member_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.a = { b: { x: 1, y: 7 } } }\n}\nclass Child extends Base {\n  fn init() { super.init() }\n  fn dropx() {\n    let k = \"x\"\n    delete super.a.b[k]\n    if this.a.b.x != undefined { return 0 }\n    return this.a.b.y\n  }\n}\nfn run() {\n  return Child().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-nmc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super nested member computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete this.items[0][k]` member-index then computed key on this + Kab VM.
+#[test]
+fn sh6_self_host_this_member_index_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.items = [{ x: 1, y: 7 }] }\n  fn dropx() {\n    let k = \"x\"\n    delete this.items[0][k]\n    if this.items[0].x != undefined { return 0 }\n    return this.items[0].y\n  }\n}\nfn run() {\n  return C().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-mic".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this member index computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete super.items[0][k]` member-index on super then computed key + Kab VM.
+#[test]
+fn sh6_self_host_super_member_index_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.items = [{ x: 1, y: 7 }] }\n}\nclass Child extends Base {\n  fn init() { super.init() }\n  fn dropx() {\n    let k = \"x\"\n    delete super.items[0][k]\n    if this.items[0].x != undefined { return 0 }\n    return this.items[0].y\n  }\n}\nfn run() {\n  return Child().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-mic".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super member index computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete this.items[0][0][k]` nested index then computed key on this + Kab VM.
+#[test]
+fn sh6_self_host_this_member_nested_index_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.items = [[{ x: 1, y: 7 }]] }\n  fn dropx() {\n    let k = \"x\"\n    delete this.items[0][0][k]\n    if this.items[0][0].x != undefined { return 0 }\n    return this.items[0][0].y\n  }\n}\nfn run() {\n  return C().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-mnic".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this member nested index computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete o.items[0][0][k]` nested index then computed key + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let k = \"x\"\n  let o = { items: [[{ x: 1, y: 7 }]] }\n  delete o.items[0][0][k]\n  if o.items[0][0].x != undefined { return 0 }\n  return o.items[0][0].y\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mnic-del".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `delete super.items[0][0][k]` nested index on super then computed key + Kab VM.
+#[test]
+fn sh6_self_host_super_member_nested_index_computed_delete_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.items = [[{ x: 1, y: 7 }]] }\n}\nclass Child extends Base {\n  fn init() { super.init() }\n  fn dropx() {\n    let k = \"x\"\n    delete super.items[0][0][k]\n    if this.items[0][0].x != undefined { return 0 }\n    return this.items[0][0].y\n  }\n}\nfn run() {\n  return Child().dropx()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-mnic".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("object_delete_prop") {
+                return Err(format!(
+                    "expected object_delete_prop, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super member nested index computed delete");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: product self-host `n &= 3` bitwise compound assign + Kab VM.
+#[test]
+fn sh6_self_host_bitwise_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let n = 7\n  n &= 3\n  return n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-bit-and-eq".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host bitwise compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `n |= 2` / `n ^= 3` bitwise compound assign + Kab VM.
+#[test]
+fn sh6_self_host_bitwise_or_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let a = 1\n  a |= 2\n  let b = 6\n  b ^= 3\n  return a * 10 + b\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-bit-or-xor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host bitwise or/xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "35");
+}
+
+/// SH6: product self-host `o.x &= 3` member bitwise compound assign + Kab VM.
+#[test]
+fn sh6_self_host_member_bitwise_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { x: 7 }\n  o.x &= 3\n  return o.x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mem-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member bitwise compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `xs[0] |= 2` index bitwise compound assign + Kab VM.
+#[test]
+fn sh6_self_host_index_bitwise_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [1]\n  xs[0] |= 2\n  return xs[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idx-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index bitwise compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `o.x ^= 3` member bitwise xor compound assign + Kab VM.
+#[test]
+fn sh6_self_host_member_bitwise_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { x: 6 }\n  o.x ^= 3\n  return o.x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mem-bitxor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member bitwise xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host `this.n &= 3` bitwise compound assign on this + Kab VM.
+#[test]
+fn sh6_self_host_this_bitwise_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.n = 7 }\n  fn band() { this.n &= 3; return this.n }\n}\nfn run() {\n  return C().band()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this bitwise compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `xs[0] ^= 3` index bitwise xor compound assign + Kab VM.
+#[test]
+fn sh6_self_host_index_bitwise_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [6]\n  xs[0] ^= 3\n  return xs[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idx-bitxor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index bitwise xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host `super.n |= 2` bitwise compound on super via this + Kab VM.
+#[test]
+fn sh6_self_host_super_bitwise_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.n = 1 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.n |= 2\n  }\n}\nfn run() {\n  return Child().n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super bitwise compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `xs[0] &= 3` index bitwise and compound assign + Kab VM.
+#[test]
+fn sh6_self_host_index_bitwise_and_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [7]\n  xs[0] &= 3\n  return xs[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idx-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index bitwise and compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `o.x |= 2` member bitwise or compound assign + Kab VM.
+#[test]
+fn sh6_self_host_member_bitwise_or_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { x: 1 }\n  o.x |= 2\n  return o.x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-mem-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member bitwise or compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `this.n |= 2` bitwise compound assign on this + Kab VM.
+#[test]
+fn sh6_self_host_this_bitwise_or_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.n = 1 }\n  fn bor() { this.n |= 2; return this.n }\n}\nfn run() {\n  return C().bor()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this bitwise or compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `this.n ^= 3` bitwise compound assign on this + Kab VM.
+#[test]
+fn sh6_self_host_this_bitwise_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class C {\n  fn init() { this.n = 6 }\n  fn bxor() { this.n ^= 3; return this.n }\n}\nfn run() {\n  return C().bxor()\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-this-bitxor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host this bitwise xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host `super.n &= 3` bitwise compound on super via this + Kab VM.
+#[test]
+fn sh6_self_host_super_bitwise_and_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.n = 7 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.n &= 3\n  }\n}\nfn run() {\n  return Child().n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super bitwise and compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `super.n ^= 3` bitwise compound on super via this + Kab VM.
+#[test]
+fn sh6_self_host_super_bitwise_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "class Base {\n  fn init() { this.n = 6 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.n ^= 3\n  }\n}\nfn run() {\n  return Child().n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-super-bitxor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host super bitwise xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host nested `o.a.b &= 3` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_nested_member_bitwise_and_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { a: { b: 7 } }\n  o.a.b &= 3\n  return o.a.b\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nest-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("matmp") {
+                return Err(format!(
+                    "expected matmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested member bitwise and compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `o.a.b |= 2` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_nested_member_bitwise_or_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { a: { b: 1 } }\n  o.a.b |= 2\n  return o.a.b\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nest-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("matmp") {
+                return Err(format!(
+                    "expected matmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested member bitwise or compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `o.a.b ^= 3` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_nested_member_bitwise_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { a: { b: 6 } }\n  o.a.b ^= 3\n  return o.a.b\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nest-bitxor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("matmp") {
+                return Err(format!(
+                    "expected matmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested member bitwise xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host mixed `xs[0].x &= 3` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_index_member_bitwise_and_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [{ x: 7 }]\n  xs[0].x &= 3\n  return xs[0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idxmem-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index member bitwise and compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `xs[0].x |= 2` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_index_member_bitwise_or_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [{ x: 1 }]\n  xs[0].x |= 2\n  return xs[0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idxmem-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index member bitwise or compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `xs[0].x ^= 3` via MemberAssign + Kab VM.
+#[test]
+fn sh6_self_host_index_member_bitwise_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [{ x: 6 }]\n  xs[0].x ^= 3\n  return xs[0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-idxmem-bitxor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host index member bitwise xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host mixed `o.items[0] &= 3` via IndexAssign store-back + Kab VM.
+#[test]
+fn sh6_self_host_member_index_bitwise_and_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [7] }\n  o.items[0] &= 3\n  return o.items[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-memidx-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member index bitwise and compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `o.items[0] |= 2` via IndexAssign store-back + Kab VM.
+#[test]
+fn sh6_self_host_member_index_bitwise_or_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [1] }\n  o.items[0] |= 2\n  return o.items[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-memidx-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member index bitwise or compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `o.items[0] ^= 3` via IndexAssign store-back + Kab VM.
+#[test]
+fn sh6_self_host_member_index_bitwise_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [6] }\n  o.items[0] ^= 3\n  return o.items[0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-memidx-bitxor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member index bitwise xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host mixed `o.items[0][0] &= 3` (Index chain ending in MEMBER) + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_bitwise_and_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[7]] }\n  o.items[0][0] &= 3\n  return o.items[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midx-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index bitwise and compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `o.items[0][0] |= 2` (Index chain ending in MEMBER) + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_bitwise_or_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[1]] }\n  o.items[0][0] |= 2\n  return o.items[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midx-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index bitwise or compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `o.items[0][0] ^= 3` (Index chain ending in MEMBER) + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_bitwise_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[6]] }\n  o.items[0][0] ^= 3\n  return o.items[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midx-bitxor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index bitwise xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host `xs[0][0].x &= 3` via MemberAssign Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_member_bitwise_and_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[{ x: 7 }]]\n  xs[0][0].x &= 3\n  return xs[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-mem-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index member bitwise and compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `xs[0][0].x |= 2` via MemberAssign Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_member_bitwise_or_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[{ x: 1 }]]\n  xs[0][0].x |= 2\n  return xs[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-mem-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index member bitwise or compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host `xs[0][0].x ^= 3` via MemberAssign Index-chain store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_member_bitwise_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[{ x: 6 }]]\n  xs[0][0].x ^= 3\n  return xs[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-mem-bitxor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index member bitwise xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host nested `xs[0][0] &= 3` via IndexAssign store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_bitwise_and_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[7]]\n  xs[0][0] &= 3\n  return xs[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index bitwise and compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `xs[0][0] |= 2` via IndexAssign store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_bitwise_or_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[1]]\n  xs[0][0] |= 2\n  return xs[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index bitwise or compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host nested `xs[0][0] ^= 3` via IndexAssign store-back + Kab VM.
+#[test]
+fn sh6_self_host_nested_index_bitwise_xor_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[6]]\n  xs[0][0] ^= 3\n  return xs[0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nidx-bitxor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_xor") {
+                return Err(format!(
+                    "expected bit_xor, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested index bitwise xor compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: product self-host mixed `o.items[0][0].x &= 3` (MemberAssign Index chain ending in MEMBER) + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_member_bitwise_and_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[{ x: 7 }]] }\n  o.items[0][0].x &= 3\n  return o.items[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midx-mem-bitand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_and") {
+                return Err(format!(
+                    "expected bit_and, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index member bitwise and compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: product self-host mixed `o.items[0][0].x |= 2` (MemberAssign Index chain ending in MEMBER) + Kab VM.
+#[test]
+fn sh6_self_host_member_nested_index_member_bitwise_or_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let o = { items: [[{ x: 1 }]] }\n  o.items[0][0].x |= 2\n  return o.items[0][0].x\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-midx-mem-bitor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("bit_or") {
+                return Err(format!(
+                    "expected bit_or, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("member_set") {
+                return Err(format!(
+                    "expected member_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host member nested index member bitwise or compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
 }
 
 /// SH6: large string const exceeds text maxKbc but packed kbcb v2 still evals on Kab VM.

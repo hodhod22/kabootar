@@ -4061,6 +4061,72 @@ fn self_host_index_compound_assign_compile_run() {
 }
 
 #[test]
+fn self_host_member_logical_assign_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let o = { x: 0 }\no.x ||= 5\nreturn o.x";
+    let program = std::thread::Builder::new()
+        .name("sh-mem-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile o.x ||="))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "5");
+}
+
+#[test]
+fn self_host_mixed_logical_assign_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "let o = { items: [0] }\no.items[0] ||= 5\nreturn o.items[0]";
+    let program = std::thread::Builder::new()
+        .name("sh-mix-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile o.items[0] ||="))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "5");
+}
+
+#[test]
+fn self_host_super_logical_assign_compile_run() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "class Base {\n  n: number;\n  fn init() { this.n = 0 }\n}\nclass Child extends Base {\n  fn init() {\n    super.init()\n    super.n ||= 9\n  }\n}\nreturn Child().n";
+    let program = std::thread::Builder::new()
+        .name("sh-super-log".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile super.n ||="))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let module = deserialize(&kabootar_lib::bytecode::serialize(&bc)).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "9");
+}
+
+#[test]
 fn self_host_template_literal_compile_run() {
     use kabootar_lib::bytecode::{deserialize, run_module};
     use kabootar_lib::compile::compile_source_self_host;

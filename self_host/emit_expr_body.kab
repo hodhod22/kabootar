@@ -1273,6 +1273,100 @@ pub fn emitExpr_object(E) {
     return true
 }
 
+pub fn emitDeleteRewriteSuper(node) {
+    if node.kind == AST_SUPER {
+        return { "kind": AST_VAR, "sym": "this" }
+    }
+    if node.kind == AST_MEMBER {
+        return {
+            "kind": AST_MEMBER,
+            "object": emitDeleteRewriteSuper(node["object"]),
+            "field": node["field"]
+        }
+    }
+    if node.kind == AST_INDEX {
+        return {
+            "kind": AST_INDEX,
+            "object": emitDeleteRewriteSuper(node["object"]),
+            "index": node["index"]
+        }
+    }
+    return node
+}
+
+pub fn emitDeleteWriteback(E, delObj) {
+    if delObj.kind == AST_VAR {
+        emitOp(E, OP_DUP, 0)
+        emitSym(E, 1, delObj["sym"])
+        return 0
+    }
+    if E["eForCounter"] == undefined {
+        E["eForCounter"] = 0
+    }
+    let delN = E["eForCounter"]
+    E["eForCounter"] = delN + 1
+    let delTmp = "deltmp" + delN
+    emitSym(E, 1, delTmp)
+    if delObj.kind == AST_MEMBER {
+        eCallExpr(E, delObj["object"])
+        emitSym(E, 0, delTmp)
+        eCallRet = symIndex(E, "const", delObj["field"])
+        emitOp(E, OP_SET_MEMBER, eCallRet)
+        emitOp(E, OP_POP, 0)
+        emitOp(E, OP_POP, 0)
+        emitSym(E, 0, delTmp)
+        return 0
+    }
+    if delObj.kind == AST_INDEX {
+        eCallExpr(E, delObj["object"])
+        eCallExpr(E, delObj["index"])
+        emitSym(E, 0, delTmp)
+        emitOp(E, OP_INDEX_SET, 0)
+        emitOp(E, OP_POP, 0)
+        let iaCur = delObj["object"]
+        let iaWalk = 1
+        while iaWalk == 1 {
+            if iaCur.kind == AST_INDEX {
+                let iaOuter = iaCur["object"]
+                let iaOuterIdx = iaCur["index"]
+                let iaN2 = E["eForCounter"]
+                E["eForCounter"] = iaN2 + 1
+                let iaTmp2 = "deltmp" + iaN2
+                emitSym(E, 1, iaTmp2)
+                eCallExpr(E, iaOuter)
+                eCallExpr(E, iaOuterIdx)
+                emitSym(E, 0, iaTmp2)
+                emitOp(E, OP_INDEX_SET, 0)
+                emitOp(E, OP_POP, 0)
+                iaCur = iaOuter
+            } else {
+                iaWalk = 0
+            }
+        }
+        if iaCur.kind == AST_VAR {
+            emitSym(E, 1, iaCur["sym"])
+        } else {
+            if iaCur.kind == AST_MEMBER {
+                let iaN2 = E["eForCounter"]
+                E["eForCounter"] = iaN2 + 1
+                let iaTmp2 = "deltmp" + iaN2
+                emitSym(E, 1, iaTmp2)
+                eCallExpr(E, iaCur["object"])
+                emitSym(E, 0, iaTmp2)
+                eCallRet = symIndex(E, "const", iaCur["field"])
+                emitOp(E, OP_SET_MEMBER, eCallRet)
+                emitOp(E, OP_POP, 0)
+                emitOp(E, OP_POP, 0)
+            } else {
+                emitOp(E, OP_POP, 0)
+            }
+        }
+        emitSym(E, 0, delTmp)
+        return 0
+    }
+    return 0
+}
+
 // --- emit_expr_unary ---
 pub fn emitExpr_unary(E) {
     if E["eNode"].kind != AST_UNARY {
@@ -1281,25 +1375,34 @@ pub fn emitExpr_unary(E) {
         let uOp = E["eNode"]["op"]
         let uInner = E["eNode"]["expr"]
         if uOp == "delete" {
-            if uInner.kind != AST_MEMBER {
-                throw "delete expects object property access"
+            if uInner.kind == AST_MEMBER {
+                let delObj = emitDeleteRewriteSuper(uInner["object"])
+                let delField = uInner["field"]
+                eCallExpr(E, {
+                    "kind": AST_CALL,
+                    "callee": { "kind": AST_VAR, "sym": "object_delete_prop" },
+                    "args": [
+                        delObj,
+                        { "kind": AST_LITERAL, "lit": LIT_STRING, "value": delField }
+                    ],
+                    "typeArgs": []
+                })
+                emitDeleteWriteback(E, delObj)
+                return true
             }
-            let delObj = uInner["object"]
-            let delField = uInner["field"]
-            eCallExpr(E, {
-                "kind": AST_CALL,
-                "callee": { "kind": AST_VAR, "sym": "object_delete_prop" },
-                "args": [
-                    delObj,
-                    { "kind": AST_LITERAL, "lit": LIT_STRING, "value": delField }
-                ],
-                "typeArgs": []
-            })
-            if delObj.kind == AST_VAR {
-                emitOp(E, OP_DUP, 0)
-                emitSym(E, 1, delObj["sym"])
+            if uInner.kind == AST_INDEX {
+                let delObj = emitDeleteRewriteSuper(uInner["object"])
+                let delIdx = uInner["index"]
+                eCallExpr(E, {
+                    "kind": AST_CALL,
+                    "callee": { "kind": AST_VAR, "sym": "object_delete_prop" },
+                    "args": [delObj, delIdx],
+                    "typeArgs": []
+                })
+                emitDeleteWriteback(E, delObj)
+                return true
             }
-            return true
+            throw "delete expects object property access"
         }
         eCallExpr(E, uInner)
         if uOp == "!" {

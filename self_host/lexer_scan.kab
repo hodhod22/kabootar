@@ -186,6 +186,10 @@ pub fn lxScanLogic(sess, c, line, col) {
             }
             return lxTok("&&", null, line, col)
         }
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("&=", null, line, col)
+        }
         return lxTok("&", null, line, col)
     }
     if c == "|" {
@@ -197,6 +201,10 @@ pub fn lxScanLogic(sess, c, line, col) {
                 return lxTok("||=", null, line, col)
             }
             return lxTok("||", null, line, col)
+        }
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("|=", null, line, col)
         }
         return lxTok("|", null, line, col)
     }
@@ -243,6 +251,10 @@ pub fn lxScanPunct(sess, c, line, col) {
     }
     if c == "^" {
         lxEat(sess)
+        if lxStarts(sess, "=") == 1 {
+            lxEat(sess)
+            return lxTok("^=", null, line, col)
+        }
         return lxTok("^", null, line, col)
     }
     if c == "~" {
