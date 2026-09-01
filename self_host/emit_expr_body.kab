@@ -1,5 +1,6 @@
 import "self_host/ast_defs"
 import "self_host/emit_sym"
+// SH6: yield* forwards g.next(v) via it.next(send).
 
 pub fn dropCallCallee(E) {
     object_array_pop(E, "eCalleeStack")
@@ -408,6 +409,33 @@ pub fn emitExpr_arrow(E) {
         while api < len(aParams) {
             symIndex(E, "local", aParams[api])
             api = api + 1
+        }
+        let hasThis = 0
+        let hasSelf = 0
+        let hi = 0
+        while hi < len(aParams) {
+            if aParams[hi] == "this" {
+                hasThis = 1
+            }
+            if aParams[hi] == "self" {
+                hasSelf = 1
+            }
+            hi = hi + 1
+        }
+        if hasThis == 0 {
+            if hasSelf == 0 {
+                symIndex(E, "local", "this")
+            }
+        }
+        if saveIn == 1 {
+            let oi = 0
+            while oi < len(saveLocals) {
+                let capNm = saveLocals[oi]
+                if E["eLocalMap"][capNm] == undefined {
+                    symIndex(E, "local", capNm)
+                }
+                oi = oi + 1
+            }
         }
         emitFnMarkRest(E, E["eNode"]["rest"])
         emitFnParamDefaults(E, aParams, E["eNode"]["paramDefaults"])
@@ -1376,7 +1404,8 @@ pub fn emitDeleteWriteback(E, delObj) {
     return 0
 }
 
-// Desugar `yield* xs` to for-of + yield (existing iterator_begin / iterator_step / yield).
+// Desugar `yield* xs` to iterator_begin + it.next(send) + yield.
+// After each yield, `g.next(v)` is forwarded to the delegate.
 pub fn emitYieldStarLoop(E, iterExpr) {
     if E["eInFn"] != 1 {
         throw "yield* only supported inside fn (self-host emit)"
@@ -1385,11 +1414,14 @@ pub fn emitYieldStarLoop(E, iterExpr) {
     E["eForCounter"] = n + 1
     let src = "yssrc" + n
     let res = "ysres" + n
+    let send = "yssend" + n
     let srcIdx = symIndex(E, "local", src)
     let resIdx = symIndex(E, "local", res)
+    let sendIdx = symIndex(E, "local", send)
     eCallExpr(E, iterExpr)
     let doneIdx = symIndex(E, "const", "done")
     let valIdx = symIndex(E, "const", "value")
+    let sendKeyIdx = symIndex(E, "const", "yssend")
     emitOp(E, OP_STORE_LOCAL, srcIdx)
     emitOp(E, OP_LOAD_LOCAL, srcIdx)
     emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", "iterator_begin"))
@@ -1416,10 +1448,31 @@ pub fn emitYieldStarLoop(E, iterExpr) {
     emitOp(E, OP_CONST, valIdx)
     emitOp(E, OP_INDEX_GET, 0)
     emitOp(E, OP_YIELD, 0)
+    emitOp(E, OP_LOAD_LOCAL, resIdx)
+    emitOp(E, OP_CONST, doneIdx)
+    emitOp(E, OP_INDEX_GET, 0)
+    let jmpAfterYld = E["eFnOpsN"]
+    emitOp(E, OP_JUMP_IF_FALSE, 0)
+    let jmpYldExit = E["eFnOpsN"]
+    emitOp(E, OP_JUMP, 0)
+    let afterYldCont = E["eFnOpsN"]
+    eCallRet = afterYldCont - jmpAfterYld - 1
+    E["eFnOps"][jmpAfterYld] = { "op": OP_JUMP_IF_FALSE, "arg": eCallRet }
+    emitOp(E, OP_STORE_LOCAL, sendIdx)
+    emitOp(E, OP_LOAD_LOCAL, srcIdx)
+    emitOp(E, OP_LOAD_LOCAL, sendIdx)
+    emitOp(E, OP_SET_MEMBER, sendKeyIdx)
+    emitOp(E, OP_POP, 0)
+    emitOp(E, OP_POP, 0)
     emitOp(E, OP_JUMP, loopStart - E["eFnOpsN"] - 1)
     let loopEnd = E["eFnOpsN"]
     eCallRet = loopEnd - jmpExitIdx - 1
     E["eFnOps"][jmpExitIdx] = { "op": OP_JUMP, "arg": eCallRet }
+    eCallRet = loopEnd - jmpYldExit - 1
+    E["eFnOps"][jmpYldExit] = { "op": OP_JUMP, "arg": eCallRet }
+    emitOp(E, OP_LOAD_LOCAL, resIdx)
+    emitOp(E, OP_CONST, valIdx)
+    emitOp(E, OP_INDEX_GET, 0)
     eCallRet = len(E["eBreakFromStack"]) - 1
     E["eBf"] = E["eBreakFromStack"][eCallRet]
     E["eBi"] = E["eBf"]
@@ -1441,6 +1494,9 @@ pub fn emitYieldStarLoop(E, iterExpr) {
     }
     while len(E["eConsts"]) <= valIdx {
         object_array_push(E, "eConsts", "value")
+    }
+    while len(E["eConsts"]) <= sendKeyIdx {
+        object_array_push(E, "eConsts", "yssend")
     }
     E["eConstN"] = len(E["eConsts"])
     return 0

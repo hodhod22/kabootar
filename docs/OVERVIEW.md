@@ -19,16 +19,21 @@ Kabootar ska vara **ett språk för hela stacken**: samma kod och samma mentala 
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Kabootar-källkod                      │
+│                    Kabootar-källkod (.kab)               │
 └─────────────────────────┬───────────────────────────────┘
                           │
               ┌───────────▼───────────┐
-              │   Lexer → Parser → AST │
+              │  self_host/ compile    │
+              │  tokenize → parse → emit │
               └───────────┬───────────┘
                           │
               ┌───────────▼───────────┐
-              │      Evaluator         │
-              │   (value + class)      │
+              │   .kbc / packed .kbcb  │
+              └───────────┬───────────┘
+                          │
+              ┌───────────▼───────────┐
+              │  Kab-VM (kab-only)     │
+              │  self_host/vm_*        │
               └───────────┬───────────┘
                           │
      ┌────────────────────┼────────────────────┐
@@ -40,7 +45,7 @@ Kabootar ska vara **ett språk för hela stacken**: samma kod och samma mentala 
 └─────────┘      └─────────────────┘   └─────────────┘
 ```
 
-Produktvägen är **`self_host/` → bytecode → Kab-VM** (`lib/kab/`), inte AST-evaluatorn i diagrammet (den är host-skuld). Se [PLATFORM.md](PLATFORM.md) och [BROWSER.md](BROWSER.md) för dual-layer-arkitekturen. Plan: [ROADMAP.md — noll Rust](ROADMAP.md#kabootar-på-egna-fötter--noll-rust).
+Produktvägen är **`self_host/` → bytecode → Kab-VM**. AST-evaluator och rust-VM i `src/` är host-skuld. Synk-**`fn*`** / **`yield`** / **`yield*`** / **`try`/`finally`** i generatorer körs på Kab-VM (se [LANGUAGE.md](LANGUAGE.md) 10ae–). Se [PLATFORM.md](PLATFORM.md) och [BROWSER.md](BROWSER.md). Plan: [ROADMAP.md — noll Rust](ROADMAP.md#kabootar-på-egna-fötter--noll-rust).
 
 ## Målplattformar
 

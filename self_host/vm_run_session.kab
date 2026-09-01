@@ -1,5 +1,6 @@
 import "self_host/vm_run_restore_mod"
 import "self_host/vm_run_prep_fn"
+import "self_host/vm_s_stack"
 
 // --- vm_run_alloc_globals ---
 pub fn vAllocGlobals(S, n) {
@@ -61,7 +62,10 @@ pub fn vBindImportPairs(S, globals, pairs) {
 pub fn vFillHostGlobals(S, globals) {
     let fillI = 0
     while fillI < len(globals) {
-        if S["globals"][fillI] == undefined {
+        if globals[fillI] == "iterator_close" {
+            S["globals"][fillI] = { "vmIterClose": 1 }
+        } else {
+            if S["globals"][fillI] == undefined {
             if globals[fillI] == "instanceof" {
                 S["globals"][fillI] = { "vmInstof": 1 }
             } else {
@@ -73,6 +77,7 @@ pub fn vFillHostGlobals(S, globals) {
                         S["globals"][fillI] = fillH
                     }
                 }
+            }
             }
         }
         fillI = fillI + 1
@@ -133,6 +138,16 @@ pub fn vCallRunOps(S, ops, pool, globals, functions) {
     S["_hook"] = prevK
 }
 
+pub fn vCallThrowCatchFin(S, ops, pool, globals, functions) {
+    let prevA = S["_args"]
+    let prevK = S["_hook"]
+    S["_hook"] = 3
+    S["_args"] = [ops, pool, globals, functions]
+    S["runOps"]()
+    S["_args"] = prevA
+    S["_hook"] = prevK
+}
+
 // --- vm_run_reset ---
 // P6b: reset main-loop control fields on S.
 pub fn vResetExec(S) {
@@ -144,6 +159,8 @@ pub fn vResetExec(S) {
     S["done"] = false
     S["result"] = null
     S["unsupported"] = false
+    S["ipEnd"] = -1
+    S["yielded"] = 0
 }
 
 // --- vm_run_session ---
@@ -187,6 +204,10 @@ pub fn vPushThis(S, recv) {
 }
 
 pub fn vPopThis(S) {
+    if len(S["thisStack"]) == 0 {
+        S["lastThis"] = undefined
+        return undefined
+    }
     let topThis = S["thisStack"][len(S["thisStack"]) - 1]
     S["lastThis"] = topThis
     S["thisStack"] = pop(S["thisStack"])
@@ -220,13 +241,125 @@ pub fn vMakeGeneratorS(S, fnDef, idx, callArgs) {
         "ip": 0,
         "locals": S["locals"],
         "stack": [],
-        "done": 0
+        "done": 0,
+        "started": 0
     }
     g["next"] = { "vmGenNext": 1, "vmR": g }
     g["return"] = { "vmGenReturn": 1, "vmR": g }
     g["throw"] = { "vmGenThrow": 1, "vmR": g }
     vRestoreFnFrame(S, old)
+    vPublishGenS(S, g)
     return g
+}
+
+pub fn vSyncGenRecvS(g) {
+    if g == undefined || g == null {
+        return
+    }
+    let nx = g["next"]
+    if nx != undefined {
+        let rg = nx["vmR"]
+        if rg != undefined {
+            if rg != g {
+                rg["ip"] = g["ip"]
+                rg["locals"] = g["locals"]
+                rg["stack"] = g["stack"]
+                rg["ysdel"] = g["ysdel"]
+                rg["done"] = g["done"]
+                rg["started"] = g["started"]
+            }
+        }
+    }
+    let gr = g["return"]
+    if gr != undefined {
+        let rr = gr["vmR"]
+        if rr != undefined {
+            if rr != g {
+                rr["ip"] = g["ip"]
+                rr["locals"] = g["locals"]
+                rr["stack"] = g["stack"]
+                rr["ysdel"] = g["ysdel"]
+                rr["done"] = g["done"]
+                rr["started"] = g["started"]
+            }
+        }
+    }
+    let gt = g["throw"]
+    if gt != undefined {
+        let tr = gt["vmR"]
+        if tr != undefined {
+            if tr != g {
+                tr["ip"] = g["ip"]
+                tr["locals"] = g["locals"]
+                tr["stack"] = g["stack"]
+                tr["ysdel"] = g["ysdel"]
+                tr["done"] = g["done"]
+                tr["started"] = g["started"]
+            }
+        }
+    }
+    return
+}
+
+pub fn vLiveGenS(g) {
+    if g == undefined || g == null {
+        return g
+    }
+    let nx = g["next"]
+    if nx != undefined {
+        let rg = nx["vmR"]
+        if rg != undefined {
+            if rg["ip"] > g["ip"] {
+                return rg
+            }
+            if g["ip"] == 0 {
+                if rg["started"] == 1 {
+                    return rg
+                }
+                if rg["ip"] > 0 {
+                    return rg
+                }
+            }
+        }
+    }
+    return g
+}
+
+pub fn vRetargetGenMethodsS(oldg, g) {
+    if oldg == undefined {
+        return
+    }
+    if oldg == null {
+        return
+    }
+    let nx = oldg["next"]
+    if nx != undefined {
+        nx["vmR"] = g
+    }
+    let gr = oldg["return"]
+    if gr != undefined {
+        gr["vmR"] = g
+    }
+    let gt = oldg["throw"]
+    if gt != undefined {
+        gt["vmR"] = g
+    }
+    return
+}
+
+pub fn vPublishGenS(S, g) {
+    let nid = vInstId(g)
+    if nid == undefined {
+        nid = S["nextInstId"]
+        if nid == undefined {
+            nid = 1
+        }
+        S["nextInstId"] = nid + 1
+        g["vmI"] = nid
+    }
+    vHeapPut(S, g)
+    vRetargetGenMethodsS(g, g)
+    return
 }
 
 /// Copy generator frame into S. Do not assign tryRegions here — that breaks yield pause on .next().
@@ -239,6 +372,17 @@ pub fn vPrepGeneratorResumeS(S, g, fnDef) {
     S["yielded"] = 0
     S["result"] = null
     S["unsupported"] = false
+    S["ipEnd"] = -1
+    S["ysdel"] = g["ysdel"]
+    if S["ysdel"] == undefined {
+        S["ysdel"] = null
+    }
+    let gfa = fnDef["arrows"]
+    if gfa != undefined {
+        if len(gfa) > 0 {
+            S["arrows"] = gfa
+        }
+    }
 }
 
 pub fn vFinishGeneratorStepS(S, g, old) {
@@ -250,48 +394,374 @@ pub fn vFinishGeneratorStepS(S, g, old) {
         g["ip"] = S["ip"]
         g["locals"] = S["locals"]
         g["stack"] = S["stack"]
+        g["ysdel"] = S["ysdel"]
+        vSyncGenRecvS(g)
         let v = S["yieldVal"]
         vRestoreFnFrame(S, old)
+        vPublishGenS(S, g)
         return { "value": v, "done": false }
     }
     g["done"] = 1
     let out = vTakeResult(S)
+    vSyncGenRecvS(g)
     vRestoreFnFrame(S, old)
+    vPublishGenS(S, g)
     return { "value": out, "done": true }
 }
 
-pub fn vCloseGeneratorS(g, ordered) {
-    if g["done"] == 1 {
-        return { "value": null, "done": true }
+/// Call iterator next/return/throw with `this` = iterator and writeback.
+pub fn vCallBoundIterFnS(S, it, fnObj, args, pool, globals, functions) {
+    vPushThis(S, it)
+    let out = null
+    let err = null
+    try {
+        if vObjGet(fnObj, "vmFn") != undefined {
+            out = runFnBodyS(S, functions[fnObj["vmFn"]], pool, globals, functions, args, null)
+        } else {
+            let adef = vObjGet(fnObj, "arrowDef")
+            if adef == undefined {
+                adef = S["arrows"][fnObj["vmArrow"]]
+            }
+            out = runFnBodyS(S, adef, pool, globals, functions, args, vObjGet(fnObj, "caps"))
+        }
+    } catch (e) {
+        err = e
     }
-    if g["done"] == true {
-        return { "value": null, "done": true }
+    let updated = vPopThis(S)
+    vWritebackAfterMethodS(S, it, updated)
+    if err != null {
+        throw err
     }
-    g["done"] = 1
-    let v = null
-    if len(ordered) > 0 {
-        v = ordered[0]
-    }
-    return { "value": v, "done": true }
+    return out
 }
 
-pub fn vResumeGeneratorS(S, g, pool, globals, functions) {
+pub fn vCallIterReturnS(S, it, pool, globals, functions, retArgs) {
+    let wrapDel = vObjGet(it, "__kab_iter_delegate")
+    if wrapDel != undefined {
+        it = wrapDel
+    }
+    if retArgs == undefined {
+        retArgs = []
+    }
+    let retf = vObjGet(it, "return")
+    if retf == undefined {
+        retf = vIndexGet(it, "return")
+    }
+    if vObjGet(retf, "vmFn") != undefined {
+        return vCallBoundIterFnS(S, it, retf, retArgs, pool, globals, functions)
+    }
+    if vObjGet(retf, "vmArrow") != undefined {
+        return vCallBoundIterFnS(S, it, retf, retArgs, pool, globals, functions)
+    }
+    return vCallHost(bytecode_host_get("iterator_close"), [it])
+}
+
+pub fn vFindFinallyForReturn(fnDef, ip) {
+    let tr = fnDef["tryRegions"]
+    if tr == undefined {
+        return null
+    }
+    let best = vPickFinallyRegion(tr, ip)
+    if best != null {
+        return best
+    }
+    let k = 1
+    while k < 4 {
+        let ipk = ip - k
+        if ipk < 0 {
+            ipk = 0
+        }
+        let cand = vPickFinallyRegion(tr, ipk)
+        if cand != null {
+            if ip < cand["catchStart"] {
+                return cand
+            }
+        }
+        k = k + 1
+    }
+    return null
+}
+
+pub fn vPickFinallyRegion(tr, ip) {
+    let best = null
+    let i = 0
+    while i < len(tr) {
+        let r = tr[i]
+        if ip >= r["bodyStart"] {
+            if ip < r["catchStart"] {
+                if best == null || r["bodyStart"] >= best["bodyStart"] {
+                    best = r
+                }
+            }
+        }
+        i = i + 1
+    }
+    return best
+}
+
+pub fn vRunFinallyThenCloseS(S, g, finR, retV, pool, globals, functions) {
+    let fnDef = functions[g["idx"]]
+    let old = vSaveFnFrame(S)
+    S["curGen"] = g
+    vPrepGeneratorResumeS(S, g, fnDef)
+    S["ysdel"] = null
+    S["ipEnd"] = -1
+    S["done"] = false
+    let opsF = fnDef["ops"]
+    let bi = finR["bodyEnd"]
+    if bi < len(opsF) {
+        if ("" + opsF[bi]["op"]) == "jump" {
+            let ja = opsF[bi]["arg"]
+            if ja >= 0 {
+                S["ip"] = bi + 1 + ja
+            }
+        }
+    }
+    vCallRunOps(S, fnDef["ops"], pool, globals, functions)
+    S["ipEnd"] = -1
+    if S["unsupported"] == true {
+        vRestoreFnFrame(S, old)
+        S["curGen"] = null
+        throw "vm unsupported opcode in generator"
+    }
+    if S["yielded"] == 1 {
+        g["ip"] = S["ip"]
+        g["locals"] = S["locals"]
+        g["stack"] = S["stack"]
+        if g["closing"] == 1 {
+            g["closeRet"] = retV
+        }
+        vSyncGenRecvS(g)
+        vPublishGenS(S, g)
+        let v = S["yieldVal"]
+        vRestoreFnFrame(S, old)
+        S["curGen"] = null
+        return { "value": v, "done": false }
+    }
+    g["ysdel"] = null
+    g["done"] = 1
+    vRestoreFnFrame(S, old)
+    S["curGen"] = null
+    return { "value": retV, "done": true }
+}
+
+pub fn vCloseGeneratorS(S, g, ordered, pool, globals, functions) {
+    g = vLiveGenS(g)
     if g["done"] == 1 {
         return { "value": null, "done": true }
     }
     if g["done"] == true {
         return { "value": null, "done": true }
     }
+    if g["closing"] == 1 {
+        let early = null
+        if len(ordered) > 0 {
+            early = ordered[0]
+        }
+        g["done"] = 1
+        return { "value": early, "done": true }
+    }
+    g["closing"] = 1
+    let del = g["ysdel"]
+    if del == undefined {
+        del = S["ysdel"]
+    }
+    S["curGen"] = g
+    let fnDefC = functions[g["idx"]]
+    let faC = fnDefC["arrows"]
+    if faC != undefined {
+        if len(faC) > 0 {
+            S["arrows"] = faC
+        }
+    }
+    if del != g {
+        if vObjGet(del, "vmGen") == 1 {
+            vCloseGeneratorS(S, del, ordered, pool, globals, functions)
+        } else {
+            if vObjGet(del, "vmGen") == true {
+                vCloseGeneratorS(S, del, ordered, pool, globals, functions)
+            } else {
+                if del != null {
+                    if del != undefined {
+                        let rRet = vCallIterReturnS(S, del, pool, globals, functions, ordered)
+                        let wrapR = vObjGet(del, "__kab_iter_delegate")
+                        let delR = del
+                        if wrapR != undefined {
+                            delR = wrapR
+                        }
+                        let retf = vObjGet(delR, "return")
+                        if retf == undefined {
+                            retf = vIndexGet(delR, "return")
+                        }
+                        if vObjGet(retf, "vmFn") != undefined {
+                            return vFinishIterThrowS(S, g, rRet, pool, globals, functions)
+                        }
+                        if vObjGet(retf, "vmArrow") != undefined {
+                            return vFinishIterThrowS(S, g, rRet, pool, globals, functions)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    g["ysdel"] = null
+    let retV = null
+    if len(ordered) > 0 {
+        retV = ordered[0]
+    }
+    let finR = vFindFinallyForReturn(fnDefC, g["ip"])
+    if finR != null {
+        return vRunFinallyThenCloseS(S, g, finR, retV, pool, globals, functions)
+    }
+    g["done"] = 1
+    return { "value": retV, "done": true }
+}
+
+pub fn vNoteYsDelS(S, it) {
+    S["ysdel"] = it
+    let cg = S["curGen"]
+    if cg != undefined {
+        if cg != null {
+            cg["ysdel"] = it
+            let gn = cg["next"]
+            if gn != undefined {
+                gn["vmR"] = cg
+            }
+            let gr = cg["return"]
+            if gr != undefined {
+                gr["vmR"] = cg
+            }
+            let gt = cg["throw"]
+            if gt != undefined {
+                gt["vmR"] = cg
+            }
+        }
+    }
+}
+
+pub fn vResumeGeneratorS(S, g, ordered, pool, globals, functions) {
+    g = vLiveGenS(g)
+    if g["done"] == 1 {
+        return { "value": null, "done": true }
+    }
+    if g["done"] == true {
+        return { "value": null, "done": true }
+    }
+    if g["closing"] == 1 {
+        let fnDefC = functions[g["idx"]]
+        let finR = vFindFinallyForReturn(fnDefC, g["ip"])
+        if finR != null {
+            return vRunFinallyThenCloseS(S, g, finR, g["closeRet"], pool, globals, functions)
+        }
+    }
     let fnDef = functions[g["idx"]]
+    let oldCg = S["curGen"]
     let old = vSaveFnFrame(S)
-    S["stack"] = g["stack"]
-    S["locals"] = g["locals"]
-    S["localNames"] = fnDef["locals"]
-    S["ip"] = g["ip"]
+    S["curGen"] = g
+    vPrepGeneratorResumeS(S, g, fnDef)
+    S["ysdel"] = g["ysdel"]
+    let gn = g["next"]
+    if gn != undefined {
+        gn["vmR"] = g
+    }
+    if g["ip"] > 0 {
+        let send = undefined
+        if ordered != undefined {
+            if len(ordered) > 0 {
+                send = ordered[0]
+            }
+        }
+        vPushS(S, send)
+    }
+    g["started"] = 1
+    let err = null
+    try {
+        vCallRunOps(S, fnDef["ops"], pool, globals, functions)
+    } catch (e) {
+        err = e
+    }
+    if err != null {
+        g["done"] = 1
+        vRestoreFnFrame(S, old)
+        S["curGen"] = oldCg
+        throw err
+    }
+    if S["unsupported"] == true {
+        vRestoreFnFrame(S, old)
+        S["curGen"] = oldCg
+        throw "vm unsupported opcode in generator"
+    }
+    if S["yielded"] == 1 {
+        g["ip"] = S["ip"]
+        g["locals"] = S["locals"]
+        g["stack"] = S["stack"]
+        g["ysdel"] = S["ysdel"]
+        vSyncGenRecvS(g)
+        vPublishGenS(S, g)
+        let v = S["yieldVal"]
+        vRestoreFnFrame(S, old)
+        S["curGen"] = oldCg
+        S["done"] = false
+        return { "value": v, "done": false }
+    }
+    if g["closing"] != 1 {
+        g["ip"] = S["ip"]
+        g["locals"] = S["locals"]
+        g["stack"] = S["stack"]
+        let finMore = vFindFinallyForReturn(fnDef, S["ip"])
+        if finMore != null {
+            let moreV = vTakeResult(S)
+            if moreV != undefined {
+                g["closeRet"] = moreV
+                g["closing"] = 1
+            }
+            vRestoreFnFrame(S, old)
+            S["curGen"] = oldCg
+            return vRunFinallyThenCloseS(S, g, finMore, moreV, pool, globals, functions)
+        }
+    }
+    g["done"] = 1
+    let out = vTakeResult(S)
+    if g["closing"] == 1 {
+        out = g["closeRet"]
+    }
+    vRestoreFnFrame(S, old)
+    S["curGen"] = oldCg
     S["done"] = false
-    S["yielded"] = 0
-    S["result"] = null
-    S["unsupported"] = false
+    return { "value": out, "done": true }
+}
+
+pub fn vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions) {
+    let fnDef = functions[g["idx"]]
+    g["ysdel"] = null
+    let old = vSaveFnFrame(S)
+    S["curGen"] = g
+    vPrepGeneratorResumeS(S, g, fnDef)
+    S["ysdel"] = null
+    let ops = fnDef["ops"]
+    let ip0 = S["ip"]
+    let i = ip0
+    let found = 0
+    while i < len(ops) {
+        if found == 0 {
+            let on = "" + ops[i]["op"]
+            if on == "jump" {
+                let ja = ops[i]["arg"]
+                if ja > 0 {
+                    let loopEnd = i + 1 + ja
+                    if loopEnd < len(ops) {
+                        let resIdx = ops[loopEnd]["arg"]
+                        S["locals"][resIdx] = rTh
+                    }
+                    S["ip"] = loopEnd
+                    found = 1
+                }
+            }
+        }
+        i = i + 1
+    }
+    S["stack"] = []
+    g["locals"] = S["locals"]
     vCallRunOps(S, fnDef["ops"], pool, globals, functions)
     if S["unsupported"] == true {
         vRestoreFnFrame(S, old)
@@ -301,6 +771,7 @@ pub fn vResumeGeneratorS(S, g, pool, globals, functions) {
         g["ip"] = S["ip"]
         g["locals"] = S["locals"]
         g["stack"] = S["stack"]
+        g["ysdel"] = S["ysdel"]
         let v = S["yieldVal"]
         vRestoreFnFrame(S, old)
         return { "value": v, "done": false }
@@ -311,12 +782,88 @@ pub fn vResumeGeneratorS(S, g, pool, globals, functions) {
     return { "value": out, "done": true }
 }
 
+pub fn vFinishIterThrowS(S, g, rTh, pool, globals, functions) {
+    if rTh == undefined {
+        return rTh
+    }
+    let d = rTh["done"]
+    if d == undefined {
+        d = vIndexGet(rTh, "done")
+    }
+    if d == true {
+        return vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions)
+    }
+    if d == 1 {
+        return vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions)
+    }
+    return rTh
+}
+
 pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
+    g = vLiveGenS(g)
     if g["done"] == 1 {
         return { "value": null, "done": true }
     }
     if g["done"] == true {
         return { "value": null, "done": true }
+    }
+    let del = g["ysdel"]
+    let oldCg = S["curGen"]
+    S["curGen"] = g
+    let fnDefT = functions[g["idx"]]
+    let faT = fnDefT["arrows"]
+    if faT != undefined {
+        if len(faT) > 0 {
+            S["arrows"] = faT
+        }
+    }
+    if del != g {
+        if vObjGet(del, "vmGen") == 1 {
+            let rDel = vThrowGeneratorS(S, del, ordered, pool, globals, functions)
+            if rDel["done"] != true {
+                if rDel["done"] != 1 {
+                    S["curGen"] = oldCg
+                    return rDel
+                }
+            }
+            g["ysdel"] = null
+        } else {
+            if vObjGet(del, "vmGen") == true {
+                let rDel2 = vThrowGeneratorS(S, del, ordered, pool, globals, functions)
+                if rDel2["done"] != true {
+                    if rDel2["done"] != 1 {
+                        S["curGen"] = oldCg
+                        return rDel2
+                    }
+                }
+                g["ysdel"] = null
+            } else {
+                if del != null {
+                    if del != undefined {
+                        let wrapDel = vObjGet(del, "__kab_iter_delegate")
+                        if wrapDel != undefined {
+                            del = wrapDel
+                        }
+                        let th = vObjGet(del, "throw")
+                        if th == undefined {
+                            th = vIndexGet(del, "throw")
+                        }
+                        let reason0 = null
+                        if len(ordered) > 0 {
+                            reason0 = ordered[0]
+                        }
+                        if vObjGet(th, "vmFn") != undefined {
+                            S["curGen"] = oldCg
+                            return vFinishIterThrowS(S, g, vCallBoundIterFnS(S, del, th, [reason0], pool, globals, functions), pool, globals, functions)
+                        }
+                        if vObjGet(th, "vmArrow") != undefined {
+                            S["curGen"] = oldCg
+                            return vFinishIterThrowS(S, g, vCallBoundIterFnS(S, del, th, [reason0], pool, globals, functions), pool, globals, functions)
+                        }
+                    }
+                }
+            }
+        }
     }
     let reason = null
     if len(ordered) > 0 {
@@ -325,24 +872,70 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
     let fnDef = functions[g["idx"]]
     let old = vSaveFnFrame(S)
     vPrepGeneratorResumeS(S, g, fnDef)
+    S["ipEnd"] = -1
+    S["done"] = false
     let tr = fnDef["tryRegions"]
     if tr == undefined {
         tr = []
     }
     S["tryRegions"] = tr
-    if vCatchThrow(S, reason) != 1 {
-        vRestoreFnFrame(S, old)
-        g["done"] = 1
-        return { "value": reason, "done": true }
+    let saveIp = S["ip"]
+    let best = null
+    let d = 0
+    while d <= 3 {
+        if saveIp >= d {
+            let r = vFindTry(tr, saveIp - d)
+            if r != null {
+                if best == null || r["bodyStart"] >= best["bodyStart"] {
+                    best = r
+                }
+            }
+        }
+        d = d + 1
     }
-    vCallRunOps(S, fnDef["ops"], pool, globals, functions)
-    return vFinishGeneratorStepS(S, g, old)
+    let caught = 0
+    if best != null {
+        let el = best["errLocal"]
+        vPadLocalsTo(S, el)
+        S["locals"][el] = reason
+        vPushS(S, reason)
+        S["ip"] = best["catchStart"]
+        caught = 1
+    }
+    if caught != 1 {
+        g["done"] = 1
+        vRestoreFnFrame(S, old)
+        S["curGen"] = oldCg
+        throw reason
+    }
+    let opsT = fnDef["ops"]
+    let runErr = null
+    try {
+        vCallThrowCatchFin(S, opsT, pool, globals, functions)
+    } catch (e) {
+        runErr = e
+    }
+    if runErr != null {
+        g["done"] = 1
+        vRestoreFnFrame(S, old)
+        S["curGen"] = oldCg
+        throw runErr
+    }
+    let step = vFinishGeneratorStepS(S, g, old)
+    S["curGen"] = oldCg
+    return step
 }
 
 // --- vm_run_fn_body ---
 pub fn runFnBodyS(S, fnDef, pool, globals, functions, callArgs, caps) {
     let old = vSaveFnFrame(S)
     vPrepareFnLocals(S, fnDef, callArgs, caps)
+    let bodyArrows = fnDef["arrows"]
+    if bodyArrows != undefined {
+        if len(bodyArrows) > 0 {
+            S["arrows"] = bodyArrows
+        }
+    }
     vCallRunOps(S, fnDef["ops"], pool, globals, functions)
     let out = vTakeResult(S)
     let bad = S["unsupported"]

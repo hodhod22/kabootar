@@ -3,6 +3,7 @@
 import "self_host/vm_run_session"
 import "self_host/vm_run_tramp"
 import "self_host/vm_run_mod_run"
+// SH6: yield* throw delegate.
 
 let S = vMakeSession()
 

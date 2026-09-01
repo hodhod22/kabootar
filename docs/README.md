@@ -77,7 +77,7 @@ wasm-bindgen target/wasm32-unknown-unknown/release/kabootar_lib.wasm --out-dir p
 | [RUNTIME.md](RUNTIME.md) | DOM, OS, databas |
 | [ROADMAP.md](ROADMAP.md) | Implementationsplan — **noll Rust**, SH-ordning, **Nästa** |
 
-*Ny i språket och kan redan JS? Börja med [JAVASCRIPT.md](JAVASCRIPT.md), inte [LANGUAGE.md](LANGUAGE.md).*
+*Ny i språket och kan redan JS? Börja med [JAVASCRIPT.md](JAVASCRIPT.md), inte [LANGUAGE.md](LANGUAGE.md). Synk-`fn*` / iterator-protokoll: [LANGUAGE.md](LANGUAGE.md) **10ae–** (kab-only).*
 
 ## Projektstruktur
 

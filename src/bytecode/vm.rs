@@ -444,23 +444,18 @@ pub enum GeneratorResume {
 }
 
 pub fn find_try_region_for_ip(func: &BytecodeFnDef, ip: usize) -> Option<&GeneratorTryRegion> {
-    func.try_regions
-        .iter()
-        .filter(|r| ip >= r.body_start && ip <= r.body_end)
-        .max_by_key(|r| r.body_start)
-        .or_else(|| {
-            if ip > 0 {
-                func.try_regions
-                    .iter()
-                    .filter(|r| {
-                        let site = ip - 1;
-                        site >= r.body_start && site <= r.body_end
-                    })
-                    .max_by_key(|r| r.body_start)
-            } else {
-                None
-            }
+    let in_region = |r: &&GeneratorTryRegion, at: usize| {
+        at == r.catch_start || (at >= r.body_start && at < r.catch_start)
+    };
+    (0usize..=3)
+        .filter(|d| ip >= *d)
+        .filter_map(|d| {
+            func.try_regions
+                .iter()
+                .filter(|r| in_region(r, ip - d))
+                .max_by_key(|r| r.body_start)
         })
+        .max_by_key(|r| r.body_start)
 }
 
 /// If `err` is a `throw` marker and the current IP is inside a try region, bind the

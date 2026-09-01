@@ -126,6 +126,12 @@ pub fn vPrepareFnLocals(S, fnDef, callArgs, caps) {
     vPrepFnSlots(S, fnDef)
     vPrepFnParams(S, fnDef, callArgs)
     vPrepFnCaps(S, fnDef, caps)
+    let fa = fnDef["arrows"]
+    if fa != undefined {
+        if len(fa) > 0 {
+            S["arrows"] = fa
+        }
+    }
     S["ip"] = 0
     S["done"] = false
     S["result"] = null

@@ -216,9 +216,8 @@ pub fn symIndex(E, mode, arg) {
     }
     if mode == "const" {
         let cKey = constKey(E, arg)
-        let cHit = E["eConstMap"][cKey]
-        if cHit != undefined {
-            return cHit
+        if object_has_own(E["eConstMap"], cKey) {
+            return E["eConstMap"][cKey]
         }
         E["eConsts"] = push(E["eConsts"], arg)
         let cIdx = E["eConstN"]
