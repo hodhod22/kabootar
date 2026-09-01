@@ -48,6 +48,12 @@ pub fn runOpCtrlYield(S, name, arg, op, pool, globals, functions) {
     S["yielded"] = 1
     S["done"] = true
     vBumpIpS(S)
+    let cg = S["curGen"]
+    if cg != undefined {
+        if cg != null {
+            cg["ip"] = S["ip"]
+        }
+    }
     return 2
 }
 
@@ -60,6 +66,21 @@ pub fn runOpCtrlThrow(S, name, arg, op, pool, globals, functions) {
         }
         if vCatchThrow(S, reason) == 1 {
             return 1
+        }
+        let cg = S["curGen"]
+        if cg != undefined {
+            if cg != null {
+                let fd = functions[cg["idx"]]
+                if fd != undefined {
+                    let tr = fd["tryRegions"]
+                    if tr != undefined {
+                        S["tryRegions"] = tr
+                        if vCatchThrow(S, reason) == 1 {
+                            return 1
+                        }
+                    }
+                }
+            }
         }
         throw reason
     }

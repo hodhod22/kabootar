@@ -2979,6 +2979,148 @@ fn sh6_self_host_for_of_generator_ok() {
     assert_eq!(formatted, "3");
 }
 
+/// SH6: `break` in `for x of gen()` closes the generator (`iterator_close`).
+#[test]
+fn sh6_self_host_for_of_generator_break_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  yield 1\n  yield 2\n}\nfn run() {\n  let g = gen()\n  for x of g {\n    break\n  }\n  if g.done {\n    return 11\n  }\n  return 0\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-of-gen-brk".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("iterator_close") {
+                return Err(format!(
+                    "expected iterator_close, snippet:\n{}",
+                    kbc.chars().take(2500).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for-of generator break");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "11");
+}
+
+/// SH6: `return` inside `for x of gen()` closes the generator (`iterator_close`).
+#[test]
+fn sh6_self_host_for_of_generator_return_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  yield 1\n  yield 2\n}\nfn walk(g) {\n  for x of g {\n    return 7\n  }\n  return 0\n}\nfn run() {\n  let g = gen()\n  walk(g)\n  if g.done {\n    return 11\n  }\n  return 0\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-of-gen-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("iterator_close") {
+                return Err(format!(
+                    "expected iterator_close, snippet:\n{}",
+                    kbc.chars().take(2500).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for-of generator return");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "11");
+}
+
+/// SH6: `throw` inside `for x of gen()` closes the generator (`iterator_close`).
+#[test]
+fn sh6_self_host_for_of_generator_throw_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  yield 1\n  yield 2\n}\nfn walk(g) {\n  try {\n    for x of g {\n      throw 7\n    }\n  } catch (e) {\n    return e\n  }\n  return 0\n}\nfn run() {\n  let g = gen()\n  walk(g)\n  if g.done {\n    return 11\n  }\n  return 0\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-of-gen-thr".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for-of generator throw");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "11");
+}
+
+/// SH6: `continue` in `for x of gen()` skips the rest of the body and steps next.
+#[test]
+fn sh6_self_host_for_of_generator_continue_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  yield 1\n  yield 2\n  yield 4\n}\nfn run() {\n  let sum = 0\n  for x of gen() {\n    if x == 2 {\n      continue\n    }\n    sum = sum + x\n  }\n  return sum\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-of-gen-cont".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for-of generator continue");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
 /// SH6: `yield*` over `fn*` — same iterator_begin identity as `for of gen()`.
 #[test]
 fn sh6_self_host_yield_star_generator_ok() {
@@ -3007,6 +3149,2196 @@ fn sh6_self_host_yield_star_generator_ok() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "3");
+}
+
+/// SH6: `g.next(v)` through `yield*` reaches the inner `fn*` yield result.
+#[test]
+fn sh6_self_host_yield_star_send_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 10\n  yield x\n}\nfn* outer() {\n  yield* inner()\n}\nlet g = outer()\ng.next()\nlet r = g.next(42)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-yield-star-send".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star send");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: `g.next(v)` through nested `yield*` reaches the inner `fn*` yield result.
+#[test]
+fn sh6_self_host_yield_star_nested_send_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 10\n  yield x\n}\nfn* mid() {\n  yield* inner()\n}\nfn* outer() {\n  yield* mid()\n}\nlet g = outer()\ng.next()\nlet r = g.next(42)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-nested-send".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star nested send");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: `g.throw(e)` through `yield*` resumes inner `catch` around `yield`.
+#[test]
+fn sh6_self_host_yield_star_throw_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  try {\n    yield 1\n    yield 2\n  } catch (e) {\n    yield e\n  }\n}\nfn* outer() {\n  yield* inner()\n}\nlet g = outer()\ng.next()\nlet r = g.throw(77)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-yield-star-throw".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star throw");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "77");
+}
+
+/// SH6: `g.return(v)` through `yield*` closes the inner generator too.
+#[test]
+fn sh6_self_host_yield_star_return_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  yield 10\n  yield 20\n}\nfn* outer() {\n  yield* inner()\n}\nlet g = outer()\ng.next()\nlet r = g.return(42)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-yield-star-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star return");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: `let x = yield* inner()` is the inner generator's completion value.
+#[test]
+fn sh6_self_host_yield_star_expr_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  yield 1\n  return 99\n}\nfn* outer() {\n  let x = yield* inner()\n  yield x\n}\nlet g = outer()\ng.next()\nlet r = g.next()\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-yield-star-expr".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star expr");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "99");
+}
+
+/// SH6: nested `let x = yield* mid()` after `return yield*` completion from inner.
+#[test]
+fn sh6_self_host_yield_star_nested_expr_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  yield 1\n  return 99\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* outer() {\n  let x = yield* mid()\n  yield x\n}\nlet g = outer()\ng.next()\nlet r = g.next()\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-nested-expr".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star nested expr");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "99");
+}
+
+/// SH6: `g.throw(e)` through `yield*` with no inner catch resumes outer `catch`.
+#[test]
+fn sh6_self_host_yield_star_throw_outer_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  yield 1\n}\nfn* outer() {\n  try {\n    yield* inner()\n  } catch (e) {\n    yield e\n  }\n}\nlet g = outer()\ng.next()\nlet r = g.throw(77)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-throw-outer".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star throw outer");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "77");
+}
+
+/// SH6: `g.throw(e)` through `yield*` of an array resumes outer `catch`.
+#[test]
+fn sh6_self_host_yield_star_array_throw_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* outer() {\n  try {\n    yield* [1, 2]\n  } catch (e) {\n    yield e\n  }\n}\nlet g = outer()\ng.next()\nlet r = g.throw(77)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-arr-throw".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star array throw");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "77");
+}
+
+/// SH6: `g.return(v)` through `yield*` of an array closes the generator.
+#[test]
+fn sh6_self_host_yield_star_array_return_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* outer() {\n  yield* [1, 2]\n}\nlet g = outer()\ng.next()\nlet r = g.return(42)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-arr-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star array return");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: `yield*` over a custom `{ next() }` iterator on Kab-VM.
+#[test]
+fn sh6_self_host_yield_star_custom_next_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 3, done: false }\n  }\n  return { value: 0, done: true }\n}\nlet it = { next: itNext }\nfn* gen() {\n  yield* it\n}\nlet g = gen()\nlet r = g.next()\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-custom-next".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star custom next");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: `g.return` through `yield*` of a custom iterator calls its `return` fn.
+#[test]
+fn sh6_self_host_yield_star_custom_return_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { n: 0 }\nfn itNext() {\n  return { value: 3, done: false }\n}\nfn itRet() {\n  st.n = 11\n  return { value: 0, done: true }\n}\nlet it = { next: itNext }\nit[\"return\"] = itRet\nfn* gen() {\n  yield* it\n}\nlet g = gen()\ng.next()\ng.return(42)\nreturn st.n";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-custom-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star custom return");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "11");
+}
+
+/// SH6: `g.throw(e)` through `yield*` of a custom iterator calls its `throw` fn.
+#[test]
+fn sh6_self_host_yield_star_custom_throw_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn itNext() {\n  return { value: 3, done: false }\n}\nfn itThrow(e) {\n  return { value: e, done: false }\n}\nlet it = { next: itNext }\nit[\"throw\"] = itThrow\nfn* gen() {\n  yield* it\n}\nlet g = gen()\ng.next()\nlet r = g.throw(77)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-custom-thr".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star custom throw");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "77");
+}
+
+/// SH6: `g.next(v)` through `yield*` of a custom iterator calls `next(v)`.
+#[test]
+fn sh6_self_host_yield_star_custom_send_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext(v) {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: v, done: false }\n}\nlet it = { next: itNext }\nfn* gen() {\n  yield* it\n}\nlet g = gen()\ng.next()\nlet r = g.next(42)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-custom-send".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star custom send");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH6: custom `return` with `done: true` completes the generator with iterator value.
+#[test]
+fn sh6_self_host_yield_star_custom_return_done_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn itNext() {\n  return { value: 3, done: false }\n}\nfn itRet() {\n  return { value: 99, done: true }\n}\nlet it = { next: itNext }\nit[\"return\"] = itRet\nfn* gen() {\n  let x = yield* it\n  return x\n}\nlet g = gen()\ng.next()\nlet r = g.return(42)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-custom-ret-done".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star custom return done");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "99");
+}
+
+/// SH6: `yield*` of an object with `Symbol.iterator` factory on Kab-VM.
+#[test]
+fn sh6_self_host_yield_star_symbol_iterator_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn itNext() {\n  return { value: 3, done: false }\n}\nfn mkIter() {\n  return { next: itNext }\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  yield* o\n}\nlet g = gen()\nlet r = g.next()\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-sym-iter".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star Symbol.iterator");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: `for x of` an object whose `Symbol.iterator` returns an array on Kab-VM.
+#[test]
+fn sh6_self_host_for_of_symbol_iterator_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn mk() {\n  return [1, 2, 3]\n}\nfn run() {\n  let o = {}\n  o[\"Symbol.iterator\"] = mk\n  let s = 0\n  for x of o {\n    s = s + x\n  }\n  return s\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-of-sym-iter".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for-of Symbol.iterator");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "6");
+}
+
+/// SH6: `for x of` a custom `{ next }` iterator (no Symbol.iterator) on Kab-VM.
+#[test]
+fn sh6_self_host_for_of_custom_next_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 3, done: false }\n  }\n  if st.k == 1 {\n    st.k = 2\n    return { value: 4, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn run() {\n  let it = { next: itNext }\n  let s = 0\n  for x of it {\n    s = s + x\n  }\n  return s\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-of-custom-next".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for-of custom next");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "7");
+}
+
+/// SH6: `for x of` with well-known `o[Symbol.iterator] = mk` (not string key) on Kab-VM.
+#[test]
+fn sh6_self_host_for_of_symbol_iterator_wellknown_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn mk() {\n  return [1, 2, 3]\n}\nfn run() {\n  let o = {}\n  o[Symbol.iterator] = mk\n  let s = 0\n  for x of o {\n    s = s + x\n  }\n  return s\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-of-sym-wk".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for-of well-known Symbol.iterator");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "6");
+}
+
+/// SH6: `{ next() {} }` method shorthand and `fn*` in the same program on Kab-VM.
+#[test]
+fn sh6_self_host_obj_method_and_generator_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let it = { next() { return { value: 3, done: false } } }\nfn* gen() {\n  yield* it\n}\nlet g = gen()\nlet r = g.next()\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-obj-meth-gen".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host object method and generator");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: `{ next() {} }` reads/writes `this` on Kab-VM iterator step.
+#[test]
+fn sh6_self_host_obj_method_iter_this_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let it = { n: 4, next() { return { value: this.n, done: false } } }\nfn* gen() {\n  yield* it\n}\nlet g = gen()\nlet r = g.next()\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-obj-meth-this".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host object method iterator this");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "4");
+}
+
+/// SH6: `for of` with `{ next() {} }` inside `fn` reads/writes iterator `this`.
+#[test]
+fn sh6_self_host_for_of_obj_method_this_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nlet it = {\n  n: 4,\n  next() {\n    if st.k == 0 {\n      st.k = 1\n      this.n = 5\n      return { value: this.n, done: false }\n    }\n    return { value: 0, done: true }\n  }\n}\nfn run() {\n  let s = 0\n  for x of it {\n    s = s + x\n  }\n  return s\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-of-this".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for-of object method this");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: `for of` with `{ next() {} }` nested inside `fn` (fn_arrow + this writeback).
+#[test]
+fn sh6_self_host_for_of_nested_obj_method_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let st = { k: 0 }\n  let it = {\n    n: 4,\n    next() {\n      if st.k == 0 {\n        st.k = 1\n        this.n = 5\n        return { value: this.n, done: false }\n      }\n      return { value: 0, done: true }\n    }\n  }\n  let s = 0\n  for x of it {\n    s = s + x\n  }\n  return s\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-for-of-nested".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host for-of nested object method");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: `yield*` of `{ next() {} }` nested inside `fn*` (caps + this writeback).
+#[test]
+fn sh6_self_host_yield_star_nested_obj_method_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  let st = { k: 0 }\n  let it = {\n    n: 4,\n    next() {\n      if st.k == 0 {\n        st.k = 1\n        this.n = 5\n        return { value: this.n, done: false }\n      }\n      return { value: 0, done: true }\n    }\n  }\n  yield* it\n}\nlet g = gen()\nlet r = g.next()\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-nested-meth".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield-star nested object method");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "5");
+}
+
+/// SH6: `g.return` through `yield*` nested `"return"()` uses iterator `this`.
+#[test]
+fn sh6_self_host_yield_star_nested_return_this_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  let it = {\n    n: 9,\n    next() { return { value: 1, done: false } },\n    ret() { return { value: this.n, done: true } }\n  }\n  it[\"return\"] = it.ret\n  let x = yield* it\n  return x\n}\nlet g = gen()\ng.next()\nlet r = g.return(0)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-nested-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield-star nested return this");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: `g.throw` through `yield*` nested `throw` method uses iterator `this`.
+#[test]
+fn sh6_self_host_yield_star_nested_throw_this_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  let it = {\n    n: 9,\n    next() { return { value: 1, done: false } },\n    thr(e) { return { value: this.n, done: false } }\n  }\n  it[\"throw\"] = it.thr\n  yield* it\n}\nlet g = gen()\ng.next()\nlet r = g.throw(77)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-nested-thr-this".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield-star nested throw this");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: iterator `throw` `done: true` completes `yield*` (not fallthrough 77).
+#[test]
+fn sh6_self_host_yield_star_throw_done_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  let it = {\n    n: 9,\n    next() { return { value: 1, done: false } },\n    thr(e) { return { value: this.n, done: true } }\n  }\n  it[\"throw\"] = it.thr\n  let x = yield* it\n  return x\n}\nlet g = gen()\ng.next()\nlet r = g.throw(77)\nif r.done == true {\n  return r.value\n}\nif r.done == 1 {\n  return r.value\n}\nreturn 0";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-throw-done".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield-star throw done");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: iterator `throw` `done: true` resumes after `yield*` (following `yield`).
+#[test]
+fn sh6_self_host_yield_star_throw_done_next_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  let it = {\n    n: 9,\n    next() { return { value: 1, done: false } },\n    thr(e) { return { value: this.n, done: true } }\n  }\n  it[\"throw\"] = it.thr\n  yield* it\n  yield 4\n}\nlet g = gen()\ng.next()\nlet r = g.throw(77)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-throw-done-next".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield-star throw done next");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "4");
+}
+
+/// SH6: iterator `return` `done: true` resumes after `yield*` (then `yield 4`).
+#[test]
+fn sh6_self_host_yield_star_return_done_next_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  let it = {\n    n: 9,\n    next() { return { value: 1, done: false } },\n    ret() { return { value: this.n, done: true } }\n  }\n  it[\"return\"] = it.ret\n  yield* it\n  yield 4\n}\nlet g = gen()\ng.next()\nlet r = g.return(77)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-return-done-next".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield-star return done next");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "4");
+}
+
+/// SH6: `try/finally` in `fn*` runs after yield resume (not `g.return` finally).
+#[test]
+fn sh6_self_host_generator_try_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    yield 2\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\nlet r = g.next()\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-try-finally".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator try finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: `g.return` runs `finally` after `yield` in `try` (not `g.throw` finally).
+#[test]
+fn sh6_self_host_generator_return_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let h = { n: 0 }\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    yield 2\n  } finally {\n    h.n = 9\n  }\n}\nlet g = gen()\ng.next()\ng.return(77)\nreturn h.n";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ret-finally".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator return finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: `g.throw` runs `finally` after `catch` (no yield in catch).
+#[test]
+fn sh6_self_host_generator_throw_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let h = { n: 0 }\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let x = e\n  } finally {\n    h.n = 9\n  }\n}\nlet g = gen()\ng.next()\ng.throw(77)\nreturn h.n";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-finally".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: `g.throw` runs `catch` then `finally` (no yield in catch).
+#[test]
+fn sh6_self_host_generator_throw_catch_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  let acc = 0\n  try {\n    yield 1\n  } catch (e) {\n    acc = e\n  } finally {\n    acc = acc + 10\n  }\n  return acc\n}\nlet g = gen()\ng.next()\nlet r = g.throw(7)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-catch-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "17");
+}
+
+/// SH6: `g.throw` catch `member_set` then `finally`.
+#[test]
+fn sh6_self_host_generator_throw_catch_member_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let h = { n: 0, c: 0 }\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    h.c = e\n  } finally {\n    h.n = 9\n  }\n  return h.c * 10 + h.n\n}\nlet g = gen()\ng.next()\nlet r = g.throw(7)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-mem-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch member finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "79");
+}
+
+/// SH6: `g.throw` yields in `catch` (finally waits for later resume).
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    yield e\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\nlet a = g.throw(7)\nlet b = g.next()\nreturn a.value * 10 + b.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-catch-y".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch yield finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "79");
+}
+
+/// SH6: `g.next(v)` send into `yield` in `catch`; `finally` still runs.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_send_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let x = yield e\n    let y = x + 10\n    return y\n  } finally {\n    let z = 0\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\nlet r = g.next(9)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-catch-ys".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch yield send finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "19");
+}
+
+/// SH6: `g.throw` `yield*` in `catch`; `finally` yield on later `.next()`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    yield* [e]\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\nlet a = g.throw(7)\nlet b = g.next()\nreturn a.value * 10 + b.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ys-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch yield-star finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "79");
+}
+
+/// SH6: `g.throw` `yield* inner()` in `catch`; `finally` yield on later `.next()`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_inner_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  yield 8\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    yield* inner()\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\nlet a = g.throw(7)\nlet b = g.next()\nreturn a.value * 10 + b.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysi-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch yield-star inner finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "89");
+}
+
+/// SH6: `g.next(v)` send through `yield* inner()` in `catch`; `finally` still runs.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_inner_send_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let y = yield* inner()\n    return y + 10\n  } finally {\n    let z = 0\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\nlet r = g.next(3)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysis-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch yield-star inner send finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "13");
+}
+
+/// SH6: `g.throw` nested `yield* mid()`/`inner()` in `catch`; `finally` yield on later `.next()`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  yield 8\n}\nfn* mid() {\n  yield* inner()\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    yield* mid()\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\nlet a = g.throw(7)\nlet b = g.next()\nreturn a.value * 10 + b.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysn-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch yield-star nested finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "89");
+}
+
+/// SH6: `g.next(v)` send through nested `yield* mid()`/`inner()` in `catch`; `finally` still runs.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    let w = 0\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\nlet r = g.next(3)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysns-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch yield-star nested send finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "13");
+}
+
+/// SH6: send through nested `yield*`, then `yield` in `finally`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_yield_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    acc = z\n  } finally {\n    yield 9\n  }\n  return acc\n}\nlet g = gen()\ng.next()\nlet a = g.throw(7)\nlet b = g.next(3)\nlet c = g.next()\nreturn a.value * 100 + b.value * 10 + c.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsy-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send yield finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "893");
+}
+
+/// SH6: `return` in `catch` still runs `yield` in `finally` after nested `yield*` send.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\nlet a = g.throw(7)\nlet b = g.next(3)\nreturn a.value * 10 + b.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsr-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "89");
+}
+
+/// SH6: third `.next()` after `return` in `catch` + `finally` yield is completion **13**.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_done_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\ng.next(3)\nlet r = g.next()\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrd-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally done");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "13");
+}
+
+/// SH6: completion after `return` in `catch` + `finally` yield has `done: true`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_done_flag_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\ng.next(3)\nlet r = g.next()\nif r.done == true {\n  return 1\n}\nreturn 0";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrdf-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally done flag");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: `.next()` after completion stays `done: true`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_done_again_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\ng.next(3)\nlet r = g.next()\nlet s = g.next()\nif r.done == true {\n  if s.done == true {\n    return 1\n  }\n}\nreturn 0";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrda-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally done again");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: `.next()` after completion has `value: null`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_done_null_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\ng.next(3)\ng.next()\nlet s = g.next()\nif s.value == null {\n  return 1\n}\nreturn 0";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrdn-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally done null");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: `g.throw` after completion stays `done: true`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_throw_done_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\ng.next(3)\ng.next()\nlet t = g.throw(1)\nif t.done == true {\n  return 1\n}\nreturn 0";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrtd-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally throw done");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: `g.return` after completion stays `done: true`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_method_return_done_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\ng.next(3)\ng.next()\nlet t = g.return(1)\nif t.done == true {\n  return 1\n}\nreturn 0";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrmrd-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally method return done");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: `g.return` after completion has `value: null`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_method_return_null_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\ng.next(3)\ng.next()\nlet t = g.return(1)\nif t.value == null {\n  return 1\n}\nreturn 0";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrmrn-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally method return null");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: `g.throw` after completion has `value: null`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_throw_null_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\ng.throw(7)\ng.next(3)\ng.next()\nlet t = g.throw(1)\nif t.value == null {\n  return 1\n}\nreturn 0";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrtn-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally throw null");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
+/// SH6: send into `yield` in `finally` after nested `return` in `catch`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_send_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    let f = yield 9\n  }\n}\nlet g = gen()\ng.next()\nlet a = g.throw(7)\nlet b = g.next(3)\nlet c = g.next(4)\nreturn a.value * 100 + b.value * 10 + c.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrfs-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally send");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "903");
+}
+
+/// SH6: `return` in `finally` after send replaces pending `return` from `catch`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_override_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    let f = yield 9\n    return f\n  }\n}\nlet g = gen()\ng.next()\nlet a = g.throw(7)\nlet b = g.next(3)\nlet c = g.next(4)\nreturn a.value * 100 + b.value * 10 + c.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrfo-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally override");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "894");
+}
+
+/// SH6: `throw` in `finally` after send replaces pending `return` from `catch`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_throw_override_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    let f = yield 9\n    throw f\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  g.next()\n  let a = g.throw(7)\n  let b = g.next(3)\n  let c = 0\n  try {\n    g.next(4)\n    c = 0\n  } catch (e2) {\n    c = e2\n  }\n  return a.value * 100 + b.value * 10 + c\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrft-fin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw catch nested send return finally throw override");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "894");
+}
+
+/// SH6: `g.throw` while paused at `yield` in `finally` replaces pending `return` from `catch`.
+#[test]
+fn sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_throw_into_yield_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  let x = yield 8\n  return x\n}\nfn* mid() {\n  let y = yield* inner()\n  return y\n}\nfn* gen() {\n  try {\n    yield 1\n  } catch (e) {\n    let z = yield* mid()\n    return z + 10\n  } finally {\n    let f = yield 9\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  g.next()\n  let a = g.throw(7)\n  let b = g.next(3)\n  let c = 0\n  let th = g[\"throw\"]\n  try {\n    th(4)\n    c = 0\n  } catch (e2) {\n    c = e2\n  }\n  return a.value * 100 + b.value * 10 + c\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-throw-ysnsrf-ty".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator throw into finally yield");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "894");
+}
+
+/// SH6: nested `try` — `g.throw` at inner `finally` `yield` is caught by the outer `catch`.
+#[test]
+fn sh6_self_host_generator_nested_try_throw_into_finally_yield_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.throw(4)\n  return a.value * 100 + b.value * 10 + c.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-fin-ty".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try throw into finally yield");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "194");
+}
+
+/// SH6: nested `try` — `g.throw` at inner `try` `yield` runs inner `finally` `yield`, then outer `catch`.
+#[test]
+fn sh6_self_host_generator_nested_try_throw_into_try_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.throw(4)\n  let c = g.next()\n  return a.value * 100 + b.value * 10 + c.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-try-th".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try throw into inner try");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "194");
+}
+
+/// SH6: nested `try` — `g.return` at inner `try` `yield` runs inner `finally` `yield`, then completes.
+#[test]
+fn sh6_self_host_generator_nested_try_return_into_try_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.return(4)\n  let c = g.next()\n  return a.value * 100 + b.value * 10 + c.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-try-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try return into inner try");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "194");
+}
+
+/// SH6: nested `try` — `g.return` at inner `finally` `yield` completes with the return value.
+#[test]
+fn sh6_self_host_generator_nested_try_return_into_finally_yield_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.return(4)\n  return a.value * 100 + b.value * 10 + c.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-fin-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try return into finally yield");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "194");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.throw` at inner `try` runs inner then outer `finally` yields.
+#[test]
+fn sh6_self_host_generator_nested_try_outer_finally_throw_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.throw(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ofin-th".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try outer finally throw");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.return` at inner `try` runs inner then outer `finally` yields.
+#[test]
+fn sh6_self_host_generator_nested_try_outer_finally_return_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.return(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ofin-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try outer finally return");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` — `g.return` at outer `finally` `yield` after inner already ran.
+#[test]
+fn sh6_self_host_generator_nested_try_return_into_outer_finally_yield_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.next()\n  let d = g.return(4)\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ofin-ry".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try return into outer finally yield");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` — `g.throw` at outer `finally` `yield` is not caught by that `try`'s `catch`.
+#[test]
+fn sh6_self_host_generator_nested_try_throw_into_outer_finally_yield_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.next()\n  try {\n    g.throw(4)\n    return 1\n  } catch (e) {\n    return a.value * 1000 + b.value * 100 + c.value * 10 + e\n  }\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ofin-oty".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try throw into outer finally yield");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.throw` at inner `finally` `yield` runs outer `catch` then outer `finally`.
+#[test]
+fn sh6_self_host_generator_nested_try_throw_inner_finally_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.throw(4)\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ifin-of".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host throw inner finally with outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.return` at inner `finally` `yield` runs outer `finally`.
+#[test]
+fn sh6_self_host_generator_nested_try_return_inner_finally_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.return(4)\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ifin-or".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host return inner finally with outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.next(v)` send into outer `finally` `yield`.
+#[test]
+fn sh6_self_host_generator_nested_try_outer_finally_send_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    let x = yield 8\n    return x\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.next()\n  let d = g.next(4)\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ofin-snd".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try outer finally send");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.next(v)` send into inner `finally` `yield`.
+#[test]
+fn sh6_self_host_generator_nested_try_inner_finally_send_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      yield 1\n    } finally {\n      let x = yield 9\n      return x\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.next(4)\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ifin-snd".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try inner finally send");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.next(v)` send into inner `try` `yield`.
+#[test]
+fn sh6_self_host_generator_nested_try_inner_try_send_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    try {\n      let x = yield 1\n      return x\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-itry-snd".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try inner try send");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `yield*` in inner `try` then both `finally` yields.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  yield 1\n}\nfn* gen() {\n  try {\n    try {\n      yield* inner()\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n    return 4\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-ofin".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: `try/finally` without `catch` in `fn*` runs after yield resume.
+#[test]
+fn sh6_self_host_generator_try_finally_no_catch_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  try {\n    yield 1\n  } finally {\n    yield 9\n  }\n}\nlet g = gen()\ng.next()\nlet r = g.next()\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-try-fin-nc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host try/finally no catch");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: `g.return` runs `finally` without `catch`.
+#[test]
+fn sh6_self_host_generator_return_finally_no_catch_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let h = { n: 0 }\nfn* gen() {\n  try {\n    yield 1\n  } finally {\n    h.n = 9\n  }\n}\nlet g = gen()\ng.next()\ng.return(77)\nreturn h.n";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ret-fin-nc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host return finally no catch");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: `g.throw` runs `finally` without `catch`.
+#[test]
+fn sh6_self_host_generator_throw_finally_no_catch_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let h = { n: 0 }\nfn* gen() {\n  try {\n    yield 1\n  } finally {\n    h.n = 9\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  g.next()\n  try {\n    g.throw(77)\n  } catch (e) {\n    return h.n\n  }\n  return 0\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-thr-fin-nc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host throw finally no catch");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "9");
+}
+
+/// SH6: `g.throw(e)` through nested `yield*` resumes the outermost `catch`.
+#[test]
+fn sh6_self_host_yield_star_nested_throw_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  yield 1\n}\nfn* mid() {\n  yield* inner()\n}\nfn* outer() {\n  try {\n    yield* mid()\n  } catch (e) {\n    yield e\n  }\n}\nlet g = outer()\ng.next()\nlet r = g.throw(77)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-nested-thr".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star nested throw");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "77");
+}
+
+/// SH6: `g.return(v)` through nested `yield*` closes inner and mid.
+#[test]
+fn sh6_self_host_yield_star_nested_return_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* inner() {\n  yield 10\n  yield 20\n}\nfn* mid() {\n  yield* inner()\n}\nfn* outer() {\n  yield* mid()\n}\nlet g = outer()\ng.next()\nlet r = g.return(42)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-ys-nested-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host yield star nested return");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
 }
 
 /// SH6: `fn*` `return` is the completion `.next()` `{value, done:true}` (Kab-VM).
@@ -3097,6 +5429,36 @@ fn sh6_self_host_generator_throw_catch_ok() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "990");
+}
+
+/// SH6: Kab-VM `g.next(v)` is the result of the paused `yield` (JS send).
+#[test]
+fn sh6_self_host_generator_next_send_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn* gen() {\n  let x = yield 1\n  return x\n}\nlet g = gen()\ng.next()\nlet r = g.next(42)\nreturn r.value";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-send".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host generator next send");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
 }
 
 /// SH6: product self-host template `` `n=${n}` `` (desugar to string `+`) + Kab VM.

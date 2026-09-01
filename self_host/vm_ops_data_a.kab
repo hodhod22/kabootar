@@ -1,5 +1,6 @@
 import "self_host/vm_s_stack"
 import "self_host/vm_run_session"
+// SH6: yield* throw/return ysdel.
 
 
 // --- vm_ops_data_concat ---
@@ -142,7 +143,7 @@ pub fn runOpDataOk(S, name, arg, op, pool, globals, functions) {
 // --- vm_ops_data_option_arrow ---
 pub fn runOpDataOptionArrow(S, name, arg, op, pool, globals, functions) {
     if name == "make_arrow_fn" {
-        vPushS(S, { "vmArrow": arg, "caps": vSnapCapsS(S) })
+        vPushS(S, { "vmArrow": arg, "caps": vSnapCapsS(S), "arrowDef": S["arrows"][arg] })
         vBumpIpS(S)
         return 1
     }
@@ -154,20 +155,64 @@ pub fn runOpDataOptionIter(S, name, arg, op, pool, globals, functions) {
     if name == "iterator_step_in_place" {
         let it = vPopS(S)
         if vObjGet(it, "vmGen") == 1 {
-            let r = vResumeGeneratorS(S, it, pool, globals, functions)
+            let ys = []
+            let yv = vObjGet(it, "yssend")
+            if yv != undefined {
+                ys = [yv]
+            }
+            let r = vResumeGeneratorS(S, it, ys, pool, globals, functions)
+            S["done"] = false
+            vNoteYsDelS(S, it)
             vPushS(S, it)
             vPushS(S, r)
             vBumpIpS(S)
             return 1
         }
         if vObjGet(it, "vmGen") == true {
-            let r2 = vResumeGeneratorS(S, it, pool, globals, functions)
+            let ys2 = []
+            let yv2 = vObjGet(it, "yssend")
+            if yv2 != undefined {
+                ys2 = [yv2]
+            }
+            let r2 = vResumeGeneratorS(S, it, ys2, pool, globals, functions)
+            S["done"] = false
+            vNoteYsDelS(S, it)
             vPushS(S, it)
             vPushS(S, r2)
             vBumpIpS(S)
             return 1
         }
+        let wrapDel = vObjGet(it, "__kab_iter_delegate")
+        let yvC = vObjGet(it, "yssend")
+        if wrapDel != undefined {
+            it = wrapDel
+            if yvC == undefined {
+                yvC = vObjGet(it, "yssend")
+            }
+        }
+        let nfn = vObjGet(it, "next")
+        let ysArgs = []
+        if yvC != undefined {
+            ysArgs = [yvC]
+        }
+        if vObjGet(nfn, "vmFn") != undefined {
+            let rNext = vCallBoundIterFnS(S, it, nfn, ysArgs, pool, globals, functions)
+            vNoteYsDelS(S, it)
+            vPushS(S, it)
+            vPushS(S, rNext)
+            vBumpIpS(S)
+            return 1
+        }
+        if vObjGet(nfn, "vmArrow") != undefined {
+            let rArr = vCallBoundIterFnS(S, it, nfn, ysArgs, pool, globals, functions)
+            vNoteYsDelS(S, it)
+            vPushS(S, it)
+            vPushS(S, rArr)
+            vBumpIpS(S)
+            return 1
+        }
         let pair = bytecode_iterator_step_in_place(it)
+        vNoteYsDelS(S, it)
         vPushS(S, pair[0])
         vPushS(S, pair[1])
         vBumpIpS(S)

@@ -3,6 +3,7 @@
 import "self_host/ast_defs"
 import "self_host/emit_sym"
 import "self_host/emit_expr_body"
+// SH6: yield* yssend + iter_step.
 import "self_host/emit_stmt_body"
 
 // P6b: emit session (pools/stacks/temps). Thread as E into shards.
@@ -67,6 +68,7 @@ pub fn eMakeSession() {
     E["eWhileHeads"] = []
     E["eBreakIdxs"] = []
     E["eBreakFromStack"] = []
+    E["eIterCloseStack"] = []
     E["eBi"] = 0
     E["eBf"] = 0
     E["eWh"] = 0
@@ -133,6 +135,8 @@ pub fn eMakeSession() {
     E["eArrows"] = []
     E["eTryRegions"] = []
     E["eFnTryRegions"] = []
+    E["eTryEmitStack"] = []
+    E["eFinStack"] = []
     E["eForCounter"] = 0
     E["eGenTmpl"] = null
     E["eGenSym"] = ""
@@ -221,6 +225,7 @@ pub fn eResetSession(E) {
     object_array_clear(E, "eWhileHeads")
     object_array_clear(E, "eBreakIdxs")
     object_array_clear(E, "eBreakFromStack")
+    object_array_clear(E, "eIterCloseStack")
     E["eBi"] = 0
     E["eBf"] = 0
     E["eWh"] = 0
@@ -287,6 +292,8 @@ pub fn eResetSession(E) {
     E["eArrows"] = []
     E["eTryRegions"] = []
     E["eFnTryRegions"] = []
+    E["eTryEmitStack"] = []
+    E["eFinStack"] = []
     E["eForCounter"] = 0
     E["eGenTmpl"] = null
     E["eGenSym"] = ""
@@ -348,6 +355,7 @@ pub fn emitMainInitStacks(E) {
     object_array_clear(E, "eWhileHeads")
     object_array_clear(E, "eBreakIdxs")
     object_array_clear(E, "eBreakFromStack")
+    object_array_clear(E, "eIterCloseStack")
     object_array_clear(E, "eIfJmpStack")
     object_array_clear(E, "eIfSkipStack")
     object_array_clear(E, "eMemberFldStack")
@@ -377,6 +385,8 @@ pub fn emitMainInitMeta(E) {
     object_array_clear(E, "eArrows")
     object_array_clear(E, "eTryRegions")
     object_array_clear(E, "eFnTryRegions")
+    object_array_clear(E, "eTryEmitStack")
+    object_array_clear(E, "eFinStack")
     E["eForCounter"] = 0
     object_array_clear(E, "eSpecMangled")
     object_array_clear(E, "eBindingSyms")

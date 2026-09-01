@@ -12,6 +12,10 @@ pub fn vRestoreFnData(S, fr) {
     S["locals"] = fr["locals"]
     S["localNames"] = fr["localNames"]
     S["tryRegions"] = fr["tryRegions"]
+    let fa = fr["arrows"]
+    if fa != undefined {
+        S["arrows"] = fa
+    }
 }
 
 // --- vm_run_restore_mod_ctrl ---
@@ -45,7 +49,8 @@ pub fn vSaveFnFrame(S) {
         "ip": S["ip"],
         "done": S["done"],
         "result": S["result"],
-        "unsupported": S["unsupported"]
+        "unsupported": S["unsupported"],
+        "arrows": S["arrows"]
     }
 }
 

@@ -1,5 +1,7 @@
 # Kabootar — runtime
 
+App-`.kab` **körs på Kab-VM** (kab-only default, packed `.kbcb` när cachen finns). Host-DOM/OS nedan är FFI mot den VM:n. AST-eval i `src/` är skuld.
+
 ## Dubbel plattform
 
 Kabootar har **två lager** — host (befintlig OS/DOM/Chrome) och native (`kos`, `kdom`, `kbrowser`). Standardläge är `hybrid`.

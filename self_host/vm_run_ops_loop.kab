@@ -138,6 +138,14 @@ pub fn runOpsStepS(S, ops, pool, globals, functions) {
 // --- vm_run_ops_loop ---
 pub fn runOpsS(S, ops, pool, globals, functions) {
     while S["ip"] < len(ops) && S["done"] == false && S["unsupported"] == false {
+        let ipEnd = S["ipEnd"]
+        if ipEnd != undefined {
+            if ipEnd >= 0 {
+                if S["ip"] >= ipEnd {
+                    break
+                }
+            }
+        }
         let st = runOpsStepS(S, ops, pool, globals, functions)
         if st == 2 {
             break

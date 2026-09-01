@@ -1,6 +1,6 @@
 # Snabb kompilering
 
-Kabootar kompilerar `.kab` → bytecode (`.kbc` / `.kbcb`) via **`self_host/`**. Körning är Kab-VM (**kab-only default**). AST-evaluator och host-VM i `src/` är **skuld** tills [SH28](ROADMAP.md#kabootar-på-egna-fötter--noll-rust).
+Kabootar kompilerar `.kab` → bytecode (`.kbc` / `.kbcb`) via **`self_host/`**. Körning är Kab-VM (**kab-only default**), inklusive synk-**`fn*`** / **`yield`** / **`yield*`** / nästlad **`try`/`finally`**. AST-evaluator och host-VM i `src/` är **skuld** tills [SH28](ROADMAP.md#kabootar-på-egna-fötter--noll-rust).
 
 ## H6e — boot-policy i Kab
 

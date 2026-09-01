@@ -456,7 +456,17 @@ pub fn vFindTry(regions, ip) {
     let bi = 0
     while bi < len(regions) {
         let r = regions[bi]
-        if ip >= r["bodyStart"] && ip <= r["bodyEnd"] {
+        let hit = 0
+        if ip == r["catchStart"] {
+            hit = 1
+        } else {
+            if ip >= r["bodyStart"] {
+                if ip < r["catchStart"] {
+                    hit = 1
+                }
+            }
+        }
+        if hit == 1 {
             if best == null || r["bodyStart"] >= best["bodyStart"] {
                 best = r
             }
@@ -571,12 +581,12 @@ pub fn vMemberGetS(S, obj, key) {
     let ks = "" + key
     if vObjGet(obj, "vmGen") == 1 {
         if ks == "throw" {
-            return { "vmGenThrow": 1, "vmR": obj }
+            return { "vmGenThrow": 1, "vmR": vCanonicalInstS(S, obj) }
         }
     }
     if vObjGet(obj, "vmGen") == true {
         if ks == "throw" {
-            return { "vmGenThrow": 1, "vmR": obj }
+            return { "vmGenThrow": 1, "vmR": vCanonicalInstS(S, obj) }
         }
     }
     return obj[key]

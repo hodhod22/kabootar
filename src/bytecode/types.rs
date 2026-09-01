@@ -2081,9 +2081,10 @@ fn parse_fn_arrow_index_list(rest: &str) -> Result<(usize, usize, Vec<String>), 
     let (fi, rest) = rest
         .split_once(' ')
         .ok_or_else(|| format!("Invalid fn/arrow indexed list: {rest}"))?;
-    let (ai, list) = rest
-        .split_once(' ')
-        .ok_or_else(|| format!("Invalid fn/arrow indexed list: {rest}"))?;
+    let (ai, list) = match rest.split_once(' ') {
+        Some((ai, list)) => (ai, list),
+        None => (rest, ""),
+    };
     let fi: usize = fi.parse().map_err(|_| format!("Invalid fn index: {rest}"))?;
     let ai: usize = ai.parse().map_err(|_| format!("Invalid arrow index: {rest}"))?;
     if list.is_empty() {

@@ -1,5 +1,6 @@
 import "self_host/vm_run_session"
 import "self_host/vm_run_ops_loop"
+// SH6: yield* throw/return delegate.
 
 // --- vm_run_tramp_fn ---
 pub fn vTrampFn(S) {
@@ -27,8 +28,64 @@ pub fn vTramp(S) {
     } else {
         if k == 1 {
             return vTrampFn(S)
-        } else {
-            return vTrampMeth(S)
+        }
+        if k == 3 {
+            vTrampThrowCatchFin(S)
+            return
+        }
+        return vTrampMeth(S)
+    }
+}
+
+pub fn vTrampThrowCatchFin(S) {
+    let a = S["_args"]
+    let ops = a[0]
+    S["done"] = false
+    S["yielded"] = 0
+    S["unsupported"] = false
+    while S["ip"] < len(ops) {
+        if S["unsupported"] == true {
+            return
+        }
+        if S["yielded"] == 1 {
+            let yi = S["ip"] - 1
+            let yn = ""
+            if yi >= 0 {
+                yn = "" + ops[yi]["op"]
+            }
+            if yn == "yield" {
+                return
+            }
+            if yn == "yield_star" {
+                return
+            }
+            S["yielded"] = 0
+        }
+        let st = runOpsStepS(S, ops, a[1], a[2], a[3])
+        if st == 2 {
+            if S["yielded"] == 1 {
+                let yj = S["ip"] - 1
+                let ym = ""
+                if yj >= 0 {
+                    ym = "" + ops[yj]["op"]
+                }
+                if ym == "yield" {
+                    return
+                }
+                if ym == "yield_star" {
+                    return
+                }
+                S["yielded"] = 0
+            }
+            S["done"] = false
+            let hn = "" + ops[S["ip"]]["op"]
+            if hn == "return" {
+                S["ip"] = S["ip"] + 1
+            } else {
+                if hn == "halt" {
+                    S["ip"] = S["ip"] + 1
+                }
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 import "self_host/vm_s_stack"
 import "self_host/vm_run_session"
+// SH6: g.next(v) send.
 
 // --- vm_run_args_arr ---
 pub fn vArrayToOrdered(argsArr) {
@@ -48,6 +49,37 @@ pub fn vIfAsyncWrap(f, out) {
     return out
 }
 
+pub fn vNormalizeIterBeginS(S, got, pool, globals, functions) {
+    if vObjGet(got, "vmGen") == 1 {
+        return got
+    }
+    if vObjGet(got, "vmGen") == true {
+        return got
+    }
+    let ngot = vObjGet(got, "next")
+    if vObjGet(ngot, "vmFn") != undefined {
+        return got
+    }
+    if vObjGet(ngot, "vmArrow") != undefined {
+        return got
+    }
+    return vCallHost(bytecode_host_get("iterator_begin"), [got])
+}
+
+pub fn vTryWellKnownIterS(S, itb, pool, globals, functions) {
+    let sp = vObjGet(itb, "__kab_sym_props")
+    let sfnW = vObjGet(sp, "1")
+    if vObjGet(sfnW, "vmFn") != undefined {
+        let gotW = runFnBodyS(S, functions[sfnW["vmFn"]], pool, globals, functions, [], null)
+        return { "hit": 1, "it": vNormalizeIterBeginS(S, gotW, pool, globals, functions) }
+    }
+    if vObjGet(sfnW, "vmArrow") != undefined {
+        let gotWA = runFnBodyS(S, S["arrows"][sfnW["vmArrow"]], pool, globals, functions, [], vObjGet(sfnW, "caps"))
+        return { "hit": 1, "it": vNormalizeIterBeginS(S, gotWA, pool, globals, functions) }
+    }
+    return { "hit": 0 }
+}
+
 pub fn vApplyFnArrowS(S, c, ordered, pool, globals, functions) {
     let kind = c["kind"]
     if kind == "fn" {
@@ -61,7 +93,10 @@ pub fn vApplyFnArrowS(S, c, ordered, pool, globals, functions) {
         return vIfAsyncWrap(f, vCallRunFn(S, f, pool, globals, functions, ordered, null))
     }
     if kind == "arrow" {
-        let f = S["arrows"][c["idx"]]
+        let f = c["arrowDef"]
+        if f == undefined {
+            f = S["arrows"][c["idx"]]
+        }
         if f["isGen"] == true {
             return vMakeGeneratorS(S, f, c["idx"], ordered)
         }
@@ -89,10 +124,10 @@ pub fn vApplyMethHostS(S, c, ordered, pool, globals, functions) {
         return vInstanceofS(S, ordered)
     }
     if kind == "genNext" {
-        return vResumeGeneratorS(S, c["recv"], pool, globals, functions)
+        return vResumeGeneratorS(S, c["recv"], ordered, pool, globals, functions)
     }
     if kind == "genReturn" {
-        return vCloseGeneratorS(c["recv"], ordered)
+        return vCloseGeneratorS(S, c["recv"], ordered, pool, globals, functions)
     }
     if kind == "genThrow" {
         return vThrowGeneratorS(S, c["recv"], ordered, pool, globals, functions)
@@ -105,7 +140,53 @@ pub fn vApplyMethHostS(S, c, ordered, pool, globals, functions) {
         if vObjGet(itb, "vmGen") == true {
             return itb
         }
+        let nbegin = vObjGet(itb, "next")
+        if vObjGet(nbegin, "vmFn") != undefined {
+            return itb
+        }
+        if vObjGet(nbegin, "vmArrow") != undefined {
+            return itb
+        }
+        let sfn = vObjGet(itb, "Symbol.iterator")
+        if vObjGet(sfn, "vmFn") != undefined {
+            let got = runFnBodyS(S, functions[sfn["vmFn"]], pool, globals, functions, [], null)
+            return vNormalizeIterBeginS(S, got, pool, globals, functions)
+        }
+        if vObjGet(sfn, "vmArrow") != undefined {
+            let gotA = runFnBodyS(S, S["arrows"][sfn["vmArrow"]], pool, globals, functions, [], vObjGet(sfn, "caps"))
+            return vNormalizeIterBeginS(S, gotA, pool, globals, functions)
+        }
+        let sfn2 = vObjGet(itb, "[Symbol.iterator]")
+        if vObjGet(sfn2, "vmFn") != undefined {
+            let got2 = runFnBodyS(S, functions[sfn2["vmFn"]], pool, globals, functions, [], null)
+            return vNormalizeIterBeginS(S, got2, pool, globals, functions)
+        }
+        if vObjGet(sfn2, "vmArrow") != undefined {
+            let got2A = runFnBodyS(S, S["arrows"][sfn2["vmArrow"]], pool, globals, functions, [], vObjGet(sfn2, "caps"))
+            return vNormalizeIterBeginS(S, got2A, pool, globals, functions)
+        }
+        let wk = vTryWellKnownIterS(S, itb, pool, globals, functions)
+        if wk["hit"] == 1 {
+            return wk["it"]
+        }
         return vCallHost(bytecode_host_get("iterator_begin"), ordered)
+    }
+    if kind == "iterClose" {
+        let itc = ordered[0]
+        if vObjGet(itc, "vmGen") == 1 {
+            return vCloseGeneratorS(S, itc, [], pool, globals, functions)
+        }
+        if vObjGet(itc, "vmGen") == true {
+            return vCloseGeneratorS(S, itc, [], pool, globals, functions)
+        }
+        let inner = vObjGet(itc, "vmR")
+        if vObjGet(inner, "vmGen") == 1 {
+            return vCloseGeneratorS(S, inner, [], pool, globals, functions)
+        }
+        if vObjGet(inner, "vmGen") == true {
+            return vCloseGeneratorS(S, inner, [], pool, globals, functions)
+        }
+        return vCallIterReturnS(S, itc, pool, globals, functions, [])
     }
     if ("" + S["lastMemKey"]) == "throw" {
         let gThrow = S["lastMemObj"]
@@ -131,7 +212,7 @@ pub fn vClassifyFnArrow(callee) {
     }
     let vmArrow = vObjGet(callee, "vmArrow")
     if vmArrow != undefined {
-        return { "kind": "arrow", "idx": vmArrow, "caps": vObjGet(callee, "caps") }
+        return { "kind": "arrow", "idx": vmArrow, "caps": vObjGet(callee, "caps"), "arrowDef": vObjGet(callee, "arrowDef") }
     }
     return { "kind": null, "callee": callee }
 }
@@ -161,6 +242,9 @@ pub fn vClassifyMethHost(callee) {
     if vObjGet(callee, "vmIterBegin") == 1 {
         return { "kind": "iterBegin" }
     }
+    if vObjGet(callee, "vmIterClose") == 1 {
+        return { "kind": "iterClose" }
+    }
     return { "kind": "host", "callee": callee }
 }
 
@@ -185,9 +269,32 @@ pub fn vApplyCalleeS(S, c, ordered, pool, globals, functions) {
     return vApplyMethHostS(S, c, ordered, pool, globals, functions)
 }
 
+pub fn vApplyCalleeCatchS(S, c, ordered, pool, globals, functions) {
+    let out = null
+    let err = null
+    try {
+        out = vApplyCalleeS(S, c, ordered, pool, globals, functions)
+    } catch (e) {
+        err = e
+    }
+    if err != null {
+        if vCatchThrow(S, err) == 1 {
+            return { "caught": 1 }
+        }
+        throw err
+    }
+    return { "caught": 0, "out": out }
+}
+
 // --- vm_run_callee ---
 /// Classify callee for call ops. kind: fn|arrow|method|host|bad
 pub fn vClassifyCallee(callee) {
+    if vObjGet(callee, "vmIterClose") == 1 {
+        return { "kind": "iterClose" }
+    }
+    if vObjGet(callee, "vmIterClose") == true {
+        return { "kind": "iterClose" }
+    }
     let c = vClassifyFnArrow(callee)
     if c["kind"] != null {
         return c
@@ -205,7 +312,11 @@ pub fn runOpCallFromArrayS(S, name, pool, globals, functions) {
     let callee = vPopS(S)
     let ordered = vArrayToOrdered(argsArr)
     let c = vClassifyCallee(callee)
-    vPushS(S, vApplyCalleeS(S, c, ordered, pool, globals, functions))
+    let a = vApplyCalleeCatchS(S, c, ordered, pool, globals, functions)
+    if a["caught"] == 1 {
+        return 1
+    }
+    vPushS(S, a["out"])
     vBumpIpS(S)
     return 1
 }
@@ -231,7 +342,11 @@ pub fn runOpCallNS(S, name, arg, pool, globals, functions) {
     if p["st"] == 2 {
         return 2
     }
-    vPushS(S, vApplyCalleeS(S, p["c"], p["ordered"], pool, globals, functions))
+    let a = vApplyCalleeCatchS(S, p["c"], p["ordered"], pool, globals, functions)
+    if a["caught"] == 1 {
+        return 1
+    }
+    vPushS(S, a["out"])
     vBumpIpS(S)
     return 1
 }

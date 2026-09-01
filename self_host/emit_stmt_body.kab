@@ -633,9 +633,6 @@ pub fn emitStmt_expr(E) {
                 if E["eExprStmt"]["op"] == "yield" {
                     return true
                 }
-                if E["eExprStmt"]["op"] == "yield_star" {
-                    return true
-                }
             }
             emitOp(E, OP_POP, 0)
         }
@@ -692,6 +689,10 @@ pub fn emitStmt_fn(E) {
         E["eFnLocals"] = []
         resetLocalMap(E)
         E["eFnTryRegions"] = []
+        E["eTryEmitStack"] = []
+        E["eFinStack"] = []
+        E["eWhileHead"] = 0
+        object_array_clear(E, "eWhileHeads")
         E["eParamI"] = 0
         while E["eParamI"] < len(E["eParams"]) {
             E["eLoopSave"] = E["eParamI"]
@@ -700,6 +701,8 @@ pub fn emitStmt_fn(E) {
         }
         emitFnMarkRest(E, E["eNode"]["rest"])
         emitFnParamDefaults(E, E["eParams"], E["eNode"]["paramDefaults"])
+        let saveArrows = arrUtil(E, "snap", E["eArrows"])
+        E["eArrows"] = []
         eCallStmt(E, E["eFnBody"])
         E["eFunctions"] = push(E["eFunctions"], {
             "sym": E["eFnSave"],
@@ -712,9 +715,11 @@ pub fn emitStmt_fn(E) {
             "isAsync": E["eFnAsync"],
             "isGen": E["eFnGen"]
         })
-        E["eArrows"] = []
+        E["eArrows"] = saveArrows
         E["eInFn"] = 0
         E["eFnTryRegions"] = []
+        E["eTryEmitStack"] = []
+        E["eFinStack"] = []
         symIndex(E, "global",E["eFnSave"])
         if E["eFnPub"] == 1 {
             eCallRet = ("" + E["eFnSave"]) + ""
@@ -755,6 +760,12 @@ pub fn emitStmt_for_of(E) {
         emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", beginName))
         emitOp(E, OP_CALL, 1)
         emitOp(E, OP_STORE_LOCAL, srcIdx)
+        if forAsync != 1 {
+            if E["eIterCloseStack"] == undefined {
+                E["eIterCloseStack"] = []
+            }
+            object_array_push(E, "eIterCloseStack", srcIdx)
+        }
         arrUtil(E, "pushLenKey", "eBreakFromStack", E["eBreakIdxs"])
         let loopStart = E["eFnOpsN"]
         object_array_push(E, "eWhileHeads", loopStart)
@@ -801,6 +812,17 @@ pub fn emitStmt_for_of(E) {
         }
         if len(E["eBreakFromStack"]) > 0 {
             object_array_pop(E, "eBreakFromStack")
+        }
+        if forAsync != 1 {
+            emitOp(E, OP_LOAD_LOCAL, srcIdx)
+            emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", "iterator_close"))
+            emitOp(E, OP_CALL, 1)
+            emitOp(E, OP_POP, 0)
+            if E["eIterCloseStack"] != undefined {
+                if len(E["eIterCloseStack"]) > 0 {
+                    object_array_pop(E, "eIterCloseStack")
+                }
+            }
         }
         while len(E["eConsts"]) <= doneIdx {
             object_array_push(E, "eConsts", "done")
@@ -1335,15 +1357,48 @@ pub fn emitStmt_member_assign(E) {
     return true
 }
 
+pub fn emitActiveIterCloses(E) {
+    if E["eIterCloseStack"] == undefined {
+        return 0
+    }
+    let ci = len(E["eIterCloseStack"])
+    while ci > 0 {
+        ci = ci - 1
+        let srcIdx = E["eIterCloseStack"][ci]
+        emitOp(E, OP_LOAD_LOCAL, srcIdx)
+        emitOp(E, OP_LOAD_GLOBAL, symIndex(E, "global", "iterator_close"))
+        emitOp(E, OP_CALL, 1)
+        emitOp(E, OP_POP, 0)
+    }
+    return 0
+}
+
 // --- emit_stmt_return ---
 pub fn emitStmt_return(E) {
     if E["eNode"].kind != AST_RETURN {
         return false
     }
+        emitActiveIterCloses(E)
         if E["eNode"]["value"] == null {
             emitOp(E, OP_CONST, symIndex(E, "const",null))
         } else {
             eCallExpr(E, E["eNode"]["value"])
+        }
+        let fs = E["eFinStack"]
+        if fs != undefined {
+            if len(fs) > 0 {
+                let fr = fs[len(fs) - 1]
+                emitOp(E, OP_STORE_LOCAL, fr["rv"])
+                emitOp(E, OP_CONST, symIndex(E, "const", 1))
+                emitOp(E, OP_STORE_LOCAL, fr["rf"])
+                emitOp(E, OP_JUMP, 0)
+                let jm = fr["jmps"]
+                jm = push(jm, E["eFnOpsN"] - 1)
+                fr["jmps"] = jm
+                fs[len(fs) - 1] = fr
+                E["eFinStack"] = fs
+                return true
+            }
         }
         emitOp(E, OP_RETURN, 0)
         return true
@@ -1355,6 +1410,7 @@ pub fn emitStmt_throw(E) {
     if E["eNode"].kind != AST_THROW {
         return false
     }
+        emitActiveIterCloses(E)
         eCallExpr(E, E["eNode"]["expr"])
         emitOp(E, OP_THROW, 0)
         return true
@@ -1420,17 +1476,44 @@ pub fn emitStmt_try(E) {
         if E["eInFn"] != 1 {
             throw "try/catch only supported inside fn (self-host emit)"
         }
-        let tryBody = E["eNode"]["body"]
-        let tryHandler = E["eNode"]["handler"]
-        let errName = E["eNode"]["errName"]
+        if E["eTryEmitStack"] == undefined {
+            E["eTryEmitStack"] = []
+        }
+        object_array_push(E, "eTryEmitStack", {
+            "body": E["eNode"]["body"],
+            "handler": E["eNode"]["handler"],
+            "errName": E["eNode"]["errName"],
+            "finalizer": E["eNode"]["finalizer"],
+            "bareFinally": E["eNode"]["bareFinally"],
+            "finRf": -1,
+            "finRv": -1,
+            "jmps": []
+        })
+        let depth = len(E["eTryEmitStack"])
+        let fr = E["eTryEmitStack"][depth - 1]
+        let tryFin = fr["finalizer"]
+        if tryFin != null {
+            if tryFin != undefined {
+                let n = E["eForCounter"]
+                E["eForCounter"] = n + 1
+                fr["finRf"] = symIndex(E, "local", "frf" + n)
+                fr["finRv"] = symIndex(E, "local", "frv" + n)
+                E["eTryEmitStack"][depth - 1] = fr
+                emitOp(E, OP_CONST, symIndex(E, "const", false))
+                emitOp(E, OP_STORE_LOCAL, fr["finRf"])
+                object_array_push(E, "eFinStack", { "jmps": [], "rf": fr["finRf"], "rv": fr["finRv"] })
+            }
+        }
         let bodyStart = E["eFnOpsN"]
-        eCallStmt(E, tryBody)
+        eCallStmt(E, fr["body"])
+        depth = len(E["eTryEmitStack"])
+        fr = E["eTryEmitStack"][depth - 1]
         let bodyEnd = E["eFnOpsN"]
-        // Statement try: jump over catch on success (throw uses tryRegions).
         emitOp(E, OP_JUMP, 0)
-        let jmpEndIdx = bodyEnd
+        let jmpEndIdx = E["eFnOpsN"]
+        jmpEndIdx = jmpEndIdx - 1
         let catchStart = E["eFnOpsN"]
-        let errLocal = symIndex(E, "local", errName)
+        let errLocal = symIndex(E, "local", fr["errName"])
         object_array_push(E, "eFnTryRegions", {
             "bodyStart": bodyStart,
             "bodyEnd": bodyEnd,
@@ -1438,10 +1521,71 @@ pub fn emitStmt_try(E) {
             "errLocal": errLocal
         })
         emitOp(E, OP_STORE_LOCAL, errLocal)
-        eCallStmt(E, tryHandler)
-        let afterCatch = E["eFnOpsN"]
-        eCallRet = afterCatch - jmpEndIdx - 1
-        E["eFnOps"][jmpEndIdx] = { "op": OP_JUMP, "arg": eCallRet }
+        let bareFin = fr["bareFinally"]
+        if bareFin != 0 {
+            if bareFin != undefined {
+                if bareFin != null {
+                    if typeof(fr["finRf"]) == "number" {
+                        if fr["finRf"] >= 0 {
+                            emitOp(E, OP_LOAD_LOCAL, errLocal)
+                            emitOp(E, OP_STORE_LOCAL, fr["finRv"])
+                            emitOp(E, OP_CONST, symIndex(E, "const", 1))
+                            emitOp(E, OP_CONST, symIndex(E, "const", 1))
+                            emitOp(E, OP_ADD, 0)
+                            emitOp(E, OP_STORE_LOCAL, fr["finRf"])
+                        }
+                    }
+                }
+            }
+        } else {
+            eCallStmt(E, fr["handler"])
+        }
+        depth = len(E["eTryEmitStack"])
+        fr = E["eTryEmitStack"][depth - 1]
+        let finJmps = []
+        let finRf = fr["finRf"]
+        if typeof(finRf) == "number" {
+            if finRf >= 0 {
+                let fs = E["eFinStack"]
+                let top = fs[len(fs) - 1]
+                finJmps = top["jmps"]
+                object_array_pop(E, "eFinStack")
+            }
+        }
+        let finStart = E["eFnOpsN"]
+        tryFin = fr["finalizer"]
+        if tryFin != null {
+            if tryFin != undefined {
+                eCallStmt(E, tryFin)
+            }
+        }
+        let jumpArg = finStart - jmpEndIdx - 1
+        E["eFnOps"][jmpEndIdx] = { "op": OP_JUMP, "arg": jumpArg }
+        if typeof(finRf) == "number" {
+            if finRf >= 0 {
+                let ji = 0
+                while ji < len(finJmps) {
+                    jumpArg = finStart - finJmps[ji] - 1
+                    E["eFnOps"][finJmps[ji]] = { "op": OP_JUMP, "arg": jumpArg }
+                    ji = ji + 1
+                }
+                emitOp(E, OP_LOAD_LOCAL, finRf)
+                let jSkip = E["eFnOpsN"]
+                emitOp(E, OP_JUMP_IF_FALSE, 0)
+                emitOp(E, OP_LOAD_LOCAL, finRf)
+                emitOp(E, OP_CONST, symIndex(E, "const", 1))
+                emitOp(E, OP_EQ, 0)
+                let jThrow = E["eFnOpsN"]
+                emitOp(E, OP_JUMP_IF_FALSE, 0)
+                emitOp(E, OP_LOAD_LOCAL, fr["finRv"])
+                emitOp(E, OP_RETURN, 0)
+                patchJumpAt(E, jThrow)
+                emitOp(E, OP_LOAD_LOCAL, fr["finRv"])
+                emitOp(E, OP_THROW, 0)
+                patchJumpAt(E, jSkip)
+            }
+        }
+        object_array_pop(E, "eTryEmitStack")
         return true
     return true
 }

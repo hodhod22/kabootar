@@ -1041,7 +1041,7 @@ pub fn parseStmt_try_body(sess) {
 // --- parser_stmt_try_catch ---
 pub fn parseStmt_try_catch(sess) {
     if sess["pCur"].type != TOKEN_CATCH {
-        throw "Expected catch"
+        return null
     }
     bump(sess)
     if sess["pCur"].type != "(" {
@@ -1069,6 +1069,21 @@ pub fn parseStmt_try_catch(sess) {
         "errName": errSym,
         "handler": { "kind": AST_BLOCK, "body": catchBody }
     }
+}
+
+pub fn parseStmt_try_finally(sess) {
+    if sess["pCur"].type != TOKEN_FINALLY {
+        return null
+    }
+    bump(sess)
+    if sess["pCur"].type != "{" {
+        throw "Expected {"
+    }
+    bump(sess)
+    pEnterBody(sess)
+    pParseBodyUntilRBrace(sess, "Unclosed finally")
+    let finBody = pLeaveBody(sess)
+    return { "kind": AST_BLOCK, "body": finBody }
 }
 
 pub fn parseSwitchCaseBody(sess) {
@@ -1379,11 +1394,28 @@ pub fn parseStmt_try(sess) {
     bump(sess)
     let tryBody = parseStmt_try_body(sess)
     let catchPart = parseStmt_try_catch(sess)
+    let fin = parseStmt_try_finally(sess)
+    if catchPart == null {
+        if fin == null {
+            throw "Expected catch"
+        }
+        catchPart = {
+            "errName": "e",
+            "handler": { "kind": AST_BLOCK, "body": [] },
+            "bareFinally": 1
+        }
+    }
+    let bareFin = catchPart["bareFinally"]
+    if bareFin == undefined {
+        bareFin = 0
+    }
     return {
         "kind": AST_TRY,
         "body": { "kind": AST_BLOCK, "body": tryBody },
         "errName": catchPart["errName"],
-        "handler": catchPart["handler"]
+        "handler": catchPart["handler"],
+        "finalizer": fin,
+        "bareFinally": bareFin
     }
 }
 
