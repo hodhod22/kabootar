@@ -6091,6 +6091,426 @@ fn sh6_self_host_generator_nested_try_yield_star_custom_return_method_outer_fina
     assert_eq!(formatted, "1498");
 }
 
+/// SH6: nested `try` + outer `finally` — `g.next(v)` send through `yield*` of `{ next() }`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_custom_send_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext(v) {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: v, done: true }\n}\nlet it = { next: itNext }\nfn* gen() {\n  try {\n    try {\n      let x = yield* it\n      return x\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-cust-snd".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star custom send outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `yield*` of an object with `Symbol.iterator` in inner `try`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn mkIter() {\n  return { next: itNext }\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n    return 4\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-of".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.throw` through `yield*` of `Symbol.iterator` (no `throw` on iterator).
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_throw_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn mkIter() {\n  return { next: itNext }\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.throw(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-th".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator throw outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.return` through `yield*` of `Symbol.iterator` (no `return` on iterator).
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_return_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn mkIter() {\n  return { next: itNext }\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.return(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-ret".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator return outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.next(v)` send through `yield*` of `Symbol.iterator`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_send_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext(v) {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: v, done: true }\n}\nfn mkIter() {\n  return { next: itNext }\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      let x = yield* o\n      return x\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-snd".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator send outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.next(v)` send into outer `finally` `yield` after `yield*` of `Symbol.iterator`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_outer_finally_send_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn mkIter() {\n  return { next: itNext }\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    let x = yield 8\n    return x\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.next()\n  let d = g.next(4)\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-ofs".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator outer finally send");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + `yield*` of `Symbol.iterator` — `g.throw` at outer `finally` `yield` is not caught by that `try`'s `catch`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_throw_into_outer_finally_yield_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn mkIter() {\n  return { next: itNext }\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.next()\n  try {\n    g.throw(4)\n    return 1\n  } catch (e) {\n    return a.value * 1000 + b.value * 100 + c.value * 10 + e\n  }\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-oty".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator throw into outer finally yield");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + `yield*` of `Symbol.iterator` — `g.return` at outer `finally` `yield` after iterator already ran.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_return_into_outer_finally_yield_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn mkIter() {\n  return { next: itNext }\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.next()\n  let c = g.next()\n  let d = g.return(4)\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-ory".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator return into outer finally yield");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.throw` through `yield*` of `Symbol.iterator` whose iterator has `throw()`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_throw_method_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn itThrow(e) {\n  return { value: e, done: false }\n}\nfn mkIter() {\n  let it = { next: itNext }\n  it[\"throw\"] = itThrow\n  return it\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.throw(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-tm".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator throw method outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1498");
+}
+
+/// SH6: nested `try` + outer `finally` — `g.return` through `yield*` of `Symbol.iterator` whose iterator has `return()`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_return_method_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn itRet(v) {\n  return { value: v, done: false }\n}\nfn mkIter() {\n  let it = { next: itNext }\n  it[\"return\"] = itRet\n  return it\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.return(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-rm".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator return method outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1498");
+}
+
+/// SH6: nested `try` + outer `finally` — custom `throw()` rethrows into outer `catch`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_custom_throw_rethrows_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn itThrow(e) {\n  throw e\n}\nlet it = { next: itNext }\nit[\"throw\"] = itThrow\nfn* gen() {\n  try {\n    try {\n      yield* it\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.throw(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-cust-trh".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star custom throw rethrows outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `Symbol.iterator` `throw()` rethrows into outer `catch`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_throw_rethrows_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn itThrow(e) {\n  throw e\n}\nfn mkIter() {\n  let it = { next: itNext }\n  it[\"throw\"] = itThrow\n  return it\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.throw(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-trh".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator throw rethrows outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — custom `return()` throws into outer `catch`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_custom_return_throws_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn itRet(v) {\n  throw v\n}\nlet it = { next: itNext }\nit[\"return\"] = itRet\nfn* gen() {\n  try {\n    try {\n      yield* it\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.return(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-cust-rth".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star custom return throws outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
+/// SH6: nested `try` + outer `finally` — `Symbol.iterator` `return()` throws into outer `catch`.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_return_throws_outer_finally_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext() {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn itRet(v) {\n  throw v\n}\nfn mkIter() {\n  let it = { next: itNext }\n  it[\"return\"] = itRet\n  return it\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.return(4)\n  let c = g.next()\n  let d = g.next()\n  return a.value * 1000 + b.value * 100 + c.value * 10 + d.value\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-rth".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator return throws outer finally");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1984");
+}
+
 /// SH6: `try/finally` without `catch` in `fn*` runs after yield resume.
 #[test]
 fn sh6_self_host_generator_try_finally_no_catch_ok() {
@@ -20036,6 +20456,523 @@ fn sh17_jit_os_wr_call_reject_in_kab() {
     );
 }
 
+/// SH17 deepen: i64 loopN+test template lives off jit_loop_ge.kab.
+#[test]
+fn sh17_jit_loop_test_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_test.kab")).expect("jit_loop_test.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopTestN")
+            && n.contains("pub fn jitLoopTestOk")
+            && n.contains("pub fn jitLoopTestRax")
+            && n.contains("91"),
+        "SH17 Kab i64 loopN+test template"
+    );
+}
+
+/// SH17 deepen: loop-test wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_test_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_test.kab")).expect("jit_call_loop_test.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopTestOk")
+            && c.contains("jitWrLoopTestOk")
+            && c.contains("jitRunLoopTestOk")
+            && c.contains("jitMmCallLoopTest"),
+        "SH17 Kab jitCallLoopTestOk loop-test pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+test template.
+#[test]
+fn sh17_jit_os_loop_test_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_test_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_test_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopTestOk")
+            && s.contains("jitEmitI64LoopTestN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("5"),
+        "SH17 Kab loop-test os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid test rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_test_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_test_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_test_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopTestOk")
+            && s.contains("jitEmitI64LoopTestN")
+            && s.contains("0"),
+        "SH17 Kab loop-test call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+je template lives off jit_loop_test.kab.
+#[test]
+fn sh17_jit_loop_je_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_je.kab")).expect("jit_loop_je.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopJeN")
+            && n.contains("pub fn jitLoopJeOk")
+            && n.contains("pub fn jitLoopJeRax")
+            && n.contains("92"),
+        "SH17 Kab i64 loopN+je template"
+    );
+}
+
+/// SH17 deepen: loop-je wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_je_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_je.kab")).expect("jit_call_loop_je.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopJeOk")
+            && c.contains("jitWrLoopJeOk")
+            && c.contains("jitRunLoopJeOk")
+            && c.contains("jitMmCallLoopJe"),
+        "SH17 Kab jitCallLoopJeOk loop-je pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+je template.
+#[test]
+fn sh17_jit_os_loop_je_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_je_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_je_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJeOk")
+            && s.contains("jitEmitI64LoopJeN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12"),
+        "SH17 Kab loop-je os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid je rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_je_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_je_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_je_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJeOk")
+            && s.contains("jitEmitI64LoopJeN")
+            && s.contains("0"),
+        "SH17 Kab loop-je call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+jne template lives off jit_loop_je.kab.
+#[test]
+fn sh17_jit_loop_jne_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_jne.kab")).expect("jit_loop_jne.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopJneN")
+            && n.contains("pub fn jitLoopJneOk")
+            && n.contains("pub fn jitLoopJneRax")
+            && n.contains("93"),
+        "SH17 Kab i64 loopN+jne template"
+    );
+}
+
+/// SH17 deepen: loop-jne wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_jne_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_jne.kab")).expect("jit_call_loop_jne.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopJneOk")
+            && c.contains("jitWrLoopJneOk")
+            && c.contains("jitRunLoopJneOk")
+            && c.contains("jitMmCallLoopJne"),
+        "SH17 Kab jitCallLoopJneOk loop-jne pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+jne template.
+#[test]
+fn sh17_jit_os_loop_jne_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jne_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_jne_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJneOk")
+            && s.contains("jitEmitI64LoopJneN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("10"),
+        "SH17 Kab loop-jne os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid jne rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_jne_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jne_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_jne_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJneOk")
+            && s.contains("jitEmitI64LoopJneN")
+            && s.contains("0"),
+        "SH17 Kab loop-jne call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+jmp template lives off jit_loop_jne.kab.
+#[test]
+fn sh17_jit_loop_jmp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_jmp.kab")).expect("jit_loop_jmp.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopJmpN")
+            && n.contains("pub fn jitLoopJmpOk")
+            && n.contains("pub fn jitLoopJmpRax")
+            && n.contains("94"),
+        "SH17 Kab i64 loopN+jmp template"
+    );
+}
+
+/// SH17 deepen: loop-jmp wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_jmp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_jmp.kab")).expect("jit_call_loop_jmp.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopJmpOk")
+            && c.contains("jitWrLoopJmpOk")
+            && c.contains("jitRunLoopJmpOk")
+            && c.contains("jitMmCallLoopJmp"),
+        "SH17 Kab jitCallLoopJmpOk loop-jmp pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+jmp template.
+#[test]
+fn sh17_jit_os_loop_jmp_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jmp_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_jmp_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJmpOk")
+            && s.contains("jitEmitI64LoopJmpN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12"),
+        "SH17 Kab loop-jmp os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid jmp rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_jmp_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jmp_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_jmp_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJmpOk")
+            && s.contains("jitEmitI64LoopJmpN")
+            && s.contains("0"),
+        "SH17 Kab loop-jmp call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+jl template lives off jit_loop_jmp.kab.
+#[test]
+fn sh17_jit_loop_jl_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_jl.kab")).expect("jit_loop_jl.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopJlN")
+            && n.contains("pub fn jitLoopJlOk")
+            && n.contains("pub fn jitLoopJlRax")
+            && n.contains("95"),
+        "SH17 Kab i64 loopN+jl template"
+    );
+}
+
+/// SH17 deepen: loop-jl wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_jl_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_jl.kab")).expect("jit_call_loop_jl.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopJlOk")
+            && c.contains("jitWrLoopJlOk")
+            && c.contains("jitRunLoopJlOk")
+            && c.contains("jitMmCallLoopJl"),
+        "SH17 Kab jitCallLoopJlOk loop-jl pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+jl template.
+#[test]
+fn sh17_jit_os_loop_jl_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jl_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_jl_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJlOk")
+            && s.contains("jitEmitI64LoopJlN")
+            && s.contains("os_mm_mmap")
+            && s.contains("10")
+            && s.contains("12"),
+        "SH17 Kab loop-jl os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid jl rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_jl_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jl_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_jl_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJlOk")
+            && s.contains("jitEmitI64LoopJlN")
+            && s.contains("0"),
+        "SH17 Kab loop-jl call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+jle template lives off jit_loop_jl.kab.
+#[test]
+fn sh17_jit_loop_jle_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_jle.kab")).expect("jit_loop_jle.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopJleN")
+            && n.contains("pub fn jitLoopJleOk")
+            && n.contains("pub fn jitLoopJleRax")
+            && n.contains("96"),
+        "SH17 Kab i64 loopN+jle template"
+    );
+}
+
+/// SH17 deepen: loop-jle wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_jle_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_jle.kab")).expect("jit_call_loop_jle.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopJleOk")
+            && c.contains("jitWrLoopJleOk")
+            && c.contains("jitRunLoopJleOk")
+            && c.contains("jitMmCallLoopJle"),
+        "SH17 Kab jitCallLoopJleOk loop-jle pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+jle template.
+#[test]
+fn sh17_jit_os_loop_jle_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jle_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_jle_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJleOk")
+            && s.contains("jitEmitI64LoopJleN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12"),
+        "SH17 Kab loop-jle os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid jle rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_jle_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jle_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_jle_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJleOk")
+            && s.contains("jitEmitI64LoopJleN")
+            && s.contains("0"),
+        "SH17 Kab loop-jle call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+jg template lives off jit_loop_jle.kab.
+#[test]
+fn sh17_jit_loop_jg_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_jg.kab")).expect("jit_loop_jg.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopJgN")
+            && n.contains("pub fn jitLoopJgOk")
+            && n.contains("pub fn jitLoopJgRax")
+            && n.contains("97"),
+        "SH17 Kab i64 loopN+jg template"
+    );
+}
+
+/// SH17 deepen: loop-jg wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_jg_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_jg.kab")).expect("jit_call_loop_jg.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopJgOk")
+            && c.contains("jitWrLoopJgOk")
+            && c.contains("jitRunLoopJgOk")
+            && c.contains("jitMmCallLoopJg"),
+        "SH17 Kab jitCallLoopJgOk loop-jg pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+jg template.
+#[test]
+fn sh17_jit_os_loop_jg_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jg_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_jg_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJgOk")
+            && s.contains("jitEmitI64LoopJgN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12")
+            && s.contains("10"),
+        "SH17 Kab loop-jg os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid jg rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_jg_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jg_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_jg_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJgOk")
+            && s.contains("jitEmitI64LoopJgN")
+            && s.contains("0"),
+        "SH17 Kab loop-jg call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+jge template lives off jit_loop_jg.kab.
+#[test]
+fn sh17_jit_loop_jge_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_jge.kab")).expect("jit_loop_jge.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopJgeN")
+            && n.contains("pub fn jitLoopJgeOk")
+            && n.contains("pub fn jitLoopJgeRax")
+            && n.contains("98"),
+        "SH17 Kab i64 loopN+jge template"
+    );
+}
+
+/// SH17 deepen: loop-jge wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_jge_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_jge.kab")).expect("jit_call_loop_jge.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopJgeOk")
+            && c.contains("jitWrLoopJgeOk")
+            && c.contains("jitRunLoopJgeOk")
+            && c.contains("jitMmCallLoopJge"),
+        "SH17 Kab jitCallLoopJgeOk loop-jge pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+jge template.
+#[test]
+fn sh17_jit_os_loop_jge_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jge_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_jge_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJgeOk")
+            && s.contains("jitEmitI64LoopJgeN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12"),
+        "SH17 Kab loop-jge os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid jge rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_jge_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_jge_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_jge_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopJgeOk")
+            && s.contains("jitEmitI64LoopJgeN")
+            && s.contains("0"),
+        "SH17 Kab loop-jge call rejection"
+    );
+}
+
+/// SH17 deepen: i64 loopN+nop template lives off jit_loop_jge.kab.
+#[test]
+fn sh17_jit_loop_nop_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_loop_nop.kab")).expect("jit_loop_nop.kab");
+    assert!(
+        n.contains("pub fn jitEmitI64LoopNopN")
+            && n.contains("pub fn jitLoopNopOk")
+            && n.contains("pub fn jitLoopNopRax")
+            && n.contains("99"),
+        "SH17 Kab i64 loopN+nop template"
+    );
+}
+
+/// SH17 deepen: loop-nop wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_nop_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit_call_loop_nop.kab")).expect("jit_call_loop_nop.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopNopOk")
+            && c.contains("jitWrLoopNopOk")
+            && c.contains("jitRunLoopNopOk")
+            && c.contains("jitMmCallLoopNop"),
+        "SH17 Kab jitCallLoopNopOk loop-nop pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for loopN+nop template.
+#[test]
+fn sh17_jit_os_loop_nop_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_nop_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_nop_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopNopOk")
+            && s.contains("jitEmitI64LoopNopN")
+            && s.contains("os_mm_mmap")
+            && s.contains("12"),
+        "SH17 Kab loop-nop os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid nop rhs before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_nop_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_nop_call_reject_smoke.kab"))
+        .expect("sh17_jit_os_loop_nop_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopNopOk")
+            && s.contains("jitEmitI64LoopNopN")
+            && s.contains("0"),
+        "SH17 Kab loop-nop call rejection"
+    );
+}
+
 /// F8: inline budget stays in a tiny leaf (do not grow jit.kab).
 #[test]
 fn f8_jit_opt_in_kab() {
@@ -20091,6 +21028,250 @@ fn f8_jit_ssa_in_kab() {
     );
 }
 
+/// F8 deepen: native i64-loop eligibility (SSA + LICM + loopN).
+#[test]
+fn f8_jit_native_loop_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop.kab")).expect("jit_native_loop.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopOk")
+            && n.contains("jitSsaOk")
+            && n.contains("jitLicmOk")
+            && n.contains("jitLoopNOk"),
+        "F8 Kab jitNativeLoopOk"
+    );
+}
+
+/// F8 deepen: native-loop dual-bind to loopN mmap/exec.
+#[test]
+fn f8_jit_native_loop_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_smoke.kab"))
+        .expect("f8_jit_native_loop_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("16"),
+        "F8 Kab native-loop os_mm dual-bind"
+    );
+}
+
+/// F8 deepen: reject native-loop without SSA phi.
+#[test]
+fn f8_jit_native_loop_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_reject_smoke.kab"))
+        .expect("f8_jit_native_loop_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopOk") && s.contains("0") && s.contains("16"),
+        "F8 Kab native-loop rejection"
+    );
+}
+
+/// F8 deepen: native i64-loop + GVN/CSE eligibility.
+#[test]
+fn f8_jit_native_loop_gvn_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop_gvn.kab")).expect("jit_native_loop_gvn.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopGvnOk")
+            && n.contains("jitNativeLoopOk")
+            && n.contains("jitGvnOk"),
+        "F8 Kab jitNativeLoopGvnOk"
+    );
+}
+
+/// F8 deepen: native-loop GVN dual-bind to loopN mmap/exec.
+#[test]
+fn f8_jit_native_loop_gvn_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_gvn_smoke.kab"))
+        .expect("f8_jit_native_loop_gvn_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopGvnOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("16"),
+        "F8 Kab native-loop GVN os_mm dual-bind"
+    );
+}
+
+/// F8 deepen: reject native-loop GVN without CSE dups.
+#[test]
+fn f8_jit_native_loop_gvn_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_gvn_reject_smoke.kab"))
+        .expect("f8_jit_native_loop_gvn_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopGvnOk") && s.contains("0") && s.contains("16"),
+        "F8 Kab native-loop GVN rejection"
+    );
+}
+
+/// F8 deepen: native i64-loop + GVN + deopt-guard eligibility.
+#[test]
+fn f8_jit_native_loop_deopt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop_deopt.kab")).expect("jit_native_loop_deopt.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopDeoptOk")
+            && n.contains("jitNativeLoopGvnOk")
+            && n.contains("jitDeoptOk"),
+        "F8 Kab jitNativeLoopDeoptOk"
+    );
+}
+
+/// F8 deepen: native-loop deopt dual-bind to loopN mmap/exec.
+#[test]
+fn f8_jit_native_loop_deopt_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_deopt_smoke.kab"))
+        .expect("f8_jit_native_loop_deopt_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopDeoptOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("16"),
+        "F8 Kab native-loop deopt os_mm dual-bind"
+    );
+}
+
+/// F8 deepen: reject native-loop deopt without guards.
+#[test]
+fn f8_jit_native_loop_deopt_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_deopt_reject_smoke.kab"))
+        .expect("f8_jit_native_loop_deopt_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopDeoptOk") && s.contains("0") && s.contains("16"),
+        "F8 Kab native-loop deopt rejection"
+    );
+}
+
+/// F8 deepen: native i64-loop + GVN + deopt + i64 spec eligibility.
+#[test]
+fn f8_jit_native_loop_spec_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop_spec.kab")).expect("jit_native_loop_spec.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopSpecOk")
+            && n.contains("jitNativeLoopDeoptOk")
+            && n.contains("jitSpecOk"),
+        "F8 Kab jitNativeLoopSpecOk"
+    );
+}
+
+/// F8 deepen: native-loop i64 spec dual-bind to loopN mmap/exec.
+#[test]
+fn f8_jit_native_loop_spec_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_spec_smoke.kab"))
+        .expect("f8_jit_native_loop_spec_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopSpecOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("i64")
+            && s.contains("16"),
+        "F8 Kab native-loop spec os_mm dual-bind"
+    );
+}
+
+/// F8 deepen: reject native-loop spec when IC kind is not i64.
+#[test]
+fn f8_jit_native_loop_spec_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_spec_reject_smoke.kab"))
+        .expect("f8_jit_native_loop_spec_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopSpecOk") && s.contains("f64") && s.contains("16"),
+        "F8 Kab native-loop spec rejection"
+    );
+}
+
+/// F8 deepen: native i64-loop + spec + TCO opt-in eligibility.
+#[test]
+fn f8_jit_native_loop_tco_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop_tco.kab")).expect("jit_native_loop_tco.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopTcoOk")
+            && n.contains("jitNativeLoopSpecOk")
+            && n.contains("jitTcoOk"),
+        "F8 Kab jitNativeLoopTcoOk"
+    );
+}
+
+/// F8 deepen: native-loop TCO dual-bind to loopN mmap/exec.
+#[test]
+fn f8_jit_native_loop_tco_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_tco_smoke.kab"))
+        .expect("f8_jit_native_loop_tco_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopTcoOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("true")
+            && s.contains("16"),
+        "F8 Kab native-loop TCO os_mm dual-bind"
+    );
+}
+
+/// F8 deepen: reject native-loop TCO without @tail.
+#[test]
+fn f8_jit_native_loop_tco_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_tco_reject_smoke.kab"))
+        .expect("f8_jit_native_loop_tco_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopTcoOk") && s.contains("false") && s.contains("16"),
+        "F8 Kab native-loop TCO rejection"
+    );
+}
+
+/// F8 deepen: native i64-loop + TCO self-recursion eligibility.
+#[test]
+fn f8_jit_native_loop_tco_self_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop_tco_self.kab")).expect("jit_native_loop_tco_self.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopTcoSelfOk")
+            && n.contains("jitNativeLoopTcoOk")
+            && n.contains("jitTcoSelfOk"),
+        "F8 Kab jitNativeLoopTcoSelfOk"
+    );
+}
+
+/// F8 deepen: native-loop TCO-self dual-bind to loopN mmap/exec.
+#[test]
+fn f8_jit_native_loop_tco_self_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_tco_self_smoke.kab"))
+        .expect("f8_jit_native_loop_tco_self_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopTcoSelfOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("true")
+            && s.contains("16"),
+        "F8 Kab native-loop TCO-self os_mm dual-bind"
+    );
+}
+
+/// F8 deepen: reject native-loop TCO-self when callee is not self.
+#[test]
+fn f8_jit_native_loop_tco_self_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f8_jit_native_loop_tco_self_reject_smoke.kab"))
+        .expect("f8_jit_native_loop_tco_self_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopTcoSelfOk") && s.contains("false") && s.contains("16"),
+        "F8 Kab native-loop TCO-self rejection"
+    );
+}
+
 /// F9: linear-scan GPR count (do not grow jit.kab).
 #[test]
 fn f9_jit_gpr_in_kab() {
@@ -20099,6 +21280,649 @@ fn f9_jit_gpr_in_kab() {
     assert!(
         g.contains("pub fn jitScanGprs"),
         "F9 Kab jitScanGprs"
+    );
+}
+
+/// F9 deepen: native i64-loop + linear-scan GPR eligibility.
+#[test]
+fn f9_jit_native_loop_gpr_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop_gpr.kab")).expect("jit_native_loop_gpr.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopGprOk")
+            && n.contains("jitNativeLoopTcoSelfOk")
+            && n.contains("jitScanGprs"),
+        "F9 Kab jitNativeLoopGprOk"
+    );
+}
+
+/// F9 deepen: native-loop GPR dual-bind to loopN mmap/exec.
+#[test]
+fn f9_jit_native_loop_gpr_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f9_jit_native_loop_gpr_smoke.kab"))
+        .expect("f9_jit_native_loop_gpr_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopGprOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("16"),
+        "F9 Kab native-loop GPR os_mm dual-bind"
+    );
+}
+
+/// F9 deepen: reject native-loop GPR with zero live values.
+#[test]
+fn f9_jit_native_loop_gpr_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f9_jit_native_loop_gpr_reject_smoke.kab"))
+        .expect("f9_jit_native_loop_gpr_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopGprOk") && s.contains("0") && s.contains("16"),
+        "F9 Kab native-loop GPR rejection"
+    );
+}
+
+/// F9 deepen: native i64-loop + graph-color GPR eligibility.
+#[test]
+fn f9_jit_native_loop_col_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop_col.kab")).expect("jit_native_loop_col.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopColOk")
+            && n.contains("jitNativeLoopGprOk")
+            && n.contains("jitColorOk"),
+        "F9 Kab jitNativeLoopColOk"
+    );
+}
+
+/// F9 deepen: native-loop color dual-bind to loopN mmap/exec.
+#[test]
+fn f9_jit_native_loop_col_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f9_jit_native_loop_col_smoke.kab"))
+        .expect("f9_jit_native_loop_col_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopColOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("16"),
+        "F9 Kab native-loop color os_mm dual-bind"
+    );
+}
+
+/// F9 deepen: reject native-loop color when scanned GPRs exceed 16.
+#[test]
+fn f9_jit_native_loop_col_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f9_jit_native_loop_col_reject_smoke.kab"))
+        .expect("f9_jit_native_loop_col_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopColOk") && s.contains("16") && s.contains("8"),
+        "F9 Kab native-loop color rejection"
+    );
+}
+
+/// F9 deepen: native i64-loop + SIMD unbox eligibility.
+#[test]
+fn f9_jit_native_loop_simd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop_simd.kab")).expect("jit_native_loop_simd.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopSimdOk")
+            && n.contains("jitNativeLoopColOk")
+            && n.contains("jitSimdOk"),
+        "F9 Kab jitNativeLoopSimdOk"
+    );
+}
+
+/// F9 deepen: native-loop SIMD dual-bind to loopN mmap/exec.
+#[test]
+fn f9_jit_native_loop_simd_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f9_jit_native_loop_simd_smoke.kab"))
+        .expect("f9_jit_native_loop_simd_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopSimdOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("16"),
+        "F9 Kab native-loop SIMD os_mm dual-bind"
+    );
+}
+
+/// F9 deepen: reject native-loop SIMD when lane is not 16 bytes.
+#[test]
+fn f9_jit_native_loop_simd_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f9_jit_native_loop_simd_reject_smoke.kab"))
+        .expect("f9_jit_native_loop_simd_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopSimdOk") && s.contains("8") && s.contains("16"),
+        "F9 Kab native-loop SIMD rejection"
+    );
+}
+
+/// F9 deepen: native i64-loop + SIMD + nd-add eligibility.
+#[test]
+fn f9_jit_native_loop_nd_add_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop_nd_add.kab")).expect("jit_native_loop_nd_add.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopNdAddOk")
+            && n.contains("jitNativeLoopSimdOk")
+            && n.contains("na != nb"),
+        "F9 Kab jitNativeLoopNdAddOk"
+    );
+}
+
+/// F9 deepen: native-loop nd-add dual-bind to loopN mmap/exec.
+#[test]
+fn f9_jit_native_loop_nd_add_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f9_jit_native_loop_nd_add_smoke.kab"))
+        .expect("f9_jit_native_loop_nd_add_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopNdAddOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("16"),
+        "F9 Kab native-loop nd-add os_mm dual-bind"
+    );
+}
+
+/// F9 deepen: reject native-loop nd-add when vector lengths differ.
+#[test]
+fn f9_jit_native_loop_nd_add_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f9_jit_native_loop_nd_add_reject_smoke.kab"))
+        .expect("f9_jit_native_loop_nd_add_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopNdAddOk") && s.contains("16") && s.contains("8"),
+        "F9 Kab native-loop nd-add rejection"
+    );
+}
+
+/// F9 deepen: native i64-loop + SIMD + nd-dot eligibility.
+#[test]
+fn f9_jit_native_loop_nd_dot_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/jit_native_loop_nd_dot.kab")).expect("jit_native_loop_nd_dot.kab");
+    assert!(
+        n.contains("pub fn jitNativeLoopNdDotOk")
+            && n.contains("jitNativeLoopNdAddOk")
+            && n.contains("nLive < 3"),
+        "F9 Kab jitNativeLoopNdDotOk"
+    );
+}
+
+/// F9 deepen: native-loop nd-dot dual-bind to loopN mmap/exec.
+#[test]
+fn f9_jit_native_loop_nd_dot_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f9_jit_native_loop_nd_dot_smoke.kab"))
+        .expect("f9_jit_native_loop_nd_dot_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopNdDotOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("16"),
+        "F9 Kab native-loop nd-dot os_mm dual-bind"
+    );
+}
+
+/// F9 deepen: reject native-loop nd-dot without an accumulator live.
+#[test]
+fn f9_jit_native_loop_nd_dot_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f9_jit_native_loop_nd_dot_reject_smoke.kab"))
+        .expect("f9_jit_native_loop_nd_dot_reject_smoke.kab");
+    assert!(
+        s.contains("jitNativeLoopNdDotOk") && s.contains("2") && s.contains("16"),
+        "F9 Kab native-loop nd-dot rejection"
+    );
+}
+
+/// F10 deepen: lazy AOT boot + remainder native-loop JIT eligibility.
+#[test]
+fn f10_aot_lazy_native_loop_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/aot_lazy_native_loop.kab")).expect("aot_lazy_native_loop.kab");
+    assert!(
+        n.contains("pub fn aotLazyNativeLoopOk")
+            && n.contains("aotLazyOk")
+            && n.contains("aotLazyJitOk")
+            && n.contains("jitNativeLoopNdDotOk"),
+        "F10 Kab aotLazyNativeLoopOk"
+    );
+}
+
+/// F10 deepen: lazy AOT + native-loop dual-bind to loopN mmap/exec.
+#[test]
+fn f10_aot_lazy_native_loop_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_lazy_native_loop_smoke.kab"))
+        .expect("f10_aot_lazy_native_loop_smoke.kab");
+    assert!(
+        s.contains("aotLazyNativeLoopOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("100")
+            && s.contains("jit"),
+        "F10 Kab lazy AOT native-loop os_mm dual-bind"
+    );
+}
+
+/// F10 deepen: reject lazy AOT native-loop when boot exceeds 100 ms.
+#[test]
+fn f10_aot_lazy_native_loop_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_lazy_native_loop_reject_smoke.kab"))
+        .expect("f10_aot_lazy_native_loop_reject_smoke.kab");
+    assert!(
+        s.contains("aotLazyNativeLoopOk") && s.contains("101") && s.contains("jit"),
+        "F10 Kab lazy AOT native-loop rejection"
+    );
+}
+
+/// F10 deepen: lazy AOT live boot-DAG eligibility.
+#[test]
+fn f10_aot_lazy_boot_dag_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/aot_lazy_boot_dag.kab")).expect("aot_lazy_boot_dag.kab");
+    assert!(
+        n.contains("pub fn aotLazyBootDagOk")
+            && n.contains("aotLazyNativeLoopOk")
+            && n.contains("nBoot")
+            && n.contains("nRest"),
+        "F10 Kab aotLazyBootDagOk"
+    );
+}
+
+/// F10 deepen: live boot-DAG dual-bind to loopN mmap/exec.
+#[test]
+fn f10_aot_lazy_boot_dag_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_lazy_boot_dag_smoke.kab"))
+        .expect("f10_aot_lazy_boot_dag_smoke.kab");
+    assert!(
+        s.contains("aotLazyBootDagOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("nBoot")
+            && s.contains("2"),
+        "F10 Kab lazy AOT boot-DAG os_mm dual-bind"
+    );
+}
+
+/// F10 deepen: reject live boot-DAG when remainder is empty (full-program AOT).
+#[test]
+fn f10_aot_lazy_boot_dag_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_lazy_boot_dag_reject_smoke.kab"))
+        .expect("f10_aot_lazy_boot_dag_reject_smoke.kab");
+    assert!(
+        s.contains("aotLazyBootDagOk") && s.contains("0") && s.contains("8"),
+        "F10 Kab lazy AOT boot-DAG rejection"
+    );
+}
+
+/// F10 deepen: named lazy AOT boot-DAG eligibility.
+#[test]
+fn f10_aot_lazy_boot_dag_named_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/aot_lazy_boot_dag_named.kab")).expect("aot_lazy_boot_dag_named.kab");
+    assert!(
+        n.contains("pub fn aotLazyBootDagNamedOk")
+            && n.contains("aotLazyBootDagOk")
+            && n.contains("bootName"),
+        "F10 Kab aotLazyBootDagNamedOk"
+    );
+}
+
+/// F10 deepen: named boot-DAG dual-bind to loopN mmap/exec.
+#[test]
+fn f10_aot_lazy_boot_dag_named_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_lazy_boot_dag_named_smoke.kab"))
+        .expect("f10_aot_lazy_boot_dag_named_smoke.kab");
+    assert!(
+        s.contains("aotLazyBootDagNamedOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("app"),
+        "F10 Kab lazy AOT named boot-DAG os_mm dual-bind"
+    );
+}
+
+/// F10 deepen: reject named boot-DAG when entry name is the remainder JIT kind.
+#[test]
+fn f10_aot_lazy_boot_dag_named_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_lazy_boot_dag_named_reject_smoke.kab"))
+        .expect("f10_aot_lazy_boot_dag_named_reject_smoke.kab");
+    assert!(
+        s.contains("aotLazyBootDagNamedOk") && s.contains("jit"),
+        "F10 Kab lazy AOT named boot-DAG rejection"
+    );
+}
+
+/// F10 deepen: lazy AOT boot-DAG import-edge eligibility.
+#[test]
+fn f10_aot_lazy_boot_dag_edge_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/aot_lazy_boot_dag_edge.kab")).expect("aot_lazy_boot_dag_edge.kab");
+    assert!(
+        n.contains("pub fn aotLazyBootDagEdgeOk")
+            && n.contains("aotLazyBootDagNamedOk")
+            && n.contains("fromName")
+            && n.contains("toName"),
+        "F10 Kab aotLazyBootDagEdgeOk"
+    );
+}
+
+/// F10 deepen: boot-DAG edge dual-bind to loopN mmap/exec.
+#[test]
+fn f10_aot_lazy_boot_dag_edge_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_lazy_boot_dag_edge_smoke.kab"))
+        .expect("f10_aot_lazy_boot_dag_edge_smoke.kab");
+    assert!(
+        s.contains("aotLazyBootDagEdgeOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("kab/core"),
+        "F10 Kab lazy AOT boot-DAG edge os_mm dual-bind"
+    );
+}
+
+/// F10 deepen: reject boot-DAG edge that does not start at the boot entry.
+#[test]
+fn f10_aot_lazy_boot_dag_edge_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_lazy_boot_dag_edge_reject_smoke.kab"))
+        .expect("f10_aot_lazy_boot_dag_edge_reject_smoke.kab");
+    assert!(
+        s.contains("aotLazyBootDagEdgeOk") && s.contains("lib") && s.contains("app"),
+        "F10 Kab lazy AOT boot-DAG edge rejection"
+    );
+}
+
+/// F10 deepen: lazy AOT boot-DAG acyclic eligibility.
+#[test]
+fn f10_aot_lazy_boot_dag_acyclic_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/aot_lazy_boot_dag_acyclic.kab")).expect("aot_lazy_boot_dag_acyclic.kab");
+    assert!(
+        n.contains("pub fn aotLazyBootDagAcyclicOk")
+            && n.contains("aotLazyBootDagEdgeOk")
+            && n.contains("backFrom")
+            && n.contains("backTo"),
+        "F10 Kab aotLazyBootDagAcyclicOk"
+    );
+}
+
+/// F10 deepen: acyclic boot-DAG dual-bind to loopN mmap/exec.
+#[test]
+fn f10_aot_lazy_boot_dag_acyclic_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_lazy_boot_dag_acyclic_smoke.kab"))
+        .expect("f10_aot_lazy_boot_dag_acyclic_smoke.kab");
+    assert!(
+        s.contains("aotLazyBootDagAcyclicOk")
+            && s.contains("jitCallLoopNOk")
+            && s.contains("os_mm_mmap")
+            && s.contains("kab/io"),
+        "F10 Kab lazy AOT acyclic boot-DAG os_mm dual-bind"
+    );
+}
+
+/// F10 deepen: reject boot-DAG when a reverse import edge is present.
+#[test]
+fn f10_aot_lazy_boot_dag_acyclic_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f10_aot_lazy_boot_dag_acyclic_reject_smoke.kab"))
+        .expect("f10_aot_lazy_boot_dag_acyclic_reject_smoke.kab");
+    assert!(
+        s.contains("aotLazyBootDagAcyclicOk") && s.contains("kab/core") && s.contains("app"),
+        "F10 Kab lazy AOT acyclic boot-DAG rejection"
+    );
+}
+
+/// F11 deepen: TLAB nursery collect eligibility (do not grow gc_host.kab).
+#[test]
+fn f11_gc_tlab_nursery_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/gc_tlab_nursery.kab")).expect("gc_tlab_nursery.kab");
+    assert!(
+        n.contains("pub fn gcTlabNurseryOk")
+            && n.contains("tlabOk")
+            && n.contains("tlabPromoteOk")
+            && n.contains("gcNeedCollect"),
+        "F11 Kab gcTlabNurseryOk"
+    );
+}
+
+/// F11 deepen: TLAB nursery dual-bind to host-GC delete gate (still false).
+#[test]
+fn f11_gc_tlab_nursery_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f11_gc_tlab_nursery_smoke.kab"))
+        .expect("f11_gc_tlab_nursery_smoke.kab");
+    assert!(
+        s.contains("gcTlabNurseryOk")
+            && s.contains("gcHostDeleteOk")
+            && s.contains("gcNurseryCap")
+            && s.contains("2"),
+        "F11 Kab TLAB nursery dual-bind"
+    );
+}
+
+/// F11 deepen: reject TLAB nursery collect on a single worker.
+#[test]
+fn f11_gc_tlab_nursery_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f11_gc_tlab_nursery_reject_smoke.kab"))
+        .expect("f11_gc_tlab_nursery_reject_smoke.kab");
+    assert!(
+        s.contains("gcTlabNurseryOk") && s.contains("1"),
+        "F11 Kab TLAB nursery rejection"
+    );
+}
+
+/// F11 deepen: TLAB promote pause stays on the 16 ms frame budget.
+#[test]
+fn f11_gc_tlab_pause_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/gc_tlab_pause.kab")).expect("gc_tlab_pause.kab");
+    assert!(
+        n.contains("pub fn gcTlabPauseOk")
+            && n.contains("gcTlabNurseryOk")
+            && n.contains("gcFrameBudgetMs"),
+        "F11 Kab gcTlabPauseOk"
+    );
+}
+
+/// F11 deepen: TLAB pause dual-bind to host-GC delete gate (still false).
+#[test]
+fn f11_gc_tlab_pause_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f11_gc_tlab_pause_smoke.kab"))
+        .expect("f11_gc_tlab_pause_smoke.kab");
+    assert!(
+        s.contains("gcTlabPauseOk")
+            && s.contains("gcHostDeleteOk")
+            && s.contains("gcFrameBudgetMs")
+            && s.contains("gcNurseryCap"),
+        "F11 Kab TLAB pause dual-bind"
+    );
+}
+
+/// F11 deepen: reject TLAB pause when histogram is not the frame budget.
+#[test]
+fn f11_gc_tlab_pause_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f11_gc_tlab_pause_reject_smoke.kab"))
+        .expect("f11_gc_tlab_pause_reject_smoke.kab");
+    assert!(
+        s.contains("gcTlabPauseOk") && s.contains("0"),
+        "F11 Kab TLAB pause rejection"
+    );
+}
+
+/// F11 deepen: TLAB pause plus host-GC drop gate (still false).
+#[test]
+fn f11_gc_tlab_host_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/gc_tlab_host.kab")).expect("gc_tlab_host.kab");
+    assert!(
+        n.contains("pub fn gcTlabHostDropOk")
+            && n.contains("gcTlabPauseOk")
+            && n.contains("gcHostDeleteOk"),
+        "F11 Kab gcTlabHostDropOk"
+    );
+}
+
+/// F11 deepen: TLAB host-drop dual-bind to host-GC delete gate (still false).
+#[test]
+fn f11_gc_tlab_host_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f11_gc_tlab_host_smoke.kab"))
+        .expect("f11_gc_tlab_host_smoke.kab");
+    assert!(
+        s.contains("gcTlabHostDropOk")
+            && s.contains("gcHostDeleteOk")
+            && s.contains("gcFrameBudgetMs")
+            && s.contains("gcNurseryCap"),
+        "F11 Kab TLAB host-drop dual-bind"
+    );
+}
+
+/// F11 deepen: reject claiming host GC can be dropped.
+#[test]
+fn f11_gc_tlab_host_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f11_gc_tlab_host_reject_smoke.kab"))
+        .expect("f11_gc_tlab_host_reject_smoke.kab");
+    assert!(
+        s.contains("gcTlabHostDropOk") && s.contains("true"),
+        "F11 Kab TLAB host-drop rejection"
+    );
+}
+
+/// F12 deepen: @manual release skips move/bounds checks (debug only).
+#[test]
+fn f12_esc_manual_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/esc_manual.kab")).expect("esc_manual.kab");
+    assert!(
+        n.contains("pub fn escManualReleaseOk")
+            && n.contains("escFitsFrame")
+            && n.contains("debugChecks"),
+        "F12 Kab escManualReleaseOk"
+    );
+}
+
+/// F12 deepen: @manual release dual-bind to stackalloc frame fit.
+#[test]
+fn f12_esc_manual_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f12_esc_manual_smoke.kab"))
+        .expect("f12_esc_manual_smoke.kab");
+    assert!(
+        s.contains("escManualReleaseOk") && s.contains("escFitsFrame") && s.contains("8"),
+        "F12 Kab @manual release dual-bind"
+    );
+}
+
+/// F12 deepen: reject @manual release when debug checks are on.
+#[test]
+fn f12_esc_manual_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f12_esc_manual_reject_smoke.kab"))
+        .expect("f12_esc_manual_reject_smoke.kab");
+    assert!(
+        s.contains("escManualReleaseOk") && s.contains("true"),
+        "F12 Kab @manual release rejection"
+    );
+}
+
+/// F13 deepen: parallel compile workers (≥2, same as TLAB).
+#[test]
+fn f13_work_par_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/work.kab")).expect("work.kab");
+    assert!(
+        n.contains("pub fn workParOk")
+            && n.contains("escManualReleaseOk")
+            && n.contains("tlabOk"),
+        "F13 Kab workParOk"
+    );
+}
+
+/// F13 deepen: workers dual-bind to @manual release and TLAB.
+#[test]
+fn f13_work_par_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f13_work_par_smoke.kab"))
+        .expect("f13_work_par_smoke.kab");
+    assert!(
+        s.contains("workParOk")
+            && s.contains("tlabOk")
+            && s.contains("escManualReleaseOk")
+            && s.contains("2"),
+        "F13 Kab workers dual-bind"
+    );
+}
+
+/// F13 deepen: reject a single compile worker.
+#[test]
+fn f13_work_par_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f13_work_par_reject_smoke.kab"))
+        .expect("f13_work_par_reject_smoke.kab");
+    assert!(
+        s.contains("workParOk") && s.contains("1"),
+        "F13 Kab workers rejection"
+    );
+}
+
+/// F14 deepen: workers plus host-HTTP drop gate (still false).
+#[test]
+fn f14_http_work_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/http_work.kab")).expect("http_work.kab");
+    assert!(
+        n.contains("pub fn httpWorkDropOk")
+            && n.contains("workParOk")
+            && n.contains("httpHostDeleteOk"),
+        "F14 Kab httpWorkDropOk"
+    );
+}
+
+/// F14 deepen: host-HTTP drop dual-bind to workers (still false).
+#[test]
+fn f14_http_work_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f14_http_work_smoke.kab"))
+        .expect("f14_http_work_smoke.kab");
+    assert!(
+        s.contains("httpWorkDropOk")
+            && s.contains("httpHostDeleteOk")
+            && s.contains("workParOk"),
+        "F14 Kab host-HTTP drop dual-bind"
+    );
+}
+
+/// F14 deepen: reject claiming host HTTP can be dropped.
+#[test]
+fn f14_http_work_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/f14_http_work_reject_smoke.kab"))
+        .expect("f14_http_work_reject_smoke.kab");
+    assert!(
+        s.contains("httpWorkDropOk") && s.contains("true"),
+        "F14 Kab host-HTTP drop rejection"
     );
 }
 

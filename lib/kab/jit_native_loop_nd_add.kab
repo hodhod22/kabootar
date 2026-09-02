@@ -1,0 +1,20 @@
+// F9 deepen: native i64-loop + SIMD + nd-add (unboxed). import "kab/jit_native_loop_nd_add"
+// Do not grow jit_native_loop_simd.kab. Equal vector lens; no boxed push-loop.
+
+import "kab/jit_native_loop_simd"
+
+pub fn jitNativeLoopNdAddOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb) {
+    if jitNativeLoopSimdOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n) == false {
+        return false
+    }
+    if na <= 0 {
+        return false
+    }
+    if na != nb {
+        return false
+    }
+    if na != n {
+        return false
+    }
+    return true
+}

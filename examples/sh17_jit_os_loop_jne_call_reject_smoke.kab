@@ -1,0 +1,8 @@
+import "kab/jit_loop_jne"
+import "kab/jit_call_loop_jne"
+
+let kind = "rwx"
+let n = 12
+let k = 0
+let tpl = jitEmitI64LoopJneN(8, 12)
+return jitCallLoopJneOk(589824, kind, n, k, tpl) == false

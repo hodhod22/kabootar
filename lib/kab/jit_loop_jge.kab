@@ -1,0 +1,56 @@
+// SH17 deepen: i64 loopN + jge template. import "kab/jit_loop_jge"
+// Do not grow jit_loop_jg.kab. Magic 98 + n + k + ret; os_mm_call returns 1 iff n>=k.
+
+import "kab/jit_loop_n"
+
+pub fn jitLoopJgeKMax() {
+    return 64
+}
+
+pub fn jitLoopJgeKOk(k) {
+    if k <= 0 {
+        return false
+    }
+    if k > jitLoopJgeKMax() {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopJgeOk(n, k) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if jitLoopJgeKOk(k) == false {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopJgeRax(n, k) {
+    if n > k {
+        return 1
+    }
+    if n == k {
+        return 1
+    }
+    return 0
+}
+
+pub fn jitLoopJgeLen() {
+    return jitLoopNLen()
+}
+
+/// Loop marker 98, count n, rhs k, pad, ret — simulated guest rax=1 iff n>=k (jge taken).
+pub fn jitEmitI64LoopJgeN(n, k) {
+    let b = []
+    b = push(b, 98)
+    b = push(b, n)
+    b = push(b, k)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

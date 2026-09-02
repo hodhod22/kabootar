@@ -1,0 +1,11 @@
+import "kab/gc_host"
+import "kab/gc_tlab_host"
+import "kab/gc"
+
+if gcHostDeleteOk() != false {
+    return false
+}
+if gcTlabHostDropOk(2, 65536, gcNurseryCap(), gcFrameBudgetMs(), false) != true {
+    return false
+}
+return gcHostDeleteOk() == false

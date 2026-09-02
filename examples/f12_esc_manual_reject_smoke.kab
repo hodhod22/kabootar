@@ -1,0 +1,3 @@
+import "kab/esc_manual"
+
+return escManualReleaseOk(8, true, true) == false

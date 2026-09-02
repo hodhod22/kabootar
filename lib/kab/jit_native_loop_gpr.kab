@@ -1,0 +1,19 @@
+// F9 deepen: native i64-loop + linear-scan GPRs. import "kab/jit_native_loop_gpr"
+// Do not grow jit_gpr.kab or jit_native_loop_tco_self.kab.
+
+import "kab/jit_native_loop_tco_self"
+import "kab/jit_gpr"
+
+pub fn jitNativeLoopGprOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, n) {
+    if jitNativeLoopTcoSelfOk(nPhi, nInv, nDup, nGuard, kind, marked, same, n) == false {
+        return false
+    }
+    if nLive <= 0 {
+        return false
+    }
+    let gprs = jitScanGprs(nLive)
+    if gprs != nLive + 1 {
+        return false
+    }
+    return true
+}

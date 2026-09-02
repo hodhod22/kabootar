@@ -449,6 +449,132 @@ fn d2_os_mm_call_loop_ge_after_store() {
 }
 
 #[test]
+fn d2_os_mm_call_loop_test_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 573440, 4096, 7);
+        let tpl = [91, 12, 5, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 573440, tpl);
+        let r = os_mm_call(1, 573440);
+        base == 573440 && n == 8 && r == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_loop_je_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 581632, 4096, 7);
+        let tpl = [92, 12, 12, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 581632, tpl);
+        let r = os_mm_call(1, 581632);
+        base == 581632 && n == 8 && r == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_loop_jne_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 589824, 4096, 7);
+        let tpl = [93, 12, 10, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 589824, tpl);
+        let r = os_mm_call(1, 589824);
+        base == 589824 && n == 8 && r == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_loop_jmp_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 598016, 4096, 7);
+        let tpl = [94, 12, 12, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 598016, tpl);
+        let r = os_mm_call(1, 598016);
+        base == 598016 && n == 8 && r == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_loop_jl_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 606208, 4096, 7);
+        let tpl = [95, 10, 12, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 606208, tpl);
+        let r = os_mm_call(1, 606208);
+        base == 606208 && n == 8 && r == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_loop_jle_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 614400, 4096, 7);
+        let tpl = [96, 12, 12, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 614400, tpl);
+        let r = os_mm_call(1, 614400);
+        base == 614400 && n == 8 && r == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_loop_jg_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 622592, 4096, 7);
+        let tpl = [97, 12, 10, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 622592, tpl);
+        let r = os_mm_call(1, 622592);
+        base == 622592 && n == 8 && r == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_loop_jge_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 630784, 4096, 7);
+        let tpl = [98, 12, 12, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 630784, tpl);
+        let r = os_mm_call(1, 630784);
+        base == 630784 && n == 8 && r == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
+fn d2_os_mm_call_loop_nop_after_store() {
+    let out = eval(
+        r#"
+        let base = os_mm_mmap(1, 638976, 4096, 7);
+        let tpl = [99, 12, 12, 0, 0, 0, 0, 195];
+        let n = os_mm_store(1, 638976, tpl);
+        let r = os_mm_call(1, 638976);
+        base == 638976 && n == 8 && r == 1
+        "#,
+    );
+    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+}
+
+#[test]
 fn process_threads_signals_jobs() {
     let tid = eval("os_thread_spawn(1, \"worker\")");
     assert!(matches!(tid, Value::Number(n) if n > 0));

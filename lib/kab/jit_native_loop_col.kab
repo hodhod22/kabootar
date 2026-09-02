@@ -1,0 +1,17 @@
+// F9 deepen: native i64-loop + linear-scan + graph-color GPRs. import "kab/jit_native_loop_col"
+// Do not grow jit_native_loop_gpr.kab. Colored GPR count must fit 16.
+
+import "kab/jit_native_loop_gpr"
+import "kab/jit_col"
+import "kab/jit_gpr"
+
+pub fn jitNativeLoopColOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, n) {
+    if jitNativeLoopGprOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, n) == false {
+        return false
+    }
+    let gprs = jitScanGprs(nLive)
+    if jitColorOk(gprs) == false {
+        return false
+    }
+    return true
+}

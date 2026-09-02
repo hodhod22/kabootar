@@ -1,0 +1,3 @@
+import "kab/jit_native_loop_spec"
+
+return jitNativeLoopSpecOk(1, 1, 1, 1, "f64", 16) == false

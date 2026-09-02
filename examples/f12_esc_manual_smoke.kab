@@ -1,0 +1,6 @@
+import "kab/esc_manual"
+
+if escManualReleaseOk(8, true, false) != true {
+    return false
+}
+return escFitsFrame(8) == true

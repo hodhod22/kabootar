@@ -1,0 +1,18 @@
+// SH17 deepen: guest store for loop-jne template. import "kab/jit_mm_store_loop_jne"
+// Do not grow jit_mm_store_loop_je.kab.
+
+import "kab/jit_mm_loop_jne"
+import "kab/jit_loop_jne"
+
+pub fn jitMmStoreLoopJne(bytes, n, k) {
+    if jitLoopJneOk(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopJneLen() {
+        return 0
+    }
+    let pid = jitMmLoopJnePid()
+    let virt = jitMmLoopJneVirt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

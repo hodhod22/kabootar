@@ -1,0 +1,21 @@
+// SH17 deepen: guest call for loop-nop template. import "kab/jit_mm_call_loop_nop"
+// Do not grow jit_mm_call_loop_jge.kab.
+
+import "kab/jit_mm_loop_nop"
+import "kab/jit_loop_nop"
+
+pub fn jitMmCallLoopNop(bytes, n, k) {
+    if jitLoopNopOk(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopNopLen() {
+        return 0
+    }
+    let pid = jitMmLoopNopPid()
+    let virt = jitMmLoopNopVirt()
+    let rax = os_mm_call(pid, virt)
+    if rax != jitLoopNopRax(n, k) {
+        return 0
+    }
+    return rax
+}

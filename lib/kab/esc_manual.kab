@@ -1,0 +1,17 @@
+// F12 deepen: @manual release has zero move/bounds checks. import "kab/esc_manual"
+// Do not grow esc.kab. Use-after-move stays debug-only.
+
+import "kab/esc"
+
+pub fn escManualReleaseOk(n, isManual, debugChecks) {
+    if escFitsFrame(n) == false {
+        return false
+    }
+    if isManual == false {
+        return false
+    }
+    if debugChecks != false {
+        return false
+    }
+    return true
+}

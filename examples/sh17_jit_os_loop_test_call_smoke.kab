@@ -1,0 +1,10 @@
+import "kab/jit_loop_test"
+import "kab/jit_mm_loop_test"
+import "kab/jit_call_loop_test"
+
+let kind = "rwx"
+let n = 12
+let k = 5
+let tpl = jitEmitI64LoopTestN(n, k)
+let base = os_mm_mmap(jitMmLoopTestPid(), jitMmLoopTestVirt(), jitMmLoopTestLen(), jitMmLoopTestProt())
+return jitCallLoopTestOk(base, kind, n, k, tpl)

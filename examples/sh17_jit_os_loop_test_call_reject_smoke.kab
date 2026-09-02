@@ -1,0 +1,8 @@
+import "kab/jit_loop_test"
+import "kab/jit_call_loop_test"
+
+let kind = "rwx"
+let n = 12
+let k = 0
+let tpl = jitEmitI64LoopTestN(8, 12)
+return jitCallLoopTestOk(573440, kind, n, k, tpl) == false

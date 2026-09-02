@@ -1,0 +1,23 @@
+// F10 deepen: lazy AOT boot-DAG import edge. import "kab/aot_lazy_boot_dag_edge"
+// Do not grow aot_lazy_boot_dag_named.kab. Edge must start at boot entry.
+
+import "kab/aot_lazy_boot_dag_named"
+
+pub fn aotLazyBootDagEdgeOk(ms, remKind, nHits, nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb, nBoot, nRest, nMods, bootName, fromName, toName) {
+    if aotLazyBootDagNamedOk(ms, remKind, nHits, nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb, nBoot, nRest, nMods, bootName) == false {
+        return false
+    }
+    if fromName != bootName {
+        return false
+    }
+    if len(toName) == 0 {
+        return false
+    }
+    if toName == remKind {
+        return false
+    }
+    if toName == fromName {
+        return false
+    }
+    return true
+}

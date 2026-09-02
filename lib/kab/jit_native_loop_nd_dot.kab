@@ -1,0 +1,14 @@
+// F9 deepen: native i64-loop + SIMD + nd-dot (unboxed). import "kab/jit_native_loop_nd_dot"
+// Do not grow jit_native_loop_nd_add.kab. Same lens as nd-add; extra live for acc.
+
+import "kab/jit_native_loop_nd_add"
+
+pub fn jitNativeLoopNdDotOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb) {
+    if jitNativeLoopNdAddOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb) == false {
+        return false
+    }
+    if nLive < 3 {
+        return false
+    }
+    return true
+}

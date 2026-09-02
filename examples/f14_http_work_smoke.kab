@@ -1,0 +1,14 @@
+import "kab/http_host"
+import "kab/http_work"
+import "kab/work"
+
+if httpHostDeleteOk() != false {
+    return false
+}
+if httpWorkDropOk(8, true, false, 2, false) != true {
+    return false
+}
+if workParOk(8, true, false, 2) != true {
+    return false
+}
+return httpHostDeleteOk() == false

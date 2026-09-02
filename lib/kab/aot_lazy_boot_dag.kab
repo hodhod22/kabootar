@@ -1,0 +1,23 @@
+// F10 deepen: lazy AOT live boot-DAG. import "kab/aot_lazy_boot_dag"
+// Do not grow aot_lazy_native_loop.kab. Boot modules AOT; remainder JIT; closed DAG.
+
+import "kab/aot_lazy_native_loop"
+
+pub fn aotLazyBootDagOk(ms, remKind, nHits, nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb, nBoot, nRest, nMods) {
+    if aotLazyNativeLoopOk(ms, remKind, nHits, nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb) == false {
+        return false
+    }
+    if nBoot <= 0 {
+        return false
+    }
+    if nRest <= 0 {
+        return false
+    }
+    if nBoot + nRest != nMods {
+        return false
+    }
+    if nBoot > 8 {
+        return false
+    }
+    return true
+}

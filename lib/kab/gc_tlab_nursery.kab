@@ -1,0 +1,19 @@
+// F11 deepen: TLAB nursery collect. import "kab/gc_tlab_nursery"
+// Do not grow tlab_prom.kab or gc_host.kab. Workers + full TLAB → collect; host delete stays false.
+
+import "kab/tlab"
+import "kab/tlab_prom"
+import "kab/gc"
+
+pub fn gcTlabNurseryOk(workers, used, cap) {
+    if tlabOk(workers) == false {
+        return false
+    }
+    if tlabPromoteOk(used, cap) == false {
+        return false
+    }
+    if gcNeedCollect(used, cap) == false {
+        return false
+    }
+    return true
+}

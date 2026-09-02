@@ -1,0 +1,15 @@
+// F13 deepen: parallel compile workers. import "kab/work"
+// Do not grow esc_manual.kab or tlab.kab. Need ≥2 workers (same as TLAB).
+
+import "kab/esc_manual"
+import "kab/tlab"
+
+pub fn workParOk(n, isManual, debugChecks, workers) {
+    if escManualReleaseOk(n, isManual, debugChecks) == false {
+        return false
+    }
+    if tlabOk(workers) == false {
+        return false
+    }
+    return true
+}

@@ -682,7 +682,18 @@ pub fn vCloseGeneratorS(S, g, ordered, pool, globals, functions) {
             } else {
                 if del != null {
                     if del != undefined {
-                        let rRet = vCallIterReturnS(S, del, pool, globals, functions, ordered)
+                        let rRet = null
+                        let retErr = null
+                        try {
+                            rRet = vCallIterReturnS(S, del, pool, globals, functions, ordered)
+                        } catch (eRet) {
+                            retErr = eRet
+                        }
+                        if retErr != null {
+                            g["ysdel"] = null
+                            g["closing"] = 0
+                            return vThrowGeneratorS(S, g, [retErr], pool, globals, functions)
+                        }
                         let wrapR = vObjGet(del, "__kab_iter_delegate")
                         let delR = del
                         if wrapR != undefined {
@@ -1001,12 +1012,31 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
                             reason0 = ordered[0]
                         }
                         if vObjGet(th, "vmFn") != undefined {
-                            S["curGen"] = oldCg
-                            return vFinishIterThrowS(S, g, vCallBoundIterFnS(S, del, th, [reason0], pool, globals, functions), pool, globals, functions)
-                        }
-                        if vObjGet(th, "vmArrow") != undefined {
-                            S["curGen"] = oldCg
-                            return vFinishIterThrowS(S, g, vCallBoundIterFnS(S, del, th, [reason0], pool, globals, functions), pool, globals, functions)
+                            let rThFn = null
+                            try {
+                                rThFn = vFinishIterThrowS(S, g, vCallBoundIterFnS(S, del, th, [reason0], pool, globals, functions), pool, globals, functions)
+                            } catch (eThFn) {
+                                delErr = eThFn
+                            }
+                            if delErr == null {
+                                S["curGen"] = oldCg
+                                return rThFn
+                            }
+                            g["ysdel"] = null
+                        } else {
+                            if vObjGet(th, "vmArrow") != undefined {
+                                let rThAr = null
+                                try {
+                                    rThAr = vFinishIterThrowS(S, g, vCallBoundIterFnS(S, del, th, [reason0], pool, globals, functions), pool, globals, functions)
+                                } catch (eThAr) {
+                                    delErr = eThAr
+                                }
+                                if delErr == null {
+                                    S["curGen"] = oldCg
+                                    return rThAr
+                                }
+                                g["ysdel"] = null
+                            }
                         }
                     }
                 }
