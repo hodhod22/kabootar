@@ -161,7 +161,7 @@ impl MemorySubsystem {
         Ok(out)
     }
 
-    /// Simulate guest call: inc+ret → 1; magic L arith; M–T bit/shift/unary; U eq; V ne; W lt.
+    /// Simulate guest call: inc+ret → 1; magic L arith; M–T bit/shift/unary; U–Z cmp; [ test; \\ je.
     pub fn call_at(&mut self, pid: u64, virt: u64) -> Result<i64, String> {
         let entry = self.vmm.entry(pid, virt)?;
         if entry.perms & 4 == 0 {
@@ -295,6 +295,69 @@ impl MemorySubsystem {
             let k = bytes8[2];
             if (1..=64).contains(&n) && (1..=64).contains(&k) {
                 return Ok(if n >= k { 1 } else { 0 });
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 91 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(if (n as i64) & (k as i64) != 0 { 1 } else { 0 });
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 92 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(if n == k { 1 } else { 0 });
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 93 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(if n != k { 1 } else { 0 });
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 94 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(1);
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 95 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(if n < k { 1 } else { 0 });
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 96 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(if n <= k { 1 } else { 0 });
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 97 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(if n > k { 1 } else { 0 });
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 98 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(if n >= k { 1 } else { 0 });
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 99 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(1);
             }
         }
         Err("os_mm_call: unknown guest entry".into())

@@ -1,0 +1,3 @@
+import "kab/jit_native_loop_tco_self"
+
+return jitNativeLoopTcoSelfOk(1, 1, 1, 1, "i64", true, false, 16) == false

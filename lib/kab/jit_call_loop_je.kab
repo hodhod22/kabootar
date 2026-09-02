@@ -1,0 +1,24 @@
+// SH17 deepen: loop-je wr+run+call pipeline. import "kab/jit_call_loop_je"
+// Do not grow jit_call_loop_test.kab.
+
+import "kab/jit_wr_loop_je"
+import "kab/jit_run_loop_je"
+import "kab/jit_mm_call_loop_je"
+import "kab/jit_loop_je"
+
+pub fn jitCallLoopJeOk(base, kind, n, k, bytes) {
+    if jitLoopJeOk(n, k) == false {
+        return false
+    }
+    if jitWrLoopJeOk(bytes, n, k) == false {
+        return false
+    }
+    if jitRunLoopJeOk(base, kind, bytes, n, k) == false {
+        return false
+    }
+    let rax = jitMmCallLoopJe(bytes, n, k)
+    if rax != jitLoopJeRax(n, k) {
+        return false
+    }
+    return true
+}

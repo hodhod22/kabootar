@@ -1,0 +1,3 @@
+import "kab/jit_native_loop_deopt"
+
+return jitNativeLoopDeoptOk(1, 1, 1, 0, 16) == false

@@ -1,0 +1,30 @@
+// SH17 deepen: mmap+exec policy for loop-test template. import "kab/jit_run_loop_test"
+// Do not grow jit_run_loop_ge.kab.
+
+import "kab/jit_mmap_loop"
+import "kab/jit_np"
+import "kab/jit_exec"
+import "kab/jit_mm_loop_test"
+import "kab/jit_patch_loop_test"
+import "kab/jit_loop_test"
+
+pub fn jitRunLoopTestOk(base, kind, bytes, n, k) {
+    if base <= 0 {
+        return false
+    }
+    if jitPatchLoopTestOk(bytes, n, k) == false {
+        return false
+    }
+    let nb = len(bytes)
+    if jitMmapLoopOk(nb, kind) == false {
+        return false
+    }
+    if jitOsMmapLoopTestOk(nb, kind, n, k) == false {
+        return false
+    }
+    let pages = jitPagesFor(nb)
+    if jitExecOk(pages, kind) == false {
+        return false
+    }
+    return true
+}

@@ -1,0 +1,24 @@
+import "kab/jit_native_loop_nd_dot"
+import "kab/jit_loop_n"
+import "kab/jit_mm_loop_n"
+import "kab/jit_call_loop_n"
+
+let nPhi = 1
+let nInv = 1
+let nDup = 1
+let nGuard = 1
+let kind = "i64"
+let marked = true
+let same = true
+let nLive = 3
+let nBytes = 16
+let n = 16
+let na = 16
+let nb = 16
+if jitNativeLoopNdDotOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb) == false {
+    return false
+}
+let rwx = "rwx"
+let tpl = jitEmitI64LoopN(n)
+let base = os_mm_mmap(jitMmLoopNPid(), jitMmLoopNVirt(), jitMmLoopNLen(), jitMmLoopNProt())
+return jitCallLoopNOk(base, rwx, n, tpl)

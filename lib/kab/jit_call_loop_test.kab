@@ -1,0 +1,24 @@
+// SH17 deepen: loop-test wr+run+call pipeline. import "kab/jit_call_loop_test"
+// Do not grow jit_call_loop_ge.kab.
+
+import "kab/jit_wr_loop_test"
+import "kab/jit_run_loop_test"
+import "kab/jit_mm_call_loop_test"
+import "kab/jit_loop_test"
+
+pub fn jitCallLoopTestOk(base, kind, n, k, bytes) {
+    if jitLoopTestOk(n, k) == false {
+        return false
+    }
+    if jitWrLoopTestOk(bytes, n, k) == false {
+        return false
+    }
+    if jitRunLoopTestOk(base, kind, bytes, n, k) == false {
+        return false
+    }
+    let rax = jitMmCallLoopTest(bytes, n, k)
+    if rax != jitLoopTestRax(n, k) {
+        return false
+    }
+    return true
+}

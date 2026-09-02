@@ -1,0 +1,15 @@
+// F8 deepen: native i64-loop + spec + TCO opt-in. import "kab/jit_native_loop_tco"
+// Do not grow jit_native_loop_spec.kab. @tail required; not silent TCO on all CALL.
+
+import "kab/jit_native_loop_spec"
+import "kab/jit_tco"
+
+pub fn jitNativeLoopTcoOk(nPhi, nInv, nDup, nGuard, kind, marked, n) {
+    if jitNativeLoopSpecOk(nPhi, nInv, nDup, nGuard, kind, n) == false {
+        return false
+    }
+    if jitTcoOk(marked) == false {
+        return false
+    }
+    return true
+}

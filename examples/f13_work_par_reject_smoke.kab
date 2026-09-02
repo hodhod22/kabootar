@@ -1,0 +1,3 @@
+import "kab/work"
+
+return workParOk(8, true, false, 1) == false

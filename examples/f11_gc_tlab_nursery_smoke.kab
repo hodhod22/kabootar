@@ -1,0 +1,11 @@
+import "kab/gc_host"
+import "kab/gc_tlab_nursery"
+import "kab/gc"
+
+if gcHostDeleteOk() != false {
+    return false
+}
+if gcTlabNurseryOk(2, 65536, gcNurseryCap()) != true {
+    return false
+}
+return gcHostDeleteOk() == false

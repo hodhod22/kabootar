@@ -1,0 +1,19 @@
+import "kab/jit_native_loop_tco"
+import "kab/jit_loop_n"
+import "kab/jit_mm_loop_n"
+import "kab/jit_call_loop_n"
+
+let nPhi = 1
+let nInv = 1
+let nDup = 1
+let nGuard = 1
+let kind = "i64"
+let marked = true
+let n = 16
+if jitNativeLoopTcoOk(nPhi, nInv, nDup, nGuard, kind, marked, n) == false {
+    return false
+}
+let rwx = "rwx"
+let tpl = jitEmitI64LoopN(n)
+let base = os_mm_mmap(jitMmLoopNPid(), jitMmLoopNVirt(), jitMmLoopNLen(), jitMmLoopNProt())
+return jitCallLoopNOk(base, rwx, n, tpl)

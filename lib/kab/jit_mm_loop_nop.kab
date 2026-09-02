@@ -1,0 +1,39 @@
+// SH17 deepen: loop-nop guest mmap args. import "kab/jit_mm_loop_nop"
+// Do not grow jit_mm_loop_jge.kab. Separate virt slot from loop-jge.
+
+import "kab/jit_loop_nop"
+
+pub fn jitMmLoopNopPid() {
+    return 1
+}
+
+pub fn jitMmLoopNopVirt() {
+    return 638976
+}
+
+pub fn jitMmLoopNopLen() {
+    return 4096
+}
+
+pub fn jitMmLoopNopProt() {
+    return 7
+}
+
+pub fn jitOsMmapLoopNopOk(nBytes, kind, n, k) {
+    if jitLoopNopOk(n, k) == false {
+        return false
+    }
+    if nBytes != jitLoopNopLen() {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    if jitMmLoopNopLen() != 4096 {
+        return false
+    }
+    if jitMmLoopNopProt() != 7 {
+        return false
+    }
+    return true
+}

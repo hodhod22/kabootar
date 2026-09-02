@@ -1,0 +1,11 @@
+import "kab/work"
+import "kab/tlab"
+import "kab/esc_manual"
+
+if tlabOk(2) != true {
+    return false
+}
+if workParOk(8, true, false, 2) != true {
+    return false
+}
+return escManualReleaseOk(8, true, false) == true
