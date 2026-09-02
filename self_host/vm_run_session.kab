@@ -267,6 +267,8 @@ pub fn vSyncGenRecvS(g) {
                 rg["ysdel"] = g["ysdel"]
                 rg["done"] = g["done"]
                 rg["started"] = g["started"]
+                rg["closing"] = g["closing"]
+                rg["closeRet"] = g["closeRet"]
             }
         }
     }
@@ -281,6 +283,8 @@ pub fn vSyncGenRecvS(g) {
                 rr["ysdel"] = g["ysdel"]
                 rr["done"] = g["done"]
                 rr["started"] = g["started"]
+                rr["closing"] = g["closing"]
+                rr["closeRet"] = g["closeRet"]
             }
         }
     }
@@ -295,6 +299,8 @@ pub fn vSyncGenRecvS(g) {
                 tr["ysdel"] = g["ysdel"]
                 tr["done"] = g["done"]
                 tr["started"] = g["started"]
+                tr["closing"] = g["closing"]
+                tr["closeRet"] = g["closeRet"]
             }
         }
     }
@@ -360,6 +366,43 @@ pub fn vPublishGenS(S, g) {
     vHeapPut(S, g)
     vRetargetGenMethodsS(g, g)
     return
+}
+
+pub fn vMarkGenClosingS(S, g, retV) {
+    let nid = vInstId(g)
+    if nid == undefined {
+        vPublishGenS(S, g)
+        nid = vInstId(g)
+    }
+    let m = S["genClose"]
+    if m == undefined {
+        m = {}
+    }
+    m["" + nid] = { "c": 1, "v": retV }
+    S["genClose"] = m
+    g["closing"] = 1
+    g["closeRet"] = retV
+    return
+}
+
+pub fn vApplyGenClosingS(S, g) {
+    let nid = vInstId(g)
+    let m = S["genClose"]
+    if m == undefined {
+        return g
+    }
+    if nid == undefined {
+        return g
+    }
+    let e = m["" + nid]
+    if e == undefined {
+        return g
+    }
+    if e["c"] == 1 {
+        g["closing"] = 1
+        g["closeRet"] = e["v"]
+    }
+    return g
 }
 
 /// Copy generator frame into S. Do not assign tryRegions here — that breaks yield pause on .next().
@@ -530,6 +573,7 @@ pub fn vRunFinallyThenCloseS(S, g, finR, retV, pool, globals, functions) {
         g["stack"] = S["stack"]
         if g["closing"] == 1 {
             g["closeRet"] = retV
+            vMarkGenClosingS(S, g, retV)
         }
         vSyncGenRecvS(g)
         vPublishGenS(S, g)
@@ -545,8 +589,35 @@ pub fn vRunFinallyThenCloseS(S, g, finR, retV, pool, globals, functions) {
     return { "value": retV, "done": true }
 }
 
+/// Close a yield* delegate without vLiveGenS (must not alias the parent generator).
+pub fn vCloseDelegateGenS(S, g, ordered, pool, globals, functions) {
+    if g["done"] == 1 {
+        return { "value": null, "done": true }
+    }
+    if g["done"] == true {
+        return { "value": null, "done": true }
+    }
+    let retV = null
+    if len(ordered) > 0 {
+        retV = ordered[0]
+    }
+    let fnDefC = functions[g["idx"]]
+    let finR = vFindFinallyForReturn(fnDefC, g["ip"])
+    if finR != null {
+        g["closing"] = 1
+        g["closeRet"] = retV
+        return vRunFinallyThenCloseS(S, g, finR, retV, pool, globals, functions)
+    }
+    g["done"] = 1
+    return { "value": retV, "done": true }
+}
+
 pub fn vCloseGeneratorS(S, g, ordered, pool, globals, functions) {
+    let given = g
     g = vLiveGenS(g)
+    if g["idx"] != given["idx"] {
+        g = given
+    }
     if g["done"] == 1 {
         return { "value": null, "done": true }
     }
@@ -562,6 +633,12 @@ pub fn vCloseGeneratorS(S, g, ordered, pool, globals, functions) {
         return { "value": early, "done": true }
     }
     g["closing"] = 1
+    let retV = null
+    if len(ordered) > 0 {
+        retV = ordered[0]
+    }
+    g["closeRet"] = retV
+    vMarkGenClosingS(S, g, retV)
     let del = g["ysdel"]
     if del == undefined {
         del = S["ysdel"]
@@ -576,10 +653,32 @@ pub fn vCloseGeneratorS(S, g, ordered, pool, globals, functions) {
     }
     if del != g {
         if vObjGet(del, "vmGen") == 1 {
-            vCloseGeneratorS(S, del, ordered, pool, globals, functions)
+            let keepC = g["closing"]
+            let keepR = g["closeRet"]
+            let rDel = vCloseDelegateGenS(S, del, ordered, pool, globals, functions)
+            g["closing"] = keepC
+            g["closeRet"] = keepR
+            vMarkGenClosingS(S, g, keepR)
+            if rDel["done"] != true {
+                if rDel["done"] != 1 {
+                    return rDel
+                }
+            }
+            g["ysdel"] = null
         } else {
             if vObjGet(del, "vmGen") == true {
-                vCloseGeneratorS(S, del, ordered, pool, globals, functions)
+                let keepC2 = g["closing"]
+                let keepR2 = g["closeRet"]
+                let rDel2 = vCloseDelegateGenS(S, del, ordered, pool, globals, functions)
+                g["closing"] = keepC2
+                g["closeRet"] = keepR2
+                vMarkGenClosingS(S, g, keepR2)
+                if rDel2["done"] != true {
+                    if rDel2["done"] != 1 {
+                        return rDel2
+                    }
+                }
+                g["ysdel"] = null
             } else {
                 if del != null {
                     if del != undefined {
@@ -605,10 +704,6 @@ pub fn vCloseGeneratorS(S, g, ordered, pool, globals, functions) {
         }
     }
     g["ysdel"] = null
-    let retV = null
-    if len(ordered) > 0 {
-        retV = ordered[0]
-    }
     let finR = vFindFinallyForReturn(fnDefC, g["ip"])
     if finR != null {
         return vRunFinallyThenCloseS(S, g, finR, retV, pool, globals, functions)
@@ -641,6 +736,7 @@ pub fn vNoteYsDelS(S, it) {
 
 pub fn vResumeGeneratorS(S, g, ordered, pool, globals, functions) {
     g = vLiveGenS(g)
+    g = vApplyGenClosingS(S, g)
     if g["done"] == 1 {
         return { "value": null, "done": true }
     }
@@ -648,11 +744,44 @@ pub fn vResumeGeneratorS(S, g, ordered, pool, globals, functions) {
         return { "value": null, "done": true }
     }
     if g["closing"] == 1 {
+        let delR = g["ysdel"]
+        if vObjGet(delR, "vmGen") == 1 {
+            if delR["done"] != 1 {
+                if delR["done"] != true {
+                    let rInner = vResumeGeneratorS(S, delR, ordered, pool, globals, functions)
+                    if rInner["done"] != true {
+                        if rInner["done"] != 1 {
+                            return rInner
+                        }
+                    }
+                    g["ysdel"] = null
+                }
+            }
+        } else {
+            if vObjGet(delR, "vmGen") == true {
+                if delR["done"] != 1 {
+                    if delR["done"] != true {
+                        let rInner2 = vResumeGeneratorS(S, delR, ordered, pool, globals, functions)
+                        if rInner2["done"] != true {
+                            if rInner2["done"] != 1 {
+                                return rInner2
+                            }
+                        }
+                        g["ysdel"] = null
+                    }
+                }
+            }
+        }
         let fnDefC = functions[g["idx"]]
         let finR = vFindFinallyForReturn(fnDefC, g["ip"])
         if finR != null {
-            return vRunFinallyThenCloseS(S, g, finR, g["closeRet"], pool, globals, functions)
+            if g["ip"] < finR["catchStart"] {
+                return vRunFinallyThenCloseS(S, g, finR, g["closeRet"], pool, globals, functions)
+            }
         }
+        g["done"] = 1
+        let doneV = g["closeRet"]
+        return { "value": doneV, "done": true }
     }
     let fnDef = functions[g["idx"]]
     let oldCg = S["curGen"]
@@ -800,7 +929,11 @@ pub fn vFinishIterThrowS(S, g, rTh, pool, globals, functions) {
 }
 
 pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
+    let given = g
     g = vLiveGenS(g)
+    if g["idx"] != given["idx"] {
+        g = given
+    }
     if g["done"] == 1 {
         return { "value": null, "done": true }
     }
@@ -817,23 +950,38 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
             S["arrows"] = faT
         }
     }
+    let delErr = null
     if del != g {
         if vObjGet(del, "vmGen") == 1 {
-            let rDel = vThrowGeneratorS(S, del, ordered, pool, globals, functions)
-            if rDel["done"] != true {
-                if rDel["done"] != 1 {
-                    S["curGen"] = oldCg
-                    return rDel
+            let rDel = null
+            try {
+                rDel = vThrowGeneratorS(S, del, ordered, pool, globals, functions)
+            } catch (eDel) {
+                delErr = eDel
+            }
+            if delErr == null {
+                if rDel["done"] != true {
+                    if rDel["done"] != 1 {
+                        S["curGen"] = oldCg
+                        return rDel
+                    }
                 }
             }
             g["ysdel"] = null
         } else {
             if vObjGet(del, "vmGen") == true {
-                let rDel2 = vThrowGeneratorS(S, del, ordered, pool, globals, functions)
-                if rDel2["done"] != true {
-                    if rDel2["done"] != 1 {
-                        S["curGen"] = oldCg
-                        return rDel2
+                let rDel2 = null
+                try {
+                    rDel2 = vThrowGeneratorS(S, del, ordered, pool, globals, functions)
+                } catch (eDel2) {
+                    delErr = eDel2
+                }
+                if delErr == null {
+                    if rDel2["done"] != true {
+                        if rDel2["done"] != 1 {
+                            S["curGen"] = oldCg
+                            return rDel2
+                        }
                     }
                 }
                 g["ysdel"] = null
@@ -866,8 +1014,12 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
         }
     }
     let reason = null
-    if len(ordered) > 0 {
-        reason = ordered[0]
+    if delErr != null {
+        reason = delErr
+    } else {
+        if len(ordered) > 0 {
+            reason = ordered[0]
+        }
     }
     let fnDef = functions[g["idx"]]
     let old = vSaveFnFrame(S)
