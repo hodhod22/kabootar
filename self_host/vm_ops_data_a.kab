@@ -2,6 +2,45 @@ import "self_host/vm_s_stack"
 import "self_host/vm_run_session"
 // SH6: yield* throw/return ysdel.
 
+pub fn vIterStepGenS(S, it, pool, globals, functions) {
+    let ys = []
+    let yv = vObjGet(it, "yssend")
+    if yv != undefined {
+        ys = [yv]
+    }
+    let r = null
+    let err = null
+    try {
+        r = vResumeGeneratorS(S, it, ys, pool, globals, functions)
+    } catch (e) {
+        err = e
+    }
+    if err != null {
+        let cg = S["curGen"]
+        if cg != undefined {
+            if cg != null {
+                let fd = functions[cg["idx"]]
+                if fd != undefined {
+                    let tr = fd["tryRegions"]
+                    if tr != undefined {
+                        S["tryRegions"] = tr
+                    }
+                }
+            }
+        }
+        if vCatchThrow(S, err) == 1 {
+            S["done"] = false
+            return 1
+        }
+        throw err
+    }
+    S["done"] = false
+    vNoteYsDelS(S, it)
+    vPushS(S, it)
+    vPushS(S, r)
+    vBumpIpS(S)
+    return 1
+}
 
 // --- vm_ops_data_concat ---
 pub fn runOpDataConcat(S, name, arg, op, pool, globals, functions) {
@@ -155,32 +194,10 @@ pub fn runOpDataOptionIter(S, name, arg, op, pool, globals, functions) {
     if name == "iterator_step_in_place" {
         let it = vPopS(S)
         if vObjGet(it, "vmGen") == 1 {
-            let ys = []
-            let yv = vObjGet(it, "yssend")
-            if yv != undefined {
-                ys = [yv]
-            }
-            let r = vResumeGeneratorS(S, it, ys, pool, globals, functions)
-            S["done"] = false
-            vNoteYsDelS(S, it)
-            vPushS(S, it)
-            vPushS(S, r)
-            vBumpIpS(S)
-            return 1
+            return vIterStepGenS(S, it, pool, globals, functions)
         }
         if vObjGet(it, "vmGen") == true {
-            let ys2 = []
-            let yv2 = vObjGet(it, "yssend")
-            if yv2 != undefined {
-                ys2 = [yv2]
-            }
-            let r2 = vResumeGeneratorS(S, it, ys2, pool, globals, functions)
-            S["done"] = false
-            vNoteYsDelS(S, it)
-            vPushS(S, it)
-            vPushS(S, r2)
-            vBumpIpS(S)
-            return 1
+            return vIterStepGenS(S, it, pool, globals, functions)
         }
         let wrapDel = vObjGet(it, "__kab_iter_delegate")
         let yvC = vObjGet(it, "yssend")
