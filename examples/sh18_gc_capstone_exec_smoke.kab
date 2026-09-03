@@ -1,0 +1,3 @@
+import "kab/gc/gc_capstone"
+
+return gcCapstoneGatesClosed()

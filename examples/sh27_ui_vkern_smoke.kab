@@ -1,3 +1,3 @@
-import "kab/ui_vkern"
+import "kab/ui/ui_vkern"
 
 return uiIsVkern("vkern")

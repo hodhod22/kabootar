@@ -1,5 +1,5 @@
-import "kab/jit_ssa"
-import "kab/jit_tco"
+import "kab/jit/jit_ssa"
+import "kab/jit/jit_tco"
 
 if jitSsaOk(1) != true {
     return false

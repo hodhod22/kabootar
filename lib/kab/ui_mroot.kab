@@ -1,6 +1,0 @@
-// SH27: mroot tag off ui_msqrt.kab. import "kab/ui_mroot"
-// Do not grow ui_msqrt.kab. Host browser* remains skuld.
-
-pub fn uiIsMroot(tag) {
-    return tag == "mroot"
-}

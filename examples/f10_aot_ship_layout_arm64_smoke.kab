@@ -1,6 +1,6 @@
-import "kab/aot_image_name"
-import "kab/aot_emit_layout"
-import "kab/aot_ship_layout"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_emit_layout"
+import "kab/aot/aot_ship_layout"
 
 let name = aotImageName("arm64")
 let layout = aotEmitLayout("arm64")

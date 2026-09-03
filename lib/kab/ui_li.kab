@@ -1,6 +1,0 @@
-// SH27: li tag off ui_ul.kab. import "kab/ui_li"
-// Do not grow ui_ul.kab. Host browser* remains skuld.
-
-pub fn uiIsLi(tag) {
-    return tag == "li"
-}

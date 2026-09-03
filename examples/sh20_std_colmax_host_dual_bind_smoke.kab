@@ -1,7 +1,7 @@
-import "kab/std_colmax"
-import "kab/std_colsum"
-import "kab/std_colrange"
-import "kab/std_host"
+import "kab/std/std_colmax"
+import "kab/std/std_colsum"
+import "kab/std/std_colrange"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false

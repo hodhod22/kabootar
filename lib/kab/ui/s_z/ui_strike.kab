@@ -1,0 +1,6 @@
+// SH27: strike tag off ui_tt.kab. import "kab/ui/ui_strike"
+// Do not grow ui_tt.kab. Host browser* remains skuld.
+
+pub fn uiIsStrike(tag) {
+    return tag == "strike"
+}

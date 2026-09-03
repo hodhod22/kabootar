@@ -1,5 +1,5 @@
-import "kab/aot_xor_op"
-import "kab/aot_load_xor"
+import "kab/aot/aot_xor_op"
+import "kab/aot/aot_load_xor"
 
 let op = aotXorOp("x64")
 return aotLoadXorOk(op, "x64")

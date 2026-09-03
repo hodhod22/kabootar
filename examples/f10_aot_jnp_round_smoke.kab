@@ -1,5 +1,5 @@
-import "kab/aot_jnp_op"
-import "kab/aot_load_jnp"
+import "kab/aot/aot_jnp_op"
+import "kab/aot/aot_load_jnp"
 
 let op = aotJnpOp("x64")
 return aotLoadJnpOk(op, "x64")

@@ -1,0 +1,12 @@
+// F10: native image filename and frame-local zero comparison must agree.
+// import "kab/aot/aot_verify_cmp_local_zero"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyCmpLocalZeroOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "48837df800"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "a00b40f91f0000f1"
+    }
+    return false
+}

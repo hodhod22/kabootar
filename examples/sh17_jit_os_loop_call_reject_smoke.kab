@@ -1,5 +1,5 @@
-import "kab/jit_loop"
-import "kab/jit_call_loop"
+import "kab/jit/jit_loop"
+import "kab/jit/jit_call_loop"
 
 let kind = "rwx"
 let tpl = jitEmitI64Loop8()

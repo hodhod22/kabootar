@@ -1,0 +1,24 @@
+// SH17 deepen: loop-mul wr+run+call pipeline. import "kab/jit/jit_call_loop_mul"
+// Do not grow jit_call_loop_sub.kab.
+
+import "kab/jit/jit_wr_loop_mul"
+import "kab/jit/jit_run_loop_mul"
+import "kab/jit/jit_mm_call_loop_mul"
+import "kab/jit/jit_loop_mul"
+
+pub fn jitCallLoopMulOk(base, kind, n, m, bytes) {
+    if jitLoopMulOk(n, m) == false {
+        return false
+    }
+    if jitWrLoopMulOk(bytes, n, m) == false {
+        return false
+    }
+    if jitRunLoopMulOk(base, kind, bytes, n, m) == false {
+        return false
+    }
+    let r = jitMmCallLoopMul(bytes, n, m)
+    if r != jitLoopMulRax(n, m) {
+        return false
+    }
+    return true
+}

@@ -1,6 +1,0 @@
-// SH27: menu tag off ui_dd.kab. import "kab/ui_menu"
-// Do not grow ui_dd.kab. Host browser* remains skuld.
-
-pub fn uiIsMenu(tag) {
-    return tag == "menu"
-}

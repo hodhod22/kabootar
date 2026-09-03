@@ -1,0 +1,34 @@
+// SH20: collections transpose off std_colilv.kab. import "kab/std/std_coltr"
+// Do not grow std_colilv.kab. stdHostDeleteOk stays false.
+
+pub fn stdColTranspose(rows) {
+    let nr = len(rows)
+    if nr == 0 {
+        return []
+    }
+    let first = rows[0]
+    let nc = len(first)
+    let i = 1
+    while i < nr {
+        let row = rows[i]
+        let w = len(row)
+        if w < nc {
+            nc = w
+        }
+        i = i + 1
+    }
+    let out = []
+    let c = 0
+    while c < nc {
+        let col = []
+        let r = 0
+        while r < nr {
+            let row = rows[r]
+            col = push(col, row[c])
+            r = r + 1
+        }
+        out = push(out, col)
+        c = c + 1
+    }
+    return out
+}

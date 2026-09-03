@@ -1,0 +1,3 @@
+import "kab/gc/gc_load"
+
+return gcLoadFramesOk(4) == false

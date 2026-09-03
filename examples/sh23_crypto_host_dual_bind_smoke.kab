@@ -1,7 +1,7 @@
 import "kab/crypto"
-import "kab/crypto_tls"
-import "kab/crypto_root"
-import "kab/crypto_host"
+import "kab/crypto/crypto_tls"
+import "kab/crypto/crypto_root"
+import "kab/crypto/crypto_host"
 
 if cryptoHostDeleteOk() != false {
     return false

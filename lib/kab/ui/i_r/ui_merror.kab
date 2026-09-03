@@ -1,0 +1,6 @@
+// SH27: merror tag off ui_mstyle.kab. import "kab/ui/ui_merror"
+// Do not grow ui_mstyle.kab. Host browser* remains skuld.
+
+pub fn uiIsMerror(tag) {
+    return tag == "merror"
+}

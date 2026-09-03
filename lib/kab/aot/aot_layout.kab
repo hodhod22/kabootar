@@ -1,0 +1,6 @@
+// F10: Kab-native layout keeps text, rodata, and data on distinct pages.
+// import "kab/aot/aot_layout"; do not import other kab/aot* leaves.
+
+pub fn aotLayoutOk(textMode, rodataMode, dataMode) {
+    return textMode == "rx" && rodataMode == "r" && dataMode == "rw"
+}

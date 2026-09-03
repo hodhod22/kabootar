@@ -1,0 +1,6 @@
+// SH27: br tag off ui_hr.kab. import "kab/ui/ui_br"
+// Do not grow ui_hr.kab. Host browser* remains skuld.
+
+pub fn uiIsBr(tag) {
+    return tag == "br"
+}

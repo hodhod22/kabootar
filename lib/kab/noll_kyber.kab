@@ -1,6 +1,0 @@
-// SH28: product Kyber stack is not Kab-only yet. import "kab/noll_kyber"
-// Do not grow noll_ed25519.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollKyberIsKab() {
-    return false
-}

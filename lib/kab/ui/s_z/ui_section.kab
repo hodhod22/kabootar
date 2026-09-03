@@ -1,0 +1,6 @@
+// SH27: section tag off ui_main.kab. import "kab/ui/ui_section"
+// Do not grow ui_main.kab. Host browser* remains skuld.
+
+pub fn uiIsSection(tag) {
+    return tag == "section"
+}

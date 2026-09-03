@@ -1,3 +1,3 @@
-import "kab/ui_abbr"
+import "kab/ui/ui_abbr"
 
 return uiIsAbbr("abbr")

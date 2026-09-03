@@ -1,0 +1,6 @@
+// SH23: ChaCha20 alg gate off crypto_aes.kab. import "kab/crypto/crypto_chacha"
+// Do not grow crypto_aes.kab. cryptoHostDeleteOk stays false.
+
+pub fn cryptoChaChaOk(alg) {
+    return alg == "chacha20"
+}

@@ -1,6 +1,0 @@
-// SH27: radialGradient tag off ui_linear_gradient.kab. import "kab/ui_radial_gradient"
-// Do not grow ui_linear_gradient.kab. Host browser* remains skuld.
-
-pub fn uiIsRadialGradient(tag) {
-    return tag == "radialGradient"
-}

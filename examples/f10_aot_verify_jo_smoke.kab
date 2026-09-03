@@ -1,3 +1,3 @@
-import "kab/aot_verify_jo"
+import "kab/aot/aot_verify_jo"
 
 return aotVerifyJoOk("kabootar-x64.kbn", "7000")

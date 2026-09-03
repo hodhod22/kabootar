@@ -1,5 +1,0 @@
-// SH17: template check off the emit DAG. import "kab/jit_check"
-
-pub fn jitByteIsRet(x) {
-    return x == 195
-}

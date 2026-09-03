@@ -1,6 +1,6 @@
-import "kab/cli_doc"
-import "kab/cli_help"
-import "kab/cli_host"
+import "kab/cli/cli_doc"
+import "kab/cli/cli_help"
+import "kab/cli/cli_host"
 
 if cliHostDeleteOk() != false {
     return false

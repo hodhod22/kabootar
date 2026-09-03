@@ -1,0 +1,6 @@
+// SH20: collections 2d-cross off std_colout.kab. import "kab/std/std_colcrs"
+// Do not grow std_colout.kab. stdHostDeleteOk stays false.
+
+pub fn stdColCross(a, b) {
+    return a[0] * b[1] - a[1] * b[0]
+}

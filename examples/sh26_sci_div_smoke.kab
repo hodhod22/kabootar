@@ -1,4 +1,4 @@
-import "kab/sci_div"
+import "kab/sci/sci_div"
 
 let n = sciDiv(8, 2)
 if n == 4 {

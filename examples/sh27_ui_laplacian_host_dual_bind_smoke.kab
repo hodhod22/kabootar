@@ -1,6 +1,6 @@
-import "kab/ui_laplacian"
-import "kab/ui_grad"
-import "kab/ui_host"
+import "kab/ui/ui_laplacian"
+import "kab/ui/ui_grad"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

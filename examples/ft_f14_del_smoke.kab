@@ -1,4 +1,4 @@
-import "kab/io_del"
+import "kab/io/io_del"
 
 os_write("ft14_del.txt", "x")
 let ok = ioDel("ft14_del.txt")

@@ -1,0 +1,17 @@
+// SH20: collections pad off std_colrot.kab. import "kab/std/std_colpad"
+// Do not grow std_colrot.kab. stdHostDeleteOk stays false.
+
+pub fn stdColPad(p, n, x) {
+    let out = []
+    let i = 0
+    let m = len(p)
+    while i < m {
+        out = push(out, p[i])
+        i = i + 1
+    }
+    while i < n {
+        out = push(out, x)
+        i = i + 1
+    }
+    return out
+}

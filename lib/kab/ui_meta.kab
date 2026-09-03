@@ -1,6 +1,0 @@
-// SH27: meta tag off ui_link.kab. import "kab/ui_meta"
-// Do not grow ui_link.kab. Host browser* remains skuld.
-
-pub fn uiIsMeta(tag) {
-    return tag == "meta"
-}

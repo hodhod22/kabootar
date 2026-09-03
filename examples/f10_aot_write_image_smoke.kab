@@ -1,4 +1,4 @@
-import "kab/aot_write_image"
+import "kab/aot/aot_write_image"
 
 let w = aotWriteImage
 return w != null

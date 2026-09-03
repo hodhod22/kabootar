@@ -1,8 +1,8 @@
-import "kab/std_colpow"
-import "kab/std_colmod"
-import "kab/std_colfill"
-import "kab/std_colpush"
-import "kab/std_host"
+import "kab/std/std_colpow"
+import "kab/std/std_colmod"
+import "kab/std/std_colfill"
+import "kab/std/std_colpush"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false

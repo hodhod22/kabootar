@@ -1,3 +1,3 @@
-import "kab/jit_ssa"
+import "kab/jit/jit_ssa"
 
 return jitSsaOk(1)

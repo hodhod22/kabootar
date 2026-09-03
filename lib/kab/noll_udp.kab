@@ -1,6 +1,0 @@
-// SH28: product UDP stack is not Kab-only yet. import "kab/noll_udp"
-// Do not grow noll_ws.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollUdpIsKab() {
-    return false
-}

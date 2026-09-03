@@ -1,0 +1,30 @@
+// SH17 deepen: mmap+exec policy for loopN template. import "kab/jit/jit_run_loop_n"
+// Do not grow jit_run_loop.kab.
+
+import "kab/jit/jit_mmap_loop"
+import "kab/jit/jit_np"
+import "kab/jit/jit_exec"
+import "kab/jit/jit_mm_loop_n"
+import "kab/jit/jit_patch_loop_n"
+import "kab/jit/jit_loop_n"
+
+pub fn jitRunLoopNOk(base, kind, bytes, n) {
+    if base <= 0 {
+        return false
+    }
+    if jitPatchLoopNOk(bytes, n) == false {
+        return false
+    }
+    let nb = len(bytes)
+    if jitMmapLoopOk(nb, kind) == false {
+        return false
+    }
+    if jitOsMmapLoopNOk(nb, kind, n) == false {
+        return false
+    }
+    let pages = jitPagesFor(nb)
+    if jitExecOk(pages, kind) == false {
+        return false
+    }
+    return true
+}

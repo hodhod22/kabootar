@@ -1,6 +1,6 @@
-import "kab/ui_fe_composite"
-import "kab/ui_fe_component_transfer"
-import "kab/ui_host"
+import "kab/ui/ui_fe_composite"
+import "kab/ui/ui_fe_component_transfer"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

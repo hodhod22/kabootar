@@ -1,3 +1,3 @@
-import "kab/ui_alt_glyph_item"
+import "kab/ui/ui_alt_glyph_item"
 
 return uiIsAltGlyphItem("altGlyphItem")

@@ -1,3 +1,3 @@
-import "kab/ui_dfn"
+import "kab/ui/ui_dfn"
 
 return uiIsDfn("dfn")

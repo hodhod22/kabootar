@@ -1,4 +1,4 @@
-import "kab/gc_tlab_nursery"
+import "kab/gc/gc_tlab_nursery"
 import "kab/gc"
 
 return gcTlabNurseryOk(1, 65536, gcNurseryCap()) == false

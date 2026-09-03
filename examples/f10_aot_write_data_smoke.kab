@@ -1,4 +1,4 @@
-import "kab/aot_write_data"
+import "kab/aot/aot_write_data"
 
 let w = aotWriteData
 return w != null

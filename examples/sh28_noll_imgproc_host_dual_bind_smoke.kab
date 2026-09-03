@@ -1,9 +1,9 @@
-import "kab/noll_imgproc"
-import "kab/noll_image"
-import "kab/noll_aotproc"
-import "kab/noll_proc"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_imgproc"
+import "kab/noll/noll_image"
+import "kab/noll/noll_aotproc"
+import "kab/noll/noll_proc"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

@@ -1,0 +1,19 @@
+// SH20: collections flatten off std_colunzip.kab. import "kab/std/std_colflat"
+// Do not grow std_colunzip.kab. stdHostDeleteOk stays false.
+
+pub fn stdColFlat(z) {
+    let out = []
+    let n = len(z)
+    let i = 0
+    while i < n {
+        let row = z[i]
+        let m = len(row)
+        let j = 0
+        while j < m {
+            out = push(out, row[j])
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return out
+}

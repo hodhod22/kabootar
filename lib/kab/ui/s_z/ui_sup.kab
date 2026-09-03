@@ -1,0 +1,6 @@
+// SH27: sup tag off ui_sub.kab. import "kab/ui/ui_sup"
+// Do not grow ui_sub.kab. Host browser* remains skuld.
+
+pub fn uiIsSup(tag) {
+    return tag == "sup"
+}

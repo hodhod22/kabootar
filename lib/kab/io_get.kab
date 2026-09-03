@@ -1,5 +1,0 @@
-// F14 deepen: read via host capability. import "kab/io_get"
-
-pub fn ioGet(path) {
-    return os_read(path)
-}

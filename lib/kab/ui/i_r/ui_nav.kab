@@ -1,0 +1,6 @@
+// SH27: nav tag off ui_tfoot.kab. import "kab/ui/ui_nav"
+// Do not grow ui_tfoot.kab. Host browser* remains skuld.
+
+pub fn uiIsNav(tag) {
+    return tag == "nav"
+}

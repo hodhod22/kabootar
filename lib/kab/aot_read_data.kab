@@ -1,6 +1,0 @@
-// F10: load persisted first native RW data through the host FS capability.
-// import "kab/aot_read_data"; do not import other kab/aot* leaves.
-
-pub fn aotReadData(path) {
-    return os_read(path)
-}

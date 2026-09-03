@@ -1,6 +1,0 @@
-// SH28: product ML-DSA stack is not Kab-only yet. import "kab/noll_mldsa"
-// Do not grow noll_mlkem.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollMldsaIsKab() {
-    return false
-}

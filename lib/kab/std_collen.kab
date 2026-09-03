@@ -1,6 +1,0 @@
-// SH20: collections len off std_colget.kab. import "kab/std_collen"
-// Do not grow std_colget.kab. stdHostDeleteOk stays false.
-
-pub fn stdColLen(p) {
-    return len(p)
-}

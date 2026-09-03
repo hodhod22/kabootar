@@ -1,6 +1,0 @@
-// SH28: product VM is not Kab-only yet. import "kab/noll_vm"
-// Do not grow noll_jit.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollVmIsKab() {
-    return false
-}

@@ -1,3 +1,3 @@
-import "kab/aot_apply_reloc"
+import "kab/aot/aot_apply_reloc"
 
 return aotApplyRelocTableWordHex("relocs:reloc:text:32:0:main:x64", 4096, "x64") == ""

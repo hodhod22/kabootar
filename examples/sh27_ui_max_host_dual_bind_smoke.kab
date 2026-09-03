@@ -1,6 +1,6 @@
-import "kab/ui_max"
-import "kab/ui_min"
-import "kab/ui_host"
+import "kab/ui/ui_max"
+import "kab/ui/ui_min"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

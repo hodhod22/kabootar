@@ -1,6 +1,0 @@
-// SH27: search tag off ui_menu.kab. import "kab/ui_search"
-// Do not grow ui_menu.kab. Host browser* remains skuld.
-
-pub fn uiIsSearch(tag) {
-    return tag == "search"
-}

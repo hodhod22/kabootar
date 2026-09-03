@@ -1,0 +1,6 @@
+// SH27: audio tag off ui_video.kab. import "kab/ui/ui_audio"
+// Do not grow ui_video.kab. Host browser* remains skuld.
+
+pub fn uiIsAudio(tag) {
+    return tag == "audio"
+}

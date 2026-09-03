@@ -1,6 +1,0 @@
-// SH27: nextid tag off ui_element.kab. import "kab/ui_nextid"
-// Do not grow ui_element.kab. Host browser* remains skuld.
-
-pub fn uiIsNextid(tag) {
-    return tag == "nextid"
-}

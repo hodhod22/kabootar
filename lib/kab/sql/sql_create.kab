@@ -1,0 +1,6 @@
+// SH22: CREATE-clause gate off sql_delete.kab. import "kab/sql/sql_create"
+// Do not grow sql_delete.kab. sqlHostDeleteOk stays false.
+
+pub fn sqlIsCreate(q) {
+    return str_includes(q, "CREATE")
+}

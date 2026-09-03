@@ -1,7 +1,0 @@
-// F10: persist first native RX text through the host filesystem capability.
-// import "kab/aot_write_text"; do not import other kab/aot* leaves.
-
-pub fn aotWriteText(path, text) {
-    os_write(path, text)
-    return true
-}

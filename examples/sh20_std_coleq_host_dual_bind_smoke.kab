@@ -1,8 +1,8 @@
-import "kab/std_coleq"
-import "kab/std_colunique"
-import "kab/std_colconcat"
-import "kab/std_col"
-import "kab/std_host"
+import "kab/std/std_coleq"
+import "kab/std/std_colunique"
+import "kab/std/std_colconcat"
+import "kab/std/std_col"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false

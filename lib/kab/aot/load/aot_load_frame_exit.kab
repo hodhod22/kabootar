@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image frame-exit epilogue.
+// import "kab/aot/aot_load_frame_exit"; do not import other kab/aot* leaves.
+
+pub fn aotLoadFrameExitOk(op, target) {
+    if target == "x64" {
+        return op == "c9"
+    }
+    if target == "arm64" {
+        return op == "fd7bc1a8"
+    }
+    return false
+}

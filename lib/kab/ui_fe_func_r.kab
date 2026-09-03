@@ -1,6 +1,0 @@
-// SH27: feFuncR tag off ui_fe_func_g.kab. import "kab/ui_fe_func_r"
-// Do not grow ui_fe_func_g.kab. Host browser* remains skuld.
-
-pub fn uiIsFeFuncR(tag) {
-    return tag == "feFuncR"
-}

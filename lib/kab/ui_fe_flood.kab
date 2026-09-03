@@ -1,6 +1,0 @@
-// SH27: feFlood tag off ui_fe_displacement_map.kab. import "kab/ui_fe_flood"
-// Do not grow ui_fe_displacement_map.kab. Host browser* remains skuld.
-
-pub fn uiIsFeFlood(tag) {
-    return tag == "feFlood"
-}

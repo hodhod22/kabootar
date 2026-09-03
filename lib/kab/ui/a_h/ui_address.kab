@@ -1,0 +1,6 @@
+// SH27: address tag off ui_hgroup.kab. import "kab/ui/ui_address"
+// Do not grow ui_hgroup.kab. Host browser* remains skuld.
+
+pub fn uiIsAddress(tag) {
+    return tag == "address"
+}

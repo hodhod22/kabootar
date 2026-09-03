@@ -1,0 +1,13 @@
+// SH20: collections e off std_colpi.kab. import "kab/std/std_cole"
+// Do not grow std_colpi.kab. stdHostDeleteOk stays false.
+
+pub fn stdColE(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, e())
+        i = i + 1
+    }
+    return out
+}

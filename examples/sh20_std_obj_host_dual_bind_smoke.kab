@@ -1,5 +1,5 @@
-import "kab/std_obj"
-import "kab/std_host"
+import "kab/std/std_obj"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false

@@ -1,6 +1,0 @@
-// SH22: LIMIT-clause gate off sql.kab. import "kab/sql_limit"
-// Do not grow sql_where.kab. Host src/sql remains skuld.
-
-pub fn sqlIsLimit(q) {
-    return str_includes(q, "LIMIT")
-}

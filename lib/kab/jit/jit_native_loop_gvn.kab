@@ -1,0 +1,15 @@
+// F8 deepen: native i64-loop + GVN/CSE. import "kab/jit/jit_native_loop_gvn"
+// Do not grow jit_native_loop.kab. CSE dups required before loopN exec.
+
+import "kab/jit/jit_native_loop"
+import "kab/jit/jit_gvn"
+
+pub fn jitNativeLoopGvnOk(nPhi, nInv, nDup, n) {
+    if jitNativeLoopOk(nPhi, nInv, n) == false {
+        return false
+    }
+    if jitGvnOk(nDup) == false {
+        return false
+    }
+    return true
+}

@@ -1,6 +1,0 @@
-// SH27: span tag off ui.kab. import "kab/ui_span"
-// Do not grow ui_cv.kab. Host browser* remains skuld.
-
-pub fn uiIsSpan(tag) {
-    return tag == "span"
-}

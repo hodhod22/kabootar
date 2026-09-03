@@ -1,0 +1,49 @@
+// SH18: nursery bump alloc + collect. import "kab/gc/gc_alloc"
+// Do not grow gc.kab. Collect resets/promotes; host heap stays skuld.
+
+import "kab/gc"
+import "kab/gc/gc_prom"
+
+pub fn gcAllocOrCollect(used, n, cap) {
+    let next = gcBump(used, n)
+    if gcNeedCollect(next, cap) == false {
+        return next
+    }
+    return gcPromote(next, cap)
+}
+
+/// n allocs of size against cap; true if at least one nursery collect ran and used never exceeds cap.
+pub fn gcAllocBurstOk(n, size, cap) {
+    if n <= 0 {
+        return false
+    }
+    if size <= 0 {
+        return false
+    }
+    if cap <= 0 {
+        return false
+    }
+    let used = 0
+    let collects = 0
+    let i = 0
+    while i < n {
+        let before = used
+        used = gcAllocOrCollect(used, size, cap)
+        if used < before {
+            collects = collects + 1
+        }
+        if used > cap {
+            return false
+        }
+        i = i + 1
+    }
+    if collects < 1 {
+        return false
+    }
+    return true
+}
+
+/// Byte-account for one Kab-VM instance shell (nursery bump unit).
+pub fn gcInstShellBytes() {
+    return 64
+}

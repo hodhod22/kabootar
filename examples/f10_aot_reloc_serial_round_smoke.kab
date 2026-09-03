@@ -1,5 +1,5 @@
-import "kab/aot_emit_reloc"
-import "kab/aot_load_reloc"
+import "kab/aot/aot_emit_reloc"
+import "kab/aot/aot_load_reloc"
 
 let record = aotEmitReloc("x64")
 return aotLoadRelocOk(record, "x64")

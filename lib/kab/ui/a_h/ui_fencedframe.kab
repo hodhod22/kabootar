@@ -1,0 +1,6 @@
+// SH27: fencedframe tag off ui_selectedcontent.kab. import "kab/ui/ui_fencedframe"
+// Do not grow ui_selectedcontent.kab. Host browser* remains skuld.
+
+pub fn uiIsFencedframe(tag) {
+    return tag == "fencedframe"
+}

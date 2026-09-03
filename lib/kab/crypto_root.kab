@@ -1,6 +1,0 @@
-// SH23: trust-root PEM marker off crypto.kab. import "kab/crypto_root"
-// Do not grow crypto.kab. Host rustls remains skuld.
-
-pub fn cryptoRootPem(s) {
-    return str_includes(s, "BEGIN")
-}

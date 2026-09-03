@@ -1,0 +1,12 @@
+// F10: native image filename and xor opcode must agree.
+// import "kab/aot/aot_verify_xor"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyXorOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "33c0"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "ca000000"
+    }
+    return false
+}

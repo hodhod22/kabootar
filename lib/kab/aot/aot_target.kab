@@ -1,0 +1,12 @@
+// F10: first Kab-native images target x64 or arm64.
+// import "kab/aot/aot_target"; do not import other kab/aot* leaves.
+
+pub fn aotTargetOk(target) {
+    if target == "x64" {
+        return true
+    }
+    if target == "arm64" {
+        return true
+    }
+    return false
+}

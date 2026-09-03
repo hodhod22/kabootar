@@ -1,0 +1,15 @@
+// SH20: collections max off std_colsum.kab. import "kab/std/std_colmax"
+// Do not grow std_colsum.kab. stdHostDeleteOk stays false.
+
+pub fn stdColMax(p) {
+    let m = p[0]
+    let n = len(p)
+    let i = 1
+    while i < n {
+        if p[i] > m {
+            m = p[i]
+        }
+        i = i + 1
+    }
+    return m
+}

@@ -515,7 +515,7 @@ pub fn jitEmitI64TakeGlobalRet(offset) {
     return b
 }
 
-/// rwx map kind; guest mmap args live in kab/jit_mm (os_mm_mmap deepen).
+/// rwx map kind; guest mmap args live in kab/jit/jit_mm (os_mm_mmap deepen).
 pub fn jitMapKind() {
     return "rwx"
 }

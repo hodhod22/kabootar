@@ -1,6 +1,0 @@
-// SH27: mspace tag off ui_ms.kab. import "kab/ui_mspace"
-// Do not grow ui_ms.kab. Host browser* remains skuld.
-
-pub fn uiIsMspace(tag) {
-    return tag == "mspace"
-}

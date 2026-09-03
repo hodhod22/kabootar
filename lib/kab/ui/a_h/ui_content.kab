@@ -1,0 +1,6 @@
+// SH27: content tag off ui_shadow.kab. import "kab/ui/ui_content"
+// Do not grow ui_shadow.kab. Host browser* remains skuld.
+
+pub fn uiIsContent(tag) {
+    return tag == "content"
+}

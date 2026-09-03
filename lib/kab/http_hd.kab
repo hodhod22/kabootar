@@ -1,7 +1,0 @@
-// F14/SH24: read headers of in-process response. import "kab/http_hd"
-// No TCP. Do not import other kab/http_* here. No nested calls (overflow).
-
-pub fn httpHeadersOf(code, body) {
-    let r = http_response(code, body)
-    return http_headers(r)
-}

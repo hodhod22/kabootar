@@ -1,5 +1,5 @@
 import "kab/jit"
-import "kab/jit_mm_call"
+import "kab/jit/jit_mm_call"
 
 let tpl = jitEmitI64IncRet()
 return jitMmCallIncRet(tpl) == 0

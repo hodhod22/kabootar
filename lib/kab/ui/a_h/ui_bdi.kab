@@ -1,0 +1,6 @@
+// SH27: bdi tag off ui_rp.kab. import "kab/ui/ui_bdi"
+// Do not grow ui_rp.kab. Host browser* remains skuld.
+
+pub fn uiIsBdi(tag) {
+    return tag == "bdi"
+}

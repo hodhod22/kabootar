@@ -1,6 +1,0 @@
-// SH27: msrow tag off ui_mstack.kab. import "kab/ui_msrow"
-// Do not grow ui_mstack.kab. Host browser* remains skuld.
-
-pub fn uiIsMsrow(tag) {
-    return tag == "msrow"
-}

@@ -1,0 +1,6 @@
+// F10: persisted data bytes must match first native RW plus a zero stub.
+// import "kab/aot/aot_loaded_data"; do not import other kab/aot* leaves.
+
+pub fn aotLoadedDataOk(data) {
+    return data == "data:rw|00"
+}

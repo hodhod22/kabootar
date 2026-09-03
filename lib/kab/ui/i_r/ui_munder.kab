@@ -1,0 +1,6 @@
+// SH27: munder tag off ui_msubsup.kab. import "kab/ui/ui_munder"
+// Do not grow ui_msubsup.kab. Host browser* remains skuld.
+
+pub fn uiIsMunder(tag) {
+    return tag == "munder"
+}

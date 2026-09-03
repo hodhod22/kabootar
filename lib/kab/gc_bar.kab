@@ -1,5 +1,0 @@
-// SH18: write barrier off the gc.kab leaf. import "kab/gc_bar"
-
-pub fn gcWriteBarrier(slot, val) {
-    return slot != val
-}

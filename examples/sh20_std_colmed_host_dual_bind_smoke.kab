@@ -1,9 +1,9 @@
-import "kab/std_colmed"
-import "kab/std_colavg"
-import "kab/std_colfill"
-import "kab/std_colpush"
-import "kab/std_colrange"
-import "kab/std_host"
+import "kab/std/std_colmed"
+import "kab/std/std_colavg"
+import "kab/std/std_colfill"
+import "kab/std/std_colpush"
+import "kab/std/std_colrange"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false

@@ -1,8 +1,8 @@
-import "kab/std_colrot"
-import "kab/std_colrange"
-import "kab/std_colfill"
-import "kab/std_colpush"
-import "kab/std_coleq"
+import "kab/std/std_colrot"
+import "kab/std/std_colrange"
+import "kab/std/std_colfill"
+import "kab/std/std_colpush"
+import "kab/std/std_coleq"
 
 let r = stdColRange(40, 43)
 let e = stdColFill(1, 41)

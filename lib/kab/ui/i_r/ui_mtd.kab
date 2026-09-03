@@ -1,0 +1,6 @@
+// SH27: mtd tag off ui_mtr.kab. import "kab/ui/ui_mtd"
+// Do not grow ui_mtr.kab. Host browser* remains skuld.
+
+pub fn uiIsMtd(tag) {
+    return tag == "mtd"
+}

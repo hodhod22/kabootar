@@ -1,0 +1,6 @@
+// SH27: embed tag off ui_area.kab. import "kab/ui/ui_embed"
+// Do not grow ui_area.kab. Host browser* remains skuld.
+
+pub fn uiIsEmbed(tag) {
+    return tag == "embed"
+}

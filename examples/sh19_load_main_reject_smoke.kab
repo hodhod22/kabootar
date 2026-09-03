@@ -1,5 +1,5 @@
 import "kab/load"
-import "kab/load_main"
+import "kab/load/load_main"
 
 if loadMainDeleteOk() {
     return false

@@ -1,3 +1,3 @@
-import "kab/ui_plaintext"
+import "kab/ui/ui_plaintext"
 
 return uiIsPlaintext("plaintext")

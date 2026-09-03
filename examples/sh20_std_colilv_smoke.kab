@@ -1,7 +1,7 @@
-import "kab/std_colilv"
-import "kab/std_colfill"
-import "kab/std_colpush"
-import "kab/std_coleq"
+import "kab/std/std_colilv"
+import "kab/std/std_colfill"
+import "kab/std/std_colpush"
+import "kab/std/std_coleq"
 
 let a = stdColFill(1, 40)
 let b = stdColFill(1, 42)

@@ -1,6 +1,0 @@
-// F10: load persisted first native RX text through the host FS capability.
-// import "kab/aot_read_text"; do not import other kab/aot* leaves.
-
-pub fn aotReadText(path) {
-    return os_read(path)
-}

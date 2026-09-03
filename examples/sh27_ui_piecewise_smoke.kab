@@ -1,3 +1,3 @@
-import "kab/ui_piecewise"
+import "kab/ui/ui_piecewise"
 
 return uiIsPiecewise("piecewise")

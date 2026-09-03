@@ -1,0 +1,6 @@
+// SH23: HMAC alg gate off crypto.kab. import "kab/crypto/crypto_hmac"
+// Do not grow crypto_sha.kab. Host MAC natives remain skuld.
+
+pub fn cryptoHmacOk(alg) {
+    return alg == "hmac-sha256"
+}

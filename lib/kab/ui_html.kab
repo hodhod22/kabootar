@@ -1,6 +1,0 @@
-// SH27: html tag off ui_body.kab. import "kab/ui_html"
-// Do not grow ui_body.kab. Host browser* remains skuld.
-
-pub fn uiIsHtml(tag) {
-    return tag == "html"
-}

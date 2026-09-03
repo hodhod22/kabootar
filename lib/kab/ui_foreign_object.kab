@@ -1,6 +1,0 @@
-// SH27: foreignObject tag off ui_text_path.kab. import "kab/ui_foreign_object"
-// Do not grow ui_text_path.kab. Host browser* remains skuld.
-
-pub fn uiIsForeignObject(tag) {
-    return tag == "foreignObject"
-}

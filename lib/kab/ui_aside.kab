@@ -1,6 +1,0 @@
-// SH27: aside tag off ui_article.kab. import "kab/ui_aside"
-// Do not grow ui_article.kab. Host browser* remains skuld.
-
-pub fn uiIsAside(tag) {
-    return tag == "aside"
-}

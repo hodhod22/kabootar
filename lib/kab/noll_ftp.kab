@@ -1,6 +1,0 @@
-// SH28: product FTP stack is not Kab-only yet. import "kab/noll_ftp"
-// Do not grow noll_pop.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollFtpIsKab() {
-    return false
-}

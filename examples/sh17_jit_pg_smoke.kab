@@ -1,4 +1,4 @@
-import "kab/jit_pg"
+import "kab/jit/jit_pg"
 
 let n = jitPageSize()
 if n == 4096 {

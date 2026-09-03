@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image frame-local load.
+// import "kab/aot/aot_load_load_local"; do not import other kab/aot* leaves.
+
+pub fn aotLoadLoadLocalOk(op, target) {
+    if target == "x64" {
+        return op == "488b45f8"
+    }
+    if target == "arm64" {
+        return op == "a00b40f9"
+    }
+    return false
+}

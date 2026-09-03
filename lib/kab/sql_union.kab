@@ -1,6 +1,0 @@
-// SH22: UNION-clause gate off sql_dist.kab. import "kab/sql_union"
-// Do not grow sql_dist.kab. sqlHostDeleteOk stays false.
-
-pub fn sqlIsUnion(q) {
-    return str_includes(q, "UNION")
-}

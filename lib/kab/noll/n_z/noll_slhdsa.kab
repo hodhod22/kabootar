@@ -1,0 +1,6 @@
+// SH28: product SLH-DSA stack is not Kab-only yet. import "kab/noll/noll_slhdsa"
+// Do not grow noll_merkle.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollSlhdsaIsKab() {
+    return false
+}

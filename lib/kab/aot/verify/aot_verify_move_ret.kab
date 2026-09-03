@@ -1,0 +1,12 @@
+// F10: native image filename and return-to-argument move must agree.
+// import "kab/aot/aot_verify_move_ret"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyMoveRetOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "4889c3"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "e10300aa"
+    }
+    return false
+}

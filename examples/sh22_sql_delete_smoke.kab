@@ -1,3 +1,3 @@
-import "kab/sql_delete"
+import "kab/sql/sql_delete"
 
 return sqlIsDelete("DELETE FROM t WHERE x = 1")

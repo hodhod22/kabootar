@@ -1,9 +1,0 @@
-// F9: SIMD unbox lane (16-byte). import "kab/jit_simd"
-// Do not grow jit.kab. Do not import other kab/jit_* leaves.
-
-pub fn jitSimdOk(nBytes) {
-    if nBytes == 16 {
-        return true
-    }
-    return false
-}

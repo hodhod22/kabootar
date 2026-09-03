@@ -1,6 +1,0 @@
-// SH27: b tag off ui_q.kab. import "kab/ui_b"
-// Do not grow ui_q.kab. Host browser* remains skuld.
-
-pub fn uiIsB(tag) {
-    return tag == "b"
-}

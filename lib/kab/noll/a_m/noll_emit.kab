@@ -1,0 +1,6 @@
+// SH28: product bytecode emit is not Kab-only yet. import "kab/noll/noll_emit"
+// Do not grow noll_type.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollEmitIsKab() {
+    return false
+}

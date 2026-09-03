@@ -1,0 +1,7 @@
+// SH20: collections last off std_colfirst.kab. import "kab/std/std_collast"
+// Do not grow std_colfirst.kab. stdHostDeleteOk stays false.
+
+pub fn stdColLast(p) {
+    let n = len(p)
+    return p[n - 1]
+}

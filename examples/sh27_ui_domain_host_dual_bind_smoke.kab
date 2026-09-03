@@ -1,6 +1,6 @@
-import "kab/ui_domain"
-import "kab/ui_selector"
-import "kab/ui_host"
+import "kab/ui/ui_domain"
+import "kab/ui/ui_selector"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

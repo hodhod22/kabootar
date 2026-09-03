@@ -1,7 +1,7 @@
-import "kab/noll_cwe"
-import "kab/noll_cve"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_cwe"
+import "kab/noll/noll_cve"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

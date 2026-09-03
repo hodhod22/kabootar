@@ -1,0 +1,15 @@
+// F8 deepen: native i64-loop + GVN + deopt + i64 spec. import "kab/jit/jit_native_loop_spec"
+// Do not grow jit_native_loop_deopt.kab. IC kind must be i64 before loopN exec.
+
+import "kab/jit/jit_native_loop_deopt"
+import "kab/jit/jit_spec"
+
+pub fn jitNativeLoopSpecOk(nPhi, nInv, nDup, nGuard, kind, n) {
+    if jitNativeLoopDeoptOk(nPhi, nInv, nDup, nGuard, n) == false {
+        return false
+    }
+    if jitSpecOk(kind) == false {
+        return false
+    }
+    return true
+}

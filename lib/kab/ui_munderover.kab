@@ -1,6 +1,0 @@
-// SH27: munderover tag off ui_mover.kab. import "kab/ui_munderover"
-// Do not grow ui_mover.kab. Host browser* remains skuld.
-
-pub fn uiIsMunderover(tag) {
-    return tag == "munderover"
-}

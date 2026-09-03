@@ -1,0 +1,7 @@
+// SH28: frozen mmap stub is not the OS process — policy "stub-is-process" is false.
+// import "kab/noll/noll_stubproc"
+// Do not grow noll_mmexec.kab or noll_stub.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollStubIsProcess() {
+    return false
+}

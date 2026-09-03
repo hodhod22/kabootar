@@ -1,0 +1,56 @@
+// SH17 deepen: i64 loopN + div-imm template. import "kab/jit/jit_loop_div"
+// Do not grow jit_loop_mul.kab. Magic L + count N + div D + ret; os_mm_call returns N/D.
+
+import "kab/jit/jit_loop_n"
+
+pub fn jitLoopDivDMax() {
+    return 64
+}
+
+pub fn jitLoopDivDOk(n, d) {
+    if d <= 0 {
+        return false
+    }
+    if d > jitLoopDivDMax() {
+        return false
+    }
+    if d > n {
+        return false
+    }
+    if n % d != 0 {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopDivOk(n, d) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if jitLoopDivDOk(n, d) == false {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopDivRax(n, d) {
+    return n / d
+}
+
+pub fn jitLoopDivLen() {
+    return jitLoopNLen()
+}
+
+/// Loop marker 76, count n, add/sub/mul 0, div d, pad, ret — simulated guest rax=n/d.
+pub fn jitEmitI64LoopDivN(n, d) {
+    let b = []
+    b = push(b, 76)
+    b = push(b, n)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, d)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

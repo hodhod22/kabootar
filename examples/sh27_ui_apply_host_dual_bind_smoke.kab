@@ -1,6 +1,6 @@
-import "kab/ui_apply"
-import "kab/ui_csymbol"
-import "kab/ui_host"
+import "kab/ui/ui_apply"
+import "kab/ui/ui_csymbol"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

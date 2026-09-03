@@ -1,7 +1,0 @@
-// SH28: rustc is still the process — policy "rustc-not-process" is false.
-// import "kab/noll_rustc"
-// Do not grow noll_cargo.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollRustcNotProcess() {
-    return false
-}

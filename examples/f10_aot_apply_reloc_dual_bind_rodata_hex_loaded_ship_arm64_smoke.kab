@@ -1,10 +1,10 @@
-import "kab/aot_apply_reloc"
-import "kab/aot_bind"
-import "kab/aot_emit_image"
-import "kab/aot_emit_reloc_table"
-import "kab/aot_image_name"
-import "kab/aot_loaded_image"
-import "kab/aot_ship"
+import "kab/aot/aot_apply_reloc"
+import "kab/aot/aot_bind"
+import "kab/aot/aot_emit_image"
+import "kab/aot/aot_emit_reloc_table"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_loaded_image"
+import "kab/aot/aot_ship"
 
 let table = aotEmitRelocTableRodata("arm64")
 let image = aotEmitImageWithRelocTableRodata("arm64")

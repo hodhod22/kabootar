@@ -1,0 +1,7 @@
+// SH28: rustc is still the host — policy "rustc-not-host" is false.
+// import "kab/noll/noll_rchost"
+// Do not grow noll_syskab.kab or noll.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollRustcNotHost() {
+    return false
+}

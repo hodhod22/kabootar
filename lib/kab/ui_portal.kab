@@ -1,6 +1,0 @@
-// SH27: portal tag off ui_search.kab. import "kab/ui_portal"
-// Do not grow ui_search.kab. Host browser* remains skuld.
-
-pub fn uiIsPortal(tag) {
-    return tag == "portal"
-}

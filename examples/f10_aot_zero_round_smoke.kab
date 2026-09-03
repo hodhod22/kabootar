@@ -1,5 +1,5 @@
-import "kab/aot_zero_op"
-import "kab/aot_load_zero"
+import "kab/aot/aot_zero_op"
+import "kab/aot/aot_load_zero"
 
 let op = aotZeroOp("x64")
 return aotLoadZeroOk(op, "x64")

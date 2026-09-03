@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image pop opcode.
+// import "kab/aot/aot_load_pop"; do not import other kab/aot* leaves.
+
+pub fn aotLoadPopOk(op, target) {
+    if target == "x64" {
+        return op == "58"
+    }
+    if target == "arm64" {
+        return op == "e00741f8"
+    }
+    return false
+}

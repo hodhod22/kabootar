@@ -1,5 +1,5 @@
-import "kab/aot_emit_data"
-import "kab/aot_loaded_data"
+import "kab/aot/aot_emit_data"
+import "kab/aot/aot_loaded_data"
 
 let data = aotEmitData("arm64")
 return aotLoadedDataOk(data)

@@ -1,5 +1,5 @@
-import "kab/aot_push_op"
-import "kab/aot_load_push"
+import "kab/aot/aot_push_op"
+import "kab/aot/aot_load_push"
 
 let op = aotPushOp("x64")
 return aotLoadPushOk(op, "x64")

@@ -1,6 +1,0 @@
-// SH27: annotation tag off ui_semantics.kab. import "kab/ui_annotation"
-// Do not grow ui_semantics.kab. Host browser* remains skuld.
-
-pub fn uiIsAnnotation(tag) {
-    return tag == "annotation"
-}

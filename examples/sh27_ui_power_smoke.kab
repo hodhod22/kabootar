@@ -1,3 +1,3 @@
-import "kab/ui_power"
+import "kab/ui/ui_power"
 
 return uiIsPower("power")

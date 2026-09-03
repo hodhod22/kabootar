@@ -1,6 +1,0 @@
-// SH27: layer tag off ui_nextid.kab. import "kab/ui_layer"
-// Do not grow ui_nextid.kab. Host browser* remains skuld.
-
-pub fn uiIsLayer(tag) {
-    return tag == "layer"
-}

@@ -1,0 +1,6 @@
+// F10: Kab-native image header. import "kab/aot/aot_hdr"
+// Do not import other kab/aot* leaves. Host .kbn stub remains skuld.
+
+pub fn aotNativeHdr() {
+    return "kabootar-native/1"
+}

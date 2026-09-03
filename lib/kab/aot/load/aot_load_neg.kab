@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image neg opcode.
+// import "kab/aot/aot_load_neg"; do not import other kab/aot* leaves.
+
+pub fn aotLoadNegOk(op, target) {
+    if target == "x64" {
+        return op == "f7d8"
+    }
+    if target == "arm64" {
+        return op == "cb0003e0"
+    }
+    return false
+}

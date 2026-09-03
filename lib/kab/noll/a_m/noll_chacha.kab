@@ -1,0 +1,6 @@
+// SH28: product ChaCha stack is not Kab-only yet. import "kab/noll/noll_chacha"
+// Do not grow noll_aes.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollChachaIsKab() {
+    return false
+}

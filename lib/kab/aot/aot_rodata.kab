@@ -1,0 +1,6 @@
+// F10: native-image read-only data is R and separate from RX text/RW data.
+// import "kab/aot/aot_rodata"; do not import other kab/aot* leaves.
+
+pub fn aotRodataProtectOk(mode) {
+    return mode == "r"
+}

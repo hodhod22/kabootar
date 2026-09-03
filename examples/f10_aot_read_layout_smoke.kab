@@ -1,4 +1,4 @@
-import "kab/aot_read_layout"
+import "kab/aot/aot_read_layout"
 
 let read = aotReadLayout
 return read != null

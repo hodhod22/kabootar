@@ -1,0 +1,65 @@
+// SH22: in-memory INSERT + SELECT eq. import "kab/sql/sql_exec"
+// Do not grow sql.kab. Host src/sql remains skuld.
+
+pub fn sqlMemDb() {
+    return { "tables": {} }
+}
+
+pub fn sqlInsert(db, table, row) {
+    let tabs = db["tables"]
+    let rows = tabs[table]
+    if rows == null {
+        rows = []
+    }
+    if rows == undefined {
+        rows = []
+    }
+    rows = push(rows, row)
+    tabs[table] = rows
+    db["tables"] = tabs
+    return len(rows)
+}
+
+pub fn sqlSelectEq(db, table, col, val) {
+    let rows = db["tables"][table]
+    if rows == null {
+        return []
+    }
+    if rows == undefined {
+        return []
+    }
+    let out = []
+    let i = 0
+    while i < len(rows) {
+        let r = rows[i]
+        if r[col] == val {
+            out = push(out, r)
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Insert rows, SELECT col = val, return field of first hit (or null).
+pub fn sqlSelectEqOne(db, table, col, val, field) {
+    let hits = sqlSelectEq(db, table, col, val)
+    if len(hits) < 1 {
+        return null
+    }
+    return hits[0][field]
+}
+
+/// True when INSERT + WHERE-eq yields 40 and +2 is 42.
+pub fn sqlExecOk() {
+    let db = sqlMemDb()
+    sqlInsert(db, "t", { "n": 7, "tag": "a" })
+    sqlInsert(db, "t", { "n": 40, "tag": "b" })
+    let n = sqlSelectEqOne(db, "t", "tag", "b", "n")
+    if n + 2 != 42 {
+        return false
+    }
+    if len(sqlSelectEq(db, "t", "tag", "a")) != 1 {
+        return false
+    }
+    return true
+}

@@ -1,3 +1,3 @@
-import "kab/ui_rt"
+import "kab/ui/ui_rt"
 
 return uiIsRt("rt")

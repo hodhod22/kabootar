@@ -1,5 +1,5 @@
-import "kab/aot_jae_op"
-import "kab/aot_load_jae"
+import "kab/aot/aot_jae_op"
+import "kab/aot/aot_load_jae"
 
 let op = aotJaeOp("x64")
 return aotLoadJaeOk(op, "x64")

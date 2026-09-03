@@ -1,3 +1,3 @@
-import "kab/ui_mpath"
+import "kab/ui/ui_mpath"
 
 return uiIsMpath("mpath")

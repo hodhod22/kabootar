@@ -1,6 +1,0 @@
-// SH28: product TLS stack is not Kab-only yet. import "kab/noll_tls"
-// Do not grow noll_dns.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollTlsIsKab() {
-    return false
-}

@@ -1,6 +1,0 @@
-// SH27: mfenced tag off ui_mphantom.kab. import "kab/ui_mfenced"
-// Do not grow ui_mphantom.kab. Host browser* remains skuld.
-
-pub fn uiIsMfenced(tag) {
-    return tag == "mfenced"
-}

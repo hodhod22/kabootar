@@ -1,0 +1,6 @@
+// SH28: product hybrid PQC stack is not Kab-only yet. import "kab/noll/noll_hybrid"
+// Do not grow noll_fndsa.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollHybridIsKab() {
+    return false
+}

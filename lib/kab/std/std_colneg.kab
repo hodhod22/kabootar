@@ -1,0 +1,13 @@
+// SH20: collections negate off std_coldiv.kab. import "kab/std/std_colneg"
+// Do not grow std_coldiv.kab. stdHostDeleteOk stays false.
+
+pub fn stdColNeg(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, 0 - a[i])
+        i = i + 1
+    }
+    return out
+}

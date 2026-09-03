@@ -1,3 +1,3 @@
-import "kab/ui_legend"
+import "kab/ui/ui_legend"
 
 return uiIsLegend("legend")

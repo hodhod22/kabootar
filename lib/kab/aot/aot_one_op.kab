@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented integer-one opcode for the return register.
+// import "kab/aot/aot_one_op"; do not import other kab/aot* leaves.
+
+pub fn aotOneOp(target) {
+    if target == "x64" {
+        return "b801000000"
+    }
+    if target == "arm64" {
+        return "d2800020"
+    }
+    return ""
+}

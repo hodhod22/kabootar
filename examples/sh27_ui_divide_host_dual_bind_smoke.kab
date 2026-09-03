@@ -1,6 +1,6 @@
-import "kab/ui_divide"
-import "kab/ui_times"
-import "kab/ui_host"
+import "kab/ui/ui_divide"
+import "kab/ui/ui_times"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

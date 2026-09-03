@@ -1,11 +1,11 @@
 // SH17–SH19 wave capstone: GC + AOT capstones plus all host gates closed. import "kab/wave_capstone"
 // Do not grow gc_capstone.kab or load_aot_capstone.kab. All delete gates stay false.
 
-import "kab/gc_capstone"
-import "kab/load_aot_capstone"
-import "kab/noll_aot"
-import "kab/noll_keep"
-import "kab/noll_host"
+import "kab/gc/gc_capstone"
+import "kab/load/load_aot_capstone"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_keep"
+import "kab/noll/noll_host"
 
 pub fn waveCapstoneLiveGray() {
     return gcCapstoneLiveGray()

@@ -1,3 +1,3 @@
-import "kab/ui_radial_gradient"
+import "kab/ui/ui_radial_gradient"
 
 return uiIsRadialGradient("radialGradient")

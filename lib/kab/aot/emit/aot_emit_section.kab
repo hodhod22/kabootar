@@ -1,0 +1,15 @@
+// F10: emit stable permission metadata for a Kab-native image section.
+// import "kab/aot/aot_emit_section"; do not import other kab/aot* leaves.
+
+pub fn aotEmitSection(name) {
+    if name == "text" {
+        return "text:rx"
+    }
+    if name == "rodata" {
+        return "rodata:r"
+    }
+    if name == "data" {
+        return "data:rw"
+    }
+    return ""
+}

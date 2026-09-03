@@ -1,6 +1,0 @@
-// SH22: DISTINCT-clause gate off sql_having.kab. import "kab/sql_dist"
-// Do not grow sql_having.kab. sqlHostDeleteOk stays false.
-
-pub fn sqlIsDistinct(q) {
-    return str_includes(q, "DISTINCT")
-}

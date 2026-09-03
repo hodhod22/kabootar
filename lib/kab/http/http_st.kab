@@ -1,0 +1,7 @@
+// F14/SH24: read status of in-process response. import "kab/http/http_st"
+// No TCP. Do not import kab/http/http_res here. No nested calls (overflow).
+
+pub fn httpStatusOf(code, body) {
+    let r = http_response(code, body)
+    return http_status(r)
+}

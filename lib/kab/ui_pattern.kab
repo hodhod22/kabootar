@@ -1,6 +1,0 @@
-// SH27: pattern tag off ui_mask.kab. import "kab/ui_pattern"
-// Do not grow ui_mask.kab. Host browser* remains skuld.
-
-pub fn uiIsPattern(tag) {
-    return tag == "pattern"
-}

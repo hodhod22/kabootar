@@ -1,4 +1,4 @@
-import "kab/gc_mark"
+import "kab/gc/gc_mark"
 
 let n = gcSweepDead(10, 7)
 if n == 3 {

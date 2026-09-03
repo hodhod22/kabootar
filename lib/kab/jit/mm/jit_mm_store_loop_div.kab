@@ -1,0 +1,18 @@
+// SH17 deepen: guest store for loop-div template. import "kab/jit/jit_mm_store_loop_div"
+// Do not grow jit_mm_store_loop_mul.kab.
+
+import "kab/jit/jit_mm_loop_div"
+import "kab/jit/jit_loop_div"
+
+pub fn jitMmStoreLoopDiv(bytes, n, d) {
+    if jitLoopDivOk(n, d) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopDivLen() {
+        return 0
+    }
+    let pid = jitMmLoopDivPid()
+    let virt = jitMmLoopDivVirt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

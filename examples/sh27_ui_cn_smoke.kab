@@ -1,3 +1,3 @@
-import "kab/ui_cn"
+import "kab/ui/ui_cn"
 
 return uiIsCn("cn")

@@ -1,6 +1,0 @@
-// SH27: big tag off ui_acronym.kab. import "kab/ui_big"
-// Do not grow ui_acronym.kab. Host browser* remains skuld.
-
-pub fn uiIsBig(tag) {
-    return tag == "big"
-}

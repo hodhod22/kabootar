@@ -1,3 +1,3 @@
-import "kab/ui_p"
+import "kab/ui/ui_p"
 
 return uiIsP("p")

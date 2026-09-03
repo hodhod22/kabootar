@@ -1,6 +1,0 @@
-// SH28: product coverage is not Kab-only yet. import "kab/noll_cov"
-// Do not grow noll_trace.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollCovIsKab() {
-    return false
-}

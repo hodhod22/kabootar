@@ -1,3 +1,3 @@
-import "kab/gc_alloc"
+import "kab/gc/gc_alloc"
 
 return gcAllocBurstOk(5, 100, 256)

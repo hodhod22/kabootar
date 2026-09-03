@@ -1,6 +1,0 @@
-// SH27: unknown tag off ui_discard.kab. import "kab/ui_unknown"
-// Do not grow ui_discard.kab. Host browser* remains skuld.
-
-pub fn uiIsUnknown(tag) {
-    return tag == "unknown"
-}

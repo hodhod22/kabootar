@@ -1,0 +1,6 @@
+// SH27: menuitem tag off ui_plaintext.kab. import "kab/ui/ui_menuitem"
+// Do not grow ui_plaintext.kab. Host browser* remains skuld.
+
+pub fn uiIsMenuitem(tag) {
+    return tag == "menuitem"
+}

@@ -1,8 +1,8 @@
-import "kab/std_colf16round"
-import "kab/std_colfround"
-import "kab/std_colfill"
-import "kab/std_colpush"
-import "kab/std_host"
+import "kab/std/std_colf16round"
+import "kab/std/std_colfround"
+import "kab/std/std_colfill"
+import "kab/std/std_colpush"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false

@@ -1,0 +1,6 @@
+// SH27: ci tag off ui_mglyph.kab. import "kab/ui/ui_ci"
+// Do not grow ui_mglyph.kab. Host browser* remains skuld.
+
+pub fn uiIsCi(tag) {
+    return tag == "ci"
+}

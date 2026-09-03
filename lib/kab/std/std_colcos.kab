@@ -1,0 +1,13 @@
+// SH20: collections cos off std_colsin.kab. import "kab/std/std_colcos"
+// Do not grow std_colsin.kab. stdHostDeleteOk stays false.
+
+pub fn stdColCos(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, cos(a[i]))
+        i = i + 1
+    }
+    return out
+}

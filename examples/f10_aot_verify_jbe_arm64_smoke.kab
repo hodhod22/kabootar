@@ -1,6 +1,6 @@
-import "kab/aot_image_name"
-import "kab/aot_jbe_op"
-import "kab/aot_verify_jbe"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_jbe_op"
+import "kab/aot/aot_verify_jbe"
 
 let name = aotImageName("arm64")
 let op = aotJbeOp("arm64")

@@ -1,4 +1,4 @@
-import "kab/jit_mm"
+import "kab/jit/jit_mm"
 
 if jitOsMmapOk(7, "rwx") != false {
     return false

@@ -1,6 +1,6 @@
-import "kab/ui_iframe"
-import "kab/ui_track"
-import "kab/ui_host"
+import "kab/ui/ui_iframe"
+import "kab/ui/ui_track"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

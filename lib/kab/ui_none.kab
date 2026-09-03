@@ -1,6 +1,0 @@
-// SH27: none tag off ui_mprescripts.kab. import "kab/ui_none"
-// Do not grow ui_mprescripts.kab. Host browser* remains skuld.
-
-pub fn uiIsNone(tag) {
-    return tag == "none"
-}

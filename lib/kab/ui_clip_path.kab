@@ -1,6 +1,0 @@
-// SH27: clipPath tag off ui_marker.kab. import "kab/ui_clip_path"
-// Do not grow ui_marker.kab. Host browser* remains skuld.
-
-pub fn uiIsClipPath(tag) {
-    return tag == "clipPath"
-}

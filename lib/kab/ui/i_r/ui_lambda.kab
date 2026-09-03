@@ -1,0 +1,6 @@
+// SH27: lambda tag off ui_otherwise.kab. import "kab/ui/ui_lambda"
+// Do not grow ui_otherwise.kab. Host browser* remains skuld.
+
+pub fn uiIsLambda(tag) {
+    return tag == "lambda"
+}

@@ -1,0 +1,6 @@
+// SH21: host runtime/os delete policy off os.kab. import "kab/os/os_host"
+// Do not grow os.kab. Do not delete src/runtime/os until kOS smoke is complete.
+
+pub fn kabOsHostDeleteOk() {
+    return false
+}

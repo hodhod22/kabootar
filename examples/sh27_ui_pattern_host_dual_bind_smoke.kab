@@ -1,6 +1,6 @@
-import "kab/ui_pattern"
-import "kab/ui_mask"
-import "kab/ui_host"
+import "kab/ui/ui_pattern"
+import "kab/ui/ui_mask"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

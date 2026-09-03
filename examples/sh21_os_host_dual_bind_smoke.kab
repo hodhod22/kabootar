@@ -1,7 +1,7 @@
 import "kab/os"
-import "kab/os_fs"
-import "kab/os_proc"
-import "kab/os_host"
+import "kab/os/os_fs"
+import "kab/os/os_proc"
+import "kab/os/os_host"
 
 if kabOsHostDeleteOk() != false {
     return false

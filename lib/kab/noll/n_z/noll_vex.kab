@@ -1,0 +1,6 @@
+// SH28: product VEX stack is not Kab-only yet. import "kab/noll/noll_vex"
+// Do not grow noll_sbom.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollVexIsKab() {
+    return false
+}

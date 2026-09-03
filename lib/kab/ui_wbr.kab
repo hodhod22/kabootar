@@ -1,6 +1,0 @@
-// SH27: wbr tag off ui_ins.kab. import "kab/ui_wbr"
-// Do not grow ui_ins.kab. Host browser* remains skuld.
-
-pub fn uiIsWbr(tag) {
-    return tag == "wbr"
-}

@@ -1,0 +1,6 @@
+// SH22: HAVING-clause gate off sql_group.kab. import "kab/sql/sql_having"
+// Do not grow sql_group.kab. sqlHostDeleteOk stays false.
+
+pub fn sqlIsHaving(q) {
+    return str_includes(q, "HAVING")
+}

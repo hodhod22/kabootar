@@ -1,3 +1,3 @@
-import "kab/ui_ci"
+import "kab/ui/ui_ci"
 
 return uiIsCi("ci")

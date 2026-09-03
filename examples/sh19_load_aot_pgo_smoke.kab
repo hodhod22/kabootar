@@ -1,0 +1,3 @@
+import "kab/load/load_aot_pgo"
+
+return loadAotPgoWarmOk(4096)

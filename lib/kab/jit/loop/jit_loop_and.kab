@@ -1,0 +1,50 @@
+// SH17 deepen: i64 loopN + bit-and template. import "kab/jit/jit_loop_and"
+// Do not grow jit_loop_mod.kab. Magic M + n + mask + ret; os_mm_call returns n&mask.
+
+import "kab/jit/jit_loop_n"
+
+pub fn jitLoopAndMaskMax() {
+    return 64
+}
+
+pub fn jitLoopAndMaskOk(mask) {
+    if mask <= 0 {
+        return false
+    }
+    if mask > jitLoopAndMaskMax() {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopAndOk(n, mask) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if jitLoopAndMaskOk(mask) == false {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopAndRax(n, mask) {
+    return n & mask
+}
+
+pub fn jitLoopAndLen() {
+    return jitLoopNLen()
+}
+
+/// Loop marker 77, count n, mask, pad, ret — simulated guest rax=n&mask.
+pub fn jitEmitI64LoopAndN(n, mask) {
+    let b = []
+    b = push(b, 77)
+    b = push(b, n)
+    b = push(b, mask)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

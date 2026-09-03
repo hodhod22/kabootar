@@ -1,6 +1,0 @@
-// SH28: product Dilithium stack is not Kab-only yet. import "kab/noll_dilithium"
-// Do not grow noll_kyber.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollDilithiumIsKab() {
-    return false
-}

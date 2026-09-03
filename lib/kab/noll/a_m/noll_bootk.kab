@@ -1,0 +1,6 @@
+// SH28: bootstrap must come from Kab. import "kab/noll/noll_bootk"
+// Do not grow noll_srcz.kab or noll.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollBootstrapFromKabOk() {
+    return true
+}

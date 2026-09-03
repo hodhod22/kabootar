@@ -1,0 +1,6 @@
+// SH27: keygen tag off ui_isindex.kab. import "kab/ui/ui_keygen"
+// Do not grow ui_isindex.kab. Host browser* remains skuld.
+
+pub fn uiIsKeygen(tag) {
+    return tag == "keygen"
+}

@@ -1,5 +1,5 @@
 import "kab/ic"
-import "kab/jit_spec"
+import "kab/jit/jit_spec"
 
 if icIsMono(1) != true {
     return false

@@ -1,0 +1,13 @@
+// SH20: collections acos off std_colasin.kab. import "kab/std/std_colacos"
+// Do not grow std_colasin.kab. stdHostDeleteOk stays false.
+
+pub fn stdColAcos(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, acos(a[i]))
+        i = i + 1
+    }
+    return out
+}

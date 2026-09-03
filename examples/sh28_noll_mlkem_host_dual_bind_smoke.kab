@@ -1,7 +1,7 @@
-import "kab/noll_mlkem"
-import "kab/noll_slhdsa"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_mlkem"
+import "kab/noll/noll_slhdsa"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

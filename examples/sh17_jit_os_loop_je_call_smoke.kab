@@ -1,6 +1,6 @@
-import "kab/jit_loop_je"
-import "kab/jit_mm_loop_je"
-import "kab/jit_call_loop_je"
+import "kab/jit/jit_loop_je"
+import "kab/jit/jit_mm_loop_je"
+import "kab/jit/jit_call_loop_je"
 
 let kind = "rwx"
 let n = 12

@@ -1,6 +1,0 @@
-// SH28: product RADIUS stack is not Kab-only yet. import "kab/noll_radius"
-// Do not grow noll_tftp.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollRadiusIsKab() {
-    return false
-}

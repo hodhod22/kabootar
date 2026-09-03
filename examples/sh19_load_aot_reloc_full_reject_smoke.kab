@@ -1,0 +1,3 @@
+import "kab/load/load_aot_reloc_full"
+
+return loadAotRelocFullOk(0) == false

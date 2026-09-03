@@ -1,4 +1,4 @@
-import "kab/sci_clmp"
+import "kab/sci/sci_clmp"
 
 let n = sciClamp(9, 0, 5)
 if n == 5 {

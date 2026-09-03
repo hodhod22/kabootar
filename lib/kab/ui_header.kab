@@ -1,6 +1,0 @@
-// SH27: header tag off ui_nav.kab. import "kab/ui_header"
-// Do not grow ui_nav.kab. Host browser* remains skuld.
-
-pub fn uiIsHeader(tag) {
-    return tag == "header"
-}

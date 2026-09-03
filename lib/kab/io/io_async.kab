@@ -1,0 +1,6 @@
+// F14 deepen: async write capability. import "kab/io/io_async"
+// Do not await here (async DAG).
+
+pub fn ioWriteAsync(path, body) {
+    return os_write_async(path, body)
+}

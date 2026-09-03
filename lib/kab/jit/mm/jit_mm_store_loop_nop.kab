@@ -1,0 +1,18 @@
+// SH17 deepen: guest store for loop-nop template. import "kab/jit/jit_mm_store_loop_nop"
+// Do not grow jit_mm_store_loop_jge.kab.
+
+import "kab/jit/jit_mm_loop_nop"
+import "kab/jit/jit_loop_nop"
+
+pub fn jitMmStoreLoopNop(bytes, n, k) {
+    if jitLoopNopOk(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopNopLen() {
+        return 0
+    }
+    let pid = jitMmLoopNopPid()
+    let virt = jitMmLoopNopVirt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

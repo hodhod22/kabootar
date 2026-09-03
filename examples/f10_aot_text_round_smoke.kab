@@ -1,5 +1,5 @@
-import "kab/aot_emit_text"
-import "kab/aot_load_text"
+import "kab/aot/aot_emit_text"
+import "kab/aot/aot_load_text"
 
 let text = aotEmitText("x64")
 return aotLoadTextOk(text, "x64")

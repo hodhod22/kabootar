@@ -1,3 +1,3 @@
-import "kab/jit_native_loop_gvn"
+import "kab/jit/jit_native_loop_gvn"
 
 return jitNativeLoopGvnOk(1, 1, 0, 16) == false

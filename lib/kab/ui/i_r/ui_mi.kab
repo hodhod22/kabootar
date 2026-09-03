@@ -1,0 +1,6 @@
+// SH27: mi tag off ui_mrow.kab. import "kab/ui/ui_mi"
+// Do not grow ui_mrow.kab. Host browser* remains skuld.
+
+pub fn uiIsMi(tag) {
+    return tag == "mi"
+}

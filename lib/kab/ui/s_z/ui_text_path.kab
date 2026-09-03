@@ -1,0 +1,6 @@
+// SH27: textPath tag off ui_tspan.kab. import "kab/ui/ui_text_path"
+// Do not grow ui_tspan.kab. Host browser* remains skuld.
+
+pub fn uiIsTextPath(tag) {
+    return tag == "textPath"
+}

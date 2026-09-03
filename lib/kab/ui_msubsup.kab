@@ -1,6 +1,0 @@
-// SH27: msubsup tag off ui_msup.kab. import "kab/ui_msubsup"
-// Do not grow ui_msup.kab. Host browser* remains skuld.
-
-pub fn uiIsMsubsup(tag) {
-    return tag == "msubsup"
-}

@@ -1,3 +1,3 @@
-import "kab/ui_apply"
+import "kab/ui/ui_apply"
 
 return uiIsApply("apply")

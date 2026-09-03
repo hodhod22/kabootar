@@ -1,6 +1,6 @@
-import "kab/ui_vector"
-import "kab/ui_list"
-import "kab/ui_host"
+import "kab/ui/ui_vector"
+import "kab/ui/ui_list"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

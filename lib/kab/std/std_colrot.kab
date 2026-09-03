@@ -1,0 +1,20 @@
+// SH20: collections rotate off std_colchunk.kab. import "kab/std/std_colrot"
+// Do not grow std_colchunk.kab. stdHostDeleteOk stays false.
+
+import "kab/std/std_colslice"
+import "kab/std/std_colconcat"
+
+pub fn stdColRotate(p, k) {
+    let n = len(p)
+    if n == 0 {
+        return []
+    }
+    let s = k
+    while s < 0 {
+        s = s + n
+    }
+    while s >= n {
+        s = s - n
+    }
+    return stdColConcat(stdColSlice(p, s, n), stdColSlice(p, 0, s))
+}

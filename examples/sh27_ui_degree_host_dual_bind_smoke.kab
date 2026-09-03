@@ -1,6 +1,6 @@
-import "kab/ui_degree"
-import "kab/ui_uplimit"
-import "kab/ui_host"
+import "kab/ui/ui_degree"
+import "kab/ui/ui_uplimit"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

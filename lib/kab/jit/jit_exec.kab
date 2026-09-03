@@ -1,0 +1,12 @@
+// SH17/F7: exec policy after rwx map (1 page). import "kab/jit/jit_exec"
+// Do not grow jit.kab. Do not import kab/jit. No host mmap in Rust.
+
+pub fn jitExecOk(pages, kind) {
+    if pages == 1 {
+        if kind == "rwx" {
+            return true
+        }
+        return false
+    }
+    return false
+}

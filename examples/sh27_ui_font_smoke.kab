@@ -1,3 +1,3 @@
-import "kab/ui_font"
+import "kab/ui/ui_font"
 
 return uiIsFont("font")

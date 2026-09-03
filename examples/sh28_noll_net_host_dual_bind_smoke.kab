@@ -1,7 +1,7 @@
-import "kab/noll_net"
-import "kab/noll_rand"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_net"
+import "kab/noll/noll_rand"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

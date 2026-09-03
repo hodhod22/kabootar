@@ -1,4 +1,4 @@
-import "kab/io_aread"
+import "kab/io/io_aread"
 
 os_write("ft14_a.txt", "ok")
 let p = ioReadAsync("ft14_a.txt")

@@ -1,0 +1,10 @@
+import "kab/gc/gc_concurrent_stress"
+import "kab/gc/gc_host"
+
+if gcHostDeleteOk() != false {
+    return false
+}
+if gcConcurrentStressOk(2) == false {
+    return false
+}
+return gcHostDeleteOk() == false

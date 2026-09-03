@@ -1,0 +1,12 @@
+// F10: native image filename and jmp opcode must agree.
+// import "kab/aot/aot_verify_jmp"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyJmpOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "e900000000"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "14000000"
+    }
+    return false
+}

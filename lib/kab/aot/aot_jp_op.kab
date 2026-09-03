@@ -1,0 +1,9 @@
+// F10: x64 native images emit a documented jp opcode; ARM64 has no parity flag.
+// import "kab/aot/aot_jp_op"; do not import other kab/aot* leaves.
+
+pub fn aotJpOp(target) {
+    if target == "x64" {
+        return "7a00"
+    }
+    return ""
+}

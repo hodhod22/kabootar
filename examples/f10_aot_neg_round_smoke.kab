@@ -1,5 +1,5 @@
-import "kab/aot_neg_op"
-import "kab/aot_load_neg"
+import "kab/aot/aot_neg_op"
+import "kab/aot/aot_load_neg"
 
 let op = aotNegOp("x64")
 return aotLoadNegOk(op, "x64")

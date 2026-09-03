@@ -1,3 +1,3 @@
-import "kab/http_rt"
+import "kab/http/http_rt"
 
 return httpRouteOk("GET", "/")

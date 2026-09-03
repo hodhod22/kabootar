@@ -1,4 +1,4 @@
-import "kab/gc_bar"
+import "kab/gc/gc_bar"
 
 let ok = gcWriteBarrier(1, 2)
 if ok {

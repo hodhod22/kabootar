@@ -1,0 +1,12 @@
+// F10: emit stable Kab-native ABI metadata for a supported target.
+// import "kab/aot/aot_emit_abi"; do not import other kab/aot* leaves.
+
+pub fn aotEmitAbi(target) {
+    if target == "x64" {
+        return "abi:win64"
+    }
+    if target == "arm64" {
+        return "abi:aapcs64"
+    }
+    return ""
+}

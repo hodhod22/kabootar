@@ -1,6 +1,0 @@
-// SH27: discard tag off ui_meshpatch.kab. import "kab/ui_discard"
-// Do not grow ui_meshpatch.kab. Host browser* remains skuld.
-
-pub fn uiIsDiscard(tag) {
-    return tag == "discard"
-}

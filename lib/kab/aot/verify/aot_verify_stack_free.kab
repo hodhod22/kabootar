@@ -1,0 +1,12 @@
+// F10: native image filename and stack-release opcode must agree.
+// import "kab/aot/aot_verify_stack_free"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyStackFreeOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "4883c410"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "ff430091"
+    }
+    return false
+}

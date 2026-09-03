@@ -1,6 +1,6 @@
-import "kab/ui_factorof"
-import "kab/ui_approx"
-import "kab/ui_host"
+import "kab/ui/ui_factorof"
+import "kab/ui/ui_approx"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

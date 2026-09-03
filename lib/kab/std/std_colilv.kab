@@ -1,0 +1,28 @@
+// SH20: collections interleave off std_colpad.kab. import "kab/std/std_colilv"
+// Do not grow std_colpad.kab. stdHostDeleteOk stays false.
+
+pub fn stdColInterleave(a, b) {
+    let na = len(a)
+    let nb = len(b)
+    let n = na
+    if nb < n {
+        n = nb
+    }
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, a[i])
+        out = push(out, b[i])
+        i = i + 1
+    }
+    while i < na {
+        out = push(out, a[i])
+        i = i + 1
+    }
+    let j = n
+    while j < nb {
+        out = push(out, b[j])
+        j = j + 1
+    }
+    return out
+}

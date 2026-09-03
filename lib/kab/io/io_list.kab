@@ -1,0 +1,5 @@
+// F14 deepen: list dir via host capability. import "kab/io/io_list"
+
+pub fn ioList(dir) {
+    return os_list(dir)
+}

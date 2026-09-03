@@ -1,3 +1,3 @@
-import "kab/aot_jns_op"
+import "kab/aot/aot_jns_op"
 
 return aotJnsOp("x64") == "7900"

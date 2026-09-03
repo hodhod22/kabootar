@@ -1,6 +1,0 @@
-// SH28: product fuzzer is not Kab-only yet. import "kab/noll_fuzz"
-// Do not grow noll_cov.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollFuzzIsKab() {
-    return false
-}

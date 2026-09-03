@@ -1,0 +1,6 @@
+// SH28: product profiler is not Kab-only yet. import "kab/noll/noll_prof"
+// Do not grow noll_dbg.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollProfIsKab() {
+    return false
+}

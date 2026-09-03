@@ -1,4 +1,4 @@
-import "kab/std_obj"
+import "kab/std/std_obj"
 
 let o = { "n": 42 }
 return stdObjGet(o, "n") == 42

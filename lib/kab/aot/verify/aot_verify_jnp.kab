@@ -1,0 +1,9 @@
+// F10: the x64 native image filename and jnp opcode must agree.
+// import "kab/aot/aot_verify_jnp"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyJnpOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "7b00"
+    }
+    return false
+}

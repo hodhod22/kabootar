@@ -1,6 +1,6 @@
-import "kab/sci_neg"
-import "kab/sci_div"
-import "kab/sci_host"
+import "kab/sci/sci_neg"
+import "kab/sci/sci_div"
+import "kab/sci/sci_host"
 
 if sciHostDeleteOk() != false {
     return false

@@ -1,9 +1,0 @@
-// F10: first Kab-native images use an explicit zero entry offset.
-// import "kab/aot_emit_entry"; do not import other kab/aot* leaves.
-
-pub fn aotEmitEntry(imageSize) {
-    if imageSize > 0 {
-        return "entry:0"
-    }
-    return ""
-}

@@ -1,0 +1,3 @@
+import "kab/load/load_ship"
+
+return loadShipOk(0) == false

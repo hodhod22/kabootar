@@ -1,0 +1,6 @@
+// SH23: X25519 alg gate off crypto_ed.kab. import "kab/crypto/crypto_x"
+// Do not grow crypto_ed.kab. cryptoHostDeleteOk stays false.
+
+pub fn cryptoX25519Ok(alg) {
+    return alg == "x25519"
+}

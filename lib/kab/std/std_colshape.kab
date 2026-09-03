@@ -1,0 +1,15 @@
+// SH20: collections shape off std_colcol.kab. import "kab/std/std_colshape"
+// Do not grow std_colcol.kab. stdHostDeleteOk stays false.
+
+pub fn stdColShape(rows) {
+    let nr = len(rows)
+    let nc = 0
+    if nr > 0 {
+        let first = rows[0]
+        nc = len(first)
+    }
+    let out = []
+    out = push(out, nr)
+    out = push(out, nc)
+    return out
+}

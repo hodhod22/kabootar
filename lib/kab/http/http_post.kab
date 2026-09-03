@@ -1,0 +1,6 @@
+// SH24: POST method gate off http.kab. import "kab/http/http_post"
+// Do not grow http.kab. No TCP. Host http.rs remains skuld.
+
+pub fn httpIsPost(m) {
+    return m == "POST"
+}

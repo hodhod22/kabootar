@@ -1,5 +1,0 @@
-// F14 deepen: stat via host capability. import "kab/io_stat"
-
-pub fn ioStat(path) {
-    return os_stat(path)
-}

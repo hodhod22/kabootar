@@ -1,0 +1,6 @@
+// SH18/F11: host GC delete policy off gc.kab. import "kab/gc/gc_host"
+// Do not grow gc.kab. Do not delete host GC until Kab nursery+mark smoke is complete.
+
+pub fn gcHostDeleteOk() {
+    return false
+}

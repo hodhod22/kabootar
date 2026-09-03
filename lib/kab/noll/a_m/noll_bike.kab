@@ -1,0 +1,6 @@
+// SH28: product BIKE stack is not Kab-only yet. import "kab/noll/noll_bike"
+// Do not grow noll_mceliece.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollBikeIsKab() {
+    return false
+}

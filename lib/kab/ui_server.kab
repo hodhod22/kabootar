@@ -1,6 +1,0 @@
-// SH27: server tag off ui_image.kab. import "kab/ui_server"
-// Do not grow ui_image.kab. Host browser* remains skuld.
-
-pub fn uiIsServer(tag) {
-    return tag == "server"
-}

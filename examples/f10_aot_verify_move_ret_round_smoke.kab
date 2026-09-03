@@ -1,6 +1,6 @@
-import "kab/aot_image_name"
-import "kab/aot_move_ret_op"
-import "kab/aot_verify_move_ret"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_move_ret_op"
+import "kab/aot/aot_verify_move_ret"
 
 let name = aotImageName("x64")
 let op = aotMoveRetOp("x64")

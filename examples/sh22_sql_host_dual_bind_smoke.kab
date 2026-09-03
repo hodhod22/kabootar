@@ -1,7 +1,7 @@
 import "kab/sql"
-import "kab/sql_where"
-import "kab/sql_store"
-import "kab/sql_host"
+import "kab/sql/sql_where"
+import "kab/sql/sql_store"
+import "kab/sql/sql_host"
 
 if sqlHostDeleteOk() != false {
     return false

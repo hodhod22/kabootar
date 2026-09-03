@@ -1,6 +1,0 @@
-// SH27: mtr tag off ui_mtable.kab. import "kab/ui_mtr"
-// Do not grow ui_mtable.kab. Host browser* remains skuld.
-
-pub fn uiIsMtr(tag) {
-    return tag == "mtr"
-}

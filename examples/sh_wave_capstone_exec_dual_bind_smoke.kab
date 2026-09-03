@@ -1,8 +1,8 @@
 import "kab/load"
-import "kab/load_kbc"
-import "kab/load_main"
+import "kab/load/load_kbc"
+import "kab/load/load_main"
 import "kab/wave_capstone"
-import "kab/noll_aot"
+import "kab/noll/noll_aot"
 
 if loadMainDeleteOk() != false {
     return false

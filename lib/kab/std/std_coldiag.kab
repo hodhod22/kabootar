@@ -1,0 +1,17 @@
+// SH20: collections diag off std_coltr.kab. import "kab/std/std_coldiag"
+// Do not grow std_coltr.kab. stdHostDeleteOk stays false.
+
+pub fn stdColDiag(rows) {
+    let n = len(rows)
+    let out = []
+    let i = 0
+    while i < n {
+        let row = rows[i]
+        let w = len(row)
+        if i < w {
+            out = push(out, row[i])
+        }
+        i = i + 1
+    }
+    return out
+}

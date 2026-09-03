@@ -1,5 +1,5 @@
-import "kab/aot_cmp_op"
-import "kab/aot_load_cmp"
+import "kab/aot/aot_cmp_op"
+import "kab/aot/aot_load_cmp"
 
 let op = aotCmpOp("x64")
 return aotLoadCmpOk(op, "x64")

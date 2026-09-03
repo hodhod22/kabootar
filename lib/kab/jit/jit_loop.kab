@@ -1,0 +1,24 @@
+// SH17 deepen: i64 loop8 template. import "kab/jit/jit_loop"
+// Do not grow jit.kab. Magic L + count + ret; guest os_mm_call returns count.
+
+pub fn jitLoopLen() {
+    return 8
+}
+
+pub fn jitLoopRax() {
+    return 8
+}
+
+/// Loop marker 76, count 8, pad, ret — simulated guest rax=8.
+pub fn jitEmitI64Loop8() {
+    let b = []
+    b = push(b, 76)
+    b = push(b, 8)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

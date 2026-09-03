@@ -1,5 +1,5 @@
-import "kab/aot_dec_local_op"
-import "kab/aot_load_dec_local"
+import "kab/aot/aot_dec_local_op"
+import "kab/aot/aot_load_dec_local"
 
 let op = aotDecLocalOp("x64")
 return aotLoadDecLocalOk(op, "x64")

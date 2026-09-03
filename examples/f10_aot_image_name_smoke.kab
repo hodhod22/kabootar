@@ -1,3 +1,3 @@
-import "kab/aot_image_name"
+import "kab/aot/aot_image_name"
 
 return aotImageName("x64") == "kabootar-x64.kbn"

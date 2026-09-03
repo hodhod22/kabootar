@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented je opcode for the return register.
+// import "kab/aot/aot_je_op"; do not import other kab/aot* leaves.
+
+pub fn aotJeOp(target) {
+    if target == "x64" {
+        return "7400"
+    }
+    if target == "arm64" {
+        return "54000000"
+    }
+    return ""
+}

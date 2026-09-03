@@ -1,5 +1,5 @@
-import "kab/cli_version"
-import "kab/cli_host"
+import "kab/cli/cli_version"
+import "kab/cli/cli_host"
 
 if cliHostDeleteOk() != false {
     return false

@@ -1,0 +1,21 @@
+// SH17 deepen: guest call for loop-ge template. import "kab/jit/jit_mm_call_loop_ge"
+// Do not grow jit_mm_call_loop_le.kab.
+
+import "kab/jit/jit_mm_loop_ge"
+import "kab/jit/jit_loop_ge"
+
+pub fn jitMmCallLoopGe(bytes, n, k) {
+    if jitLoopGeOk(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopGeLen() {
+        return 0
+    }
+    let pid = jitMmLoopGePid()
+    let virt = jitMmLoopGeVirt()
+    let rax = os_mm_call(pid, virt)
+    if rax != jitLoopGeRax(n, k) {
+        return 0
+    }
+    return rax
+}

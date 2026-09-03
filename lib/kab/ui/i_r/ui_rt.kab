@@ -1,0 +1,6 @@
+// SH27: rt tag off ui_ruby.kab. import "kab/ui/ui_rt"
+// Do not grow ui_ruby.kab. Host browser* remains skuld.
+
+pub fn uiIsRt(tag) {
+    return tag == "rt"
+}

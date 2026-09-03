@@ -1,0 +1,6 @@
+// SH27: source tag off ui_audio.kab. import "kab/ui/ui_source"
+// Do not grow ui_audio.kab. Host browser* remains skuld.
+
+pub fn uiIsSource(tag) {
+    return tag == "source"
+}

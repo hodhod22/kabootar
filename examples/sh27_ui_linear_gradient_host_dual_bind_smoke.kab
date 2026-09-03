@@ -1,6 +1,6 @@
-import "kab/ui_linear_gradient"
-import "kab/ui_pattern"
-import "kab/ui_host"
+import "kab/ui/ui_linear_gradient"
+import "kab/ui/ui_pattern"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

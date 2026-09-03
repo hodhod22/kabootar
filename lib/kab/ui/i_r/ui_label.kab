@@ -1,0 +1,6 @@
+// SH27: label tag off ui_form.kab. import "kab/ui/ui_label"
+// Do not grow ui_form.kab. Host browser* remains skuld.
+
+pub fn uiIsLabel(tag) {
+    return tag == "label"
+}

@@ -1,6 +1,0 @@
-// SH27: ellipse tag off ui_circle.kab. import "kab/ui_ellipse"
-// Do not grow ui_circle.kab. Host browser* remains skuld.
-
-pub fn uiIsEllipse(tag) {
-    return tag == "ellipse"
-}

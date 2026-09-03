@@ -1,6 +1,6 @@
-import "kab/ui_mspace"
-import "kab/ui_ms"
-import "kab/ui_host"
+import "kab/ui/ui_mspace"
+import "kab/ui/ui_ms"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

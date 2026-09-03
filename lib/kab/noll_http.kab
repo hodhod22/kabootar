@@ -1,6 +1,0 @@
-// SH28: product HTTP stack is not Kab-only yet. import "kab/noll_http"
-// Do not grow noll_tls.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollHttpIsKab() {
-    return false
-}

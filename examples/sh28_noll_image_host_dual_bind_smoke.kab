@@ -1,6 +1,6 @@
-import "kab/noll_image"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_image"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

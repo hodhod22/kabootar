@@ -1,0 +1,3 @@
+import "kab/gc/gc_concurrent"
+
+return gcConcurrentOk(2)

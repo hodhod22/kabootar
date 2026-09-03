@@ -1,0 +1,3 @@
+import "kab/load/load_ship_loaded"
+
+return loadShipLoadedOk(4096)

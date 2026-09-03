@@ -1,0 +1,9 @@
+// SH21: cwd path leaf off os.kab. import "kab/os/os_cwd"
+// Do not grow os_env.kab. Host cwd remains skuld.
+
+pub fn kabOsCwdOk(path) {
+    if len(path) < 1 {
+        return false
+    }
+    return str_includes(path, "/")
+}

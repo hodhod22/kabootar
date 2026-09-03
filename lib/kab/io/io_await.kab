@@ -1,0 +1,5 @@
+// F14 deepen: join async results. import "kab/io/io_await"
+
+pub fn ioAwaitAll(xs) {
+    return await_all(xs)
+}

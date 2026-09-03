@@ -1,0 +1,9 @@
+// SH20: collections sort-desc off std_colsort.kab. import "kab/std/std_coldesc"
+// Do not grow std_colsort.kab. stdHostDeleteOk stays false.
+
+import "kab/std/std_colsort"
+import "kab/std/std_colrev"
+
+pub fn stdColSortDesc(p) {
+    return stdColRev(stdColSort(p))
+}

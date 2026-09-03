@@ -1,8 +1,8 @@
-import "kab/noll_rchost"
+import "kab/noll/noll_rchost"
 import "kab/noll"
-import "kab/noll_syskab"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_syskab"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

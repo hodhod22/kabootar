@@ -1,7 +1,7 @@
 import "kab/cli"
-import "kab/cli_cc"
-import "kab/cli_fmt"
-import "kab/cli_host"
+import "kab/cli/cli_cc"
+import "kab/cli/cli_fmt"
+import "kab/cli/cli_host"
 
 if cliHostDeleteOk() != false {
     return false

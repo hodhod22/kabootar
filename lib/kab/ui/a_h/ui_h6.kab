@@ -1,0 +1,6 @@
+// SH27: h6 tag off ui_h5.kab. import "kab/ui/ui_h6"
+// Do not grow ui_h5.kab. Host browser* remains skuld.
+
+pub fn uiIsH6(tag) {
+    return tag == "h6"
+}

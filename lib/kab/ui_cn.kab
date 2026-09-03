@@ -1,6 +1,0 @@
-// SH27: cn tag off ui_ci.kab. import "kab/ui_cn"
-// Do not grow ui_ci.kab. Host browser* remains skuld.
-
-pub fn uiIsCn(tag) {
-    return tag == "cn"
-}

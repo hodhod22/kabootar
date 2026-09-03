@@ -1,0 +1,6 @@
+// SH20: object subset off stdlib.kab. import "kab/std/std_obj"
+// Do not grow std_math.kab. Host object natives remain skuld.
+
+pub fn stdObjGet(o, k) {
+    return o[k]
+}

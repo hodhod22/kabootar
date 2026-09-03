@@ -1,7 +1,7 @@
-import "kab/noll_hpke"
-import "kab/noll_xwing"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_hpke"
+import "kab/noll/noll_xwing"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

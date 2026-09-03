@@ -1,4 +1,4 @@
-import "kab/io_get"
+import "kab/io/io_get"
 
 os_write("ft14_ok.txt", "ok")
 let s = ioGet("ft14_ok.txt")

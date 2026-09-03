@@ -1,7 +1,7 @@
-import "kab/noll_snap"
-import "kab/noll_san"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_snap"
+import "kab/noll/noll_san"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

@@ -1,0 +1,18 @@
+import "kab/noll/noll_wazuh"
+import "kab/noll/noll_shuffle"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollShuffleIsKab() != false {
+    return false
+}
+if nollWazuhIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

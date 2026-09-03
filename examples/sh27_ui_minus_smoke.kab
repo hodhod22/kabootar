@@ -1,3 +1,3 @@
-import "kab/ui_minus"
+import "kab/ui/ui_minus"
 
 return uiIsMinus("minus")

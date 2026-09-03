@@ -1,0 +1,6 @@
+// SH27: mover tag off ui_munder.kab. import "kab/ui/ui_mover"
+// Do not grow ui_munder.kab. Host browser* remains skuld.
+
+pub fn uiIsMover(tag) {
+    return tag == "mover"
+}

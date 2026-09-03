@@ -1,0 +1,12 @@
+// F10: Kab-native image filenames are target-qualified and stable.
+// import "kab/aot/aot_image_name"; do not import other kab/aot* leaves.
+
+pub fn aotImageName(target) {
+    if target == "x64" {
+        return "kabootar-x64.kbn"
+    }
+    if target == "arm64" {
+        return "kabootar-arm64.kbn"
+    }
+    return ""
+}

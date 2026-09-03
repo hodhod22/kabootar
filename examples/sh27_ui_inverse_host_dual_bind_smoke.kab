@@ -1,6 +1,6 @@
-import "kab/ui_inverse"
-import "kab/ui_compose"
-import "kab/ui_host"
+import "kab/ui/ui_inverse"
+import "kab/ui/ui_compose"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

@@ -1,6 +1,0 @@
-// SH28: product compiler is not Kab-only yet. import "kab/noll_compile"
-// Do not grow noll_gc.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollCompileIsKab() {
-    return false
-}

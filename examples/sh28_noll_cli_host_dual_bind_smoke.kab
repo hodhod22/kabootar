@@ -1,7 +1,7 @@
-import "kab/noll_cli"
-import "kab/noll_std"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_cli"
+import "kab/noll/noll_std"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

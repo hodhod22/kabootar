@@ -1,0 +1,10 @@
+import "kab/gc/gc_capstone"
+import "kab/gc/gc_host"
+
+if gcHostDeleteOk() != false {
+    return false
+}
+if gcCapstoneOk(2) == false {
+    return false
+}
+return gcHostDeleteOk() == false

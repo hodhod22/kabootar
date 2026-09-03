@@ -1,6 +1,0 @@
-// SH28: product bench CLI is not Kab-only yet. import "kab/noll_bench"
-// Do not grow noll_doc.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollBenchIsKab() {
-    return false
-}

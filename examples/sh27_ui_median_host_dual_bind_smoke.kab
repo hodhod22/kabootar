@@ -1,6 +1,6 @@
-import "kab/ui_median"
-import "kab/ui_variance"
-import "kab/ui_host"
+import "kab/ui/ui_median"
+import "kab/ui/ui_variance"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

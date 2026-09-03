@@ -1,6 +1,0 @@
-// SH27: mstack tag off ui_mlongdiv.kab. import "kab/ui_mstack"
-// Do not grow ui_mlongdiv.kab. Host browser* remains skuld.
-
-pub fn uiIsMstack(tag) {
-    return tag == "mstack"
-}

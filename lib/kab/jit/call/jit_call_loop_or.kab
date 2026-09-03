@@ -1,0 +1,24 @@
+// SH17 deepen: loop-or wr+run+call pipeline. import "kab/jit/jit_call_loop_or"
+// Do not grow jit_call_loop_and.kab.
+
+import "kab/jit/jit_wr_loop_or"
+import "kab/jit/jit_run_loop_or"
+import "kab/jit/jit_mm_call_loop_or"
+import "kab/jit/jit_loop_or"
+
+pub fn jitCallLoopOrOk(base, kind, n, mask, bytes) {
+    if jitLoopOrOk(n, mask) == false {
+        return false
+    }
+    if jitWrLoopOrOk(bytes, n, mask) == false {
+        return false
+    }
+    if jitRunLoopOrOk(base, kind, bytes, n, mask) == false {
+        return false
+    }
+    let rax = jitMmCallLoopOr(bytes, n, mask)
+    if rax != jitLoopOrRax(n, mask) {
+        return false
+    }
+    return true
+}

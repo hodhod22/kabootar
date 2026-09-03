@@ -1,0 +1,6 @@
+// SH27: canvas tag off ui.kab. import "kab/ui/ui_cv"
+// Do not grow ui.kab. Host browser* remains skuld.
+
+pub fn uiIsCanvas(tag) {
+    return tag == "canvas"
+}

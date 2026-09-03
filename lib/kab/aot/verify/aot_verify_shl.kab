@@ -1,0 +1,12 @@
+// F10: native image filename and shl opcode must agree.
+// import "kab/aot/aot_verify_shl"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyShlOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "d1e0"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "d37ff800"
+    }
+    return false
+}

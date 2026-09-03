@@ -1,0 +1,6 @@
+// SH27: hkern tag off ui_font_face_name.kab. import "kab/ui/ui_hkern"
+// Do not grow ui_font_face_name.kab. Host browser* remains skuld.
+
+pub fn uiIsHkern(tag) {
+    return tag == "hkern"
+}

@@ -1,0 +1,6 @@
+// SH27: defs tag off ui_use.kab. import "kab/ui/ui_defs"
+// Do not grow ui_use.kab. Host browser* remains skuld.
+
+pub fn uiIsDefs(tag) {
+    return tag == "defs"
+}

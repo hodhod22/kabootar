@@ -1,0 +1,21 @@
+// SH17 deepen: guest call for loop-not template. import "kab/jit/jit_mm_call_loop_not"
+// Do not grow jit_mm_call_loop_ushr.kab.
+
+import "kab/jit/jit_mm_loop_not"
+import "kab/jit/jit_loop_not"
+
+pub fn jitMmCallLoopNot(bytes, n) {
+    if jitLoopNotOk(n) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopNotLen() {
+        return 0
+    }
+    let pid = jitMmLoopNotPid()
+    let virt = jitMmLoopNotVirt()
+    let rax = os_mm_call(pid, virt)
+    if rax != jitLoopNotRax(n) {
+        return 0
+    }
+    return rax
+}

@@ -1,7 +1,0 @@
-// F10: persist first native R rodata through the host filesystem capability.
-// import "kab/aot_write_rodata"; do not import other kab/aot* leaves.
-
-pub fn aotWriteRodata(path, rodata) {
-    os_write(path, rodata)
-    return true
-}

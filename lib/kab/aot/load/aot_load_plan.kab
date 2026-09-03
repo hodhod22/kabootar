@@ -1,0 +1,12 @@
+// F10: loader validates the complete first Kab-native image plan.
+// import "kab/aot/aot_load_plan"; do not import other kab/aot* leaves.
+
+pub fn aotLoadPlanOk(plan, target) {
+    if target == "x64" {
+        return plan == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw"
+    }
+    if target == "arm64" {
+        return plan == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw"
+    }
+    return false
+}

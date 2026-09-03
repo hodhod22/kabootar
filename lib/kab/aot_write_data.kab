@@ -1,7 +1,0 @@
-// F10: persist first native RW data through the host filesystem capability.
-// import "kab/aot_write_data"; do not import other kab/aot* leaves.
-
-pub fn aotWriteData(path, data) {
-    os_write(path, data)
-    return true
-}

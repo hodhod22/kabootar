@@ -1,6 +1,0 @@
-// SH27: thead tag off ui_td.kab. import "kab/ui_thead"
-// Do not grow ui_td.kab. Host browser* remains skuld.
-
-pub fn uiIsThead(tag) {
-    return tag == "thead"
-}

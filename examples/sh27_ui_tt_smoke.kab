@@ -1,3 +1,3 @@
-import "kab/ui_tt"
+import "kab/ui/ui_tt"
 
 return uiIsTt("tt")

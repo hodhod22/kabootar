@@ -1,0 +1,18 @@
+import "kab/gc/gc_cycle"
+import "kab/gc/gc_bar"
+import "kab/gc/gc_conc"
+import "kab/gc/gc_host"
+
+let cap = gcNurseryCap()
+let ok = gcNurseryCycleOk(cap, 8, cap)
+if ok == false {
+    return false
+}
+if gcWriteBarrier(1, 2) == false {
+    return false
+}
+let left = gcMarkStep(3, gcFrameBudgetMs())
+if left != 2 {
+    return false
+}
+return gcHostDeleteOk() == false

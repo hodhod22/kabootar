@@ -1,6 +1,0 @@
-// SH27: base tag off ui_title.kab. import "kab/ui_base"
-// Do not grow ui_title.kab. Host browser* remains skuld.
-
-pub fn uiIsBase(tag) {
-    return tag == "base"
-}

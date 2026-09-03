@@ -1,0 +1,6 @@
+// SH27: list tag off ui_interval.kab. import "kab/ui/ui_list"
+// Do not grow ui_interval.kab. Host browser* remains skuld.
+
+pub fn uiIsList(tag) {
+    return tag == "list"
+}

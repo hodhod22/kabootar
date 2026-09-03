@@ -1,6 +1,6 @@
-import "kab/ui_dialog"
-import "kab/ui_summary"
-import "kab/ui_host"
+import "kab/ui/ui_dialog"
+import "kab/ui/ui_summary"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

@@ -1,6 +1,0 @@
-// SH27: font-face-format tag off ui_font_face_uri.kab. import "kab/ui_font_face_format"
-// Do not grow ui_font_face_uri.kab. Host browser* remains skuld.
-
-pub fn uiIsFontFaceFormat(tag) {
-    return tag == "font-face-format"
-}

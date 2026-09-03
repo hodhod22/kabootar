@@ -1,9 +1,9 @@
-import "kab/std_colrev"
-import "kab/std_colconcat"
-import "kab/std_colfirst"
-import "kab/std_collast"
-import "kab/std_col"
-import "kab/std_host"
+import "kab/std/std_colrev"
+import "kab/std/std_colconcat"
+import "kab/std/std_colfirst"
+import "kab/std/std_collast"
+import "kab/std/std_col"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false

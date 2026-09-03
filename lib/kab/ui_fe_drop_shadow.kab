@@ -1,6 +1,0 @@
-// SH27: feDropShadow tag off ui_fe_distant_light.kab. import "kab/ui_fe_drop_shadow"
-// Do not grow ui_fe_distant_light.kab. Host browser* remains skuld.
-
-pub fn uiIsFeDropShadow(tag) {
-    return tag == "feDropShadow"
-}

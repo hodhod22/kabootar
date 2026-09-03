@@ -1,0 +1,6 @@
+// SH27: iframe tag off ui_track.kab. import "kab/ui/ui_iframe"
+// Do not grow ui_track.kab. Host browser* remains skuld.
+
+pub fn uiIsIframe(tag) {
+    return tag == "iframe"
+}

@@ -1,0 +1,6 @@
+// SH27: semantics tag off ui_menclose.kab. import "kab/ui/ui_semantics"
+// Do not grow ui_menclose.kab. Host browser* remains skuld.
+
+pub fn uiIsSemantics(tag) {
+    return tag == "semantics"
+}

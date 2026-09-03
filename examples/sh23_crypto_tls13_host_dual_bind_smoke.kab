@@ -1,5 +1,5 @@
-import "kab/crypto_tls13"
-import "kab/crypto_host"
+import "kab/crypto/crypto_tls13"
+import "kab/crypto/crypto_host"
 
 if cryptoHostDeleteOk() != false {
     return false

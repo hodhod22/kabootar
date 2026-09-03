@@ -1,6 +1,6 @@
-import "kab/aot_pgo"
-import "kab/aot_lazy"
-import "kab/aot_lazy_jit"
+import "kab/aot/aot_pgo"
+import "kab/aot/aot_lazy"
+import "kab/aot/aot_lazy_jit"
 
 if aotPgoOk(8) != true {
     return false

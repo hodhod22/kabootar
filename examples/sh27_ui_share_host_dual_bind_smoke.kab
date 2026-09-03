@@ -1,6 +1,6 @@
-import "kab/ui_share"
-import "kab/ui_bvar"
-import "kab/ui_host"
+import "kab/ui/ui_share"
+import "kab/ui/ui_bvar"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

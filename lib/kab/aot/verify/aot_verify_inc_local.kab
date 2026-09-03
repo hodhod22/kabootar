@@ -1,0 +1,12 @@
+// F10: native image filename and frame-local increment must agree.
+// import "kab/aot/aot_verify_inc_local"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyIncLocalOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "488345f801"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "a00b40f900040091a00b00f9"
+    }
+    return false
+}

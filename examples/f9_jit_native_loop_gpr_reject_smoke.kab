@@ -1,3 +1,3 @@
-import "kab/jit_native_loop_gpr"
+import "kab/jit/jit_native_loop_gpr"
 
 return jitNativeLoopGprOk(1, 1, 1, 1, "i64", true, true, 0, 16) == false

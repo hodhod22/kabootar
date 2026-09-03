@@ -1,0 +1,6 @@
+// SH24: PATCH method gate off http.kab. import "kab/http/http_patch"
+// Do not grow http_put.kab. No TCP. Host http.rs remains skuld.
+
+pub fn httpIsPatch(m) {
+    return m == "PATCH"
+}

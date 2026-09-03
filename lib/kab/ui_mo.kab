@@ -1,6 +1,0 @@
-// SH27: mo tag off ui_mn.kab. import "kab/ui_mo"
-// Do not grow ui_mn.kab. Host browser* remains skuld.
-
-pub fn uiIsMo(tag) {
-    return tag == "mo"
-}

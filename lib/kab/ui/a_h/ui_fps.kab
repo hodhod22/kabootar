@@ -1,0 +1,9 @@
+// SH27: 60 FPS frame gate off ui.kab. import "kab/ui/ui_fps"
+// Do not grow ui.kab. Host game loop remains skuld.
+
+pub fn uiFpsOk(ms) {
+    if ms <= 16 {
+        return true
+    }
+    return false
+}

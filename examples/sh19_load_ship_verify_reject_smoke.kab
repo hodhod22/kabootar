@@ -1,0 +1,3 @@
+import "kab/load/load_ship_verify"
+
+return loadShipVerifyOk(0) == false

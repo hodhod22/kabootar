@@ -1,0 +1,6 @@
+// SH27: em tag off ui_strong.kab. import "kab/ui/ui_em"
+// Do not grow ui_strong.kab. Host browser* remains skuld.
+
+pub fn uiIsEm(tag) {
+    return tag == "em"
+}

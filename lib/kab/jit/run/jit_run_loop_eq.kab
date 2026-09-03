@@ -1,0 +1,30 @@
+// SH17 deepen: mmap+exec policy for loop-eq template. import "kab/jit/jit_run_loop_eq"
+// Do not grow jit_run_loop_neg.kab.
+
+import "kab/jit/jit_mmap_loop"
+import "kab/jit/jit_np"
+import "kab/jit/jit_exec"
+import "kab/jit/jit_mm_loop_eq"
+import "kab/jit/jit_patch_loop_eq"
+import "kab/jit/jit_loop_eq"
+
+pub fn jitRunLoopEqOk(base, kind, bytes, n, k) {
+    if base <= 0 {
+        return false
+    }
+    if jitPatchLoopEqOk(bytes, n, k) == false {
+        return false
+    }
+    let nb = len(bytes)
+    if jitMmapLoopOk(nb, kind) == false {
+        return false
+    }
+    if jitOsMmapLoopEqOk(nb, kind, n, k) == false {
+        return false
+    }
+    let pages = jitPagesFor(nb)
+    if jitExecOk(pages, kind) == false {
+        return false
+    }
+    return true
+}

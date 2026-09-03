@@ -1,6 +1,0 @@
-// SH27: acronym tag off ui_bgsound.kab. import "kab/ui_acronym"
-// Do not grow ui_bgsound.kab. Host browser* remains skuld.
-
-pub fn uiIsAcronym(tag) {
-    return tag == "acronym"
-}

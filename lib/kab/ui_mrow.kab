@@ -1,6 +1,0 @@
-// SH27: mrow tag off ui_unknown.kab. import "kab/ui_mrow"
-// Do not grow ui_unknown.kab. Host browser* remains skuld.
-
-pub fn uiIsMrow(tag) {
-    return tag == "mrow"
-}

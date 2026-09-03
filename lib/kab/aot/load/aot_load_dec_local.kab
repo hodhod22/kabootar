@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image frame-local decrement.
+// import "kab/aot/aot_load_dec_local"; do not import other kab/aot* leaves.
+
+pub fn aotLoadDecLocalOk(op, target) {
+    if target == "x64" {
+        return op == "488345f8ff"
+    }
+    if target == "arm64" {
+        return op == "a00b40f9000400d1a00b00f9"
+    }
+    return false
+}

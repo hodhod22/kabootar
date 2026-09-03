@@ -1,3 +1,3 @@
-import "kab/aot_je_op"
+import "kab/aot/aot_je_op"
 
 return aotJeOp("x64") == "7400"

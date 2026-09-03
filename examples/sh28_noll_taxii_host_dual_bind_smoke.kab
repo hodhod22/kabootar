@@ -1,7 +1,7 @@
-import "kab/noll_taxii"
-import "kab/noll_stix"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_taxii"
+import "kab/noll/noll_stix"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

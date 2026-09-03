@@ -1,0 +1,16 @@
+// SH17/F7: rwx mmap policy for i64 inc+ret (6 bytes, 1 page). import "kab/jit/jit_mmap"
+// Do not grow jit.kab. Do not import other kab/jit* leaves. No Rust mmap.
+
+pub fn jitMmapOk(n, kind) {
+    if n != 6 {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    let page = 4096
+    if n <= page {
+        return true
+    }
+    return false
+}

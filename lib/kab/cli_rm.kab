@@ -1,6 +1,0 @@
-// SH25: rm argv off cli_add.kab. import "kab/cli_rm"
-// Do not grow cli_add.kab. Host src/cli remains skuld.
-
-pub fn cliIsRm(cmd) {
-    return cmd == "rm"
-}

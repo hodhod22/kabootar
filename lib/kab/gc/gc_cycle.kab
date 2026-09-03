@@ -1,0 +1,24 @@
+// SH18 deepen: nursery promote + sweep cycle off gc leaves. import "kab/gc/gc_cycle"
+// Do not grow gc.kab. No host GC heap in Rust.
+
+import "kab/gc"
+import "kab/gc/gc_prom"
+import "kab/gc/gc_mark"
+
+/// Bump past cap → promote overflow → sweep dead; all in Kab policy.
+pub fn gcNurseryCycleOk(start, bump, live) {
+    let cap = gcNurseryCap()
+    let u = gcBump(start, bump)
+    if gcNeedCollect(u, cap) == false {
+        return false
+    }
+    let promoted = gcPromote(u, cap)
+    if promoted <= 0 {
+        return false
+    }
+    let dead = gcSweepDead(u, live)
+    if dead < 0 {
+        return false
+    }
+    return dead == u - live
+}

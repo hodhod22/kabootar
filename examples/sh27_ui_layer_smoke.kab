@@ -1,3 +1,3 @@
-import "kab/ui_layer"
+import "kab/ui/ui_layer"
 
 return uiIsLayer("layer")

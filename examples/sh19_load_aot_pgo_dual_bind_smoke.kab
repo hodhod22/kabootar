@@ -1,0 +1,22 @@
+import "kab/load"
+import "kab/load/load_kbc"
+import "kab/load/load_main"
+import "kab/load/load_aot_pgo"
+import "kab/noll/noll_aot"
+
+if loadMainDeleteOk() != false {
+    return false
+}
+if loadIsKab("app.kab") == false {
+    return false
+}
+if loadIsKbc("cache/app.kbc") == false {
+    return false
+}
+if loadAotPgoBootstrapOk(8192) == false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+return loadMainDeleteOk() == false

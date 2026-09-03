@@ -1,0 +1,6 @@
+// SH28: product LMS stack is not Kab-only yet. import "kab/noll/noll_lms"
+// Do not grow noll_xmss.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollLmsIsKab() {
+    return false
+}

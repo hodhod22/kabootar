@@ -1,6 +1,0 @@
-// SH27: mtable tag off ui_none.kab. import "kab/ui_mtable"
-// Do not grow ui_none.kab. Host browser* remains skuld.
-
-pub fn uiIsMtable(tag) {
-    return tag == "mtable"
-}

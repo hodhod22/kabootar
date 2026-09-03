@@ -1,6 +1,6 @@
-import "kab/ui_maction"
-import "kab/ui_annotation_xml"
-import "kab/ui_host"
+import "kab/ui/ui_maction"
+import "kab/ui/ui_annotation_xml"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

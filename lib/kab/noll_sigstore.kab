@@ -1,6 +1,0 @@
-// SH28: product Sigstore stack is not Kab-only yet. import "kab/noll_sigstore"
-// Do not grow noll_fulcio.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollSigstoreIsKab() {
-    return false
-}

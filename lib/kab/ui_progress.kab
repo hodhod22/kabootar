@@ -1,6 +1,0 @@
-// SH27: progress tag off ui_meter.kab. import "kab/ui_progress"
-// Do not grow ui_meter.kab. Host browser* remains skuld.
-
-pub fn uiIsProgress(tag) {
-    return tag == "progress"
-}

@@ -1,6 +1,6 @@
-import "kab/ui_flow_root"
-import "kab/ui_text_area"
-import "kab/ui_host"
+import "kab/ui/ui_flow_root"
+import "kab/ui/ui_text_area"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

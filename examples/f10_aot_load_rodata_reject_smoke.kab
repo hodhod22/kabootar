@@ -1,3 +1,3 @@
-import "kab/aot_load_rodata"
+import "kab/aot/aot_load_rodata"
 
 return aotLoadRodataOk("rodata:rw|00", "x64") == false

@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image jbe opcode.
+// import "kab/aot/aot_load_jbe"; do not import other kab/aot* leaves.
+
+pub fn aotLoadJbeOk(op, target) {
+    if target == "x64" {
+        return op == "7600"
+    }
+    if target == "arm64" {
+        return op == "54000009"
+    }
+    return false
+}

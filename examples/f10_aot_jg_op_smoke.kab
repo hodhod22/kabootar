@@ -1,3 +1,3 @@
-import "kab/aot_jg_op"
+import "kab/aot/aot_jg_op"
 
 return aotJgOp("x64") == "7f00"

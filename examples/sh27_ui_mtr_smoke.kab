@@ -1,3 +1,3 @@
-import "kab/ui_mtr"
+import "kab/ui/ui_mtr"
 
 return uiIsMtr("mtr")

@@ -1,6 +1,0 @@
-// SH27: mmultiscripts tag off ui_munderover.kab. import "kab/ui_mmultiscripts"
-// Do not grow ui_munderover.kab. Host browser* remains skuld.
-
-pub fn uiIsMmultiscripts(tag) {
-    return tag == "mmultiscripts"
-}

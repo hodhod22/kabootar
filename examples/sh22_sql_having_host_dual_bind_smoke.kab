@@ -1,6 +1,6 @@
-import "kab/sql_having"
-import "kab/sql_group"
-import "kab/sql_host"
+import "kab/sql/sql_having"
+import "kab/sql/sql_group"
+import "kab/sql/sql_host"
 
 if sqlHostDeleteOk() != false {
     return false

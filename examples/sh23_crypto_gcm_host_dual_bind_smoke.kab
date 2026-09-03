@@ -1,6 +1,6 @@
-import "kab/crypto_gcm"
-import "kab/crypto_chacha"
-import "kab/crypto_host"
+import "kab/crypto/crypto_gcm"
+import "kab/crypto/crypto_chacha"
+import "kab/crypto/crypto_host"
 
 if cryptoHostDeleteOk() != false {
     return false

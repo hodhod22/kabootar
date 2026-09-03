@@ -1,7 +1,7 @@
-import "kab/aot_apply_reloc"
-import "kab/aot_bind"
-import "kab/aot_emit_image"
-import "kab/aot_emit_reloc_table"
+import "kab/aot/aot_apply_reloc"
+import "kab/aot/aot_bind"
+import "kab/aot/aot_emit_image"
+import "kab/aot/aot_emit_reloc_table"
 
 let table = aotEmitRelocTableTextRodataData("arm64")
 let image = aotEmitImageWithRelocTableTextRodataData("arm64")

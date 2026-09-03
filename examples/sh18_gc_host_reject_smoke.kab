@@ -1,5 +1,5 @@
-import "kab/gc_conc"
-import "kab/gc_host"
+import "kab/gc/gc_conc"
+import "kab/gc/gc_host"
 
 let left = gcMarkStep(3, 0)
 if left != 3 {

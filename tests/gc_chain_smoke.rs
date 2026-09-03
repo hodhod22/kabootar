@@ -42,7 +42,7 @@ fn gc_basic_functionality() {
 
 #[test]
 fn gc_write_barrier() {
-    let gc_bar_file = std::fs::read_to_string("lib/kab/gc_bar.kab")
+    let gc_bar_file = std::fs::read_to_string("lib/kab/gc/gc_bar.kab")
         .expect("gc_bar.kab should exist");
     
     // Verify write barrier implementation
@@ -52,7 +52,7 @@ fn gc_write_barrier() {
 
 #[test]
 fn gc_concurrent_mark() {
-    let gc_concurrent_file = std::fs::read_to_string("lib/kab/gc_concurrent.kab")
+    let gc_concurrent_file = std::fs::read_to_string("lib/kab/gc/gc_concurrent.kab")
         .expect("gc_concurrent.kab should exist");
     
     // Verify concurrent mark implementation
@@ -63,13 +63,13 @@ fn gc_concurrent_mark() {
 
 #[test]
 fn gc_capstone_integrity() {
-    let gc_capstone_file = std::fs::read_to_string("lib/kab/gc_capstone.kab")
+    let gc_capstone_file = std::fs::read_to_string("lib/kab/gc/gc_capstone.kab")
         .expect("gc_capstone.kab should exist");
     
     // Verify capstone imports all chain components
-    assert!(gc_capstone_file.contains("import \"kab/gc_chain\""), "should import gc_chain");
-    assert!(gc_capstone_file.contains("import \"kab/gc_host\""), "should import gc_host");
-    assert!(gc_capstone_file.contains("import \"kab/noll_host\""), "should import noll_host");
+    assert!(gc_capstone_file.contains("import \"kab/gc/gc_chain\""), "should import gc_chain");
+    assert!(gc_capstone_file.contains("import \"kab/gc/gc_host\""), "should import gc_host");
+    assert!(gc_capstone_file.contains("import \"kab/noll/noll_host\""), "should import noll_host");
     
     // Verify capstone functions
     assert!(gc_capstone_file.contains("gcCapstoneOk"), "should have capstone ok");
@@ -78,7 +78,7 @@ fn gc_capstone_integrity() {
 
 #[test]
 fn gc_host_delete_policy_correct() {
-    let gc_host_file = std::fs::read_to_string("lib/kab/gc_host.kab")
+    let gc_host_file = std::fs::read_to_string("lib/kab/gc/gc_host.kab")
         .expect("gc_host.kab should exist");
     
     // Verify delete gate is correctly closed (false) until smoke-complete
@@ -91,7 +91,7 @@ fn gc_host_delete_policy_correct() {
 
 #[test]
 fn gc_nursery_cycle_implementation() {
-    let gc_cycle_file = std::fs::read_to_string("lib/kab/gc_cycle.kab")
+    let gc_cycle_file = std::fs::read_to_string("lib/kab/gc/gc_cycle.kab")
         .expect("gc_cycle.kab should exist");
     
     // Verify nursery cycle implementation
@@ -101,7 +101,7 @@ fn gc_nursery_cycle_implementation() {
 
 #[test]
 fn gc_promote_implementation() {
-    let gc_prom_file = std::fs::read_to_string("lib/kab/gc_prom.kab")
+    let gc_prom_file = std::fs::read_to_string("lib/kab/gc/gc_prom.kab")
         .expect("gc_prom.kab should exist");
     
     // Verify promote implementation
@@ -113,7 +113,7 @@ fn gc_promote_implementation() {
 
 #[test]
 fn gc_mark_implementation() {
-    let gc_mark_file = std::fs::read_to_string("lib/kab/gc_mark.kab")
+    let gc_mark_file = std::fs::read_to_string("lib/kab/gc/gc_mark.kab")
         .expect("gc_mark.kab should exist");
     
     // Verify mark implementation
@@ -125,7 +125,7 @@ fn gc_mark_implementation() {
 
 #[test]
 fn gc_stress_implementation() {
-    let gc_stress_file = std::fs::read_to_string("lib/kab/gc_stress.kab")
+    let gc_stress_file = std::fs::read_to_string("lib/kab/gc/gc_stress.kab")
         .expect("gc_stress.kab should exist");
     
     // Verify stress test implementation
@@ -135,15 +135,15 @@ fn gc_stress_implementation() {
 
 #[test]
 fn gc_chain_integrity() {
-    let gc_chain_file = std::fs::read_to_string("lib/kab/gc_chain.kab")
+    let gc_chain_file = std::fs::read_to_string("lib/kab/gc/gc_chain.kab")
         .expect("gc_chain.kab should exist");
     
     // Verify chain imports all components
-    assert!(gc_chain_file.contains("import \"kab/gc_load\""), "should import gc_load");
-    assert!(gc_chain_file.contains("import \"kab/gc_stress\""), "should import gc_stress");
-    assert!(gc_chain_file.contains("import \"kab/gc_concurrent\""), "should import gc_concurrent");
-    assert!(gc_chain_file.contains("import \"kab/gc_concurrent_stress\""), "should import concurrent stress");
-    assert!(gc_chain_file.contains("import \"kab/gc_host\""), "should import gc_host");
+    assert!(gc_chain_file.contains("import \"kab/gc/gc_load\""), "should import gc_load");
+    assert!(gc_chain_file.contains("import \"kab/gc/gc_stress\""), "should import gc_stress");
+    assert!(gc_chain_file.contains("import \"kab/gc/gc_concurrent\""), "should import gc_concurrent");
+    assert!(gc_chain_file.contains("import \"kab/gc/gc_concurrent_stress\""), "should import concurrent stress");
+    assert!(gc_chain_file.contains("import \"kab/gc/gc_host\""), "should import gc_host");
     
     // Verify chain validation
     assert!(gc_chain_file.contains("gcChainOk"), "should have chain ok");

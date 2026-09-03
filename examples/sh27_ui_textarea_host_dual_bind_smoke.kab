@@ -1,6 +1,6 @@
-import "kab/ui_textarea"
-import "kab/ui_label"
-import "kab/ui_host"
+import "kab/ui/ui_textarea"
+import "kab/ui/ui_label"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

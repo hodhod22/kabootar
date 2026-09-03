@@ -1,4 +1,4 @@
-import "kab/aot_read_plan"
+import "kab/aot/aot_read_plan"
 
 let plan = aotReadPlan
 return plan != null

@@ -1,6 +1,6 @@
-import "kab/cli_watch"
-import "kab/cli_init"
-import "kab/cli_host"
+import "kab/cli/cli_watch"
+import "kab/cli/cli_init"
+import "kab/cli/cli_host"
 
 if cliHostDeleteOk() != false {
     return false

@@ -1,0 +1,31 @@
+// SH17 deepen: validate i64 loop-le template. import "kab/jit/jit_patch_loop_le"
+// Do not grow jit_patch_loop_gt.kab.
+
+import "kab/jit/jit_loop_le"
+import "kab/jit/jit_check"
+
+pub fn jitPatchLoopLeOk(bytes, n, k) {
+    if jitLoopLeOk(n, k) == false {
+        return false
+    }
+    let tpl = jitEmitI64LoopLeN(n, k)
+    if len(bytes) != jitLoopLeLen() {
+        return false
+    }
+    if len(tpl) != jitLoopLeLen() {
+        return false
+    }
+    if bytes[0] != tpl[0] {
+        return false
+    }
+    if bytes[1] != tpl[1] {
+        return false
+    }
+    if bytes[2] != tpl[2] {
+        return false
+    }
+    if jitByteIsRet(bytes[7]) == false {
+        return false
+    }
+    return bytes[7] == tpl[7]
+}

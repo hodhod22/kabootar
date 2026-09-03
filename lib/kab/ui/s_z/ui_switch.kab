@@ -1,0 +1,6 @@
+// SH27: SVG switch tag off ui_foreign_object.kab. import "kab/ui/ui_switch"
+// Do not grow ui_foreign_object.kab. Host browser* remains skuld.
+
+pub fn uiIsSwitch(tag) {
+    return tag == "switch"
+}

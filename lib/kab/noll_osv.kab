@@ -1,6 +1,0 @@
-// SH28: product OSV stack is not Kab-only yet. import "kab/noll_osv"
-// Do not grow noll_cvss.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollOsvIsKab() {
-    return false
-}

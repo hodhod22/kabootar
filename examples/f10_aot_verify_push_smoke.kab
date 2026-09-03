@@ -1,3 +1,3 @@
-import "kab/aot_verify_push"
+import "kab/aot/aot_verify_push"
 
 return aotVerifyPushOk("kabootar-x64.kbn", "50")

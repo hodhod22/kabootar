@@ -1,4 +1,4 @@
-import "kab/http_bd"
+import "kab/http/http_bd"
 
 httpBodyOf(200, "ok")
 return true

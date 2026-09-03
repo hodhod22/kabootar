@@ -1,0 +1,6 @@
+// SH27: ins tag off ui_del.kab. import "kab/ui/ui_ins"
+// Do not grow ui_del.kab. Host browser* remains skuld.
+
+pub fn uiIsIns(tag) {
+    return tag == "ins"
+}

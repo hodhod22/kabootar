@@ -1,6 +1,0 @@
-// SH27: marker tag off ui_symbol.kab. import "kab/ui_marker"
-// Do not grow ui_symbol.kab or ui_mark.kab. Host browser* remains skuld.
-
-pub fn uiIsMarker(tag) {
-    return tag == "marker"
-}

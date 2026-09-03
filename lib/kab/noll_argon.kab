@@ -1,6 +1,0 @@
-// SH28: product Argon2 stack is not Kab-only yet. import "kab/noll_argon"
-// Do not grow noll_hotp.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollArgonIsKab() {
-    return false
-}

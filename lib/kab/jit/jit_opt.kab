@@ -1,0 +1,9 @@
+// FT F8: optimizing JIT policy. import "kab/jit/jit_opt"
+// Do not grow jit.kab (self-host stack).
+
+pub fn jitCanInline(nOps) {
+    if nOps <= 4 {
+        return true
+    }
+    return false
+}

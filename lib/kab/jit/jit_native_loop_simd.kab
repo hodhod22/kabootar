@@ -1,0 +1,15 @@
+// F9 deepen: native i64-loop + color + SIMD unbox. import "kab/jit/jit_native_loop_simd"
+// Do not grow jit_native_loop_col.kab. Lane must be 16 bytes.
+
+import "kab/jit/jit_native_loop_col"
+import "kab/jit/jit_simd"
+
+pub fn jitNativeLoopSimdOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n) {
+    if jitNativeLoopColOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, n) == false {
+        return false
+    }
+    if jitSimdOk(nBytes) == false {
+        return false
+    }
+    return true
+}

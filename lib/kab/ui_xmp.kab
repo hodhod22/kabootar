@@ -1,6 +1,0 @@
-// SH27: xmp tag off ui_listing.kab. import "kab/ui_xmp"
-// Do not grow ui_listing.kab. Host browser* remains skuld.
-
-pub fn uiIsXmp(tag) {
-    return tag == "xmp"
-}

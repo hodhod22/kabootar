@@ -1,0 +1,25 @@
+import "kab/load"
+import "kab/load/load_kbc"
+import "kab/load/load_main"
+import "kab/load/load_aot_reloc_text_at"
+import "kab/noll/noll_aot"
+
+if loadMainDeleteOk() != false {
+    return false
+}
+if loadIsKab("app.kab") == false {
+    return false
+}
+if loadIsKbc("cache/app.kbc") == false {
+    return false
+}
+if loadAotRelocTextAt32Ok(8192) == false {
+    return false
+}
+if loadAotRelocTextAt40Ok(8192) == false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+return loadMainDeleteOk() == false

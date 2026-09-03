@@ -1,0 +1,6 @@
+// SH27: polygon tag off ui_polyline.kab. import "kab/ui/ui_polygon"
+// Do not grow ui_polyline.kab. Host browser* remains skuld.
+
+pub fn uiIsPolygon(tag) {
+    return tag == "polygon"
+}

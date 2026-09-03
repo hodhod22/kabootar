@@ -1,5 +1,5 @@
-import "kab/aot_emit_reloc_table"
-import "kab/aot_load_reloc_table"
+import "kab/aot/aot_emit_reloc_table"
+import "kab/aot/aot_load_reloc_table"
 
 let table = aotEmitRelocTableRodataData("arm64")
 return aotLoadRelocTableRodataDataOk(table, "arm64")

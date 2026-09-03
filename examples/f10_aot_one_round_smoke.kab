@@ -1,5 +1,5 @@
-import "kab/aot_one_op"
-import "kab/aot_load_one"
+import "kab/aot/aot_one_op"
+import "kab/aot/aot_load_one"
 
 let op = aotOneOp("x64")
 return aotLoadOneOk(op, "x64")

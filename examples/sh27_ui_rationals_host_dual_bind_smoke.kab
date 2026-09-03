@@ -1,6 +1,6 @@
-import "kab/ui_rationals"
-import "kab/ui_integers"
-import "kab/ui_host"
+import "kab/ui/ui_rationals"
+import "kab/ui/ui_integers"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

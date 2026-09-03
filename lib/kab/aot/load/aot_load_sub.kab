@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image sub opcode.
+// import "kab/aot/aot_load_sub"; do not import other kab/aot* leaves.
+
+pub fn aotLoadSubOk(op, target) {
+    if target == "x64" {
+        return op == "29c0"
+    }
+    if target == "arm64" {
+        return op == "cb000000"
+    }
+    return false
+}

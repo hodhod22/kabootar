@@ -1,6 +1,0 @@
-// SH26: sub kernel off sci.kab. import "kab/sci_sub"
-// Do not grow sci.kab. Host GPU remains syscall skuld.
-
-pub fn sciSub(a, b) {
-    return a - b
-}

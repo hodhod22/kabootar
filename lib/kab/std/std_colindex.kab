@@ -1,0 +1,14 @@
+// SH20: collections index off std_colcontains.kab. import "kab/std/std_colindex"
+// Do not grow std_colcontains.kab. stdHostDeleteOk stays false.
+
+pub fn stdColIndex(p, x) {
+    let n = len(p)
+    let i = 0
+    while i < n {
+        if p[i] == x {
+            return i
+        }
+        i = i + 1
+    }
+    return 0 - 1
+}

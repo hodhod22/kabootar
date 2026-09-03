@@ -1,6 +1,6 @@
-import "kab/ui_arccsch"
-import "kab/ui_arccsc"
-import "kab/ui_host"
+import "kab/ui/ui_arccsch"
+import "kab/ui/ui_arccsc"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

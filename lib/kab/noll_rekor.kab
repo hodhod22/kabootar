@@ -1,6 +1,0 @@
-// SH28: product Rekor stack is not Kab-only yet. import "kab/noll_rekor"
-// Do not grow noll_notary.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollRekorIsKab() {
-    return false
-}

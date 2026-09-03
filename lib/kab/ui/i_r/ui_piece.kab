@@ -1,0 +1,6 @@
+// SH27: piece tag off ui_piecewise.kab. import "kab/ui/ui_piece"
+// Do not grow ui_piecewise.kab. Host browser* remains skuld.
+
+pub fn uiIsPiece(tag) {
+    return tag == "piece"
+}

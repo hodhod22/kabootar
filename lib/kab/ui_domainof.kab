@@ -1,6 +1,0 @@
-// SH27: domainof tag off ui_codomain.kab. import "kab/ui_domainof"
-// Do not grow ui_codomain.kab. Host browser* remains skuld.
-
-pub fn uiIsDomainof(tag) {
-    return tag == "domainof"
-}

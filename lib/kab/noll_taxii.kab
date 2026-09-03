@@ -1,6 +1,0 @@
-// SH28: product TAXII stack is not Kab-only yet. import "kab/noll_taxii"
-// Do not grow noll_stix.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollTaxiiIsKab() {
-    return false
-}

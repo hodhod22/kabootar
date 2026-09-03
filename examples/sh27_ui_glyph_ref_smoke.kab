@@ -1,3 +1,3 @@
-import "kab/ui_glyph_ref"
+import "kab/ui/ui_glyph_ref"
 
 return uiIsGlyphRef("glyphRef")

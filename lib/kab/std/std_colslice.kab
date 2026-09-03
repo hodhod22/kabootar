@@ -1,0 +1,27 @@
+// SH20: collections slice off std_colrix.kab. import "kab/std/std_colslice"
+// Do not grow std_colrix.kab. stdHostDeleteOk stays false.
+
+pub fn stdColSlice(p, lo, hi) {
+    let n = len(p)
+    let a = lo
+    let b = hi
+    if a < 0 {
+        a = 0
+    }
+    if a > n {
+        a = n
+    }
+    if b > n {
+        b = n
+    }
+    if b < a {
+        b = a
+    }
+    let out = []
+    let i = a
+    while i < b {
+        out = push(out, p[i])
+        i = i + 1
+    }
+    return out
+}

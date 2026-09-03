@@ -1,0 +1,9 @@
+// SH21: process env leaf off os.kab. import "kab/os/os_env"
+// Do not grow os_proc.kab. Host env remains skuld.
+
+pub fn kabOsEnvOk(name) {
+    if len(name) < 1 {
+        return false
+    }
+    return true
+}

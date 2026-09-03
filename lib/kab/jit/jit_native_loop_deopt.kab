@@ -1,0 +1,15 @@
+// F8 deepen: native i64-loop + GVN + deopt guards. import "kab/jit/jit_native_loop_deopt"
+// Do not grow jit_native_loop_gvn.kab. Guards required before loopN exec.
+
+import "kab/jit/jit_native_loop_gvn"
+import "kab/jit/jit_deopt"
+
+pub fn jitNativeLoopDeoptOk(nPhi, nInv, nDup, nGuard, n) {
+    if jitNativeLoopGvnOk(nPhi, nInv, nDup, n) == false {
+        return false
+    }
+    if jitDeoptOk(nGuard) == false {
+        return false
+    }
+    return true
+}

@@ -1,6 +1,0 @@
-// SH27: apply tag off ui_csymbol.kab. import "kab/ui_apply"
-// Do not grow ui_csymbol.kab. Host browser* remains skuld.
-
-pub fn uiIsApply(tag) {
-    return tag == "apply"
-}

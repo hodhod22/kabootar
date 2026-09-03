@@ -1,3 +1,3 @@
-import "kab/aot_load_stack_alloc"
+import "kab/aot/aot_load_stack_alloc"
 
 return aotLoadStackAllocOk("4883ec10", "arm64") == false

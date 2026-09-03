@@ -1,6 +1,0 @@
-// SH28: product HPKE stack is not Kab-only yet. import "kab/noll_hpke"
-// Do not grow noll_xwing.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollHpkeIsKab() {
-    return false
-}

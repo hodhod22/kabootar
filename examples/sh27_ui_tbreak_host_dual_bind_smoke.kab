@@ -1,6 +1,6 @@
-import "kab/ui_tbreak"
-import "kab/ui_animation"
-import "kab/ui_host"
+import "kab/ui/ui_tbreak"
+import "kab/ui/ui_animation"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

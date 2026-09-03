@@ -1,6 +1,0 @@
-// SH23: Ed25519 alg gate off crypto_gcm.kab. import "kab/crypto_ed"
-// Do not grow crypto_gcm.kab. cryptoHostDeleteOk stays false.
-
-pub fn cryptoEd25519Ok(alg) {
-    return alg == "ed25519"
-}

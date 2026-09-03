@@ -1,0 +1,6 @@
+// SH27: image tag off ui_xml.kab. import "kab/ui/ui_image"
+// Do not grow ui_xml.kab or ui_img.kab. Host browser* remains skuld.
+
+pub fn uiIsImage(tag) {
+    return tag == "image"
+}

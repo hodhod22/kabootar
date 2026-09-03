@@ -1,6 +1,6 @@
-import "kab/aot_apply_reloc"
-import "kab/aot_emit_code"
-import "kab/aot_emit_reloc_table"
+import "kab/aot/aot_apply_reloc"
+import "kab/aot/aot_emit_code"
+import "kab/aot/aot_emit_reloc_table"
 
 let code = aotEmitCode("x64")
 let table = aotEmitRelocTable("x64")

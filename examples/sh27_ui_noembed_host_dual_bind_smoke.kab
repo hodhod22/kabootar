@@ -1,6 +1,6 @@
-import "kab/ui_noembed"
-import "kab/ui_menuitem"
-import "kab/ui_host"
+import "kab/ui/ui_noembed"
+import "kab/ui/ui_menuitem"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

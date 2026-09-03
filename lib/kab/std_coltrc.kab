@@ -1,9 +1,0 @@
-// SH20: collections trace off std_colident.kab. import "kab/std_coltrc"
-// Do not grow std_colident.kab. stdHostDeleteOk stays false.
-
-import "kab/std_coldiag"
-import "kab/std_colsum"
-
-pub fn stdColTrace(rows) {
-    return stdColSum(stdColDiag(rows))
-}

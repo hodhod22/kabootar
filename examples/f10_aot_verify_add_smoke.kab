@@ -1,3 +1,3 @@
-import "kab/aot_verify_add"
+import "kab/aot/aot_verify_add"
 
 return aotVerifyAddOk("kabootar-x64.kbn", "01c0")

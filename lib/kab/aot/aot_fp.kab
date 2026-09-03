@@ -1,0 +1,6 @@
+// F10: source fingerprint must be non-empty. import "kab/aot/aot_fp"
+// Do not import other kab/aot* leaves. No LLVM as product.
+
+pub fn aotFpOk(fp) {
+    return len(fp) > 0
+}

@@ -1,6 +1,0 @@
-// SH27: inverse tag off ui_compose.kab. import "kab/ui_inverse"
-// Do not grow ui_compose.kab. Host browser* remains skuld.
-
-pub fn uiIsInverse(tag) {
-    return tag == "inverse"
-}

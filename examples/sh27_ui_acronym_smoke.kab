@@ -1,3 +1,3 @@
-import "kab/ui_acronym"
+import "kab/ui/ui_acronym"
 
 return uiIsAcronym("acronym")

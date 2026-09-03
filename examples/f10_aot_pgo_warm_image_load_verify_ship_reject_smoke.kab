@@ -1,6 +1,6 @@
-import "kab/aot_load_image"
-import "kab/aot_loaded_image"
-import "kab/aot_pgo"
+import "kab/aot/aot_load_image"
+import "kab/aot/aot_loaded_image"
+import "kab/aot/aot_pgo"
 
 if aotPgoOk(8) == false {
     return false

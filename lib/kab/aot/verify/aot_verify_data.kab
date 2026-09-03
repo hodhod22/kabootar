@@ -1,0 +1,12 @@
+// F10: native image filename and RW data payload must agree.
+// import "kab/aot/aot_verify_data"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyDataOk(name, data) {
+    if name == "kabootar-x64.kbn" {
+        return data == "data:rw|00"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return data == "data:rw|00"
+    }
+    return false
+}

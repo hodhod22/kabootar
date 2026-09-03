@@ -1,0 +1,6 @@
+// SH28: product Noise stack is not Kab-only yet. import "kab/noll/noll_noise"
+// Do not grow noll_hpke.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollNoiseIsKab() {
+    return false
+}

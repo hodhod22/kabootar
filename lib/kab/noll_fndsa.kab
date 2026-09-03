@@ -1,6 +1,0 @@
-// SH28: product FN-DSA stack is not Kab-only yet. import "kab/noll_fndsa"
-// Do not grow noll_mldsa.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollFndsaIsKab() {
-    return false
-}

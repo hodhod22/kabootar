@@ -1,6 +1,0 @@
-// SH27: noembed tag off ui_menuitem.kab. import "kab/ui_noembed"
-// Do not grow ui_menuitem.kab. Host browser* remains skuld.
-
-pub fn uiIsNoembed(tag) {
-    return tag == "noembed"
-}

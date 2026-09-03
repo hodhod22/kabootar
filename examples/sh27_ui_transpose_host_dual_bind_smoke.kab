@@ -1,6 +1,6 @@
-import "kab/ui_transpose"
-import "kab/ui_outerproduct"
-import "kab/ui_host"
+import "kab/ui/ui_transpose"
+import "kab/ui/ui_outerproduct"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

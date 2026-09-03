@@ -1,7 +1,0 @@
-// SH28: product Cargo.toml still exists — policy "cargo-toml-gone" is false.
-// import "kab/noll_toml"
-// Do not grow noll_srcprod.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollCargoTomlGone() {
-    return false
-}

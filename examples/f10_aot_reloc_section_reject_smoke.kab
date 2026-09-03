@@ -1,3 +1,3 @@
-import "kab/aot_reloc"
+import "kab/aot/aot_reloc"
 
 return aotRelocSectionEntryAddress(4096, "bss", 32, "main", "x64") == -1

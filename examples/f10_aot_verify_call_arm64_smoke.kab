@@ -1,6 +1,6 @@
-import "kab/aot_image_name"
-import "kab/aot_call_op"
-import "kab/aot_verify_call"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_call_op"
+import "kab/aot/aot_verify_call"
 
 let name = aotImageName("arm64")
 let op = aotCallOp("arm64")

@@ -1,0 +1,56 @@
+// SH17: bytecode op-names → existing inc+ret guest call. import "kab/jit/jit_from_ops"
+// Do not grow jit.kab. Hot AccAdd-local / add / const / load_local / store_local / ret uses mmap/store/os_mm_call (rax=1).
+
+import "kab/jit"
+import "kab/jit/jit_mm"
+import "kab/jit/jit_call"
+
+fn jitOpsIsHot(name) {
+    if name == "acc_add_local" {
+        return true
+    }
+    if name == "add" {
+        return true
+    }
+    if name == "const" {
+        return true
+    }
+    if name == "load_local" {
+        return true
+    }
+    if name == "store_local" {
+        return true
+    }
+    if name == "ret" {
+        return true
+    }
+    return false
+}
+
+pub fn jitOpsHotCount(ops) {
+    let i = 0
+    let n = 0
+    while i < len(ops) {
+        let name = ops[i]
+        if jitOpOk(name) == false {
+            return 0
+        }
+        if jitOpsIsHot(name) {
+            n = n + 1
+        }
+        i = i + 1
+    }
+    return n
+}
+
+/// True when ops are JIT-legal and hot AccAdd/add/const/load/store/ret hits threshold, then guest call returns 1.
+pub fn jitFromOpsOk(ops) {
+    let n = jitOpsHotCount(ops)
+    if n < jitThreshold() {
+        return false
+    }
+    let bytes = jitEmitI64IncRet()
+    let kind = "rwx"
+    let base = os_mm_mmap(jitMmPid(), jitMmVirt(), jitMmLen(), jitMmProt())
+    return jitCallIncRetOk(base, kind, bytes)
+}

@@ -1,6 +1,6 @@
-import "kab/ui_prsubset"
-import "kab/ui_subset"
-import "kab/ui_host"
+import "kab/ui/ui_prsubset"
+import "kab/ui/ui_subset"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

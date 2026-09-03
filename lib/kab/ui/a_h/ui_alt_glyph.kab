@@ -1,0 +1,6 @@
+// SH27: altGlyph tag off ui_tref.kab. import "kab/ui/ui_alt_glyph"
+// Do not grow ui_tref.kab. Host browser* remains skuld.
+
+pub fn uiIsAltGlyph(tag) {
+    return tag == "altGlyph"
+}

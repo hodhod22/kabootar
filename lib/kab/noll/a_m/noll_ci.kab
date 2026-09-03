@@ -1,0 +1,7 @@
+// SH28: product CI still uses rustc — policy "rustc-ci-gone" is false.
+// import "kab/noll/noll_ci"
+// Do not grow noll_toml.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollRustcCiGone() {
+    return false
+}

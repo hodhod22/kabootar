@@ -1,0 +1,6 @@
+// SH27: main tag off ui_footer.kab. import "kab/ui/ui_main"
+// Do not grow ui_footer.kab. Host browser* remains skuld.
+
+pub fn uiIsMain(tag) {
+    return tag == "main"
+}

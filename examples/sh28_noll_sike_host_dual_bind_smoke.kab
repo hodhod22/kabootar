@@ -1,7 +1,7 @@
-import "kab/noll_sike"
-import "kab/noll_frodo"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_sike"
+import "kab/noll/noll_frodo"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

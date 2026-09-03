@@ -1,0 +1,7 @@
+// F14/SH24: clear fetch timeout. import "kab/http/http_rst"
+// Local env only — no TCP.
+
+pub fn httpResetTimeout() {
+    http_reset_timeout()
+    return true
+}
