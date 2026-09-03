@@ -1,0 +1,241 @@
+// SH23: SHA-256 eval (FIPS 180-4). import "kab/crypto/crypto_sha_eval"
+// Do not grow crypto_sha.kab. Host hash natives remain skuld.
+
+pub fn shaWrap(x) {
+    return x | 0
+}
+
+pub fn shaRotr(x, n) {
+    return (x >>> n) | (x << (32 - n))
+}
+
+pub fn shaK() {
+    let k = {}
+    k["0"] = 1116352408
+    k["1"] = 1899447441
+    k["2"] = 3049323471
+    k["3"] = 3921009573
+    k["4"] = 961987163
+    k["5"] = 1508970993
+    k["6"] = 2453635748
+    k["7"] = 2870763221
+    k["8"] = 3624381080
+    k["9"] = 310598401
+    k["10"] = 607225278
+    k["11"] = 1426881987
+    k["12"] = 1925078388
+    k["13"] = 2162078206
+    k["14"] = 2614888103
+    k["15"] = 3248222580
+    k["16"] = 3835390401
+    k["17"] = 4022224774
+    k["18"] = 264347078
+    k["19"] = 604807628
+    k["20"] = 770255983
+    k["21"] = 1249150122
+    k["22"] = 1555081692
+    k["23"] = 1996064986
+    k["24"] = 2554220882
+    k["25"] = 2821834349
+    k["26"] = 2952996808
+    k["27"] = 3210313671
+    k["28"] = 3336571891
+    k["29"] = 3584528711
+    k["30"] = 113926993
+    k["31"] = 338241895
+    k["32"] = 666307205
+    k["33"] = 773529912
+    k["34"] = 1294757372
+    k["35"] = 1396182291
+    k["36"] = 1695183700
+    k["37"] = 1986661051
+    k["38"] = 2177026350
+    k["39"] = 2456956037
+    k["40"] = 2730485921
+    k["41"] = 2820302411
+    k["42"] = 3259730800
+    k["43"] = 3345764771
+    k["44"] = 3516065817
+    k["45"] = 3600352804
+    k["46"] = 4094571909
+    k["47"] = 275423344
+    k["48"] = 430227734
+    k["49"] = 506948616
+    k["50"] = 659060556
+    k["51"] = 883997877
+    k["52"] = 958139571
+    k["53"] = 1322822218
+    k["54"] = 1537002063
+    k["55"] = 1747873779
+    k["56"] = 1955562222
+    k["57"] = 2024104815
+    k["58"] = 2227730452
+    k["59"] = 2361852424
+    k["60"] = 2428436474
+    k["61"] = 2756734187
+    k["62"] = 3204031479
+    k["63"] = 3329325298
+    return k
+}
+
+pub fn shaH0() {
+    let h = {}
+    h["0"] = 1779033703
+    h["1"] = 3144134277
+    h["2"] = 1013904242
+    h["3"] = 2773480762
+    h["4"] = 1359893119
+    h["5"] = 2600822924
+    h["6"] = 528734635
+    h["7"] = 1541459225
+    return h
+}
+
+pub fn shaUtf8Bytes(s) {
+    let out = []
+    let i = 0
+    while i < len(s) {
+        out = push(out, char_code_at(s, i) & 255)
+        i = i + 1
+    }
+    return out
+}
+
+pub fn shaPad(bytes) {
+    let n = len(bytes)
+    let out = bytes
+    out = push(out, 128)
+    while (len(out) % 64) != 56 {
+        out = push(out, 0)
+    }
+    let bits = n * 8
+    out = push(out, 0)
+    out = push(out, 0)
+    out = push(out, 0)
+    out = push(out, 0)
+    out = push(out, (bits >>> 24) & 255)
+    out = push(out, (bits >>> 16) & 255)
+    out = push(out, (bits >>> 8) & 255)
+    out = push(out, bits & 255)
+    return out
+}
+
+pub fn shaCompress(h, w, k) {
+    let h0 = h["0"]
+    let h1 = h["1"]
+    let h2 = h["2"]
+    let h3 = h["3"]
+    let h4 = h["4"]
+    let h5 = h["5"]
+    let h6 = h["6"]
+    let h7 = h["7"]
+    let a = h0
+    let b = h1
+    let c = h2
+    let d = h3
+    let e = h4
+    let f = h5
+    let g = h6
+    let hh = h7
+    let t = 0
+    while t < 64 {
+        let s1 = shaRotr(e, 6) ^ shaRotr(e, 11) ^ shaRotr(e, 25)
+        let ch = (e & f) ^ ((~e) & g)
+        let t1 = shaWrap(shaWrap(shaWrap(shaWrap(hh + s1) + ch) + k["" + t]) + w["" + t])
+        let s0 = shaRotr(a, 2) ^ shaRotr(a, 13) ^ shaRotr(a, 22)
+        let maj = (a & b) ^ (a & c) ^ (b & c)
+        let t2 = shaWrap(s0 + maj)
+        hh = g
+        g = f
+        f = e
+        e = shaWrap(d + t1)
+        d = c
+        c = b
+        b = a
+        a = shaWrap(t1 + t2)
+        t = t + 1
+    }
+    let out = {}
+    out["0"] = shaWrap(h0 + a)
+    out["1"] = shaWrap(h1 + b)
+    out["2"] = shaWrap(h2 + c)
+    out["3"] = shaWrap(h3 + d)
+    out["4"] = shaWrap(h4 + e)
+    out["5"] = shaWrap(h5 + f)
+    out["6"] = shaWrap(h6 + g)
+    out["7"] = shaWrap(h7 + hh)
+    return out
+}
+
+pub fn sha256Bytes(bytes) {
+    let msg = shaPad(bytes)
+    let h = shaH0()
+    let k = shaK()
+    let i = 0
+    let n = len(msg)
+    while i < n {
+        let w = {}
+        let j = 0
+        while j < 16 {
+            let p = i + j + j + j + j
+            let p1 = p + 1
+            let p2 = p + 2
+            let p3 = p + 3
+            w["" + j] = shaWrap((msg[p] << 24) | (msg[p1] << 16) | (msg[p2] << 8) | msg[p3])
+            j = j + 1
+        }
+        while j < 64 {
+            let j15 = j - 15
+            let j2 = j - 2
+            let j16 = j - 16
+            let j7 = j - 7
+            let x = w["" + j15]
+            let y = w["" + j2]
+            let s0 = shaRotr(x, 7) ^ shaRotr(x, 18) ^ (x >>> 3)
+            let s1 = shaRotr(y, 17) ^ shaRotr(y, 19) ^ (y >>> 10)
+            w["" + j] = shaWrap(shaWrap(shaWrap(w["" + j16] + s0) + w["" + j7]) + s1)
+            j = j + 1
+        }
+        h = shaCompress(h, w, k)
+        i = i + 64
+    }
+    return h
+}
+
+pub fn shaHexDigit(d) {
+    if d < 10 {
+        return from_char_code(48 + d)
+    }
+    return from_char_code(87 + d)
+}
+
+pub fn shaHexWord(x) {
+    let out = ""
+    let shift = 28
+    while shift >= 0 {
+        let n = (x >>> shift) & 15
+        out = out + shaHexDigit(n)
+        shift = shift - 4
+    }
+    return out
+}
+
+pub fn sha256HexFromBytes(bytes) {
+    let h = sha256Bytes(bytes)
+    return shaHexWord(h["0"]) + shaHexWord(h["1"]) + shaHexWord(h["2"]) + shaHexWord(h["3"]) + shaHexWord(h["4"]) + shaHexWord(h["5"]) + shaHexWord(h["6"]) + shaHexWord(h["7"])
+}
+
+pub fn sha256Hex(s) {
+    return sha256HexFromBytes(shaUtf8Bytes(s))
+}
+
+/// FIPS 180-4: empty and "abc".
+pub fn sha256EvalOk() {
+    if sha256Hex("") != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
+        return false
+    }
+    if sha256Hex("abc") != "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" {
+        return false
+    }
+    return true
+}

@@ -612,11 +612,11 @@ pub fn eval_binary_op(
         BinaryOp::BitXor => Ok(from_int32(to_int32(left)? ^ to_int32(right)?)),
         BinaryOp::Shl => {
             let count = to_uint32(right)? & 0x1f;
-            Ok(from_int32(to_int32(left)? << count))
+            Ok(from_int32(to_int32(left)?.wrapping_shl(count)))
         }
         BinaryOp::Shr => {
             let count = to_uint32(right)? & 0x1f;
-            Ok(from_int32(to_int32(left)? >> count))
+            Ok(from_int32(to_int32(left)?.wrapping_shr(count)))
         }
         BinaryOp::Ushr => {
             let count = to_uint32(right)? & 0x1f;
@@ -626,17 +626,21 @@ pub fn eval_binary_op(
 }
 
 fn to_int32(v: &Value) -> Result<i32, String> {
-    let n = match v {
-        Value::Number(n) => *n as f64,
-        Value::Float(f) => *f,
-        other => return Err(format!("Bitwise operands must be numbers, got {:?}", other)),
-    };
-    if !n.is_finite() {
-        return Ok(0);
+    match v {
+        // Low 32 bits; do not round-trip via f64 (`(-2^31) as f64 as u32` is 0).
+        Value::Number(n) => Ok(*n as i32),
+        Value::Float(f) => Ok(js_to_int32(*f)),
+        other => Err(format!("Bitwise operands must be numbers, got {:?}", other)),
     }
-    let truncated = n.trunc();
-    let wrapped = truncated % 2f64.powi(32);
-    Ok(wrapped as u32 as i32)
+}
+
+fn js_to_int32(n: f64) -> i32 {
+    if !n.is_finite() {
+        return 0;
+    }
+    let two32 = 4294967296.0;
+    let wrapped = n.trunc().rem_euclid(two32);
+    wrapped as u32 as i32
 }
 
 fn to_uint32(v: &Value) -> Result<u32, String> {

@@ -15892,6 +15892,55 @@ fn sh23_self_host_shift_or_emits_bit_or() {
     );
 }
 
+/// SH23: `(x >>> 4) | (x << 28)` must keep both limbs on Kab-VM (not just the left shift).
+#[test]
+fn sh23_self_host_shift_or_eval_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let x = 305419896\n  return (x >>> 4) | (x << 28)\n}\nreturn run()";
+    let (formatted, host, ops) = std::thread::Builder::new()
+        .name("sh23-shift-or-eval".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let ops: Vec<String> = bc
+                .functions
+                .iter()
+                .find(|f| f.name == "run")
+                .ok_or_else(|| "missing run".to_string())?
+                .code
+                .iter()
+                .map(|op| format!("{op:?}"))
+                .collect();
+            let mut env = create_global_env();
+            let kab = eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("kab eval: {e}; ops={ops:?}"))?;
+            let mut host_env = create_global_env();
+            let host = run_module(bc, &mut host_env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("host eval: {e}; ops={ops:?}"))?;
+            Ok::<_, String>((kab, host, ops))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host shift/or eval");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    // i32: (0x12345678 >>> 4) | (0x12345678 << 28) == 0x81234567
+    assert_eq!(host, "-2128394905", "host VM shift/or ops={ops:?}");
+    assert_eq!(formatted, "-2128394905", "Kab VM shift/or (host={host}) ops={ops:?}");
+}
+
 /// SH6: product self-host `n |= 2` / `n ^= 3` bitwise compound assign + Kab VM.
 #[test]
 fn sh6_self_host_bitwise_or_xor_compound_assign_ok() {
@@ -61850,6 +61899,28 @@ fn sh23_crypto_sha_host_dual_bind_in_kab() {
             && s.contains("sha256"),
         "SH23 Kab crypto SHA host dual-bind"
     );
+}
+
+/// SH23: SHA-256 FIPS vectors via Kab eval (not a string-gate).
+#[test]
+fn sh23_crypto_sha_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_sha_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-sha-eval".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile sha eval smoke");
+            let value = eval_program(&program, &mut env).expect("run sha eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// SH23 deepen: HMAC alg gate lives off crypto.kab.
