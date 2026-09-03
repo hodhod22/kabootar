@@ -1,0 +1,18 @@
+class Cell {
+    n: number
+    fn init() {
+        this.n = 1
+    }
+}
+
+fn burst() {
+    let i = 0
+    let last = Cell()
+    while i < 8 {
+        last = Cell()
+        i = i + 1
+    }
+    return last.n
+}
+
+return burst()

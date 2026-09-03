@@ -1,0 +1,3 @@
+import "kab/gc_alloc"
+
+return gcAllocBurstOk(5, 100, 256)

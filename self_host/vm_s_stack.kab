@@ -273,12 +273,9 @@ pub fn vInstId(obj) {
     if typeof(obj) != "object" {
         return undefined
     }
-    let id = obj["vmI"]
+    let id = vObjGet(obj, "vmI")
     if id == undefined {
-        id = vObjGet(obj, "vmI")
-    }
-    if id == undefined {
-        id = obj["__kab_oid"]
+        id = vObjGet(obj, "__kab_oid")
     }
     return id
 }
@@ -491,7 +488,7 @@ pub fn vMemberGetClass(S, obj, key) {
     }
     let meth = vFindMethod(classes[ci], key)
     if meth != null {
-        return { "vmM": meth, "vmR": obj }
+        return { "vmM": meth, "vmR": vCanonicalInstS(S, obj) }
     }
     return undefined
 }
@@ -567,6 +564,7 @@ pub fn vMemberGetS(S, obj, key) {
     if obj == null || obj == undefined {
         return undefined
     }
+    obj = vCanonicalInstS(S, obj)
     S["lastMemKey"] = "" + key
     S["lastMemObj"] = obj
     if vObjGet(obj, "vmEnumNs") == 1 {
@@ -619,6 +617,7 @@ pub let poolKey = poolKey
 
 // --- vm_s_member_set_push ---
 pub fn vMemberSetPush(S, obj, key, val) {
+    obj = vCanonicalInstS(S, obj)
     let updated = vPublishInstS(S, vMemberSet(obj, key, val))
     if vIsCurrentThisS(S, obj) {
         vWriteThisS(S, updated)

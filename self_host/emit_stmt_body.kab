@@ -215,6 +215,13 @@ pub fn emitDisposeUsings(E, stmts) {
         if us != null {
             if us["kind"] == AST_USING {
                 emitDisposeName(E, us["name"])
+                let uInit = us["init"]
+                if uInit != null {
+                    if uInit.kind == AST_VAR {
+                        emitSym(E, 0, us["name"])
+                        emitSym(E, 1, uInit["sym"])
+                    }
+                }
             }
         }
         ui = ui + 1
@@ -1352,7 +1359,15 @@ pub fn emitStmt_member_assign(E) {
             }
         }
     } else {
-        emitOp(E, OP_POP, 0)
+        if maObj.kind == AST_VAR {
+            emitSym(E, 1, maObj["sym"])
+        } else {
+            if maObj.kind == AST_SUPER {
+                emitSym(E, 1, "this")
+            } else {
+                emitOp(E, OP_POP, 0)
+            }
+        }
     }
     return true
 }

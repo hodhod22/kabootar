@@ -272,6 +272,12 @@ pub fn serAppendOneArrow(out, i, arr) {
     out = serOutTagged(out, "arrow", i, arr["sym"])
     out = serOutTagged(out, "arrow_params", i, serJoinComma(arr["params"]))
     out = serOutTagged(out, "arrow_locals", i, serJoinComma(arr["locals"]))
+    if arr["isAsync"] == 1 {
+        out = out + CHAR_NL + "arrow_async " + ("" + i)
+    }
+    if arr["isAsync"] == true {
+        out = out + CHAR_NL + "arrow_async " + ("" + i)
+    }
     return serAppendTaggedOps(out, "arrow_op", i, arr["ops"])
 }
 
@@ -291,6 +297,12 @@ pub fn serAppendFnArrows(out, fi, arrows) {
         out = out + CHAR_NL + "fn_arrow " + ("" + fi) + " " + ("" + ai) + " " + arr["sym"]
         out = out + CHAR_NL + "fn_arrow_params " + ("" + fi) + " " + ("" + ai) + " " + serJoinComma(arr["params"])
         out = out + CHAR_NL + "fn_arrow_locals " + ("" + fi) + " " + ("" + ai) + " " + serJoinComma(arr["locals"])
+        if arr["isAsync"] == 1 {
+            out = out + CHAR_NL + "fn_arrow_async " + ("" + fi) + " " + ("" + ai)
+        }
+        if arr["isAsync"] == true {
+            out = out + CHAR_NL + "fn_arrow_async " + ("" + fi) + " " + ("" + ai)
+        }
         let j = 0
         let ops = arr["ops"]
         let on = len(ops)

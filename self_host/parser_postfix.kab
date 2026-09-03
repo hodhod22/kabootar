@@ -32,10 +32,14 @@ pub fn parsePostfix_arr(sess) {
 // --- parser_postfix_bare_arrow ---
 pub fn parsePostfix_bareArrow(sess) {
     let left = sess["pLeft"]
-    if left == null || left == undefined {
+    if left == null || left == undefined || left == 0 {
         return 0
     }
-    if !(left.kind == AST_VAR && sess["pCur"].type == "=>") {
+    let lk = left["kind"]
+    if lk == null || lk == undefined {
+        return 0
+    }
+    if !(lk == AST_VAR && sess["pCur"].type == "=>") {
         return 0
     }
     bump(sess)
@@ -450,6 +454,9 @@ pub fn parsePostfix_tail_call(sess) {
         return 0
     }
     sess["pCallee"] = sess["pLeft"]
+    if sess["pCallee"] == null || sess["pCallee"] == 0 || sess["pCallee"] == undefined {
+        return 0
+    }
     if sess["pCallee"].kind == AST_VAR {
         sess["pCallee"] = { "kind": AST_VAR, "sym": sess["pCallee"]["sym"] }
     }
@@ -487,6 +494,9 @@ pub fn parsePostfix_tail_call(sess) {
 // --- parser_postfix_tail_generic ---
 pub fn parsePostfix_tail_generic(sess) {
     if sess["pCur"].type != "<" {
+        return 0
+    }
+    if sess["pLeft"] == null || sess["pLeft"] == 0 || sess["pLeft"] == undefined {
         return 0
     }
     sess["pIsGenericCallee"] = 0
@@ -585,8 +595,13 @@ pub fn parsePostfix_obj_arr(sess) {
 
 // --- parser_postfix_paren ---
 pub fn parsePostfix_paren(sess) {
-    if sess["pLeft"] != null {
-        return 0
+    let pl = sess["pLeft"]
+    if pl != null {
+        if pl != 0 {
+            if pl != undefined {
+                return 0
+            }
+        }
     }
     sess["pTok"] = sess["pCur"]
     if sess["pTok"].type != "(" {

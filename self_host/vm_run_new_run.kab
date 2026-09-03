@@ -1,6 +1,8 @@
 import "self_host/vm_s_stack"
 import "self_host/vm_run_session"
 import "self_host/vm_run_call"
+import "kab/gc"
+import "kab/gc_alloc"
 
 // --- vm_run_new_init ---
 /// Resolve init/constructor on classDef.
@@ -31,6 +33,28 @@ pub fn vRunNewInitPresentS(S, info, pool, globals, functions) {
     return inst
 }
 
+/// Charge nursery bump for one instance; collect is promote-account (host heap still skuld).
+pub fn vNurseryCharge(S, n) {
+    let cap = S["gcCap"]
+    if cap == null {
+        cap = gcNurseryCap()
+        S["gcCap"] = cap
+    }
+    let used = S["gcUsed"]
+    if used == null {
+        used = 0
+    }
+    let next = gcAllocOrCollect(used, n, cap)
+    if next < used {
+        let c = S["gcCollects"]
+        if c == null {
+            c = 0
+        }
+        S["gcCollects"] = c + 1
+    }
+    S["gcUsed"] = next
+}
+
 // --- vm_run_new_shell ---
 /// Pop ctor args and allocate instance shell.
 pub fn vAllocInstShell(S, classIdx, argc) {
@@ -42,6 +66,7 @@ pub fn vAllocInstShell(S, classIdx, argc) {
     let id = S["nextInstId"]
     S["nextInstId"] = S["nextInstId"] + 1
     let inst = { "vmC": classIdx, "vmI": id, "__kab_oid": id }
+    vNurseryCharge(S, gcInstShellBytes())
     vHeapPut(S, inst)
     return {
         "inst": inst,
@@ -92,6 +117,7 @@ pub fn vNewInstanceFromArrayS(S, classIdx, pool, globals, functions) {
     let id = S["nextInstId"]
     S["nextInstId"] = id + 1
     let inst = { "vmC": classIdx, "vmI": id, "__kab_oid": id }
+    vNurseryCharge(S, gcInstShellBytes())
     vHeapPut(S, inst)
     let info = {
         "inst": inst,
