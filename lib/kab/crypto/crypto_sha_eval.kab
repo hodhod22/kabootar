@@ -210,12 +210,14 @@ pub fn shaHexDigit(d) {
 }
 
 pub fn shaHexWord(x) {
+    let v = shaWrap(x)
     let out = ""
-    let shift = 28
-    while shift >= 0 {
-        let n = (x >>> shift) & 15
-        out = out + shaHexDigit(n)
-        shift = shift - 4
+    let i = 0
+    while i < 8 {
+        let n = v & 15
+        out = shaHexDigit(n) + out
+        v = v >>> 4
+        i = i + 1
     }
     return out
 }
@@ -229,12 +231,15 @@ pub fn sha256Hex(s) {
     return sha256HexFromBytes(shaUtf8Bytes(s))
 }
 
-/// FIPS 180-4: empty and "abc".
+/// FIPS 180-4: empty, "abc", and 56-byte two-block message.
 pub fn sha256EvalOk() {
     if sha256Hex("") != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
         return false
     }
     if sha256Hex("abc") != "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" {
+        return false
+    }
+    if sha256Hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq") != "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1" {
         return false
     }
     return true
