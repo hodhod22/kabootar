@@ -1,3 +1,3 @@
-import "kab/ui_mfenced"
+import "kab/ui/ui_mfenced"
 
 return uiIsMfenced("mfenced")

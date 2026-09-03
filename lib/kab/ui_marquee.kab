@@ -1,6 +1,0 @@
-// SH27: marquee tag off ui_noframes.kab. import "kab/ui_marquee"
-// Do not grow ui_noframes.kab. Host browser* remains skuld.
-
-pub fn uiIsMarquee(tag) {
-    return tag == "marquee"
-}

@@ -1,0 +1,6 @@
+// SH27: datalist tag off ui_output.kab. import "kab/ui/ui_datalist"
+// Do not grow ui_output.kab. Host browser* remains skuld.
+
+pub fn uiIsDatalist(tag) {
+    return tag == "datalist"
+}

@@ -1,0 +1,21 @@
+// SH17 deepen: guest call for loop-xor template. import "kab/jit/jit_mm_call_loop_xor"
+// Do not grow jit_mm_call_loop_or.kab.
+
+import "kab/jit/jit_mm_loop_xor"
+import "kab/jit/jit_loop_xor"
+
+pub fn jitMmCallLoopXor(bytes, n, mask) {
+    if jitLoopXorOk(n, mask) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopXorLen() {
+        return 0
+    }
+    let pid = jitMmLoopXorPid()
+    let virt = jitMmLoopXorVirt()
+    let rax = os_mm_call(pid, virt)
+    if rax != jitLoopXorRax(n, mask) {
+        return 0
+    }
+    return rax
+}

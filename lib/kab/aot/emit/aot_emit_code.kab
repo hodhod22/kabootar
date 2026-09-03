@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a target-qualified return stub.
+// import "kab/aot/aot_emit_code"; do not import other kab/aot* leaves.
+
+pub fn aotEmitCode(target) {
+    if target == "x64" {
+        return "code:x64:ret"
+    }
+    if target == "arm64" {
+        return "code:arm64:ret"
+    }
+    return ""
+}

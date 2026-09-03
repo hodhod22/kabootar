@@ -1,3 +1,3 @@
-import "kab/aot_call_op"
+import "kab/aot/aot_call_op"
 
 return aotCallOp("x64") == "e800000000"

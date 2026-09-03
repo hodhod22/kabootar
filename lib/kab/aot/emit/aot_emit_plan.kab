@@ -1,0 +1,12 @@
+// F10: emit the complete first Kab-native image plan.
+// import "kab/aot/aot_emit_plan"; do not import other kab/aot* leaves.
+
+pub fn aotEmitPlan(target) {
+    if target == "x64" {
+        return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw"
+    }
+    if target == "arm64" {
+        return "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw"
+    }
+    return ""
+}

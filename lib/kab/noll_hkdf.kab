@@ -1,6 +1,0 @@
-// SH28: product HKDF stack is not Kab-only yet. import "kab/noll_hkdf"
-// Do not grow noll_pbkdf.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollHkdfIsKab() {
-    return false
-}

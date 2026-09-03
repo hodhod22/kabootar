@@ -1,0 +1,6 @@
+// SH28: product test fakes are not Kab-only yet. import "kab/noll/noll_fake"
+// Do not grow noll_spy.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollFakeIsKab() {
+    return false
+}

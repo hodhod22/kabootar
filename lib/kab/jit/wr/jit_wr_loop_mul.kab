@@ -1,0 +1,28 @@
+// SH17 deepen: translate+store for loop-mul template. import "kab/jit/jit_wr_loop_mul"
+// Do not grow jit_wr_loop_sub.kab.
+
+import "kab/jit/jit_patch_loop_mul"
+import "kab/jit/jit_mm_loop_mul"
+import "kab/jit/jit_mm_store_loop_mul"
+import "kab/jit/jit_loop_mul"
+
+pub fn jitWrLoopMulOk(bytes, n, m) {
+    if jitPatchLoopMulOk(bytes, n, m) == false {
+        return false
+    }
+    let pid = jitMmLoopMulPid()
+    let virt = jitMmLoopMulVirt()
+    let p0 = os_mm_translate(pid, virt)
+    if p0 <= 0 {
+        return false
+    }
+    let p7 = os_mm_translate(pid, virt + 7)
+    if p7 <= 0 {
+        return false
+    }
+    let w = jitMmStoreLoopMul(bytes, n, m)
+    if w != jitLoopMulLen() {
+        return false
+    }
+    return true
+}

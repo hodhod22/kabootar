@@ -1,7 +1,0 @@
-// SH28: AOT binary is not the OS process — policy "aot-process" is false.
-// import "kab/noll_aotproc"
-// Do not grow noll_proc.kab or noll_aot.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollAotProcess() {
-    return false
-}

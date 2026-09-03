@@ -1,0 +1,18 @@
+// SH17 deepen: guest store for loop-test template. import "kab/jit/jit_mm_store_loop_test"
+// Do not grow jit_mm_store_loop_ge.kab.
+
+import "kab/jit/jit_mm_loop_test"
+import "kab/jit/jit_loop_test"
+
+pub fn jitMmStoreLoopTest(bytes, n, k) {
+    if jitLoopTestOk(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopTestLen() {
+        return 0
+    }
+    let pid = jitMmLoopTestPid()
+    let virt = jitMmLoopTestVirt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

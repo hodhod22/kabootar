@@ -1,6 +1,6 @@
-import "kab/ui_fe_tile"
-import "kab/ui_fe_spot_light"
-import "kab/ui_host"
+import "kab/ui/ui_fe_tile"
+import "kab/ui/ui_fe_spot_light"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

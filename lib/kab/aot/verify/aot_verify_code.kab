@@ -1,0 +1,12 @@
+// F10: native image filename and first-image code stub must agree.
+// import "kab/aot/aot_verify_code"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyCodeOk(name, code) {
+    if name == "kabootar-x64.kbn" {
+        return code == "code:x64:ret"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return code == "code:arm64:ret"
+    }
+    return false
+}

@@ -1,0 +1,12 @@
+// SH20: collections range off std_colfill.kab. import "kab/std/std_colrange"
+// Do not grow std_colfill.kab. stdHostDeleteOk stays false.
+
+pub fn stdColRange(lo, hi) {
+    let out = []
+    let i = lo
+    while i < hi {
+        out = push(out, i)
+        i = i + 1
+    }
+    return out
+}

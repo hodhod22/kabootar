@@ -1,0 +1,6 @@
+// SH27: strong tag off ui_small.kab. import "kab/ui/ui_strong"
+// Do not grow ui_small.kab. Host browser* remains skuld.
+
+pub fn uiIsStrong(tag) {
+    return tag == "strong"
+}

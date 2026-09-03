@@ -1,3 +1,3 @@
-import "kab/ui_embed"
+import "kab/ui/ui_embed"
 
 return uiIsEmbed("embed")

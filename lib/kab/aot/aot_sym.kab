@@ -1,0 +1,92 @@
+// F10: native image exports need a non-empty Kab symbol. import "kab/aot/aot_sym"
+// Do not import other kab/aot* leaves. Symbol ownership stays in Kab.
+
+pub fn aotSymbolOk(name) {
+    return len(name) > 0
+}
+
+// F10: a named symbol resolves to a non-negative image-relative address.
+pub fn aotSymbolAddress(base, name, offset) {
+    if base < 0 || offset < 0 || len(name) == 0 {
+        return -1
+    }
+    return base + offset
+}
+
+// F10: a symbol-table record requires a name, a non-negative offset, and a supported target.
+pub fn aotSymbolRecordOk(name, offset, target) {
+    if len(name) == 0 {
+        return false
+    }
+    if offset < 0 {
+        return false
+    }
+    if target == "x64" {
+        return true
+    }
+    if target == "arm64" {
+        return true
+    }
+    return false
+}
+
+// F10: a symbol-table entry resolves only after its record validates.
+pub fn aotSymbolTableEntryAddress(base, name, offset, target) {
+    if base < 0 {
+        return -1
+    }
+    if offset < 0 {
+        return -1
+    }
+    if len(name) == 0 {
+        return -1
+    }
+    if target == "x64" {
+        return base + offset
+    }
+    if target == "arm64" {
+        return base + offset
+    }
+    return -1
+}
+
+// F10: a symbol-table entry must belong to a known image section.
+pub fn aotSymbolSectionEntryAddress(base, section, name, offset, target) {
+    if base < 0 {
+        return -1
+    }
+    if offset < 0 {
+        return -1
+    }
+    if len(name) == 0 {
+        return -1
+    }
+    if section == "text" {
+        if target == "x64" {
+            return base + offset
+        }
+        if target == "arm64" {
+            return base + offset
+        }
+        return -1
+    }
+    if section == "rodata" {
+        if target == "x64" {
+            return base + offset
+        }
+        if target == "arm64" {
+            return base + offset
+        }
+        return -1
+    }
+    if section == "data" {
+        if target == "x64" {
+            return base + offset
+        }
+        if target == "arm64" {
+            return base + offset
+        }
+        return -1
+    }
+    return -1
+}

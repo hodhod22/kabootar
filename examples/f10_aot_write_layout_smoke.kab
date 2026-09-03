@@ -1,4 +1,4 @@
-import "kab/aot_write_layout"
+import "kab/aot/aot_write_layout"
 
 let w = aotWriteLayout
 return w != null

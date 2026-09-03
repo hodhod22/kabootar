@@ -1,7 +1,0 @@
-// F10: persist a first Kab-native image through the host filesystem capability.
-// import "kab/aot_write_image"; do not import other kab/aot* leaves.
-
-pub fn aotWriteImage(path, image) {
-    os_write(path, image)
-    return true
-}

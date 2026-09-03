@@ -1,6 +1,0 @@
-// F14/SH24: wrap host fetch. import "kab/http_fetch"
-// Do not call from smokes (would hit the network). Do not await here.
-
-pub fn httpFetch(method, url, body) {
-    return http_fetch_async(method, url, body)
-}

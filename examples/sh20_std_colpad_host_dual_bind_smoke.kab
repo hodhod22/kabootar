@@ -1,10 +1,10 @@
-import "kab/std_colpad"
-import "kab/std_colrot"
-import "kab/std_colrange"
-import "kab/std_colfill"
-import "kab/std_colpush"
-import "kab/std_coleq"
-import "kab/std_host"
+import "kab/std/std_colpad"
+import "kab/std/std_colrot"
+import "kab/std/std_colrange"
+import "kab/std/std_colfill"
+import "kab/std/std_colpush"
+import "kab/std/std_coleq"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false

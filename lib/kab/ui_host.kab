@@ -1,6 +1,0 @@
-// SH27: host browser/game delete policy off ui.kab. import "kab/ui_host"
-// Do not grow ui.kab. Do not delete runtime/browser* until smoke is complete.
-
-pub fn uiHostDeleteOk() {
-    return false
-}

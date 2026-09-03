@@ -1,7 +1,7 @@
-import "kab/noll_pbkdf"
-import "kab/noll_bcrypt"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_pbkdf"
+import "kab/noll/noll_bcrypt"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

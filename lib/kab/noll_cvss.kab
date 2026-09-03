@@ -1,6 +1,0 @@
-// SH28: product CVSS stack is not Kab-only yet. import "kab/noll_cvss"
-// Do not grow noll_cpe.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollCvssIsKab() {
-    return false
-}

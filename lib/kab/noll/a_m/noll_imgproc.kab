@@ -1,0 +1,7 @@
+// SH28: bootstrap image is not the OS process — policy "image-is-process" is false.
+// import "kab/noll/noll_imgproc"
+// Do not grow noll_aotproc.kab or noll_image.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollImageIsProcess() {
+    return false
+}

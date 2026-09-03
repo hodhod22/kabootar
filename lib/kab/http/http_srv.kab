@@ -1,0 +1,6 @@
+// F14/SH24: wrap host serve. import "kab/http/http_srv"
+// Do not call from smokes (binds a port and loops).
+
+pub fn httpServe(port) {
+    return http_serve(port)
+}

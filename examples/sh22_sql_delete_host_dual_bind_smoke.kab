@@ -1,5 +1,5 @@
-import "kab/sql_delete"
-import "kab/sql_host"
+import "kab/sql/sql_delete"
+import "kab/sql/sql_host"
 
 if sqlHostDeleteOk() != false {
     return false

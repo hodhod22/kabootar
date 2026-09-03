@@ -1,9 +1,0 @@
-// FT F20: type-specialize hot fn when IC is always i64. import "kab/jit_spec"
-// After F7 exec + F2 IC. No new Cranelift in src/.
-
-pub fn jitSpecOk(kind) {
-    if kind != "i64" {
-        return false
-    }
-    return true
-}

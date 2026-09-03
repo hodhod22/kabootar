@@ -1,6 +1,0 @@
-// SH28: product AES stack is not Kab-only yet. import "kab/noll_aes"
-// Do not grow noll_sha.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollAesIsKab() {
-    return false
-}

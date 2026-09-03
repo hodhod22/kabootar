@@ -1,0 +1,26 @@
+// SH20: collections reject off std_colproj.kab. import "kab/std/std_colrej"
+// Do not grow std_colproj.kab. stdHostDeleteOk stays false.
+
+pub fn stdColRej(a, b) {
+    let num = 0
+    let den = 0
+    let n = len(a)
+    let nb = len(b)
+    if nb < n {
+        n = nb
+    }
+    let i = 0
+    while i < n {
+        num = num + a[i] * b[i]
+        den = den + b[i] * b[i]
+        i = i + 1
+    }
+    let s = num / den
+    let out = []
+    i = 0
+    while i < n {
+        out = push(out, a[i] - s * b[i])
+        i = i + 1
+    }
+    return out
+}

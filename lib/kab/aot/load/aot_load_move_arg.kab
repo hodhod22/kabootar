@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image argument-to-return move.
+// import "kab/aot/aot_load_move_arg"; do not import other kab/aot* leaves.
+
+pub fn aotLoadMoveArgOk(op, target) {
+    if target == "x64" {
+        return op == "4889d8"
+    }
+    if target == "arm64" {
+        return op == "e00301aa"
+    }
+    return false
+}

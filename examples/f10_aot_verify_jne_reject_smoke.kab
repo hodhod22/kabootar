@@ -1,3 +1,3 @@
-import "kab/aot_verify_jne"
+import "kab/aot/aot_verify_jne"
 
 return aotVerifyJneOk("kabootar-x64.kbn", "54000001") == false

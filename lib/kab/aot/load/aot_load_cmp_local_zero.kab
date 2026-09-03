@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image frame-local zero comparison.
+// import "kab/aot/aot_load_cmp_local_zero"; do not import other kab/aot* leaves.
+
+pub fn aotLoadCmpLocalZeroOk(op, target) {
+    if target == "x64" {
+        return op == "48837df800"
+    }
+    if target == "arm64" {
+        return op == "a00b40f91f0000f1"
+    }
+    return false
+}

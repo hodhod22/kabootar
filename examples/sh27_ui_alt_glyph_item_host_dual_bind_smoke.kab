@@ -1,6 +1,6 @@
-import "kab/ui_alt_glyph_item"
-import "kab/ui_alt_glyph_def"
-import "kab/ui_host"
+import "kab/ui/ui_alt_glyph_item"
+import "kab/ui/ui_alt_glyph_def"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

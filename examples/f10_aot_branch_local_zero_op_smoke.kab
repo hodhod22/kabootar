@@ -1,3 +1,3 @@
-import "kab/aot_branch_local_zero_op"
+import "kab/aot/aot_branch_local_zero_op"
 
 return aotBranchLocalZeroOp("x64") == "48837df8007400"

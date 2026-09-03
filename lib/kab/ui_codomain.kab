@@ -1,6 +1,0 @@
-// SH27: codomain tag off ui_domain.kab. import "kab/ui_codomain"
-// Do not grow ui_domain.kab. Host browser* remains skuld.
-
-pub fn uiIsCodomain(tag) {
-    return tag == "codomain"
-}

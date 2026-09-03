@@ -1,6 +1,6 @@
-import "kab/ui_partialdiff"
-import "kab/ui_diff"
-import "kab/ui_host"
+import "kab/ui/ui_partialdiff"
+import "kab/ui/ui_diff"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

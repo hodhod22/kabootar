@@ -1,6 +1,0 @@
-// SH27: fieldset tag off ui_iframe.kab. import "kab/ui_fieldset"
-// Do not grow ui_iframe.kab. Host browser* remains skuld.
-
-pub fn uiIsFieldset(tag) {
-    return tag == "fieldset"
-}

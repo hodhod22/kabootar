@@ -1,0 +1,6 @@
+// SH28: product Merkle stack is not Kab-only yet. import "kab/noll/noll_merkle"
+// Do not grow noll_wots.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollMerkleIsKab() {
+    return false
+}

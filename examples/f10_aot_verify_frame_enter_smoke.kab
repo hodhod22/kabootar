@@ -1,3 +1,3 @@
-import "kab/aot_verify_frame_enter"
+import "kab/aot/aot_verify_frame_enter"
 
 return aotVerifyFrameEnterOk("kabootar-x64.kbn", "554889e5")

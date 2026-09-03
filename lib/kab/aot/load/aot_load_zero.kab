@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image integer-zero opcode.
+// import "kab/aot/aot_load_zero"; do not import other kab/aot* leaves.
+
+pub fn aotLoadZeroOk(op, target) {
+    if target == "x64" {
+        return op == "31c0"
+    }
+    if target == "arm64" {
+        return op == "aa1f03e0"
+    }
+    return false
+}

@@ -1,6 +1,6 @@
-import "kab/cli_new"
-import "kab/cli_bench"
-import "kab/cli_host"
+import "kab/cli/cli_new"
+import "kab/cli/cli_bench"
+import "kab/cli/cli_host"
 
 if cliHostDeleteOk() != false {
     return false

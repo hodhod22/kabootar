@@ -1,0 +1,6 @@
+// SH28: product Shuffle stack is not Kab-only yet. import "kab/noll/noll_shuffle"
+// Do not grow noll_cortex.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollShuffleIsKab() {
+    return false
+}

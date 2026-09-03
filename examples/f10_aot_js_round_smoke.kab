@@ -1,5 +1,5 @@
-import "kab/aot_js_op"
-import "kab/aot_load_js"
+import "kab/aot/aot_js_op"
+import "kab/aot/aot_load_js"
 
 let op = aotJsOp("x64")
 return aotLoadJsOk(op, "x64")

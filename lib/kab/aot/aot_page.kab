@@ -1,0 +1,6 @@
+// F10: native image mappings reserve at least one 4096-byte page. import "kab/aot/aot_page"
+// Exact modulo page sizing is deferred until self-host has a compatible modulo path.
+
+pub fn aotPageOk(bytes) {
+    return bytes >= 4096
+}

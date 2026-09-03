@@ -1,6 +1,6 @@
 import "kab/jit"
-import "kab/jit_mm"
-import "kab/jit_mm_store"
+import "kab/jit/jit_mm"
+import "kab/jit/jit_mm_store"
 
 let tpl = jitEmitI64IncRet()
 os_mm_mmap(jitMmPid(), jitMmVirt(), jitMmLen(), jitMmProt())

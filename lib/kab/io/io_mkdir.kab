@@ -1,0 +1,6 @@
+// F14 deepen: mkdir via host capability. import "kab/io/io_mkdir"
+
+pub fn ioMkdir(path) {
+    os_mkdir(path)
+    return true
+}

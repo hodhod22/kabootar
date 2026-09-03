@@ -1,6 +1,0 @@
-// SH27: feSpotLight tag off ui_fe_specular_lighting.kab. import "kab/ui_fe_spot_light"
-// Do not grow ui_fe_specular_lighting.kab. Host browser* remains skuld.
-
-pub fn uiIsFeSpotLight(tag) {
-    return tag == "feSpotLight"
-}

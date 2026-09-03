@@ -1,0 +1,13 @@
+// SH20: collections log2 off std_collog.kab. import "kab/std/std_collog2"
+// Do not grow std_collog.kab. stdHostDeleteOk stays false.
+
+pub fn stdColLog2(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, log2(a[i]))
+        i = i + 1
+    }
+    return out
+}

@@ -1,0 +1,6 @@
+// SH28: product auth is not Kab-only yet. import "kab/noll/noll_auth"
+// Do not grow noll_reg.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollAuthIsKab() {
+    return false
+}

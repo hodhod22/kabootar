@@ -1,6 +1,6 @@
-import "kab/ui_multicol"
-import "kab/ui_nolayer"
-import "kab/ui_host"
+import "kab/ui/ui_multicol"
+import "kab/ui/ui_nolayer"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

@@ -1,5 +1,0 @@
-// F14/SH24: in-process request (no TCP). import "kab/http_req"
-
-pub fn httpReq(method, path, body) {
-    return http_request(method, path, body)
-}

@@ -1,5 +1,5 @@
-import "kab/ui_input"
-import "kab/ui_host"
+import "kab/ui/ui_input"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

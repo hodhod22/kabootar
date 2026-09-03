@@ -1,4 +1,4 @@
-import "kab/io_stat"
+import "kab/io/io_stat"
 
 os_write("ft14_ok.txt", "ok")
 let s = ioStat("ft14_ok.txt")

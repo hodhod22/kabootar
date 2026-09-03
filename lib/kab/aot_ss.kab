@@ -1,9 +1,0 @@
-// F10: steady-state frame budget (ms). import "kab/aot_ss"
-// Do not import other kab/aot* leaves.
-
-pub fn aotSteadyOk(ms) {
-    if ms <= 16 {
-        return true
-    }
-    return false
-}

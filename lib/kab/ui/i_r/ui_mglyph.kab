@@ -1,0 +1,6 @@
+// SH27: mglyph tag off ui_msline.kab. import "kab/ui/ui_mglyph"
+// Do not grow ui_msline.kab. Host browser* remains skuld.
+
+pub fn uiIsMglyph(tag) {
+    return tag == "mglyph"
+}

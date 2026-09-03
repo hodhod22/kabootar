@@ -1,4 +1,4 @@
-import "kab/http_hd"
+import "kab/http/http_hd"
 
 httpHeadersOf(200, "ok")
 return true

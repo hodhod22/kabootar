@@ -1,0 +1,53 @@
+// SH17 deepen: i64 loopN + test template. import "kab/jit/jit_loop_test"
+// Do not grow jit_loop_ge.kab. Magic 91 + n + k + ret; os_mm_call returns 1 iff (n&k)!=0.
+
+import "kab/jit/jit_loop_n"
+
+pub fn jitLoopTestKMax() {
+    return 64
+}
+
+pub fn jitLoopTestKOk(k) {
+    if k <= 0 {
+        return false
+    }
+    if k > jitLoopTestKMax() {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopTestOk(n, k) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if jitLoopTestKOk(k) == false {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopTestRax(n, k) {
+    if (n & k) == 0 {
+        return 0
+    }
+    return 1
+}
+
+pub fn jitLoopTestLen() {
+    return jitLoopNLen()
+}
+
+/// Loop marker 91, count n, rhs k, pad, ret — simulated guest rax=1 iff (n&k)!=0.
+pub fn jitEmitI64LoopTestN(n, k) {
+    let b = []
+    b = push(b, 91)
+    b = push(b, n)
+    b = push(b, k)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

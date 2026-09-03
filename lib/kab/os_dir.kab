@@ -1,9 +1,0 @@
-// SH21: dir path leaf off os_cwd.kab. import "kab/os_dir"
-// Do not grow os_cwd.kab. kabOsHostDeleteOk stays false.
-
-pub fn kabOsIsDir(path) {
-    if len(path) < 1 {
-        return false
-    }
-    return str_includes(path, "/")
-}

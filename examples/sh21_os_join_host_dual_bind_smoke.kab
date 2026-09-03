@@ -1,6 +1,6 @@
-import "kab/os_join"
-import "kab/os_dir"
-import "kab/os_host"
+import "kab/os/os_join"
+import "kab/os/os_dir"
+import "kab/os/os_host"
 
 if kabOsHostDeleteOk() != false {
     return false

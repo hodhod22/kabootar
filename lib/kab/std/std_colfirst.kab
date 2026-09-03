@@ -1,0 +1,6 @@
+// SH20: collections first off std_colpop.kab. import "kab/std/std_colfirst"
+// Do not grow std_colpop.kab. stdHostDeleteOk stays false.
+
+pub fn stdColFirst(p) {
+    return p[0]
+}

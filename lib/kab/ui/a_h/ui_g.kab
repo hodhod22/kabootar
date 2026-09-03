@@ -1,0 +1,6 @@
+// SH27: g tag off ui_path.kab. import "kab/ui/ui_g"
+// Do not grow ui_path.kab. Host browser* remains skuld.
+
+pub fn uiIsG(tag) {
+    return tag == "g"
+}

@@ -1,3 +1,3 @@
-import "kab/ui_footer"
+import "kab/ui/ui_footer"
 
 return uiIsFooter("footer")

@@ -1,6 +1,0 @@
-// SH27: font tag off ui_marquee.kab. import "kab/ui_font"
-// Do not grow ui_marquee.kab. Host browser* remains skuld.
-
-pub fn uiIsFont(tag) {
-    return tag == "font"
-}

@@ -1,0 +1,6 @@
+// SH27: animateMotion tag off ui_animate.kab. import "kab/ui/ui_animate_motion"
+// Do not grow ui_animate.kab. Host browser* remains skuld.
+
+pub fn uiIsAnimateMotion(tag) {
+    return tag == "animateMotion"
+}

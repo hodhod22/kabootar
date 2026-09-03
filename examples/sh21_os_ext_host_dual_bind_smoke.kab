@@ -1,6 +1,6 @@
-import "kab/os_ext"
-import "kab/os_base"
-import "kab/os_host"
+import "kab/os/os_ext"
+import "kab/os/os_base"
+import "kab/os/os_host"
 
 if kabOsHostDeleteOk() != false {
     return false

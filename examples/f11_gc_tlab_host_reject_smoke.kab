@@ -1,4 +1,4 @@
-import "kab/gc_tlab_host"
+import "kab/gc/gc_tlab_host"
 import "kab/gc"
 
 return gcTlabHostDropOk(2, 65536, gcNurseryCap(), gcFrameBudgetMs(), true) == false

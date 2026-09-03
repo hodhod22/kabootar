@@ -1,6 +1,0 @@
-// SH27: domain tag off ui_selector.kab. import "kab/ui_domain"
-// Do not grow ui_selector.kab. Host browser* remains skuld.
-
-pub fn uiIsDomain(tag) {
-    return tag == "domain"
-}

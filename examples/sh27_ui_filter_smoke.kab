@@ -1,3 +1,3 @@
-import "kab/ui_filter"
+import "kab/ui/ui_filter"
 
 return uiIsFilter("filter")

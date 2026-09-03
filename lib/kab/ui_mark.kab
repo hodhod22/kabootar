@@ -1,6 +1,0 @@
-// SH27: mark tag off ui_cite.kab. import "kab/ui_mark"
-// Do not grow ui_cite.kab. Host browser* remains skuld.
-
-pub fn uiIsMark(tag) {
-    return tag == "mark"
-}

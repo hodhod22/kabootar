@@ -1,6 +1,0 @@
-// SH27: use tag off ui_g.kab. import "kab/ui_use"
-// Do not grow ui_g.kab or ui_u.kab. Host browser* remains skuld.
-
-pub fn uiIsUse(tag) {
-    return tag == "use"
-}

@@ -1,3 +1,3 @@
-import "kab/http_patch"
+import "kab/http/http_patch"
 
 return httpIsPatch("PATCH")

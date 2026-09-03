@@ -1,6 +1,6 @@
-import "kab/ui_solid_color"
-import "kab/ui_flow_image"
-import "kab/ui_host"
+import "kab/ui/ui_solid_color"
+import "kab/ui/ui_flow_image"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

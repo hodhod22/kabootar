@@ -1,0 +1,28 @@
+// SH17 deepen: translate+store for loop-jge template. import "kab/jit/jit_wr_loop_jge"
+// Do not grow jit_wr_loop_jg.kab.
+
+import "kab/jit/jit_patch_loop_jge"
+import "kab/jit/jit_mm_loop_jge"
+import "kab/jit/jit_mm_store_loop_jge"
+import "kab/jit/jit_loop_jge"
+
+pub fn jitWrLoopJgeOk(bytes, n, k) {
+    if jitPatchLoopJgeOk(bytes, n, k) == false {
+        return false
+    }
+    let pid = jitMmLoopJgePid()
+    let virt = jitMmLoopJgeVirt()
+    let p0 = os_mm_translate(pid, virt)
+    if p0 <= 0 {
+        return false
+    }
+    let p7 = os_mm_translate(pid, virt + 7)
+    if p7 <= 0 {
+        return false
+    }
+    let w = jitMmStoreLoopJge(bytes, n, k)
+    if w != jitLoopJgeLen() {
+        return false
+    }
+    return true
+}

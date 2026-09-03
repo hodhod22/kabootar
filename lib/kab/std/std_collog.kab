@@ -1,0 +1,13 @@
+// SH20: collections log off std_coltrunc.kab. import "kab/std/std_collog"
+// Do not grow std_coltrunc.kab. stdHostDeleteOk stays false.
+
+pub fn stdColLog(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, log(a[i]))
+        i = i + 1
+    }
+    return out
+}

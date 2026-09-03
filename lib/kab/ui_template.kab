@@ -1,6 +1,0 @@
-// SH27: template tag off ui_caption.kab. import "kab/ui_template"
-// Do not grow ui_caption.kab. Host browser* remains skuld.
-
-pub fn uiIsTemplate(tag) {
-    return tag == "template"
-}

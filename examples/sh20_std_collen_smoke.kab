@@ -1,5 +1,5 @@
-import "kab/std_collen"
-import "kab/std_col"
+import "kab/std/std_collen"
+import "kab/std/std_col"
 
 let p = stdColPair("n", 42)
 return stdColLen(p) == 2

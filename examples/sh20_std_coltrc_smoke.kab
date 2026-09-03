@@ -1,4 +1,4 @@
-import "kab/std_coltrc"
-import "kab/std_colident"
+import "kab/std/std_coltrc"
+import "kab/std/std_colident"
 
 return stdColTrace(stdColIdent(2)) == 2

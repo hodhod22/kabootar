@@ -1,7 +1,7 @@
-import "kab/noll_sbom"
-import "kab/noll_cyclonedx"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_sbom"
+import "kab/noll/noll_cyclonedx"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

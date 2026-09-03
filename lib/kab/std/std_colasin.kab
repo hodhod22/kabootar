@@ -1,0 +1,13 @@
+// SH20: collections asin off std_coltan.kab. import "kab/std/std_colasin"
+// Do not grow std_coltan.kab. stdHostDeleteOk stays false.
+
+pub fn stdColAsin(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, asin(a[i]))
+        i = i + 1
+    }
+    return out
+}

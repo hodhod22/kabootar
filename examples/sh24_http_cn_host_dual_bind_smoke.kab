@@ -1,6 +1,6 @@
-import "kab/http_cn"
-import "kab/http_trc"
-import "kab/http_host"
+import "kab/http/http_cn"
+import "kab/http/http_trc"
+import "kab/http/http_host"
 
 if httpHostDeleteOk() != false {
     return false

@@ -1,4 +1,4 @@
-import "kab/http_req"
+import "kab/http/http_req"
 
 let r = httpReq("GET", "/", "x")
 if r != null {

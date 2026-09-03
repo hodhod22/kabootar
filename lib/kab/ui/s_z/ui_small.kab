@@ -1,0 +1,6 @@
+// SH27: small tag off ui_mark.kab. import "kab/ui/ui_small"
+// Do not grow ui_mark.kab. Host browser* remains skuld.
+
+pub fn uiIsSmall(tag) {
+    return tag == "small"
+}

@@ -1,0 +1,6 @@
+// SH25: bench argv off cli_doc.kab. import "kab/cli/cli_bench"
+// Do not grow cli_doc.kab. Host src/cli remains skuld.
+
+pub fn cliIsBench(cmd) {
+    return cmd == "bench"
+}

@@ -1,6 +1,0 @@
-// SH28: product OIDC stack is not Kab-only yet. import "kab/noll_oidc"
-// Do not grow noll_oauth.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollOidcIsKab() {
-    return false
-}

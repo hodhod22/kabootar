@@ -1,0 +1,12 @@
+// F10: persisted plan bytes must match a first Kab-native image plan.
+// import "kab/aot/aot_loaded_plan"; do not import other kab/aot* leaves.
+
+pub fn aotLoadedPlanOk(plan) {
+    if plan == "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw" {
+        return true
+    }
+    if plan == "kabootar-native/1|arm64|abi:aapcs64|entry:0|page:4096|text:rx|rodata:r|data:rw" {
+        return true
+    }
+    return false
+}

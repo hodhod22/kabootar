@@ -1,6 +1,0 @@
-// SH28: product watch CLI is not Kab-only yet. import "kab/noll_watch"
-// Do not grow noll_init.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollWatchIsKab() {
-    return false
-}

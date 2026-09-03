@@ -1,0 +1,23 @@
+// F10 deepen: lazy AOT boot + remainder native-loop JIT. import "kab/aot/aot_lazy_native_loop"
+// Do not grow aot_lazy.kab. Boot ≤100 ms; remainder kind jit; nd-dot loopN exec.
+
+import "kab/aot/aot_lazy"
+import "kab/aot/aot_lazy_jit"
+import "kab/aot/aot_pgo"
+import "kab/jit/jit_native_loop_nd_dot"
+
+pub fn aotLazyNativeLoopOk(ms, remKind, nHits, nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb) {
+    if aotLazyOk(ms) == false {
+        return false
+    }
+    if aotLazyJitOk(remKind) == false {
+        return false
+    }
+    if aotPgoOk(nHits) == false {
+        return false
+    }
+    if jitNativeLoopNdDotOk(nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb) == false {
+        return false
+    }
+    return true
+}

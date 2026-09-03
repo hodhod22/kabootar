@@ -1,6 +1,6 @@
-import "kab/ui_applet"
-import "kab/ui_blink"
-import "kab/ui_host"
+import "kab/ui/ui_applet"
+import "kab/ui/ui_blink"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

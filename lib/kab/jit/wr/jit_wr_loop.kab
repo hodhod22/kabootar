@@ -1,0 +1,27 @@
+// SH17 deepen: translate+store for loop8 template. import "kab/jit/jit_wr_loop"
+// Do not grow jit_wr.kab.
+
+import "kab/jit/jit_patch_loop"
+import "kab/jit/jit_mm_loop"
+import "kab/jit/jit_mm_store_loop"
+
+pub fn jitWrLoopOk(bytes) {
+    if jitPatchLoopOk(bytes) == false {
+        return false
+    }
+    let pid = jitMmLoopPid()
+    let virt = jitMmLoopVirt()
+    let p0 = os_mm_translate(pid, virt)
+    if p0 <= 0 {
+        return false
+    }
+    let p7 = os_mm_translate(pid, virt + 7)
+    if p7 <= 0 {
+        return false
+    }
+    let n = jitMmStoreLoop(bytes)
+    if n != 8 {
+        return false
+    }
+    return true
+}

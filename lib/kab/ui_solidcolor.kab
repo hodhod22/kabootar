@@ -1,6 +1,0 @@
-// SH27: solidcolor tag off ui_hatchpath.kab. import "kab/ui_solidcolor"
-// Do not grow ui_hatchpath.kab. Host browser* remains skuld.
-
-pub fn uiIsSolidcolor(tag) {
-    return tag == "solidcolor"
-}

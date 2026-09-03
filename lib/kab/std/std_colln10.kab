@@ -1,0 +1,13 @@
+// SH20: collections ln10 off std_colln2.kab. import "kab/std/std_colln10"
+// Do not grow std_colln2.kab. stdHostDeleteOk stays false.
+
+pub fn stdColLn10(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, ln10())
+        i = i + 1
+    }
+    return out
+}

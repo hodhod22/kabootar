@@ -1,4 +1,4 @@
-import "kab/gc_tlab_pause"
+import "kab/gc/gc_tlab_pause"
 import "kab/gc"
 
 return gcTlabPauseOk(2, 65536, gcNurseryCap(), 0) == false

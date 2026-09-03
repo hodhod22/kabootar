@@ -1,4 +1,4 @@
-import "kab/http_res"
+import "kab/http/http_res"
 
 let r = httpRes(200, "ok")
 if r != null {

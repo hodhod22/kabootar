@@ -1,3 +1,3 @@
-import "kab/ui_multicol"
+import "kab/ui/ui_multicol"
 
 return uiIsMulticol("multicol")

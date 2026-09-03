@@ -1,0 +1,6 @@
+// SH27: rtc tag off ui_rb.kab. import "kab/ui/ui_rtc"
+// Do not grow ui_rb.kab. Host browser* remains skuld.
+
+pub fn uiIsRtc(tag) {
+    return tag == "rtc"
+}

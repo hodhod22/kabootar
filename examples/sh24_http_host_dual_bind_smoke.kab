@@ -1,7 +1,7 @@
 import "kab/http"
-import "kab/http_post"
-import "kab/http_ct"
-import "kab/http_host"
+import "kab/http/http_post"
+import "kab/http/http_ct"
+import "kab/http/http_host"
 
 if httpHostDeleteOk() != false {
     return false

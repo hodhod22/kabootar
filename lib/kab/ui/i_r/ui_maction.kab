@@ -1,0 +1,6 @@
+// SH27: maction tag off ui_annotation_xml.kab. import "kab/ui/ui_maction"
+// Do not grow ui_annotation_xml.kab. Host browser* remains skuld.
+
+pub fn uiIsMaction(tag) {
+    return tag == "maction"
+}

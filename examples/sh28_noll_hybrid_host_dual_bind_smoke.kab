@@ -1,7 +1,7 @@
-import "kab/noll_hybrid"
-import "kab/noll_fndsa"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_hybrid"
+import "kab/noll/noll_fndsa"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

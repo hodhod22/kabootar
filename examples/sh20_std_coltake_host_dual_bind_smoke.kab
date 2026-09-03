@@ -1,8 +1,8 @@
-import "kab/std_coltake"
-import "kab/std_colcount"
-import "kab/std_colfirst"
-import "kab/std_col"
-import "kab/std_host"
+import "kab/std/std_coltake"
+import "kab/std/std_colcount"
+import "kab/std/std_colfirst"
+import "kab/std/std_col"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false

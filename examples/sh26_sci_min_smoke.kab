@@ -1,4 +1,4 @@
-import "kab/sci_min"
+import "kab/sci/sci_min"
 
 let n = sciMin(3, 7)
 if n == 3 {

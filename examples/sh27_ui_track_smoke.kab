@@ -1,3 +1,3 @@
-import "kab/ui_track"
+import "kab/ui/ui_track"
 
 return uiIsTrack("track")

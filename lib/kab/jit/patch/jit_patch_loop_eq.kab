@@ -1,0 +1,31 @@
+// SH17 deepen: validate i64 loop-eq template. import "kab/jit/jit_patch_loop_eq"
+// Do not grow jit_patch_loop_neg.kab.
+
+import "kab/jit/jit_loop_eq"
+import "kab/jit/jit_check"
+
+pub fn jitPatchLoopEqOk(bytes, n, k) {
+    if jitLoopEqOk(n, k) == false {
+        return false
+    }
+    let tpl = jitEmitI64LoopEqN(n, k)
+    if len(bytes) != jitLoopEqLen() {
+        return false
+    }
+    if len(tpl) != jitLoopEqLen() {
+        return false
+    }
+    if bytes[0] != tpl[0] {
+        return false
+    }
+    if bytes[1] != tpl[1] {
+        return false
+    }
+    if bytes[2] != tpl[2] {
+        return false
+    }
+    if jitByteIsRet(bytes[7]) == false {
+        return false
+    }
+    return bytes[7] == tpl[7]
+}

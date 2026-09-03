@@ -1,3 +1,3 @@
-import "kab/aot_dec_local_op"
+import "kab/aot/aot_dec_local_op"
 
 return aotDecLocalOp("x64") == "488345f8ff"

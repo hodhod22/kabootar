@@ -1,3 +1,3 @@
-import "kab/load_file"
+import "kab/load/load_file"
 
 return loadEvalKbcRoundtripOk("sh19_load_file_rt.kbc", "return 40 + 2", 42)

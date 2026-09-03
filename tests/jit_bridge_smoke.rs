@@ -2,7 +2,7 @@
 
 #[test]
 fn jit_bridge_file_exists() {
-    let bridge_file = std::path::Path::new("lib/kab/jit_bridge.kab");
+    let bridge_file = std::path::Path::new("lib/kab/jit/jit_bridge.kab");
     assert!(bridge_file.exists(), "jit_bridge.kab should exist");
     
     let content = std::fs::read_to_string(bridge_file)
@@ -10,8 +10,8 @@ fn jit_bridge_file_exists() {
     
     // Verify bridge imports JIT components
     assert!(content.contains("import \"kab/jit\""), "should import jit");
-    assert!(content.contains("import \"kab/jit_run\""), "should import jit_run");
-    assert!(content.contains("import \"kab/jit_mm\""), "should import jit_mm");
+    assert!(content.contains("import \"kab/jit/jit_run\""), "should import jit_run");
+    assert!(content.contains("import \"kab/jit/jit_mm\""), "should import jit_mm");
     
     // Verify bridge functions exist
     assert!(content.contains("jitBridgeCanCompile"), "should have can compile check");
@@ -26,7 +26,7 @@ fn jit_bridge_file_exists() {
 
 #[test]
 fn jit_bridge_design_correctness() {
-    let bridge_file = std::fs::read_to_string("lib/kab/jit_bridge.kab")
+    let bridge_file = std::fs::read_to_string("lib/kab/jit/jit_bridge.kab")
         .expect("should read bridge file");
     
     // Verify bridge is self-contained in Kabootar
@@ -45,7 +45,7 @@ fn jit_bridge_design_correctness() {
 
 #[test]
 fn jit_bridge_complete_pipeline() {
-    let bridge_file = std::fs::read_to_string("lib/kab/jit_bridge.kab")
+    let bridge_file = std::fs::read_to_string("lib/kab/jit/jit_bridge.kab")
         .expect("should read bridge file");
     
     // Verify complete pipeline check exists
@@ -61,7 +61,7 @@ fn jit_bridge_complete_pipeline() {
 
 #[test]
 fn jit_bridge_memory_policy() {
-    let bridge_file = std::fs::read_to_string("lib/kab/jit_bridge.kab")
+    let bridge_file = std::fs::read_to_string("lib/kab/jit/jit_bridge.kab")
         .expect("should read bridge file");
     
     // Verify memory policy functions

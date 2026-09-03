@@ -1,6 +1,6 @@
-import "kab/std_coltake"
-import "kab/std_colfirst"
-import "kab/std_col"
+import "kab/std/std_coltake"
+import "kab/std/std_colfirst"
+import "kab/std/std_col"
 
 let p = stdColPair("n", 42)
 let t = stdColTake(p, 1)

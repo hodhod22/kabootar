@@ -1,0 +1,26 @@
+// SH20: collections project off std_colunit.kab. import "kab/std/std_colproj"
+// Do not grow std_colunit.kab. stdHostDeleteOk stays false.
+
+pub fn stdColProj(a, b) {
+    let num = 0
+    let den = 0
+    let n = len(a)
+    let nb = len(b)
+    if nb < n {
+        n = nb
+    }
+    let i = 0
+    while i < n {
+        num = num + a[i] * b[i]
+        den = den + b[i] * b[i]
+        i = i + 1
+    }
+    let s = num / den
+    let out = []
+    i = 0
+    while i < n {
+        out = push(out, s * b[i])
+        i = i + 1
+    }
+    return out
+}

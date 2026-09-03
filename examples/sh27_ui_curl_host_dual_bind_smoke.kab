@@ -1,6 +1,6 @@
-import "kab/ui_curl"
-import "kab/ui_limit"
-import "kab/ui_host"
+import "kab/ui/ui_curl"
+import "kab/ui/ui_limit"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

@@ -1,0 +1,6 @@
+// F10: load persisted first native R rodata through the host FS capability.
+// import "kab/aot/aot_read_rodata"; do not import other kab/aot* leaves.
+
+pub fn aotReadRodata(path) {
+    return os_read(path)
+}

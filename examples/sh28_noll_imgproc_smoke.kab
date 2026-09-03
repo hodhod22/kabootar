@@ -1,3 +1,3 @@
-import "kab/noll_imgproc"
+import "kab/noll/noll_imgproc"
 
 return nollImageIsProcess() == false

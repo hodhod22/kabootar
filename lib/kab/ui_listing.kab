@@ -1,6 +1,0 @@
-// SH27: listing tag off ui_keygen.kab. import "kab/ui_listing"
-// Do not grow ui_keygen.kab. Host browser* remains skuld.
-
-pub fn uiIsListing(tag) {
-    return tag == "listing"
-}

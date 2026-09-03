@@ -1,6 +1,6 @@
-import "kab/ui_plaintext"
-import "kab/ui_xmp"
-import "kab/ui_host"
+import "kab/ui/ui_plaintext"
+import "kab/ui/ui_xmp"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

@@ -1,3 +1,3 @@
-import "kab/ui_glyph"
+import "kab/ui/ui_glyph"
 
 return uiIsGlyph("glyph")

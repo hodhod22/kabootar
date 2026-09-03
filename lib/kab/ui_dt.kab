@@ -1,6 +1,0 @@
-// SH27: dt tag off ui_dl.kab. import "kab/ui_dt"
-// Do not grow ui_dl.kab. Host browser* remains skuld.
-
-pub fn uiIsDt(tag) {
-    return tag == "dt"
-}

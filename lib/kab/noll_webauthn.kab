@@ -1,6 +1,0 @@
-// SH28: product WebAuthn stack is not Kab-only yet. import "kab/noll_webauthn"
-// Do not grow noll_jwks.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollWebauthnIsKab() {
-    return false
-}

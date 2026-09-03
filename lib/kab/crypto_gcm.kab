@@ -1,6 +1,0 @@
-// SH23: AES-GCM alg gate off crypto_chacha.kab. import "kab/crypto_gcm"
-// Do not grow crypto_chacha.kab. cryptoHostDeleteOk stays false.
-
-pub fn cryptoGcmOk(alg) {
-    return alg == "aes-256-gcm"
-}

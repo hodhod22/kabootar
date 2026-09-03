@@ -1,4 +1,4 @@
-import "kab/noll_aot"
+import "kab/noll/noll_aot"
 
 if nollAotReady() {
     return false

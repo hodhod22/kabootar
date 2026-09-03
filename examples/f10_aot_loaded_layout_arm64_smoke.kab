@@ -1,5 +1,5 @@
-import "kab/aot_emit_layout"
-import "kab/aot_loaded_layout"
+import "kab/aot/aot_emit_layout"
+import "kab/aot/aot_loaded_layout"
 
 let layout = aotEmitLayout("arm64")
 return aotLoadedLayoutOk(layout)

@@ -1,0 +1,3 @@
+import "kab/load/load_aot_reloc_text_at"
+
+return loadAotRelocTextAt40Ok(0) == false

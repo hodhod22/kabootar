@@ -1,6 +1,6 @@
 import "kab/wave_capstone"
-import "kab/gc_capstone"
-import "kab/load_aot_capstone"
+import "kab/gc/gc_capstone"
+import "kab/load/load_aot_capstone"
 
 if waveCapstoneGatesClosed() == false {
     return false

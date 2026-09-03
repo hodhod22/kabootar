@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image jno opcode.
+// import "kab/aot/aot_load_jno"; do not import other kab/aot* leaves.
+
+pub fn aotLoadJnoOk(op, target) {
+    if target == "x64" {
+        return op == "7100"
+    }
+    if target == "arm64" {
+        return op == "54000007"
+    }
+    return false
+}

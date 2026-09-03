@@ -1,6 +1,0 @@
-// SH28: product SAML stack is not Kab-only yet. import "kab/noll_saml"
-// Do not grow noll_oidc.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollSamlIsKab() {
-    return false
-}

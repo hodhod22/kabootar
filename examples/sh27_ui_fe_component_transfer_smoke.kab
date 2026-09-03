@@ -1,3 +1,3 @@
-import "kab/ui_fe_component_transfer"
+import "kab/ui/ui_fe_component_transfer"
 
 return uiIsFeComponentTransfer("feComponentTransfer")

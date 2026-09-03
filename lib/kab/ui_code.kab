@@ -1,6 +1,0 @@
-// SH27: code tag off ui_pre.kab. import "kab/ui_code"
-// Do not grow ui_pre.kab. Host browser* remains skuld.
-
-pub fn uiIsCode(tag) {
-    return tag == "code"
-}

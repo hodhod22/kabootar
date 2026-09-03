@@ -1,6 +1,0 @@
-// SH27: blockquote tag off ui_code.kab. import "kab/ui_blockquote"
-// Do not grow ui_code.kab. Host browser* remains skuld.
-
-pub fn uiIsBlockquote(tag) {
-    return tag == "blockquote"
-}

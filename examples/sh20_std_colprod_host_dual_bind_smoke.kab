@@ -1,8 +1,8 @@
-import "kab/std_colprod"
-import "kab/std_colmin"
-import "kab/std_colrange"
-import "kab/std_colfill"
-import "kab/std_host"
+import "kab/std/std_colprod"
+import "kab/std/std_colmin"
+import "kab/std/std_colrange"
+import "kab/std/std_colfill"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false

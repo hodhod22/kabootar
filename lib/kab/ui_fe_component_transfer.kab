@@ -1,6 +1,0 @@
-// SH27: feComponentTransfer tag off ui_fe_color_matrix.kab. import "kab/ui_fe_component_transfer"
-// Do not grow ui_fe_color_matrix.kab. Host browser* remains skuld.
-
-pub fn uiIsFeComponentTransfer(tag) {
-    return tag == "feComponentTransfer"
-}

@@ -1,3 +1,3 @@
-import "kab/aot_reloc"
+import "kab/aot/aot_reloc"
 
 return aotRelocRecordOk(4096, 32, "", "x64") == false

@@ -1,6 +1,0 @@
-// SH27: ident tag off ui_domainof.kab. import "kab/ui_ident"
-// Do not grow ui_domainof.kab. Host browser* remains skuld.
-
-pub fn uiIsIdent(tag) {
-    return tag == "ident"
-}

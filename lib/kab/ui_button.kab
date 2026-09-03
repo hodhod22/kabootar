@@ -1,6 +1,0 @@
-// SH27: button tag off ui.kab. import "kab/ui_button"
-// Do not grow ui_span.kab. Host browser* remains skuld.
-
-pub fn uiIsButton(tag) {
-    return tag == "button"
-}

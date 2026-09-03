@@ -1,6 +1,6 @@
-import "kab/ui_tfoot"
-import "kab/ui_tbody"
-import "kab/ui_host"
+import "kab/ui/ui_tfoot"
+import "kab/ui/ui_tbody"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

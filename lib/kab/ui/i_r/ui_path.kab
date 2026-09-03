@@ -1,0 +1,6 @@
+// SH27: path tag off ui_polygon.kab. import "kab/ui/ui_path"
+// Do not grow ui_polygon.kab or ui_p.kab. Host browser* remains skuld.
+
+pub fn uiIsPath(tag) {
+    return tag == "path"
+}

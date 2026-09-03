@@ -1,9 +1,0 @@
-// F10: first Kab-native images emit a 4096-byte page contract.
-// import "kab/aot_emit_page"; do not import other kab/aot* leaves.
-
-pub fn aotEmitPage(imageSize) {
-    if imageSize >= 4096 {
-        return "page:4096"
-    }
-    return ""
-}

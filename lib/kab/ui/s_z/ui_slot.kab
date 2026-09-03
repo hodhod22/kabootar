@@ -1,0 +1,6 @@
+// SH27: slot tag off ui_template.kab. import "kab/ui/ui_slot"
+// Do not grow ui_template.kab. Host browser* remains skuld.
+
+pub fn uiIsSlot(tag) {
+    return tag == "slot"
+}

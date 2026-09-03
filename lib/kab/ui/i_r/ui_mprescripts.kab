@@ -1,0 +1,6 @@
+// SH27: mprescripts tag off ui_mmultiscripts.kab. import "kab/ui/ui_mprescripts"
+// Do not grow ui_mmultiscripts.kab. Host browser* remains skuld.
+
+pub fn uiIsMprescripts(tag) {
+    return tag == "mprescripts"
+}

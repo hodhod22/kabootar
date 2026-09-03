@@ -1,6 +1,0 @@
-// SH27: bgsound tag off ui_spacer.kab. import "kab/ui_bgsound"
-// Do not grow ui_spacer.kab. Host browser* remains skuld.
-
-pub fn uiIsBgsound(tag) {
-    return tag == "bgsound"
-}

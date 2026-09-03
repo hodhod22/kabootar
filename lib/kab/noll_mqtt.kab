@@ -1,6 +1,0 @@
-// SH28: product MQTT stack is not Kab-only yet. import "kab/noll_mqtt"
-// Do not grow noll_grpc.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollMqttIsKab() {
-    return false
-}

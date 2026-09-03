@@ -1,6 +1,6 @@
-import "kab/ui_flow_span"
-import "kab/ui_flow_para"
-import "kab/ui_host"
+import "kab/ui/ui_flow_span"
+import "kab/ui/ui_flow_para"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

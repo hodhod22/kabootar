@@ -1,6 +1,0 @@
-// SH28: product McEliece stack is not Kab-only yet. import "kab/noll_mceliece"
-// Do not grow noll_ntru.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollMcelieceIsKab() {
-    return false
-}

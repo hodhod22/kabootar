@@ -1,0 +1,34 @@
+// SH19 deepen: AOT relocated word bootstrap off load_aot_reloc. import "kab/load/load_aot_reloc_word"
+// Do not grow load_aot_reloc.kab. Host main.rs stays until reloc apply smoke completes.
+// Nested call args must be locals first — module-scope binding quirk.
+
+import "kab/load/load_aot_reloc"
+import "kab/aot/aot_load_image"
+
+pub fn loadAotRelocWordPlan() {
+    return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64|relocword:2810000000000000"
+}
+    10|
+pub fn loadAotRelocTextPlan() {
+    return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:c3:2810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
+}
+
+/// Sym/reloc tables plus relocated word record validates.
+pub fn loadAotRelocWordOk(nBytes) {
+    if loadAotRelocBootstrapOk(nBytes) == false {
+        return false
+    }
+    20|    let plan = loadAotRelocWordPlan()
+    let target = loadAotTarget()
+    return aotLoadImageWithRelocWordOk(plan, target)
+}
+
+/// Sym/reloc tables plus relocation written into text hex validates.
+pub fn loadAotRelocTextOk(nBytes) {
+    if loadAotRelocBootstrapOk(nBytes) == false {
+        return false
+    }
+    30|    let plan = loadAotRelocTextPlan()
+    let target = loadAotTarget()
+    return aotLoadImageWithRelocTextOk(plan, target)
+}

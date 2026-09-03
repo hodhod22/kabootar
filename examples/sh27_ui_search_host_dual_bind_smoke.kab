@@ -1,6 +1,6 @@
-import "kab/ui_search"
-import "kab/ui_menu"
-import "kab/ui_host"
+import "kab/ui/ui_search"
+import "kab/ui/ui_menu"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

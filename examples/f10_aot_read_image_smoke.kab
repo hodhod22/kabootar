@@ -1,4 +1,4 @@
-import "kab/aot_read_image"
+import "kab/aot/aot_read_image"
 
 let read = aotReadImage
 return read != null

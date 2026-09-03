@@ -1,3 +1,3 @@
-import "kab/ui_rbc"
+import "kab/ui/ui_rbc"
 
 return uiIsRbc("rbc")

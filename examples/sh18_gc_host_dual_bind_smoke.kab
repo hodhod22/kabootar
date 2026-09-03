@@ -1,6 +1,6 @@
 import "kab/gc"
-import "kab/gc_conc"
-import "kab/gc_host"
+import "kab/gc/gc_conc"
+import "kab/gc/gc_host"
 
 if gcHostDeleteOk() != false {
     return false

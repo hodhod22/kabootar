@@ -1,3 +1,3 @@
-import "kab/load_kbc"
+import "kab/load/load_kbc"
 
 return loadIsKbc("app.kbc")

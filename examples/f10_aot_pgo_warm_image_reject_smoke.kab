@@ -1,4 +1,4 @@
-import "kab/aot_pgo"
+import "kab/aot/aot_pgo"
 
 if aotPgoWarmImage(7, "x64") != "" {
     return false

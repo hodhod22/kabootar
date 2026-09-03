@@ -1,3 +1,3 @@
-import "kab/ui_cite"
+import "kab/ui/ui_cite"
 
 return uiIsCite("cite")

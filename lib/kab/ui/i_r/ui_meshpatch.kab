@@ -1,0 +1,6 @@
+// SH27: meshpatch tag off ui_meshrow.kab. import "kab/ui/ui_meshpatch"
+// Do not grow ui_meshrow.kab. Host browser* remains skuld.
+
+pub fn uiIsMeshpatch(tag) {
+    return tag == "meshpatch"
+}

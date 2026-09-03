@@ -1,0 +1,13 @@
+// SH20: collections asinh off std_coltanh.kab. import "kab/std/std_colasinh"
+// Do not grow std_coltanh.kab. stdHostDeleteOk stays false.
+
+pub fn stdColAsinh(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, asinh(a[i]))
+        i = i + 1
+    }
+    return out
+}

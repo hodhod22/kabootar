@@ -1,6 +1,6 @@
-import "kab/ui_path"
-import "kab/ui_polygon"
-import "kab/ui_host"
+import "kab/ui/ui_path"
+import "kab/ui/ui_polygon"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

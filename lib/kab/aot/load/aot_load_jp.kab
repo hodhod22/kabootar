@@ -1,0 +1,9 @@
+// F10: loader accepts only the documented x64 first-image jp opcode.
+// import "kab/aot/aot_load_jp"; do not import other kab/aot* leaves.
+
+pub fn aotLoadJpOk(op, target) {
+    if target == "x64" {
+        return op == "7a00"
+    }
+    return false
+}

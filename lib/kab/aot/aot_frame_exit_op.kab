@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented frame-exit epilogue.
+// import "kab/aot/aot_frame_exit_op"; do not import other kab/aot* leaves.
+
+pub fn aotFrameExitOp(target) {
+    if target == "x64" {
+        return "c9"
+    }
+    if target == "arm64" {
+        return "fd7bc1a8"
+    }
+    return ""
+}

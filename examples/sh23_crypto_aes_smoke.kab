@@ -1,3 +1,3 @@
-import "kab/crypto_aes"
+import "kab/crypto/crypto_aes"
 
 return cryptoAes256Ok("aes-256")

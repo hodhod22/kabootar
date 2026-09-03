@@ -1,6 +1,0 @@
-// SH27: matrix tag off ui_vector.kab. import "kab/ui_matrix"
-// Do not grow ui_vector.kab. Host browser* remains skuld.
-
-pub fn uiIsMatrix(tag) {
-    return tag == "matrix"
-}

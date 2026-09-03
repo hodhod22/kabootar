@@ -1,10 +1,10 @@
-import "kab/aot_cd"
-import "kab/aot_fp"
-import "kab/aot_img"
-import "kab/aot_pgo"
-import "kab/aot_reloc"
-import "kab/aot_ss"
-import "kab/aot_sym"
+import "kab/aot/aot_cd"
+import "kab/aot/aot_fp"
+import "kab/aot/aot_img"
+import "kab/aot/aot_pgo"
+import "kab/aot/aot_reloc"
+import "kab/aot/aot_ss"
+import "kab/aot/aot_sym"
 
 if aotPgoOk(8) == false {
     return false

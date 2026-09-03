@@ -1,6 +1,0 @@
-// SH27: nobr tag off ui_center.kab. import "kab/ui_nobr"
-// Do not grow ui_center.kab. Host browser* remains skuld.
-
-pub fn uiIsNobr(tag) {
-    return tag == "nobr"
-}

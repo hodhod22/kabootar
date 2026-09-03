@@ -1,7 +1,7 @@
-import "kab/noll_icmp"
-import "kab/noll_quic"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_icmp"
+import "kab/noll/noll_quic"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

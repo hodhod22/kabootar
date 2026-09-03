@@ -1,3 +1,3 @@
-import "kab/ui_element"
+import "kab/ui/ui_element"
 
 return uiIsElement("element")

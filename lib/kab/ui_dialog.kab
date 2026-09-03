@@ -1,6 +1,0 @@
-// SH27: dialog tag off ui_summary.kab. import "kab/ui_dialog"
-// Do not grow ui_summary.kab. Host browser* remains skuld.
-
-pub fn uiIsDialog(tag) {
-    return tag == "dialog"
-}

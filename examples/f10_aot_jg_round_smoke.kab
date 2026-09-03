@@ -1,5 +1,5 @@
-import "kab/aot_jg_op"
-import "kab/aot_load_jg"
+import "kab/aot/aot_jg_op"
+import "kab/aot/aot_load_jg"
 
 let op = aotJgOp("x64")
 return aotLoadJgOk(op, "x64")

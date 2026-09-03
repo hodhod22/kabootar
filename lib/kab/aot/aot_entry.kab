@@ -1,0 +1,6 @@
+// F10: the initial native image has entry offset zero and a non-empty image.
+// import "kab/aot/aot_entry"; full offset bounds await a compatible self-host path.
+
+pub fn aotEntryOk(imageSize) {
+    return imageSize > 0
+}

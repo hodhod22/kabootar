@@ -1,0 +1,6 @@
+// SH28: product IMAP stack is not Kab-only yet. import "kab/noll/noll_imap"
+// Do not grow noll_smtp.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollImapIsKab() {
+    return false
+}

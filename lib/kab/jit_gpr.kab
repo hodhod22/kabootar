@@ -1,6 +1,0 @@
-// F9: linear-scan GPR count off jit.kab. import "kab/jit_gpr"
-// Do not grow jit.kab. Do not import kab/jit.
-
-pub fn jitScanGprs(nLive) {
-    return nLive + 1
-}

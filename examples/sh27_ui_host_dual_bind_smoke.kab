@@ -1,7 +1,7 @@
 import "kab/ui"
-import "kab/ui_cv"
-import "kab/ui_fps"
-import "kab/ui_host"
+import "kab/ui/ui_cv"
+import "kab/ui/ui_fps"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

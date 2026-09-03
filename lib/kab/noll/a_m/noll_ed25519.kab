@@ -1,0 +1,6 @@
+// SH28: product Ed25519 stack is not Kab-only yet. import "kab/noll/noll_ed25519"
+// Do not grow noll_x25519.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollEd25519IsKab() {
+    return false
+}

@@ -1,7 +1,7 @@
-import "kab/aot_lazy_boot_dag_named"
-import "kab/jit_loop_n"
-import "kab/jit_mm_loop_n"
-import "kab/jit_call_loop_n"
+import "kab/aot/aot_lazy_boot_dag_named"
+import "kab/jit/jit_loop_n"
+import "kab/jit/jit_mm_loop_n"
+import "kab/jit/jit_call_loop_n"
 
 let ms = 100
 let remKind = "jit"

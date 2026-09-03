@@ -1,0 +1,13 @@
+import "kab/gc/gc_load"
+import "kab/gc/gc_host"
+
+if gcHostDeleteOk() != false {
+    return false
+}
+if gcLoadBumpOk() == false {
+    return false
+}
+if gcLoadFramesOk(2) == false {
+    return false
+}
+return gcHostDeleteOk() == false

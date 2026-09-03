@@ -1,7 +1,0 @@
-// SH28: OS process is not yet Kab — policy "process-is-kab" is false.
-// import "kab/noll_proc"
-// Do not grow noll_drop.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollProcessIsKab() {
-    return false
-}

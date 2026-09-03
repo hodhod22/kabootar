@@ -1,6 +1,0 @@
-// SH27: mlongdiv tag off ui_maction.kab. import "kab/ui_mlongdiv"
-// Do not grow ui_maction.kab. Host browser* remains skuld.
-
-pub fn uiIsMlongdiv(tag) {
-    return tag == "mlongdiv"
-}

@@ -1,4 +1,4 @@
-import "kab/io_await"
+import "kab/io/io_await"
 
 let xs = []
 let r = ioAwaitAll(xs)

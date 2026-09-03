@@ -1,6 +1,6 @@
-import "kab/aot_image_name"
-import "kab/aot_not_op"
-import "kab/aot_verify_not"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_not_op"
+import "kab/aot/aot_verify_not"
 
 let name = aotImageName("x64")
 let op = aotNotOp("x64")

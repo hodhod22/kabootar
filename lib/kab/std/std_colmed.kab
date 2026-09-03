@@ -1,0 +1,39 @@
+// SH20: collections median off std_colavg.kab. import "kab/std/std_colmed"
+// Do not grow std_colavg.kab. stdHostDeleteOk stays false.
+// Rebuild via push; do not assign through index slots.
+
+pub fn stdColMedian(p) {
+    let n = len(p)
+    if n == 0 {
+        return 0
+    }
+    let sorted = []
+    let i = 0
+    while i < n {
+        let x = p[i]
+        let placed = 0
+        let ns = []
+        let j = 0
+        let m = len(sorted)
+        while j < m {
+            if placed == 0 {
+                if x < sorted[j] {
+                    ns = push(ns, x)
+                    placed = 1
+                }
+            }
+            ns = push(ns, sorted[j])
+            j = j + 1
+        }
+        if placed == 0 {
+            ns = push(ns, x)
+        }
+        sorted = ns
+        i = i + 1
+    }
+    let mid = n / 2
+    if mid + mid == n {
+        return (sorted[mid - 1] + sorted[mid]) / 2
+    }
+    return sorted[mid]
+}

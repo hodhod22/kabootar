@@ -1,0 +1,6 @@
+// SH27: xml tag off ui_comment.kab. import "kab/ui/ui_xml"
+// Do not grow ui_comment.kab. Host browser* remains skuld.
+
+pub fn uiIsXml(tag) {
+    return tag == "xml"
+}

@@ -1,7 +1,7 @@
 import "kab/sci"
-import "kab/sci_nd"
-import "kab/sci_fft"
-import "kab/sci_host"
+import "kab/sci/sci_nd"
+import "kab/sci/sci_fft"
+import "kab/sci/sci_host"
 
 if sciHostDeleteOk() != false {
     return false

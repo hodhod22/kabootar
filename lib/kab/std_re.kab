@@ -1,6 +1,0 @@
-// SH20: regex literal-hit subset off stdlib.kab. import "kab/std_re"
-// Do not grow stdlib.kab. Host regex natives remain skuld.
-
-pub fn stdReHit(s, pat) {
-    return str_index_of(s, pat) >= 0
-}

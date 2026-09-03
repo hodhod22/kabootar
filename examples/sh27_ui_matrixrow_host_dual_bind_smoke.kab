@@ -1,6 +1,6 @@
-import "kab/ui_matrixrow"
-import "kab/ui_matrix"
-import "kab/ui_host"
+import "kab/ui/ui_matrixrow"
+import "kab/ui/ui_matrix"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

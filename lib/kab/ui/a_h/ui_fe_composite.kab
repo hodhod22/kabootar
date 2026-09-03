@@ -1,0 +1,6 @@
+// SH27: feComposite tag off ui_fe_component_transfer.kab. import "kab/ui/ui_fe_composite"
+// Do not grow ui_fe_component_transfer.kab. Host browser* remains skuld.
+
+pub fn uiIsFeComposite(tag) {
+    return tag == "feComposite"
+}

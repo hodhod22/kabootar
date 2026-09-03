@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image stack-allocation opcode.
+// import "kab/aot/aot_load_stack_alloc"; do not import other kab/aot* leaves.
+
+pub fn aotLoadStackAllocOk(op, target) {
+    if target == "x64" {
+        return op == "4883ec10"
+    }
+    if target == "arm64" {
+        return op == "ff4300d1"
+    }
+    return false
+}

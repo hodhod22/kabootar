@@ -1,6 +1,0 @@
-// SH27: dfn tag off ui_data.kab. import "kab/ui_dfn"
-// Do not grow ui_data.kab. Host browser* remains skuld.
-
-pub fn uiIsDfn(tag) {
-    return tag == "dfn"
-}

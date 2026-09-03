@@ -1,6 +1,6 @@
-import "kab/ui_cartesianproduct"
-import "kab/ui_momentabout"
-import "kab/ui_host"
+import "kab/ui/ui_cartesianproduct"
+import "kab/ui/ui_momentabout"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

@@ -1,6 +1,6 @@
-import "kab/ui_form"
-import "kab/ui_h6"
-import "kab/ui_host"
+import "kab/ui/ui_form"
+import "kab/ui/ui_h6"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

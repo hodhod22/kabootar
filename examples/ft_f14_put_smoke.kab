@@ -1,4 +1,4 @@
-import "kab/io_put"
+import "kab/io/io_put"
 
 let ok = ioPut("ft14_ok.txt", "ok")
 if ok {

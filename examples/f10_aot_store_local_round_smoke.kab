@@ -1,5 +1,5 @@
-import "kab/aot_store_local_op"
-import "kab/aot_load_store_local"
+import "kab/aot/aot_store_local_op"
+import "kab/aot/aot_load_store_local"
 
 let op = aotStoreLocalOp("x64")
 return aotLoadStoreLocalOk(op, "x64")

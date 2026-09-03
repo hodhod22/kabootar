@@ -1,0 +1,6 @@
+// SH28: product scrypt stack is not Kab-only yet. import "kab/noll/noll_scrypt"
+// Do not grow noll_argon.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollScryptIsKab() {
+    return false
+}

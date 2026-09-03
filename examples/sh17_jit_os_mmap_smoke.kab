@@ -1,7 +1,7 @@
-import "kab/jit_mm"
-import "kab/jit_mmap"
-import "kab/jit_np"
-import "kab/jit_exec"
+import "kab/jit/jit_mm"
+import "kab/jit/jit_mmap"
+import "kab/jit/jit_np"
+import "kab/jit/jit_exec"
 
 let n = 6
 let kind = "rwx"

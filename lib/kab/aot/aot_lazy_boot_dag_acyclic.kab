@@ -1,0 +1,16 @@
+// F10 deepen: lazy AOT boot-DAG acyclic. import "kab/aot/aot_lazy_boot_dag_acyclic"
+// Do not grow aot_lazy_boot_dag_edge.kab. Reverse import edge is not in the AOT graph.
+
+import "kab/aot/aot_lazy_boot_dag_edge"
+
+pub fn aotLazyBootDagAcyclicOk(ms, remKind, nHits, nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb, nBoot, nRest, nMods, bootName, fromName, toName, backFrom, backTo) {
+    if aotLazyBootDagEdgeOk(ms, remKind, nHits, nPhi, nInv, nDup, nGuard, kind, marked, same, nLive, nBytes, n, na, nb, nBoot, nRest, nMods, bootName, fromName, toName) == false {
+        return false
+    }
+    if backFrom == toName {
+        if backTo == fromName {
+            return false
+        }
+    }
+    return true
+}

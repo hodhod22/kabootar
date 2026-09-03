@@ -1,0 +1,21 @@
+// SH17 deepen: guest call for loop-ne template. import "kab/jit/jit_mm_call_loop_ne"
+// Do not grow jit_mm_call_loop_eq.kab.
+
+import "kab/jit/jit_mm_loop_ne"
+import "kab/jit/jit_loop_ne"
+
+pub fn jitMmCallLoopNe(bytes, n, k) {
+    if jitLoopNeOk(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopNeLen() {
+        return 0
+    }
+    let pid = jitMmLoopNePid()
+    let virt = jitMmLoopNeVirt()
+    let rax = os_mm_call(pid, virt)
+    if rax != jitLoopNeRax(n, k) {
+        return 0
+    }
+    return rax
+}

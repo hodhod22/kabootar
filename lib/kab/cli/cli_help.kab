@@ -1,0 +1,6 @@
+// SH25: help argv off cli.kab. import "kab/cli/cli_help"
+// Do not grow cli_version.kab. Host src/cli remains skuld.
+
+pub fn cliIsHelp(cmd) {
+    return cmd == "help"
+}

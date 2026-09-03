@@ -1,0 +1,32 @@
+// SH20: collections sort off std_colmode.kab. import "kab/std/std_colsort"
+// Do not grow std_colmode.kab. stdHostDeleteOk stays false.
+// Rebuild via push; do not assign through index slots.
+
+pub fn stdColSort(p) {
+    let n = len(p)
+    let sorted = []
+    let i = 0
+    while i < n {
+        let x = p[i]
+        let placed = 0
+        let ns = []
+        let j = 0
+        let m = len(sorted)
+        while j < m {
+            if placed == 0 {
+                if x < sorted[j] {
+                    ns = push(ns, x)
+                    placed = 1
+                }
+            }
+            ns = push(ns, sorted[j])
+            j = j + 1
+        }
+        if placed == 0 {
+            ns = push(ns, x)
+        }
+        sorted = ns
+        i = i + 1
+    }
+    return sorted
+}

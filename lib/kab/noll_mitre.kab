@@ -1,6 +1,0 @@
-// SH28: product MITRE stack is not Kab-only yet. import "kab/noll_mitre"
-// Do not grow noll_cisa.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollMitreIsKab() {
-    return false
-}

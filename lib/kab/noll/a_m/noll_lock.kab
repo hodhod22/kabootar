@@ -1,0 +1,6 @@
+// SH28: product lockfile is not Kab-only yet. import "kab/noll/noll_lock"
+// Do not grow noll_pkg.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollLockIsKab() {
+    return false
+}

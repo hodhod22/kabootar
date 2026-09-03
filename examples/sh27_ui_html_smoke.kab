@@ -1,3 +1,3 @@
-import "kab/ui_html"
+import "kab/ui/ui_html"
 
 return uiIsHtml("html")

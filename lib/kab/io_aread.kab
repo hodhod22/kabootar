@@ -1,5 +1,0 @@
-// F14 deepen: async read capability. import "kab/io_aread"
-
-pub fn ioReadAsync(path) {
-    return os_read_async(path)
-}

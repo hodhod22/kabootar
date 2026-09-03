@@ -1,4 +1,4 @@
-import "kab/aot_read_native"
+import "kab/aot/aot_read_native"
 
 let read = aotReadNative
 return read != null

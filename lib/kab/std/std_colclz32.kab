@@ -1,0 +1,13 @@
+// SH20: collections clz32 off std_colimul.kab. import "kab/std/std_colclz32"
+// Do not grow std_colimul.kab. stdHostDeleteOk stays false.
+
+pub fn stdColClz32(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, clz32(a[i]))
+        i = i + 1
+    }
+    return out
+}

@@ -1,6 +1,0 @@
-// SH27: sub tag off ui_em.kab. import "kab/ui_sub"
-// Do not grow ui_em.kab. Host browser* remains skuld.
-
-pub fn uiIsSub(tag) {
-    return tag == "sub"
-}

@@ -1,5 +1,5 @@
-import "kab/std_colavg"
-import "kab/std_colfill"
+import "kab/std/std_colavg"
+import "kab/std/std_colfill"
 
 let f = stdColFill(2, 21)
 return stdColAvg(f) == 21

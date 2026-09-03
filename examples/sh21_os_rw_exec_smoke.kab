@@ -1,0 +1,3 @@
+import "kab/os/os_rw"
+
+return kabOsWriteReadOk("sh21_os_rw", "rt.txt", "kab-os-42")

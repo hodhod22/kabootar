@@ -1,0 +1,6 @@
+// SH27: animateTransform tag off ui_animate_motion.kab. import "kab/ui/ui_animate_transform"
+// Do not grow ui_animate_motion.kab. Host browser* remains skuld.
+
+pub fn uiIsAnimateTransform(tag) {
+    return tag == "animateTransform"
+}

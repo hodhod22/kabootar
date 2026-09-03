@@ -1,6 +1,0 @@
-// SH27: vector tag off ui_list.kab. import "kab/ui_vector"
-// Do not grow ui_list.kab. Host browser* remains skuld.
-
-pub fn uiIsVector(tag) {
-    return tag == "vector"
-}

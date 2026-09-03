@@ -1,6 +1,0 @@
-// SH28: product rm CLI is not Kab-only yet. import "kab/noll_rm"
-// Do not grow noll_add.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollRmIsKab() {
-    return false
-}

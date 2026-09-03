@@ -1,7 +1,7 @@
-import "kab/noll_sphincs"
-import "kab/noll_dilithium"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_sphincs"
+import "kab/noll/noll_dilithium"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

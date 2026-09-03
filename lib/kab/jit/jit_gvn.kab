@@ -1,0 +1,9 @@
+// F8: GVN/CSE gate. import "kab/jit/jit_gvn"
+// Do not grow jit.kab. Do not import kab/jit/jit_opt or kab/jit/jit_licm.
+
+pub fn jitGvnOk(nDup) {
+    if nDup > 0 {
+        return true
+    }
+    return false
+}

@@ -1,0 +1,6 @@
+// SH25: cat argv off cli_ls.kab. import "kab/cli/cli_cat"
+// Do not grow cli_ls.kab. Host src/cli remains skuld.
+
+pub fn cliIsCat(cmd) {
+    return cmd == "cat"
+}

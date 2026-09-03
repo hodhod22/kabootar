@@ -1,0 +1,12 @@
+// F10: native image filename and test opcode must agree.
+// import "kab/aot/aot_verify_test"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyTestOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "85c0"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "ea00001f"
+    }
+    return false
+}

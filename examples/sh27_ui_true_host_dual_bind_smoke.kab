@@ -1,6 +1,6 @@
-import "kab/ui_true"
-import "kab/ui_notanumber"
-import "kab/ui_host"
+import "kab/ui/ui_true"
+import "kab/ui/ui_notanumber"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

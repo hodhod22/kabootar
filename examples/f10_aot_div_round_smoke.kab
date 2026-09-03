@@ -1,5 +1,5 @@
-import "kab/aot_div_op"
-import "kab/aot_load_div"
+import "kab/aot/aot_div_op"
+import "kab/aot/aot_load_div"
 
 let op = aotDivOp("x64")
 return aotLoadDivOk(op, "x64")

@@ -1,3 +1,3 @@
-import "kab/aot_load_one"
+import "kab/aot/aot_load_one"
 
 return aotLoadOneOk("b801000000", "arm64") == false

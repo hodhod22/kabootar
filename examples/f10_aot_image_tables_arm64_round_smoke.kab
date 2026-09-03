@@ -1,5 +1,5 @@
-import "kab/aot_emit_image"
-import "kab/aot_load_image"
+import "kab/aot/aot_emit_image"
+import "kab/aot/aot_load_image"
 
 let image = aotEmitImageWithTables("arm64")
 return aotLoadImageWithTablesOk(image, "arm64")

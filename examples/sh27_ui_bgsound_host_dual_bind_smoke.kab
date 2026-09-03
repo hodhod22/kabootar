@@ -1,6 +1,6 @@
-import "kab/ui_bgsound"
-import "kab/ui_spacer"
-import "kab/ui_host"
+import "kab/ui/ui_bgsound"
+import "kab/ui/ui_spacer"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

@@ -1,3 +1,3 @@
-import "kab/sql_having"
+import "kab/sql/sql_having"
 
 return sqlIsHaving("SELECT a FROM t HAVING n = 1") == true

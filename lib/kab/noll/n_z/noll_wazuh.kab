@@ -1,0 +1,6 @@
+// SH28: product Wazuh stack is not Kab-only yet. import "kab/noll/noll_wazuh"
+// Do not grow noll_shuffle.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollWazuhIsKab() {
+    return false
+}

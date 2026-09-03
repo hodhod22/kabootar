@@ -1,6 +1,0 @@
-// SH27: h2 tag off ui_h1.kab. import "kab/ui_h2"
-// Do not grow ui_h1.kab. Host browser* remains skuld.
-
-pub fn uiIsH2(tag) {
-    return tag == "h2"
-}

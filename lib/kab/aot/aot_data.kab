@@ -1,0 +1,6 @@
+// F10: mutable native-image data is RW and separate from RX text.
+// import "kab/aot/aot_data"; do not import other kab/aot* leaves.
+
+pub fn aotDataProtectOk(mode) {
+    return mode == "rw"
+}

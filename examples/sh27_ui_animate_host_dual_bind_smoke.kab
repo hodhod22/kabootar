@@ -1,6 +1,6 @@
-import "kab/ui_animate"
-import "kab/ui_fe_drop_shadow"
-import "kab/ui_host"
+import "kab/ui/ui_animate"
+import "kab/ui/ui_fe_drop_shadow"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

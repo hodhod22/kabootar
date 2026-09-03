@@ -1,7 +1,7 @@
-import "kab/std_coldesc"
-import "kab/std_colfill"
-import "kab/std_colpush"
-import "kab/std_coleq"
+import "kab/std/std_coldesc"
+import "kab/std/std_colfill"
+import "kab/std/std_colpush"
+import "kab/std/std_coleq"
 
 let p = stdColFill(1, 1)
 p = stdColPush(p, 42)

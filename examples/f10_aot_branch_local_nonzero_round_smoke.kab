@@ -1,5 +1,5 @@
-import "kab/aot_branch_local_nonzero_op"
-import "kab/aot_load_branch_local_nonzero"
+import "kab/aot/aot_branch_local_nonzero_op"
+import "kab/aot/aot_load_branch_local_nonzero"
 
 let op = aotBranchLocalNonzeroOp("x64")
 return aotLoadBranchLocalNonzeroOk(op, "x64")

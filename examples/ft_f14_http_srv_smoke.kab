@@ -1,3 +1,3 @@
-import "kab/http_srv"
+import "kab/http/http_srv"
 
 return true

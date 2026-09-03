@@ -1,0 +1,6 @@
+// SH27: feDisplacementMap tag off ui_fe_diffuse_lighting.kab. import "kab/ui/ui_fe_displacement_map"
+// Do not grow ui_fe_diffuse_lighting.kab. Host browser* remains skuld.
+
+pub fn uiIsFeDisplacementMap(tag) {
+    return tag == "feDisplacementMap"
+}

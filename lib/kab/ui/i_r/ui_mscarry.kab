@@ -1,0 +1,6 @@
+// SH27: mscarry tag off ui_mscarries.kab. import "kab/ui/ui_mscarry"
+// Do not grow ui_mscarries.kab. Host browser* remains skuld.
+
+pub fn uiIsMscarry(tag) {
+    return tag == "mscarry"
+}

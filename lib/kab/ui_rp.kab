@@ -1,6 +1,0 @@
-// SH27: rp tag off ui_rt.kab. import "kab/ui_rp"
-// Do not grow ui_rt.kab. Host browser* remains skuld.
-
-pub fn uiIsRp(tag) {
-    return tag == "rp"
-}

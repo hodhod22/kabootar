@@ -1,6 +1,6 @@
-import "kab/ui_text_path"
-import "kab/ui_tspan"
-import "kab/ui_host"
+import "kab/ui/ui_text_path"
+import "kab/ui/ui_tspan"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

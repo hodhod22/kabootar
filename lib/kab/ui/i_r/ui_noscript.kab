@@ -1,0 +1,6 @@
+// SH27: noscript tag off ui_slot.kab. import "kab/ui/ui_noscript"
+// Do not grow ui_slot.kab. Host browser* remains skuld.
+
+pub fn uiIsNoscript(tag) {
+    return tag == "noscript"
+}

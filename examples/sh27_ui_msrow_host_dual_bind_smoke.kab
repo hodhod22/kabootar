@@ -1,6 +1,6 @@
-import "kab/ui_msrow"
-import "kab/ui_mstack"
-import "kab/ui_host"
+import "kab/ui/ui_msrow"
+import "kab/ui/ui_mstack"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

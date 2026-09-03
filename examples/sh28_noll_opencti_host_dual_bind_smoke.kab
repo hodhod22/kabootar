@@ -1,0 +1,18 @@
+import "kab/noll/noll_opencti"
+import "kab/noll/noll_misp"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollMispIsKab() != false {
+    return false
+}
+if nollOpenctiIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

@@ -1,7 +1,7 @@
-import "kab/noll_nvd"
-import "kab/noll_ghsa"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_nvd"
+import "kab/noll/noll_ghsa"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

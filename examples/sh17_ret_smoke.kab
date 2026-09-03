@@ -1,4 +1,4 @@
-import "kab/jit_check"
+import "kab/jit/jit_check"
 
 let ok = jitByteIsRet(195)
 if ok {

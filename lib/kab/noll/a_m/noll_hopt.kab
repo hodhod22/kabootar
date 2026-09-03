@@ -1,0 +1,7 @@
+// SH28: Rust host is still required — policy "host-optional" is false.
+// import "kab/noll/noll_hopt"
+// Do not grow noll_rchost.kab or noll_host.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollHostOptional() {
+    return false
+}

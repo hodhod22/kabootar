@@ -1,6 +1,0 @@
-// SH27: altGlyphDef tag off ui_alt_glyph.kab. import "kab/ui_alt_glyph_def"
-// Do not grow ui_alt_glyph.kab. Host browser* remains skuld.
-
-pub fn uiIsAltGlyphDef(tag) {
-    return tag == "altGlyphDef"
-}

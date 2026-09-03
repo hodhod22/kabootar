@@ -1,6 +1,0 @@
-// SH27: details tag off ui_figcaption.kab. import "kab/ui_details"
-// Do not grow ui_figcaption.kab. Host browser* remains skuld.
-
-pub fn uiIsDetails(tag) {
-    return tag == "details"
-}

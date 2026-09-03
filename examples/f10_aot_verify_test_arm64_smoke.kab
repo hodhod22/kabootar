@@ -1,6 +1,6 @@
-import "kab/aot_image_name"
-import "kab/aot_test_op"
-import "kab/aot_verify_test"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_test_op"
+import "kab/aot/aot_verify_test"
 
 let name = aotImageName("arm64")
 let op = aotTestOp("arm64")

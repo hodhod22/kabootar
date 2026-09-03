@@ -1,3 +1,3 @@
-import "kab/ui_audio"
+import "kab/ui/ui_audio"
 
 return uiIsAudio("audio")

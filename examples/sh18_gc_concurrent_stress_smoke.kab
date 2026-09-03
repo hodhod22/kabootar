@@ -1,0 +1,3 @@
+import "kab/gc/gc_concurrent_stress"
+
+return gcConcurrentStressOk(2)

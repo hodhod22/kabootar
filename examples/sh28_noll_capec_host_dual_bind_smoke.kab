@@ -1,7 +1,7 @@
-import "kab/noll_capec"
-import "kab/noll_attack"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_capec"
+import "kab/noll/noll_attack"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

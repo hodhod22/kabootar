@@ -1,3 +1,3 @@
-import "kab/ui_xml"
+import "kab/ui/ui_xml"
 
 return uiIsXml("xml")

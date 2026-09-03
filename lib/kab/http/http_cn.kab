@@ -1,0 +1,6 @@
+// SH24: CONNECT method gate off http_trc.kab. import "kab/http/http_cn"
+// Do not grow http_trc.kab. httpHostDeleteOk stays false. No TCP.
+
+pub fn httpIsConnect(m) {
+    return m == "CONNECT"
+}

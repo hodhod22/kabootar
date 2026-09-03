@@ -1,0 +1,18 @@
+import "kab/noll/noll_snort"
+import "kab/noll/noll_zeek"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollZeekIsKab() != false {
+    return false
+}
+if nollSnortIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

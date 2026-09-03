@@ -1,0 +1,6 @@
+// SH28: product pkg CLI is not Kab-only yet. import "kab/noll/noll_pkg"
+// Do not grow noll_cat.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollPkgIsKab() {
+    return false
+}

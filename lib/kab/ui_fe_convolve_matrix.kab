@@ -1,6 +1,0 @@
-// SH27: feConvolveMatrix tag off ui_fe_composite.kab. import "kab/ui_fe_convolve_matrix"
-// Do not grow ui_fe_composite.kab. Host browser* remains skuld.
-
-pub fn uiIsFeConvolveMatrix(tag) {
-    return tag == "feConvolveMatrix"
-}

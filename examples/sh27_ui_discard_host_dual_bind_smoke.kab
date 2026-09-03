@@ -1,6 +1,6 @@
-import "kab/ui_discard"
-import "kab/ui_meshpatch"
-import "kab/ui_host"
+import "kab/ui/ui_discard"
+import "kab/ui/ui_meshpatch"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

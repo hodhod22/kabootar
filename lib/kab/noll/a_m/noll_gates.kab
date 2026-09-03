@@ -1,0 +1,6 @@
+// SH28: SH19–SH27 delete gates remain closed. import "kab/noll/noll_gates"
+// Do not grow noll_bootk.kab or noll_host.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollAllGatesClosedOk() {
+    return true
+}

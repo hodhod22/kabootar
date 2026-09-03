@@ -1,0 +1,6 @@
+// SH27: spacer tag off ui_noembed.kab. import "kab/ui/ui_spacer"
+// Do not grow ui_noembed.kab. Host browser* remains skuld.
+
+pub fn uiIsSpacer(tag) {
+    return tag == "spacer"
+}

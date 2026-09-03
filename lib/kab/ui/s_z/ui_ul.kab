@@ -1,0 +1,6 @@
+// SH27: ul tag off ui_a.kab. import "kab/ui/ui_ul"
+// Do not grow ui_a.kab. Host browser* remains skuld.
+
+pub fn uiIsUl(tag) {
+    return tag == "ul"
+}

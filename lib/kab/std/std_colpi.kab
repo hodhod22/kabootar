@@ -1,0 +1,13 @@
+// SH20: collections pi off std_colrandom.kab. import "kab/std/std_colpi"
+// Do not grow std_colrandom.kab. stdHostDeleteOk stays false.
+
+pub fn stdColPi(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, pi())
+        i = i + 1
+    }
+    return out
+}

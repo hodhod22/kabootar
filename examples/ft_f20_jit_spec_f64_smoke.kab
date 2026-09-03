@@ -1,6 +1,6 @@
 import "kab/ic"
-import "kab/jit_spec"
-import "kab/jit_spec_f64"
+import "kab/jit/jit_spec"
+import "kab/jit/jit_spec_f64"
 
 if icIsMono(1) != true {
     return false

@@ -1,0 +1,18 @@
+// SH17 deepen: guest store for loop-or template. import "kab/jit/jit_mm_store_loop_or"
+// Do not grow jit_mm_store_loop_and.kab.
+
+import "kab/jit/jit_mm_loop_or"
+import "kab/jit/jit_loop_or"
+
+pub fn jitMmStoreLoopOr(bytes, n, mask) {
+    if jitLoopOrOk(n, mask) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopOrLen() {
+        return 0
+    }
+    let pid = jitMmLoopOrPid()
+    let virt = jitMmLoopOrVirt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

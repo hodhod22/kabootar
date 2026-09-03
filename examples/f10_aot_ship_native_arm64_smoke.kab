@@ -1,6 +1,6 @@
-import "kab/aot_image_name"
-import "kab/aot_emit_native"
-import "kab/aot_ship_native"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_emit_native"
+import "kab/aot/aot_ship_native"
 
 let name = aotImageName("arm64")
 let image = aotEmitNative("arm64")

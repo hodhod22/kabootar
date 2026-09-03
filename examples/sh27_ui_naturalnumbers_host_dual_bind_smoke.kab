@@ -1,6 +1,6 @@
-import "kab/ui_naturalnumbers"
-import "kab/ui_complexes"
-import "kab/ui_host"
+import "kab/ui/ui_naturalnumbers"
+import "kab/ui/ui_complexes"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

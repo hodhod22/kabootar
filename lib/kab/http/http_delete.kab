@@ -1,0 +1,6 @@
+// SH24: DELETE method gate off http.kab. import "kab/http/http_delete"
+// Do not grow http_head.kab. No TCP. Host http.rs remains skuld.
+
+pub fn httpIsDelete(m) {
+    return m == "DELETE"
+}

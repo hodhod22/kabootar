@@ -1,4 +1,4 @@
-import "kab/http_pc"
+import "kab/http/http_pc"
 
 httpProcess("GET / HTTP/1.1")
 return true

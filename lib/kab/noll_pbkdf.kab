@@ -1,6 +1,0 @@
-// SH28: product PBKDF stack is not Kab-only yet. import "kab/noll_pbkdf"
-// Do not grow noll_bcrypt.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollPbkdfIsKab() {
-    return false
-}

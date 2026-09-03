@@ -1,7 +1,7 @@
-import "kab/noll_auth"
-import "kab/noll_reg"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_auth"
+import "kab/noll/noll_reg"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

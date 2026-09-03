@@ -1,0 +1,3 @@
+import "kab/load/load_aot_ready"
+
+return loadAotReadyOk(0) == false

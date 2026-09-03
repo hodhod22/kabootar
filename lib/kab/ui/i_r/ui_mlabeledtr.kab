@@ -1,0 +1,6 @@
+// SH27: mlabeledtr tag off ui_mth.kab. import "kab/ui/ui_mlabeledtr"
+// Do not grow ui_mth.kab. Host browser* remains skuld.
+
+pub fn uiIsMlabeledtr(tag) {
+    return tag == "mlabeledtr"
+}

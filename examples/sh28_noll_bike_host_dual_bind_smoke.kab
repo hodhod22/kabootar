@@ -1,7 +1,7 @@
-import "kab/noll_bike"
-import "kab/noll_mceliece"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_bike"
+import "kab/noll/noll_mceliece"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

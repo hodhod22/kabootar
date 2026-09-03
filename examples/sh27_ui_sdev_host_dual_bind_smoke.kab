@@ -1,6 +1,6 @@
-import "kab/ui_sdev"
-import "kab/ui_mean"
-import "kab/ui_host"
+import "kab/ui/ui_sdev"
+import "kab/ui/ui_mean"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

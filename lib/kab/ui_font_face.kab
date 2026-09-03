@@ -1,6 +1,0 @@
-// SH27: font-face tag off ui_missing_glyph.kab. import "kab/ui_font_face"
-// Do not grow ui_missing_glyph.kab. Host browser* remains skuld.
-
-pub fn uiIsFontFace(tag) {
-    return tag == "font-face"
-}

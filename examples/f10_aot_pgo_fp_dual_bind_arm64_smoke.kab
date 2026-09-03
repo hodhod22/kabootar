@@ -1,5 +1,5 @@
-import "kab/aot_fp"
-import "kab/aot_pgo"
+import "kab/aot/aot_fp"
+import "kab/aot/aot_pgo"
 
 if aotPgoOk(8) == false {
     return false

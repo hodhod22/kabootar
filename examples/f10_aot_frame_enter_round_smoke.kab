@@ -1,5 +1,5 @@
-import "kab/aot_frame_enter_op"
-import "kab/aot_load_frame_enter"
+import "kab/aot/aot_frame_enter_op"
+import "kab/aot/aot_load_frame_enter"
 
 let op = aotFrameEnterOp("x64")
 return aotLoadFrameEnterOk(op, "x64")

@@ -1,6 +1,6 @@
-import "kab/http_opt"
-import "kab/http_delete"
-import "kab/http_host"
+import "kab/http/http_opt"
+import "kab/http/http_delete"
+import "kab/http/http_host"
 
 if httpHostDeleteOk() != false {
     return false

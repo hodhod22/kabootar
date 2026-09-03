@@ -1,6 +1,0 @@
-// SH23: SHA-256 alg gate off crypto.kab. import "kab/crypto_sha"
-// Do not grow crypto_tls13.kab. Host hash natives remain skuld.
-
-pub fn cryptoSha256Ok(alg) {
-    return alg == "sha256"
-}

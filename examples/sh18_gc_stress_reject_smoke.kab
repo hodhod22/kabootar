@@ -1,0 +1,3 @@
+import "kab/gc/gc_stress"
+
+return gcStressCyclesOk(4) == false

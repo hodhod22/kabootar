@@ -1,6 +1,0 @@
-// SH27: comment tag off ui_multicol.kab. import "kab/ui_comment"
-// Do not grow ui_multicol.kab. Host browser* remains skuld.
-
-pub fn uiIsComment(tag) {
-    return tag == "comment"
-}

@@ -1,0 +1,6 @@
+// SH28: product JIT is not Kab yet. import "kab/noll/noll_jit"
+// Do not grow noll_cranelift.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollJitIsKab() {
+    return false
+}

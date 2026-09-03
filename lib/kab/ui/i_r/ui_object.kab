@@ -1,0 +1,6 @@
+// SH27: object tag off ui_embed.kab. import "kab/ui/ui_object"
+// Do not grow ui_embed.kab. Host browser* remains skuld.
+
+pub fn uiIsObject(tag) {
+    return tag == "object"
+}

@@ -1,0 +1,7 @@
+// F10: persist first native layout through the host filesystem capability.
+// import "kab/aot/aot_write_layout"; do not import other kab/aot* leaves.
+
+pub fn aotWriteLayout(path, layout) {
+    os_write(path, layout)
+    return true
+}

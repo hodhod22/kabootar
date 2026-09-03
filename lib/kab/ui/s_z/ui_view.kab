@@ -1,0 +1,6 @@
+// SH27: view tag off ui_mpath.kab. import "kab/ui/ui_view"
+// Do not grow ui_mpath.kab. Host browser* remains skuld.
+
+pub fn uiIsView(tag) {
+    return tag == "view"
+}

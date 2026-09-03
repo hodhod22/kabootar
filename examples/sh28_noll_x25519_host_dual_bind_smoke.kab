@@ -1,7 +1,7 @@
-import "kab/noll_x25519"
-import "kab/noll_poly"
-import "kab/noll_aot"
-import "kab/noll_host"
+import "kab/noll/noll_x25519"
+import "kab/noll/noll_poly"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 
 if nollHostDeleteOk() != false {
     return false

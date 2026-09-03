@@ -1,0 +1,6 @@
+// SH20: collections empty off std_colrest.kab. import "kab/std/std_colempty"
+// Do not grow std_colrest.kab. stdHostDeleteOk stays false.
+
+pub fn stdColEmpty(p) {
+    return len(p) == 0
+}

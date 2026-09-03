@@ -1,0 +1,6 @@
+// F14/SH24: in-process async request. import "kab/http/http_ra"
+// No TCP. Do not await here (async DAG). Do not import other kab/http_* here.
+
+pub fn httpReqAsync(method, path, body) {
+    return http_request_async(method, path, body)
+}

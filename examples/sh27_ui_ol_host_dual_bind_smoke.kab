@@ -1,6 +1,6 @@
-import "kab/ui_ol"
-import "kab/ui_li"
-import "kab/ui_host"
+import "kab/ui/ui_ol"
+import "kab/ui/ui_li"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

@@ -1,0 +1,6 @@
+// SH27: pre tag off ui_dialog.kab. import "kab/ui/ui_pre"
+// Do not grow ui_dialog.kab. Host browser* remains skuld.
+
+pub fn uiIsPre(tag) {
+    return tag == "pre"
+}

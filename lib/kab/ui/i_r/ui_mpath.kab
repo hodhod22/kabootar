@@ -1,0 +1,6 @@
+// SH27: mpath tag off ui_set.kab. import "kab/ui/ui_mpath"
+// Do not grow ui_set.kab. Host browser* remains skuld.
+
+pub fn uiIsMpath(tag) {
+    return tag == "mpath"
+}

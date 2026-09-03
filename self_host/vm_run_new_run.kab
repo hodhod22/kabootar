@@ -2,7 +2,7 @@ import "self_host/vm_s_stack"
 import "self_host/vm_run_session"
 import "self_host/vm_run_call"
 import "kab/gc"
-import "kab/gc_alloc"
+import "kab/gc/gc_alloc"
 
 // --- vm_run_new_init ---
 /// Resolve init/constructor on classDef.

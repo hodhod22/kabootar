@@ -1,0 +1,20 @@
+// SH21: path rel leaf off os_abs.kab. import "kab/os/os_rel"
+// Do not grow os_abs.kab. kabOsHostDeleteOk stays false.
+
+import "kab/os/os_norm"
+
+pub fn kabOsRel(from, to) {
+    let a = kabOsNorm(from)
+    let b = kabOsNorm(to)
+    let prefix = a + "/"
+    let pn = len(prefix)
+    let bn = len(b)
+    if bn < pn {
+        return b
+    }
+    let head = str_slice(b, 0, pn)
+    if head != prefix {
+        return b
+    }
+    return str_slice(b, pn, bn)
+}

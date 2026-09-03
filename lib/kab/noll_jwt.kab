@@ -1,6 +1,0 @@
-// SH28: product JWT stack is not Kab-only yet. import "kab/noll_jwt"
-// Do not grow noll_saml.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollJwtIsKab() {
-    return false
-}

@@ -1,0 +1,13 @@
+// SH20: collections square off std_colsqrt.kab. import "kab/std/std_colsqr"
+// Do not grow std_colsqrt.kab. stdHostDeleteOk stays false.
+
+pub fn stdColSqr(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, a[i] * a[i])
+        i = i + 1
+    }
+    return out
+}

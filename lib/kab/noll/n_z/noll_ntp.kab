@@ -1,0 +1,6 @@
+// SH28: product NTP stack is not Kab-only yet. import "kab/noll/noll_ntp"
+// Do not grow noll_ldap.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollNtpIsKab() {
+    return false
+}

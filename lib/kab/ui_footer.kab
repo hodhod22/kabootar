@@ -1,6 +1,0 @@
-// SH27: footer tag off ui_header.kab. import "kab/ui_footer"
-// Do not grow ui_header.kab. Host browser* remains skuld.
-
-pub fn uiIsFooter(tag) {
-    return tag == "footer"
-}

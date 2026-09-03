@@ -1,0 +1,9 @@
+// F10: native image has compiled fns. import "kab/aot/aot_img"
+// Do not import kab/aot or kab/aot/aot_pgo.
+
+pub fn aotImageOk(nFns) {
+    if nFns > 0 {
+        return true
+    }
+    return false
+}

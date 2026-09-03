@@ -1,0 +1,6 @@
+// SH27: article tag off ui_section.kab. import "kab/ui/ui_article"
+// Do not grow ui_section.kab. Host browser* remains skuld.
+
+pub fn uiIsArticle(tag) {
+    return tag == "article"
+}

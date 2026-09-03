@@ -1,0 +1,6 @@
+// SH28: product ML-KEM stack is not Kab-only yet. import "kab/noll/noll_mlkem"
+// Do not grow noll_slhdsa.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollMlkemIsKab() {
+    return false
+}

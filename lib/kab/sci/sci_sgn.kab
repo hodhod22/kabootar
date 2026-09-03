@@ -1,0 +1,12 @@
+// SH26: sign kernel off sci_cub.kab. import "kab/sci/sci_sgn"
+// Do not grow sci_cub.kab. Host GPU remains syscall skuld.
+
+pub fn sciSign(a) {
+    if a < 0 {
+        return 0 - 1
+    }
+    if a > 0 {
+        return 1
+    }
+    return 0
+}

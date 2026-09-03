@@ -1,0 +1,7 @@
+// SH28: mmap stub is not yet frozen/immutable — policy "stub-frozen" is false.
+// import "kab/noll/noll_stub"
+// Do not grow noll_mmap.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollStubFrozen() {
+    return false
+}

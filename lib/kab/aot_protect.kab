@@ -1,6 +1,0 @@
-// F10: emitted text is RX, never RWX. import "kab/aot_protect"
-// Do not import other kab/aot* leaves. Page protection stays Kab-owned.
-
-pub fn aotTextProtectOk(mode) {
-    return mode == "rx"
-}

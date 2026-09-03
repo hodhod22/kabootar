@@ -1,0 +1,9 @@
+// SH20: collections subset off stdlib.kab. import "kab/std/std_col"
+// Do not grow std_obj.kab. Host collections natives remain skuld.
+
+pub fn stdColPair(k, v) {
+    let p = []
+    p = push(p, k)
+    p = push(p, v)
+    return p
+}

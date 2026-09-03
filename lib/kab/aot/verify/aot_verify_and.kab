@@ -1,0 +1,12 @@
+// F10: native image filename and and opcode must agree.
+// import "kab/aot/aot_verify_and"; do not import other kab/aot* leaves.
+
+pub fn aotVerifyAndOk(name, op) {
+    if name == "kabootar-x64.kbn" {
+        return op == "21c0"
+    }
+    if name == "kabootar-arm64.kbn" {
+        return op == "8a000000"
+    }
+    return false
+}

@@ -1,5 +1,0 @@
-// F14 deepen: exists via host capability. import "kab/io_has"
-
-pub fn ioHas(path) {
-    return os_exists(path)
-}

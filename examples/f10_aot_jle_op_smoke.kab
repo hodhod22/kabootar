@@ -1,3 +1,3 @@
-import "kab/aot_jle_op"
+import "kab/aot/aot_jle_op"
 
 return aotJleOp("x64") == "7e00"

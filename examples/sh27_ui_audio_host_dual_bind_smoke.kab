@@ -1,6 +1,6 @@
-import "kab/ui_audio"
-import "kab/ui_video"
-import "kab/ui_host"
+import "kab/ui/ui_audio"
+import "kab/ui/ui_video"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

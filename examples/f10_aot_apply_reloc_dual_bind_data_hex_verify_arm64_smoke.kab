@@ -1,8 +1,8 @@
-import "kab/aot_apply_reloc"
-import "kab/aot_emit_image"
-import "kab/aot_emit_reloc_table"
-import "kab/aot_image_name"
-import "kab/aot_verify_full"
+import "kab/aot/aot_apply_reloc"
+import "kab/aot/aot_emit_image"
+import "kab/aot/aot_emit_reloc_table"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_verify_full"
 
 let table = aotEmitRelocTableData("arm64")
 let image = aotEmitImageWithRelocTableData("arm64")

@@ -1,3 +1,3 @@
-import "kab/ui_mth"
+import "kab/ui/ui_mth"
 
 return uiIsMth("mth")

@@ -1,6 +1,6 @@
-import "kab/aot_image_name"
-import "kab/aot_ja_op"
-import "kab/aot_verify_ja"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_ja_op"
+import "kab/aot/aot_verify_ja"
 
 let name = aotImageName("x64")
 let op = aotJaOp("x64")

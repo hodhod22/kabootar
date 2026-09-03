@@ -1,6 +1,6 @@
-import "kab/ui_prefetch"
-import "kab/ui_definition_src"
-import "kab/ui_host"
+import "kab/ui/ui_prefetch"
+import "kab/ui/ui_definition_src"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

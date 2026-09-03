@@ -1,4 +1,4 @@
-import "kab/load_img"
+import "kab/load/load_img"
 
 let n = loadImageName()
 if n == "compiler.kbcb" {

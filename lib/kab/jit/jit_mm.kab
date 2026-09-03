@@ -1,0 +1,39 @@
+// SH17/F7 deepen: bind JIT rwx map to kOS os_mm_mmap. import "kab/jit/jit_mm"
+// Do not grow jit.kab or jit_mmap.kab. No host mmap syscalls in Rust.
+
+/// Process id for JIT code pages (kOS guest MMU).
+pub fn jitMmPid() {
+    return 1
+}
+
+/// Guest virtual base for the 6-byte inc+ret template (decimal; not os_mm_smoke slot).
+pub fn jitMmVirt() {
+    return 393216
+}
+
+/// One page — matches jitPageSize / jitPagesFor(6).
+pub fn jitMmLen() {
+    return 4096
+}
+
+/// rwx — prot 7 for os_mm_mmap.
+pub fn jitMmProt() {
+    return 7
+}
+
+/// True when os_mm_mmap args match jit 6-byte inc+ret policy.
+pub fn jitOsMmapOk(n, kind) {
+    if n != 6 {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    if jitMmLen() != 4096 {
+        return false
+    }
+    if jitMmProt() != 7 {
+        return false
+    }
+    return true
+}

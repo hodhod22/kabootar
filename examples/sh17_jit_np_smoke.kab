@@ -1,4 +1,4 @@
-import "kab/jit_np"
+import "kab/jit/jit_np"
 
 let n = jitPagesFor(6)
 if n == 1 {

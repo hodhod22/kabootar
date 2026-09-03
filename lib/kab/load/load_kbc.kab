@@ -1,0 +1,9 @@
+// SH19: bytecode path is an image, not source. import "kab/load/load_kbc"
+// Do not grow load.kab. Host main.rs remains skuld.
+
+pub fn loadIsKbc(path) {
+    if str_includes(path, ".kbc") {
+        return true
+    }
+    return false
+}

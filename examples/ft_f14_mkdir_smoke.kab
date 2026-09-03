@@ -1,4 +1,4 @@
-import "kab/io_mkdir"
+import "kab/io/io_mkdir"
 
 let ok = ioMkdir("/ft14d")
 if ok {

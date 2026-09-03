@@ -1,0 +1,136 @@
+// SH19: open packed .kbcb v2, deserialize, eval on Kab-VM. import "kab/load/load_kbcb"
+// Do not grow load.kab / load_file.kab. Host main.rs stays skuld.
+
+import "kab/load"
+import "kab/load/load_file"
+import "kab/vm"
+
+fn loadPushU32(a, v) {
+    let x = v
+    a = push(a, x % 256)
+    x = floor(x / 256)
+    a = push(a, x % 256)
+    x = floor(x / 256)
+    a = push(a, x % 256)
+    x = floor(x / 256)
+    a = push(a, x % 256)
+    return a
+}
+
+fn loadPushU16(a, v) {
+    a = push(a, v % 256)
+    a = push(a, floor(v / 256) % 256)
+    return a
+}
+
+fn loadPushZerosU32(a, n) {
+    let i = 0
+    while i < n {
+        a = loadPushU32(a, 0)
+        i = i + 1
+    }
+    return a
+}
+
+/// Minimal v2 module: const i64 42 + return (bytes stay in 0..127 so os_read UTF-8 roundtrips).
+pub fn loadKbcbReturn42Bytes() {
+    let p = []
+    p = push(p, 0)
+    p = loadPushU32(p, 1)
+    p = push(p, 0)
+    p = push(p, 42)
+    p = push(p, 0)
+    p = push(p, 0)
+    p = push(p, 0)
+    p = push(p, 0)
+    p = push(p, 0)
+    p = push(p, 0)
+    p = push(p, 0)
+    p = loadPushZerosU32(p, 4)
+    p = loadPushU32(p, 2)
+    p = push(p, 0)
+    p = loadPushU16(p, 0)
+    p = push(p, 94)
+    p = loadPushZerosU32(p, 8)
+    let n = len(p)
+    let out = []
+    out = push(out, 75)
+    out = push(out, 66)
+    out = push(out, 67)
+    out = push(out, 66)
+    out = push(out, 2)
+    out = loadPushU32(out, n)
+    let i = 0
+    while i < n {
+        out = push(out, p[i])
+        i = i + 1
+    }
+    return out
+}
+
+pub fn loadBodyToBytes(body) {
+    let s = "" + body
+    let n = len(s)
+    let a = []
+    let i = 0
+    while i < n {
+        a = push(a, char_code_at(s, i))
+        i = i + 1
+    }
+    return a
+}
+
+pub fn loadBytesToBody(bytes) {
+    let s = ""
+    let i = 0
+    while i < len(bytes) {
+        s = s + from_char_code(bytes[i])
+        i = i + 1
+    }
+    return s
+}
+
+pub fn loadKbcbMagicOk(bytes) {
+    if len(bytes) < 4 {
+        return false
+    }
+    if bytes[0] != 75 {
+        return false
+    }
+    if bytes[1] != 66 {
+        return false
+    }
+    if bytes[2] != 67 {
+        return false
+    }
+    if bytes[3] != 66 {
+        return false
+    }
+    return true
+}
+
+/// Read packed .kbcb from disk and run it on Kab-VM.
+pub fn loadEvalKbcbFile(path) {
+    if loadKind(path) != "kbcb" {
+        return false
+    }
+    let bytes = loadBodyToBytes(os_read(path))
+    if loadKbcbMagicOk(bytes) == false {
+        return false
+    }
+    if loadReady(len(bytes)) == false {
+        return false
+    }
+    return evalKbcKabOnly(bytes)
+}
+
+/// Persist a packed return-42 image, os_read, deserialize+eval.
+pub fn loadEvalKbcbRoundtripOk(path, expect) {
+    let bytes = loadKbcbReturn42Bytes()
+    os_write(path, loadBytesToBody(bytes))
+    let got = loadEvalKbcbFile(path)
+    if got == expect {
+        return true
+    }
+    return false
+}

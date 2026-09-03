@@ -1,6 +1,6 @@
-import "kab/ui_imaginaryi"
-import "kab/ui_exponentiale"
-import "kab/ui_host"
+import "kab/ui/ui_imaginaryi"
+import "kab/ui/ui_exponentiale"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

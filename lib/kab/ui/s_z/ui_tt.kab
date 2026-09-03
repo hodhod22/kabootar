@@ -1,0 +1,6 @@
+// SH27: tt tag off ui_big.kab. import "kab/ui/ui_tt"
+// Do not grow ui_big.kab. Host browser* remains skuld.
+
+pub fn uiIsTt(tag) {
+    return tag == "tt"
+}

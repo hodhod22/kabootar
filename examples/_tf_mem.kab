@@ -1,0 +1,15 @@
+let h = { n: 0, c: 0 }
+fn* gen() {
+  try {
+    yield 1
+  } catch (e) {
+    h.c = e
+  } finally {
+    h.n = 9
+  }
+  return h.c * 10 + h.n
+}
+let g = gen()
+g.next()
+let r = g.throw(7)
+return r.value

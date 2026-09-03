@@ -1,4 +1,4 @@
-import "kab/jit_mmap"
+import "kab/jit/jit_mmap"
 
 if jitMmapOk(6, "rw") {
     return false

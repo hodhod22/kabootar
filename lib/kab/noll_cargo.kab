@@ -1,7 +1,0 @@
-// SH28: cargo is still a runtime/build host — policy "cargo-not-runtime" is false.
-// import "kab/noll_cargo"
-// Do not grow noll_image.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollCargoNotRuntime() {
-    return false
-}

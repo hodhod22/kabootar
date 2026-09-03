@@ -1,6 +1,0 @@
-// SH27: option tag off ui_select.kab. import "kab/ui_option"
-// Do not grow ui_select.kab. Host browser* remains skuld.
-
-pub fn uiIsOption(tag) {
-    return tag == "option"
-}

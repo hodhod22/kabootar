@@ -1,6 +1,0 @@
-// SH27: compose tag off ui_ident.kab. import "kab/ui_compose"
-// Do not grow ui_ident.kab. Host browser* remains skuld.
-
-pub fn uiIsCompose(tag) {
-    return tag == "compose"
-}

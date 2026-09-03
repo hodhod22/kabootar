@@ -1,5 +1,5 @@
-import "kab/aot_emit_sym_table"
-import "kab/aot_load_sym_table"
+import "kab/aot/aot_emit_sym_table"
+import "kab/aot/aot_load_sym_table"
 
 let table = aotEmitSymbolTable("arm64")
 return aotLoadSymbolTableOk(table, "arm64")

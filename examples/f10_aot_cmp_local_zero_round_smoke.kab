@@ -1,5 +1,5 @@
-import "kab/aot_cmp_local_zero_op"
-import "kab/aot_load_cmp_local_zero"
+import "kab/aot/aot_cmp_local_zero_op"
+import "kab/aot/aot_load_cmp_local_zero"
 
 let op = aotCmpLocalZeroOp("x64")
 return aotLoadCmpLocalZeroOk(op, "x64")

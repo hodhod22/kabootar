@@ -1,9 +1,0 @@
-// FT F24: TCO opt-in (@tail). import "kab/jit_tco"
-// Not silent TCO on all CALL. Stack traces stay default. F8 deepen.
-
-pub fn jitTcoOk(marked) {
-    if marked {
-        return true
-    }
-    return false
-}

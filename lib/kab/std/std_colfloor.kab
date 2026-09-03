@@ -1,0 +1,13 @@
+// SH20: collections floor off std_colcub.kab. import "kab/std/std_colfloor"
+// Do not grow std_colcub.kab. stdHostDeleteOk stays false.
+
+pub fn stdColFloor(a) {
+    let n = len(a)
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, floor(a[i]))
+        i = i + 1
+    }
+    return out
+}

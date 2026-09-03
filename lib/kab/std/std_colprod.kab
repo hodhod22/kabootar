@@ -1,0 +1,13 @@
+// SH20: collections product off std_colmin.kab. import "kab/std/std_colprod"
+// Do not grow std_colmin.kab. stdHostDeleteOk stays false.
+
+pub fn stdColProduct(p) {
+    let s = 1
+    let n = len(p)
+    let i = 0
+    while i < n {
+        s = s * p[i]
+        i = i + 1
+    }
+    return s
+}

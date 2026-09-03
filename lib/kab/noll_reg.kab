@@ -1,6 +1,0 @@
-// SH28: product package registry is not Kab-only yet. import "kab/noll_reg"
-// Do not grow noll_pub.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollRegIsKab() {
-    return false
-}

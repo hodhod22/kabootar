@@ -1,6 +1,0 @@
-// SH28: product SPDX stack is not Kab-only yet. import "kab/noll_spdx"
-// Do not grow noll_slsa.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollSpdxIsKab() {
-    return false
-}

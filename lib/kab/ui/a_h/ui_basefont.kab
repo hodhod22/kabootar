@@ -1,0 +1,6 @@
+// SH27: basefont tag off ui_applet.kab. import "kab/ui/ui_basefont"
+// Do not grow ui_applet.kab. Host browser* remains skuld.
+
+pub fn uiIsBasefont(tag) {
+    return tag == "basefont"
+}

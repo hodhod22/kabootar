@@ -1,6 +1,0 @@
-// SH28: product LSP is not Kab-only yet. import "kab/noll_lsp"
-// Do not grow noll_fmt.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollLspIsKab() {
-    return false
-}

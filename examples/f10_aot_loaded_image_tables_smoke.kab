@@ -1,4 +1,4 @@
-import "kab/aot_emit_image"
-import "kab/aot_loaded_image"
+import "kab/aot/aot_emit_image"
+import "kab/aot/aot_loaded_image"
 
 return aotLoadedImageOk(aotEmitImageWithTables("x64"))

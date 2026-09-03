@@ -1,3 +1,3 @@
-import "kab/aot_shr_op"
+import "kab/aot/aot_shr_op"
 
 return aotShrOp("x64") == "d1e8"

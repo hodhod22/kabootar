@@ -1,0 +1,6 @@
+// SH27: frame tag off ui_frameset.kab. import "kab/ui/ui_frame"
+// Do not grow ui_frameset.kab. Host browser* remains skuld.
+
+pub fn uiIsFrame(tag) {
+    return tag == "frame"
+}

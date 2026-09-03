@@ -1,3 +1,3 @@
-import "kab/ui_stop"
+import "kab/ui/ui_stop"
 
 return uiIsStop("stop")

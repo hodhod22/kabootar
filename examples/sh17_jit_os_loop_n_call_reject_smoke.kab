@@ -1,5 +1,5 @@
-import "kab/jit_loop_n"
-import "kab/jit_call_loop_n"
+import "kab/jit/jit_loop_n"
+import "kab/jit/jit_call_loop_n"
 
 let kind = "rwx"
 let n = 0

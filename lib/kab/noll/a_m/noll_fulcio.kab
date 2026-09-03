@@ -1,0 +1,6 @@
+// SH28: product Fulcio stack is not Kab-only yet. import "kab/noll/noll_fulcio"
+// Do not grow noll_rekor.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollFulcioIsKab() {
+    return false
+}

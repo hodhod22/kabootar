@@ -1,6 +1,0 @@
-// SH27: table tag off ui_option.kab. import "kab/ui_table"
-// Do not grow ui_option.kab. Host browser* remains skuld.
-
-pub fn uiIsTable(tag) {
-    return tag == "table"
-}

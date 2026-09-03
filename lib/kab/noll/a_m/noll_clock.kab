@@ -1,0 +1,6 @@
+// SH28: product test clock is not Kab-only yet. import "kab/noll/noll_clock"
+// Do not grow noll_fake.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollClockIsKab() {
+    return false
+}

@@ -1,6 +1,0 @@
-// SH28: product cat CLI is not Kab-only yet. import "kab/noll_cat"
-// Do not grow noll_ls.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollCatIsKab() {
-    return false
-}

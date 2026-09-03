@@ -1,6 +1,6 @@
 import "kab/jit"
-import "kab/jit_mm"
-import "kab/jit_run"
+import "kab/jit/jit_mm"
+import "kab/jit/jit_run"
 
 let kind = "rwx"
 let tpl = jitEmitI64IncRet()

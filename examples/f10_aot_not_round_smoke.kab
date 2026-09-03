@@ -1,5 +1,5 @@
-import "kab/aot_not_op"
-import "kab/aot_load_not"
+import "kab/aot/aot_not_op"
+import "kab/aot/aot_load_not"
 
 let op = aotNotOp("x64")
 return aotLoadNotOk(op, "x64")

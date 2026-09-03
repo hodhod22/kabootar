@@ -1,5 +1,5 @@
-import "kab/http_patch"
-import "kab/http_host"
+import "kab/http/http_patch"
+import "kab/http/http_host"
 
 if httpHostDeleteOk() != false {
     return false

@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image stack-release opcode.
+// import "kab/aot/aot_load_stack_free"; do not import other kab/aot* leaves.
+
+pub fn aotLoadStackFreeOk(op, target) {
+    if target == "x64" {
+        return op == "4883c410"
+    }
+    if target == "arm64" {
+        return op == "ff430091"
+    }
+    return false
+}

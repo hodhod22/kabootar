@@ -1,3 +1,3 @@
-import "kab/ui_address"
+import "kab/ui/ui_address"
 
 return uiIsAddress("address")

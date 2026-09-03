@@ -1,6 +1,0 @@
-// SH28: product SHA stack is not Kab-only yet. import "kab/noll_sha"
-// Do not grow noll_hmac.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollShaIsKab() {
-    return false
-}

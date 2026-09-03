@@ -1,4 +1,4 @@
-import "kab/jit_loop"
+import "kab/jit/jit_loop"
 
 let b = jitEmitI64Loop8()
 return len(b) == 8

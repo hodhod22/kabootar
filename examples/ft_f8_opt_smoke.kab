@@ -1,4 +1,4 @@
-import "kab/jit_opt"
+import "kab/jit/jit_opt"
 
 let ok = jitCanInline(2)
 if ok {

@@ -1,0 +1,6 @@
+// SH27: hatchpath tag off ui_hatch.kab. import "kab/ui/ui_hatchpath"
+// Do not grow ui_hatch.kab. Host browser* remains skuld.
+
+pub fn uiIsHatchpath(tag) {
+    return tag == "hatchpath"
+}

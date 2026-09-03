@@ -1,3 +1,3 @@
-import "kab/ui_foreign_object"
+import "kab/ui/ui_foreign_object"
 
 return uiIsForeignObject("foreignObject")

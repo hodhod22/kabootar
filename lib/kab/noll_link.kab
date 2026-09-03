@@ -1,6 +1,0 @@
-// SH28: product linker is not Kab-only yet. import "kab/noll_link"
-// Do not grow noll_opt.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollLinkIsKab() {
-    return false
-}

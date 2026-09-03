@@ -1,7 +1,7 @@
-import "kab/aot_emit_image"
-import "kab/aot_image_name"
-import "kab/aot_ship"
-import "kab/aot_verify_full"
+import "kab/aot/aot_emit_image"
+import "kab/aot/aot_image_name"
+import "kab/aot/aot_ship"
+import "kab/aot/aot_verify_full"
 
 let image = aotEmitImageWithTables("arm64")
 let name = aotImageName("arm64")

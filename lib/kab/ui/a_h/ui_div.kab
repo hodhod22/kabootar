@@ -1,0 +1,6 @@
+// SH27: div tag off ui_server.kab. import "kab/ui/ui_div"
+// Do not grow ui_server.kab or ui.kab. Host browser* remains skuld.
+
+pub fn uiIsDiv(tag) {
+    return tag == "div"
+}

@@ -1,6 +1,6 @@
-import "kab/ui_layer"
-import "kab/ui_nextid"
-import "kab/ui_host"
+import "kab/ui/ui_layer"
+import "kab/ui/ui_nextid"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

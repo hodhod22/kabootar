@@ -1,6 +1,0 @@
-// SH27: feFuncA tag off ui_fe_flood.kab. import "kab/ui_fe_func_a"
-// Do not grow ui_fe_flood.kab. Host browser* remains skuld.
-
-pub fn uiIsFeFuncA(tag) {
-    return tag == "feFuncA"
-}

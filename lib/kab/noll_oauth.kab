@@ -1,6 +1,0 @@
-// SH28: product OAuth stack is not Kab-only yet. import "kab/noll_oauth"
-// Do not grow noll_kerberos.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollOauthIsKab() {
-    return false
-}

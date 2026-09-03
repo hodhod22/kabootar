@@ -1,6 +1,0 @@
-// SH20: host stdlib natives delete policy off stdlib.kab. import "kab/std_host"
-// Do not grow stdlib.kab. Do not delete src/runtime/stdlib until smoke is complete.
-
-pub fn stdHostDeleteOk() {
-    return false
-}

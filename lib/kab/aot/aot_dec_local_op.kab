@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented decrement of the first frame local.
+// import "kab/aot/aot_dec_local_op"; do not import other kab/aot* leaves.
+
+pub fn aotDecLocalOp(target) {
+    if target == "x64" {
+        return "488345f8ff"
+    }
+    if target == "arm64" {
+        return "a00b40f9000400d1a00b00f9"
+    }
+    return ""
+}

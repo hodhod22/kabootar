@@ -1,5 +1,5 @@
-import "kab/sci_sub"
-import "kab/sci_host"
+import "kab/sci/sci_sub"
+import "kab/sci/sci_host"
 
 if sciHostDeleteOk() != false {
     return false

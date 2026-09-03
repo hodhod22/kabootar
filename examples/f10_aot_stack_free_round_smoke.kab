@@ -1,5 +1,5 @@
-import "kab/aot_stack_free_op"
-import "kab/aot_load_stack_free"
+import "kab/aot/aot_stack_free_op"
+import "kab/aot/aot_load_stack_free"
 
 let op = aotStackFreeOp("x64")
 return aotLoadStackFreeOk(op, "x64")

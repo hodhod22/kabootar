@@ -1,6 +1,0 @@
-// SH27: multicol tag off ui_nolayer.kab. import "kab/ui_multicol"
-// Do not grow ui_nolayer.kab. Host browser* remains skuld.
-
-pub fn uiIsMulticol(tag) {
-    return tag == "multicol"
-}

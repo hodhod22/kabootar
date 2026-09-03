@@ -1,6 +1,0 @@
-// SH27: element tag off ui_content.kab. import "kab/ui_element"
-// Do not grow ui_content.kab. Host browser* remains skuld.
-
-pub fn uiIsElement(tag) {
-    return tag == "element"
-}

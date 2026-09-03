@@ -57199,6 +57199,94 @@ fn sh19_load_file_exec_smoke() {
         .expect("join");
 }
 
+/// SH19: persist packed .kbcb v2, os_read, deserialize+eval (not string-gate).
+#[test]
+fn sh19_load_kbcb_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh19_load_kbcb_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh19-load-kbcb-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile load kbcb exec smoke");
+            let value = eval_program(&program, &mut env).expect("run load kbcb exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH20: JSON parse/stringify in Kab (eval, not string-gate).
+#[test]
+fn sh20_std_json_codec_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh20_std_json_codec_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh20-std-json-codec".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile json codec exec smoke");
+            let value = eval_program(&program, &mut env).expect("run json codec exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH21: join+norm, os_write, os_read roundtrip (eval, not string-gate).
+#[test]
+fn sh21_os_rw_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh21_os_rw_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh21-os-rw-exec".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile os rw exec smoke");
+            let value = eval_program(&program, &mut env).expect("run os rw exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH22: in-memory INSERT + SELECT eq (eval, not string-gate).
+#[test]
+fn sh22_sql_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh22_sql_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh22-sql-exec".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile sql exec smoke");
+            let value = eval_program(&program, &mut env).expect("run sql exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH wave capstone exec smoke compiles gate rollup without full chain eval.
 #[test]
 fn sh_wave_capstone_exec_in_kab() {
@@ -57265,7 +57353,7 @@ fn sh19_load_img_in_kab() {
 #[test]
 fn sh19_load_main_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let m = std::fs::read_to_string(root.join("lib/kab/load_main.kab")).expect("load_main.kab");
+    let m = std::fs::read_to_string(root.join("lib/kab/load/load_main.kab")).expect("load_main.kab");
     assert!(
         m.contains("pub fn loadMainDeleteOk") && m.contains("false") && !m.contains("std::process"),
         "SH19 Kab loadMainDeleteOk delete gate"
@@ -57617,7 +57705,7 @@ fn sh19_load_aot_pgo_reject_in_kab() {
 #[test]
 fn sh19_load_ship_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/load_ship.kab")).expect("load_ship.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/load/load_ship.kab")).expect("load_ship.kab");
     assert!(
         s.contains("pub fn loadShipOk")
             && s.contains("pub fn loadShipNativeName")
@@ -57660,7 +57748,7 @@ fn sh19_load_ship_reject_in_kab() {
 #[test]
 fn sh19_load_ship_verify_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/load_ship_verify.kab"))
+    let s = std::fs::read_to_string(root.join("lib/kab/load/load_ship_verify.kab"))
         .expect("load_ship_verify.kab");
     assert!(
         s.contains("pub fn loadShipVerifyOk")
@@ -57750,7 +57838,7 @@ fn sh19_load_aot_chain_reject_in_kab() {
 #[test]
 fn sh19_load_ship_loaded_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/load_ship_loaded.kab"))
+    let s = std::fs::read_to_string(root.join("lib/kab/load/load_ship_loaded.kab"))
         .expect("load_ship_loaded.kab");
     assert!(
         s.contains("pub fn loadShipLoadedOk")
@@ -57898,7 +57986,7 @@ fn sh20_stdlib_plan_in_kab() {
 #[test]
 fn sh20_std_json_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let j = std::fs::read_to_string(root.join("lib/kab/std_json.kab")).expect("std_json.kab");
+    let j = std::fs::read_to_string(root.join("lib/kab/std/std_json.kab")).expect("std_json.kab");
     assert!(
         j.contains("pub fn stdJsonIsNull") && j.contains("null"),
         "SH20 Kab stdJsonIsNull"
@@ -57909,7 +57997,7 @@ fn sh20_std_json_in_kab() {
 #[test]
 fn sh20_std_date_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/std_date.kab")).expect("std_date.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/std/std_date.kab")).expect("std_date.kab");
     assert!(
         d.contains("pub fn stdDateEpochOk"),
         "SH20 Kab stdDateEpochOk"
@@ -57920,7 +58008,7 @@ fn sh20_std_date_in_kab() {
 #[test]
 fn sh20_std_re_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let r = std::fs::read_to_string(root.join("lib/kab/std_re.kab")).expect("std_re.kab");
+    let r = std::fs::read_to_string(root.join("lib/kab/std/std_re.kab")).expect("std_re.kab");
     assert!(
         r.contains("pub fn stdReHit") && r.contains("str_index_of"),
         "SH20 Kab stdReHit"
@@ -57931,7 +58019,7 @@ fn sh20_std_re_in_kab() {
 #[test]
 fn sh20_std_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/std_host.kab")).expect("std_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/std/std_host.kab")).expect("std_host.kab");
     assert!(
         h.contains("pub fn stdHostDeleteOk") && h.contains("false"),
         "SH20 Kab stdHostDeleteOk delete gate"
@@ -57959,7 +58047,7 @@ fn sh20_std_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_math_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let m = std::fs::read_to_string(root.join("lib/kab/std_math.kab")).expect("std_math.kab");
+    let m = std::fs::read_to_string(root.join("lib/kab/std/std_math.kab")).expect("std_math.kab");
     assert!(
         m.contains("pub fn stdMul") && m.contains("*"),
         "SH20 Kab stdMul"
@@ -57984,7 +58072,7 @@ fn sh20_std_math_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_obj_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let o = std::fs::read_to_string(root.join("lib/kab/std_obj.kab")).expect("std_obj.kab");
+    let o = std::fs::read_to_string(root.join("lib/kab/std/std_obj.kab")).expect("std_obj.kab");
     assert!(
         o.contains("pub fn stdObjGet") && o.contains("o[k]"),
         "SH20 Kab stdObjGet"
@@ -58009,7 +58097,7 @@ fn sh20_std_obj_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_col_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_col.kab")).expect("std_col.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_col.kab")).expect("std_col.kab");
     assert!(
         c.contains("pub fn stdColPair") && c.contains("push"),
         "SH20 Kab stdColPair"
@@ -58034,7 +58122,7 @@ fn sh20_std_col_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colget_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colget.kab")).expect("std_colget.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colget.kab")).expect("std_colget.kab");
     assert!(
         c.contains("pub fn stdColGet") && c.contains("p[i]"),
         "SH20 Kab stdColGet"
@@ -58059,7 +58147,7 @@ fn sh20_std_colget_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_collen_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_collen.kab")).expect("std_collen.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_collen.kab")).expect("std_collen.kab");
     assert!(
         c.contains("pub fn stdColLen") && c.contains("len("),
         "SH20 Kab stdColLen"
@@ -58084,7 +58172,7 @@ fn sh20_std_collen_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colpush_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colpush.kab")).expect("std_colpush.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colpush.kab")).expect("std_colpush.kab");
     assert!(
         c.contains("pub fn stdColPush") && c.contains("push("),
         "SH20 Kab stdColPush"
@@ -58109,7 +58197,7 @@ fn sh20_std_colpush_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colpop_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colpop.kab")).expect("std_colpop.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colpop.kab")).expect("std_colpop.kab");
     assert!(
         c.contains("pub fn stdColPop") && c.contains("push("),
         "SH20 Kab stdColPop"
@@ -58134,7 +58222,7 @@ fn sh20_std_colpop_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colfirst_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colfirst.kab")).expect("std_colfirst.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colfirst.kab")).expect("std_colfirst.kab");
     assert!(
         c.contains("pub fn stdColFirst") && c.contains("p[0]"),
         "SH20 Kab stdColFirst"
@@ -58159,7 +58247,7 @@ fn sh20_std_colfirst_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_collast_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_collast.kab")).expect("std_collast.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_collast.kab")).expect("std_collast.kab");
     assert!(
         c.contains("pub fn stdColLast") && c.contains("n - 1"),
         "SH20 Kab stdColLast"
@@ -58184,7 +58272,7 @@ fn sh20_std_collast_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrest_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrest.kab")).expect("std_colrest.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrest.kab")).expect("std_colrest.kab");
     assert!(
         c.contains("pub fn stdColRest") && c.contains("push("),
         "SH20 Kab stdColRest"
@@ -58209,7 +58297,7 @@ fn sh20_std_colrest_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colempty_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colempty.kab")).expect("std_colempty.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colempty.kab")).expect("std_colempty.kab");
     assert!(
         c.contains("pub fn stdColEmpty") && c.contains("len("),
         "SH20 Kab stdColEmpty"
@@ -58234,7 +58322,7 @@ fn sh20_std_colempty_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colconcat_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colconcat.kab")).expect("std_colconcat.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colconcat.kab")).expect("std_colconcat.kab");
     assert!(
         c.contains("pub fn stdColConcat") && c.contains("push("),
         "SH20 Kab stdColConcat"
@@ -58259,7 +58347,7 @@ fn sh20_std_colconcat_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrev_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrev.kab")).expect("std_colrev.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrev.kab")).expect("std_colrev.kab");
     assert!(
         c.contains("pub fn stdColRev") && c.contains("push("),
         "SH20 Kab stdColRev"
@@ -58284,7 +58372,7 @@ fn sh20_std_colrev_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colcontains_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colcontains.kab")).expect("std_colcontains.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colcontains.kab")).expect("std_colcontains.kab");
     assert!(
         c.contains("pub fn stdColContains") && c.contains("while"),
         "SH20 Kab stdColContains"
@@ -58309,7 +58397,7 @@ fn sh20_std_colcontains_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colindex_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colindex.kab")).expect("std_colindex.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colindex.kab")).expect("std_colindex.kab");
     assert!(
         c.contains("pub fn stdColIndex") && c.contains("return i"),
         "SH20 Kab stdColIndex"
@@ -58334,7 +58422,7 @@ fn sh20_std_colindex_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colcount_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colcount.kab")).expect("std_colcount.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colcount.kab")).expect("std_colcount.kab");
     assert!(
         c.contains("pub fn stdColCount") && c.contains("c + 1"),
         "SH20 Kab stdColCount"
@@ -58359,7 +58447,7 @@ fn sh20_std_colcount_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coltake_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coltake.kab")).expect("std_coltake.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coltake.kab")).expect("std_coltake.kab");
     assert!(
         c.contains("pub fn stdColTake") && c.contains("push("),
         "SH20 Kab stdColTake"
@@ -58384,7 +58472,7 @@ fn sh20_std_coltake_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coldrop_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coldrop.kab")).expect("std_coldrop.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coldrop.kab")).expect("std_coldrop.kab");
     assert!(
         c.contains("pub fn stdColDrop") && c.contains("push("),
         "SH20 Kab stdColDrop"
@@ -58409,7 +58497,7 @@ fn sh20_std_coldrop_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colzip_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colzip.kab")).expect("std_colzip.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colzip.kab")).expect("std_colzip.kab");
     assert!(
         c.contains("pub fn stdColZip") && c.contains("push("),
         "SH20 Kab stdColZip"
@@ -58434,7 +58522,7 @@ fn sh20_std_colzip_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colunzip_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colunzip.kab")).expect("std_colunzip.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colunzip.kab")).expect("std_colunzip.kab");
     assert!(
         c.contains("pub fn stdColUnzip") && c.contains("push("),
         "SH20 Kab stdColUnzip"
@@ -58459,7 +58547,7 @@ fn sh20_std_colunzip_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colflat_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colflat.kab")).expect("std_colflat.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colflat.kab")).expect("std_colflat.kab");
     assert!(
         c.contains("pub fn stdColFlat") && c.contains("push("),
         "SH20 Kab stdColFlat"
@@ -58484,7 +58572,7 @@ fn sh20_std_colflat_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colunique_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colunique.kab")).expect("std_colunique.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colunique.kab")).expect("std_colunique.kab");
     assert!(
         c.contains("pub fn stdColUnique") && c.contains("stdColContains"),
         "SH20 Kab stdColUnique"
@@ -58509,7 +58597,7 @@ fn sh20_std_colunique_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coleq_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coleq.kab")).expect("std_coleq.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coleq.kab")).expect("std_coleq.kab");
     assert!(
         c.contains("pub fn stdColEq") && c.contains("na != nb"),
         "SH20 Kab stdColEq"
@@ -58534,7 +58622,7 @@ fn sh20_std_coleq_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colclone_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colclone.kab")).expect("std_colclone.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colclone.kab")).expect("std_colclone.kab");
     assert!(
         c.contains("pub fn stdColClone") && c.contains("push("),
         "SH20 Kab stdColClone"
@@ -58559,7 +58647,7 @@ fn sh20_std_colclone_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrepeat_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrepeat.kab")).expect("std_colrepeat.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrepeat.kab")).expect("std_colrepeat.kab");
     assert!(
         c.contains("pub fn stdColRepeat") && c.contains("stdColConcat"),
         "SH20 Kab stdColRepeat"
@@ -58584,7 +58672,7 @@ fn sh20_std_colrepeat_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colfill_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colfill.kab")).expect("std_colfill.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colfill.kab")).expect("std_colfill.kab");
     assert!(
         c.contains("pub fn stdColFill") && c.contains("push("),
         "SH20 Kab stdColFill"
@@ -58609,7 +58697,7 @@ fn sh20_std_colfill_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrange_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrange.kab")).expect("std_colrange.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrange.kab")).expect("std_colrange.kab");
     assert!(
         c.contains("pub fn stdColRange") && c.contains("push("),
         "SH20 Kab stdColRange"
@@ -58634,7 +58722,7 @@ fn sh20_std_colrange_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsum_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsum.kab")).expect("std_colsum.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsum.kab")).expect("std_colsum.kab");
     assert!(
         c.contains("pub fn stdColSum") && c.contains("s + p[i]"),
         "SH20 Kab stdColSum"
@@ -58659,7 +58747,7 @@ fn sh20_std_colsum_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colmax_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colmax.kab")).expect("std_colmax.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colmax.kab")).expect("std_colmax.kab");
     assert!(
         c.contains("pub fn stdColMax") && c.contains("p[i] > m"),
         "SH20 Kab stdColMax"
@@ -58684,7 +58772,7 @@ fn sh20_std_colmax_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colmin_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colmin.kab")).expect("std_colmin.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colmin.kab")).expect("std_colmin.kab");
     assert!(
         c.contains("pub fn stdColMin") && c.contains("p[i] < m"),
         "SH20 Kab stdColMin"
@@ -58709,7 +58797,7 @@ fn sh20_std_colmin_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colprod_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colprod.kab")).expect("std_colprod.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colprod.kab")).expect("std_colprod.kab");
     assert!(
         c.contains("pub fn stdColProduct") && c.contains("s * p[i]"),
         "SH20 Kab stdColProduct"
@@ -58734,7 +58822,7 @@ fn sh20_std_colprod_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colavg_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colavg.kab")).expect("std_colavg.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colavg.kab")).expect("std_colavg.kab");
     assert!(
         c.contains("pub fn stdColAvg") && c.contains("s / n"),
         "SH20 Kab stdColAvg"
@@ -58759,7 +58847,7 @@ fn sh20_std_colavg_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colmed_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colmed.kab")).expect("std_colmed.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colmed.kab")).expect("std_colmed.kab");
     assert!(
         c.contains("pub fn stdColMedian") && c.contains("sorted[mid]"),
         "SH20 Kab stdColMedian"
@@ -58784,7 +58872,7 @@ fn sh20_std_colmed_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colmode_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colmode.kab")).expect("std_colmode.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colmode.kab")).expect("std_colmode.kab");
     assert!(
         c.contains("pub fn stdColMode") && c.contains("stdColCount"),
         "SH20 Kab stdColMode"
@@ -58809,7 +58897,7 @@ fn sh20_std_colmode_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsort_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsort.kab")).expect("std_colsort.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsort.kab")).expect("std_colsort.kab");
     assert!(
         c.contains("pub fn stdColSort") && c.contains("return sorted"),
         "SH20 Kab stdColSort"
@@ -58834,7 +58922,7 @@ fn sh20_std_colsort_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coldesc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coldesc.kab")).expect("std_coldesc.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coldesc.kab")).expect("std_coldesc.kab");
     assert!(
         c.contains("pub fn stdColSortDesc") && c.contains("stdColRev"),
         "SH20 Kab stdColSortDesc"
@@ -58859,7 +58947,7 @@ fn sh20_std_coldesc_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colfind_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colfind.kab")).expect("std_colfind.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colfind.kab")).expect("std_colfind.kab");
     assert!(
         c.contains("pub fn stdColFind") && c.contains("stdColIndex"),
         "SH20 Kab stdColFind"
@@ -58884,7 +58972,7 @@ fn sh20_std_colfind_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrfind_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrfind.kab")).expect("std_colrfind.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrfind.kab")).expect("std_colrfind.kab");
     assert!(
         c.contains("pub fn stdColFindLast") && c.contains("i = i - 1"),
         "SH20 Kab stdColFindLast"
@@ -58909,7 +58997,7 @@ fn sh20_std_colrfind_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrix_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrix.kab")).expect("std_colrix.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrix.kab")).expect("std_colrix.kab");
     assert!(
         c.contains("pub fn stdColRIndex") && c.contains("return i"),
         "SH20 Kab stdColRIndex"
@@ -58934,7 +59022,7 @@ fn sh20_std_colrix_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colslice_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colslice.kab")).expect("std_colslice.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colslice.kab")).expect("std_colslice.kab");
     assert!(
         c.contains("pub fn stdColSlice") && c.contains("while i < b"),
         "SH20 Kab stdColSlice"
@@ -58959,7 +59047,7 @@ fn sh20_std_colslice_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colwin_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colwin.kab")).expect("std_colwin.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colwin.kab")).expect("std_colwin.kab");
     assert!(
         c.contains("pub fn stdColWindow") && c.contains("stdColSlice"),
         "SH20 Kab stdColWindow"
@@ -58984,7 +59072,7 @@ fn sh20_std_colwin_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colchunk_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colchunk.kab")).expect("std_colchunk.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colchunk.kab")).expect("std_colchunk.kab");
     assert!(
         c.contains("pub fn stdColChunk") && c.contains("i = b"),
         "SH20 Kab stdColChunk"
@@ -59009,7 +59097,7 @@ fn sh20_std_colchunk_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrot_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrot.kab")).expect("std_colrot.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrot.kab")).expect("std_colrot.kab");
     assert!(
         c.contains("pub fn stdColRotate") && c.contains("stdColConcat"),
         "SH20 Kab stdColRotate"
@@ -59034,7 +59122,7 @@ fn sh20_std_colrot_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colpad_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colpad.kab")).expect("std_colpad.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colpad.kab")).expect("std_colpad.kab");
     assert!(
         c.contains("pub fn stdColPad") && c.contains("while i < n"),
         "SH20 Kab stdColPad"
@@ -59059,7 +59147,7 @@ fn sh20_std_colpad_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colilv_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colilv.kab")).expect("std_colilv.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colilv.kab")).expect("std_colilv.kab");
     assert!(
         c.contains("pub fn stdColInterleave") && c.contains("out = push(out, b[i])"),
         "SH20 Kab stdColInterleave"
@@ -59084,7 +59172,7 @@ fn sh20_std_colilv_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coltr_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coltr.kab")).expect("std_coltr.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coltr.kab")).expect("std_coltr.kab");
     assert!(
         c.contains("pub fn stdColTranspose") && c.contains("row[c]"),
         "SH20 Kab stdColTranspose"
@@ -59109,7 +59197,7 @@ fn sh20_std_coltr_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coldiag_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coldiag.kab")).expect("std_coldiag.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coldiag.kab")).expect("std_coldiag.kab");
     assert!(
         c.contains("pub fn stdColDiag") && c.contains("row[i]"),
         "SH20 Kab stdColDiag"
@@ -59134,7 +59222,7 @@ fn sh20_std_coldiag_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colident_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colident.kab")).expect("std_colident.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colident.kab")).expect("std_colident.kab");
     assert!(
         c.contains("pub fn stdColIdent") && c.contains("i == j"),
         "SH20 Kab stdColIdent"
@@ -59159,7 +59247,7 @@ fn sh20_std_colident_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coltrc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coltrc.kab")).expect("std_coltrc.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coltrc.kab")).expect("std_coltrc.kab");
     assert!(
         c.contains("pub fn stdColTrace") && c.contains("stdColSum"),
         "SH20 Kab stdColTrace"
@@ -59184,7 +59272,7 @@ fn sh20_std_coltrc_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrow_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrow.kab")).expect("std_colrow.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrow.kab")).expect("std_colrow.kab");
     assert!(
         c.contains("pub fn stdColRow") && c.contains("rows[i]"),
         "SH20 Kab stdColRow"
@@ -59209,7 +59297,7 @@ fn sh20_std_colrow_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colcol_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colcol.kab")).expect("std_colcol.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colcol.kab")).expect("std_colcol.kab");
     assert!(
         c.contains("pub fn stdColCol") && c.contains("row[c]"),
         "SH20 Kab stdColCol"
@@ -59234,7 +59322,7 @@ fn sh20_std_colcol_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colshape_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colshape.kab")).expect("std_colshape.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colshape.kab")).expect("std_colshape.kab");
     assert!(
         c.contains("pub fn stdColShape") && c.contains("push(out, nc)"),
         "SH20 Kab stdColShape"
@@ -59259,7 +59347,7 @@ fn sh20_std_colshape_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrshp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrshp.kab")).expect("std_colrshp.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrshp.kab")).expect("std_colrshp.kab");
     assert!(
         c.contains("pub fn stdColReshape") && c.contains("stdColChunk"),
         "SH20 Kab stdColReshape"
@@ -59284,7 +59372,7 @@ fn sh20_std_colrshp_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coldot_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coldot.kab")).expect("std_coldot.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coldot.kab")).expect("std_coldot.kab");
     assert!(
         c.contains("pub fn stdColDot") && c.contains("a[i] * b[i]"),
         "SH20 Kab stdColDot"
@@ -59309,7 +59397,7 @@ fn sh20_std_coldot_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colmv_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colmv.kab")).expect("std_colmv.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colmv.kab")).expect("std_colmv.kab");
     assert!(
         c.contains("pub fn stdColMatVec") && c.contains("stdColDot"),
         "SH20 Kab stdColMatVec"
@@ -59334,7 +59422,7 @@ fn sh20_std_colmv_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colmm_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colmm.kab")).expect("std_colmm.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colmm.kab")).expect("std_colmm.kab");
     assert!(
         c.contains("pub fn stdColMatMul") && c.contains("stdColMatVec"),
         "SH20 Kab stdColMatMul"
@@ -59359,7 +59447,7 @@ fn sh20_std_colmm_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colout_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colout.kab")).expect("std_colout.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colout.kab")).expect("std_colout.kab");
     assert!(
         c.contains("pub fn stdColOuter") && c.contains("a[i] * b[j]"),
         "SH20 Kab stdColOuter"
@@ -59384,7 +59472,7 @@ fn sh20_std_colout_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colcrs_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colcrs.kab")).expect("std_colcrs.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colcrs.kab")).expect("std_colcrs.kab");
     assert!(
         c.contains("pub fn stdColCross") && c.contains("a[0] * b[1]"),
         "SH20 Kab stdColCross"
@@ -59409,7 +59497,7 @@ fn sh20_std_colcrs_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coldet_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coldet.kab")).expect("std_coldet.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coldet.kab")).expect("std_coldet.kab");
     assert!(
         c.contains("pub fn stdColDet") && c.contains("m[0][0] * m[1][1]"),
         "SH20 Kab stdColDet"
@@ -59434,7 +59522,7 @@ fn sh20_std_coldet_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colnorm_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colnorm.kab")).expect("std_colnorm.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colnorm.kab")).expect("std_colnorm.kab");
     assert!(
         c.contains("pub fn stdColNorm") && c.contains("sqrt(s)"),
         "SH20 Kab stdColNorm"
@@ -59459,7 +59547,7 @@ fn sh20_std_colnorm_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colunit_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colunit.kab")).expect("std_colunit.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colunit.kab")).expect("std_colunit.kab");
     assert!(
         c.contains("pub fn stdColUnit") && c.contains("a[i] / mag"),
         "SH20 Kab stdColUnit"
@@ -59484,7 +59572,7 @@ fn sh20_std_colunit_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colproj_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colproj.kab")).expect("std_colproj.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colproj.kab")).expect("std_colproj.kab");
     assert!(
         c.contains("pub fn stdColProj") && c.contains("num / den"),
         "SH20 Kab stdColProj"
@@ -59509,7 +59597,7 @@ fn sh20_std_colproj_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrej_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrej.kab")).expect("std_colrej.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrej.kab")).expect("std_colrej.kab");
     assert!(
         c.contains("pub fn stdColRej") && c.contains("a[i] - s * b[i]"),
         "SH20 Kab stdColRej"
@@ -59534,7 +59622,7 @@ fn sh20_std_colrej_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coldist_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coldist.kab")).expect("std_coldist.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coldist.kab")).expect("std_coldist.kab");
     assert!(
         c.contains("pub fn stdColDist") && c.contains("a[i] - b[i]"),
         "SH20 Kab stdColDist"
@@ -59559,7 +59647,7 @@ fn sh20_std_coldist_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_collerp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_collerp.kab")).expect("std_collerp.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_collerp.kab")).expect("std_collerp.kab");
     assert!(
         c.contains("pub fn stdColLerp") && c.contains("t * (b[i] - a[i])"),
         "SH20 Kab stdColLerp"
@@ -59584,7 +59672,7 @@ fn sh20_std_collerp_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colscale_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colscale.kab")).expect("std_colscale.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colscale.kab")).expect("std_colscale.kab");
     assert!(
         c.contains("pub fn stdColScale") && c.contains("a[i] * s"),
         "SH20 Kab stdColScale"
@@ -59609,7 +59697,7 @@ fn sh20_std_colscale_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coladd_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coladd.kab")).expect("std_coladd.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coladd.kab")).expect("std_coladd.kab");
     assert!(
         c.contains("pub fn stdColAdd") && c.contains("a[i] + b[i]"),
         "SH20 Kab stdColAdd"
@@ -59634,7 +59722,7 @@ fn sh20_std_coladd_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsub_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsub.kab")).expect("std_colsub.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsub.kab")).expect("std_colsub.kab");
     assert!(
         c.contains("pub fn stdColSub") && c.contains("a[i] - b[i]"),
         "SH20 Kab stdColSub"
@@ -59659,7 +59747,7 @@ fn sh20_std_colsub_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colmul_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colmul.kab")).expect("std_colmul.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colmul.kab")).expect("std_colmul.kab");
     assert!(
         c.contains("pub fn stdColMul") && c.contains("a[i] * b[i]"),
         "SH20 Kab stdColMul"
@@ -59684,7 +59772,7 @@ fn sh20_std_colmul_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coldiv_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coldiv.kab")).expect("std_coldiv.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coldiv.kab")).expect("std_coldiv.kab");
     assert!(
         c.contains("pub fn stdColDiv") && c.contains("a[i] / b[i]"),
         "SH20 Kab stdColDiv"
@@ -59709,7 +59797,7 @@ fn sh20_std_coldiv_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colneg_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colneg.kab")).expect("std_colneg.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colneg.kab")).expect("std_colneg.kab");
     assert!(
         c.contains("pub fn stdColNeg") && c.contains("0 - a[i]"),
         "SH20 Kab stdColNeg"
@@ -59734,7 +59822,7 @@ fn sh20_std_colneg_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colabs_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colabs.kab")).expect("std_colabs.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colabs.kab")).expect("std_colabs.kab");
     assert!(
         c.contains("pub fn stdColAbs") && c.contains("0 - x"),
         "SH20 Kab stdColAbs"
@@ -59759,7 +59847,7 @@ fn sh20_std_colabs_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsign_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsign.kab")).expect("std_colsign.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsign.kab")).expect("std_colsign.kab");
     assert!(
         c.contains("pub fn stdColSign") && c.contains("x > 0"),
         "SH20 Kab stdColSign"
@@ -59784,7 +59872,7 @@ fn sh20_std_colsign_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colclamp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colclamp.kab")).expect("std_colclamp.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colclamp.kab")).expect("std_colclamp.kab");
     assert!(
         c.contains("pub fn stdColClamp") && c.contains("x > hi"),
         "SH20 Kab stdColClamp"
@@ -59809,7 +59897,7 @@ fn sh20_std_colclamp_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colmod_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colmod.kab")).expect("std_colmod.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colmod.kab")).expect("std_colmod.kab");
     assert!(
         c.contains("pub fn stdColMod") && c.contains("a[i] % b[i]"),
         "SH20 Kab stdColMod"
@@ -59834,7 +59922,7 @@ fn sh20_std_colmod_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colpow_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colpow.kab")).expect("std_colpow.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colpow.kab")).expect("std_colpow.kab");
     assert!(
         c.contains("pub fn stdColPow") && c.contains("r * base"),
         "SH20 Kab stdColPow"
@@ -59859,7 +59947,7 @@ fn sh20_std_colpow_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsqrt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsqrt.kab")).expect("std_colsqrt.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsqrt.kab")).expect("std_colsqrt.kab");
     assert!(
         c.contains("pub fn stdColSqrt") && c.contains("sqrt(a[i])"),
         "SH20 Kab stdColSqrt"
@@ -59884,7 +59972,7 @@ fn sh20_std_colsqrt_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsqr_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsqr.kab")).expect("std_colsqr.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsqr.kab")).expect("std_colsqr.kab");
     assert!(
         c.contains("pub fn stdColSqr") && c.contains("a[i] * a[i]"),
         "SH20 Kab stdColSqr"
@@ -59909,7 +59997,7 @@ fn sh20_std_colsqr_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colcub_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colcub.kab")).expect("std_colcub.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colcub.kab")).expect("std_colcub.kab");
     assert!(
         c.contains("pub fn stdColCub") && c.contains("a[i] * a[i] * a[i]"),
         "SH20 Kab stdColCub"
@@ -59934,7 +60022,7 @@ fn sh20_std_colcub_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colfloor_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colfloor.kab")).expect("std_colfloor.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colfloor.kab")).expect("std_colfloor.kab");
     assert!(
         c.contains("pub fn stdColFloor") && c.contains("floor(a[i])"),
         "SH20 Kab stdColFloor"
@@ -59959,7 +60047,7 @@ fn sh20_std_colfloor_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colceil_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colceil.kab")).expect("std_colceil.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colceil.kab")).expect("std_colceil.kab");
     assert!(
         c.contains("pub fn stdColCeil") && c.contains("ceil(a[i])"),
         "SH20 Kab stdColCeil"
@@ -59984,7 +60072,7 @@ fn sh20_std_colceil_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colround_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colround.kab")).expect("std_colround.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colround.kab")).expect("std_colround.kab");
     assert!(
         c.contains("pub fn stdColRound") && c.contains("round(a[i])"),
         "SH20 Kab stdColRound"
@@ -60009,7 +60097,7 @@ fn sh20_std_colround_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coltrunc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coltrunc.kab")).expect("std_coltrunc.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coltrunc.kab")).expect("std_coltrunc.kab");
     assert!(
         c.contains("pub fn stdColTrunc") && c.contains("trunc(a[i])"),
         "SH20 Kab stdColTrunc"
@@ -60034,7 +60122,7 @@ fn sh20_std_coltrunc_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_collog_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_collog.kab")).expect("std_collog.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_collog.kab")).expect("std_collog.kab");
     assert!(
         c.contains("pub fn stdColLog") && c.contains("log(a[i])"),
         "SH20 Kab stdColLog"
@@ -60059,7 +60147,7 @@ fn sh20_std_collog_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_collog2_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_collog2.kab")).expect("std_collog2.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_collog2.kab")).expect("std_collog2.kab");
     assert!(
         c.contains("pub fn stdColLog2") && c.contains("log2(a[i])"),
         "SH20 Kab stdColLog2"
@@ -60084,7 +60172,7 @@ fn sh20_std_collog2_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_collog10_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_collog10.kab")).expect("std_collog10.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_collog10.kab")).expect("std_collog10.kab");
     assert!(
         c.contains("pub fn stdColLog10") && c.contains("log10(a[i])"),
         "SH20 Kab stdColLog10"
@@ -60109,7 +60197,7 @@ fn sh20_std_collog10_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colexp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colexp.kab")).expect("std_colexp.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colexp.kab")).expect("std_colexp.kab");
     assert!(
         c.contains("pub fn stdColExp") && c.contains("exp(a[i])"),
         "SH20 Kab stdColExp"
@@ -60134,7 +60222,7 @@ fn sh20_std_colexp_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsin_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsin.kab")).expect("std_colsin.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsin.kab")).expect("std_colsin.kab");
     assert!(
         c.contains("pub fn stdColSin") && c.contains("sin(a[i])"),
         "SH20 Kab stdColSin"
@@ -60159,7 +60247,7 @@ fn sh20_std_colsin_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colcos_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colcos.kab")).expect("std_colcos.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colcos.kab")).expect("std_colcos.kab");
     assert!(
         c.contains("pub fn stdColCos") && c.contains("cos(a[i])"),
         "SH20 Kab stdColCos"
@@ -60184,7 +60272,7 @@ fn sh20_std_colcos_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coltan_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coltan.kab")).expect("std_coltan.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coltan.kab")).expect("std_coltan.kab");
     assert!(
         c.contains("pub fn stdColTan") && c.contains("tan(a[i])"),
         "SH20 Kab stdColTan"
@@ -60209,7 +60297,7 @@ fn sh20_std_coltan_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colasin_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colasin.kab")).expect("std_colasin.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colasin.kab")).expect("std_colasin.kab");
     assert!(
         c.contains("pub fn stdColAsin") && c.contains("asin(a[i])"),
         "SH20 Kab stdColAsin"
@@ -60234,7 +60322,7 @@ fn sh20_std_colasin_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colacos_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colacos.kab")).expect("std_colacos.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colacos.kab")).expect("std_colacos.kab");
     assert!(
         c.contains("pub fn stdColAcos") && c.contains("acos(a[i])"),
         "SH20 Kab stdColAcos"
@@ -60259,7 +60347,7 @@ fn sh20_std_colacos_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colatan_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colatan.kab")).expect("std_colatan.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colatan.kab")).expect("std_colatan.kab");
     assert!(
         c.contains("pub fn stdColAtan") && c.contains("atan(a[i])"),
         "SH20 Kab stdColAtan"
@@ -60284,7 +60372,7 @@ fn sh20_std_colatan_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colatan2_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colatan2.kab")).expect("std_colatan2.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colatan2.kab")).expect("std_colatan2.kab");
     assert!(
         c.contains("pub fn stdColAtan2") && c.contains("atan2(y[i], x[i])"),
         "SH20 Kab stdColAtan2"
@@ -60309,7 +60397,7 @@ fn sh20_std_colatan2_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colhypot_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colhypot.kab")).expect("std_colhypot.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colhypot.kab")).expect("std_colhypot.kab");
     assert!(
         c.contains("pub fn stdColHypot") && c.contains("hypot(a[i], b[i])"),
         "SH20 Kab stdColHypot"
@@ -60334,7 +60422,7 @@ fn sh20_std_colhypot_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colcbrt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colcbrt.kab")).expect("std_colcbrt.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colcbrt.kab")).expect("std_colcbrt.kab");
     assert!(
         c.contains("pub fn stdColCbrt") && c.contains("cbrt(a[i])"),
         "SH20 Kab stdColCbrt"
@@ -60359,7 +60447,7 @@ fn sh20_std_colcbrt_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colimul_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colimul.kab")).expect("std_colimul.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colimul.kab")).expect("std_colimul.kab");
     assert!(
         c.contains("pub fn stdColImul") && c.contains("imul(a[i], b[i])"),
         "SH20 Kab stdColImul"
@@ -60384,7 +60472,7 @@ fn sh20_std_colimul_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colclz32_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colclz32.kab")).expect("std_colclz32.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colclz32.kab")).expect("std_colclz32.kab");
     assert!(
         c.contains("pub fn stdColClz32") && c.contains("clz32(a[i])"),
         "SH20 Kab stdColClz32"
@@ -60409,7 +60497,7 @@ fn sh20_std_colclz32_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colfround_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colfround.kab")).expect("std_colfround.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colfround.kab")).expect("std_colfround.kab");
     assert!(
         c.contains("pub fn stdColFround") && c.contains("fround(a[i])"),
         "SH20 Kab stdColFround"
@@ -60434,7 +60522,7 @@ fn sh20_std_colfround_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colf16round_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colf16round.kab")).expect("std_colf16round.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colf16round.kab")).expect("std_colf16round.kab");
     assert!(
         c.contains("pub fn stdColF16round") && c.contains("f16round(a[i])"),
         "SH20 Kab stdColF16round"
@@ -60459,7 +60547,7 @@ fn sh20_std_colf16round_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsumprec_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsumprec.kab")).expect("std_colsumprec.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsumprec.kab")).expect("std_colsumprec.kab");
     assert!(
         c.contains("pub fn stdColSumPrecise") && c.contains("sumPrecise(a)"),
         "SH20 Kab stdColSumPrecise"
@@ -60484,7 +60572,7 @@ fn sh20_std_colsumprec_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_collog1p_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_collog1p.kab")).expect("std_collog1p.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_collog1p.kab")).expect("std_collog1p.kab");
     assert!(
         c.contains("pub fn stdColLog1p") && c.contains("log1p(a[i])"),
         "SH20 Kab stdColLog1p"
@@ -60509,7 +60597,7 @@ fn sh20_std_collog1p_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colexpm1_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colexpm1.kab")).expect("std_colexpm1.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colexpm1.kab")).expect("std_colexpm1.kab");
     assert!(
         c.contains("pub fn stdColExpm1") && c.contains("expm1(a[i])"),
         "SH20 Kab stdColExpm1"
@@ -60534,7 +60622,7 @@ fn sh20_std_colexpm1_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsinh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsinh.kab")).expect("std_colsinh.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsinh.kab")).expect("std_colsinh.kab");
     assert!(
         c.contains("pub fn stdColSinh") && c.contains("sinh(a[i])"),
         "SH20 Kab stdColSinh"
@@ -60559,7 +60647,7 @@ fn sh20_std_colsinh_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colcosh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colcosh.kab")).expect("std_colcosh.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colcosh.kab")).expect("std_colcosh.kab");
     assert!(
         c.contains("pub fn stdColCosh") && c.contains("cosh(a[i])"),
         "SH20 Kab stdColCosh"
@@ -60584,7 +60672,7 @@ fn sh20_std_colcosh_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_coltanh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_coltanh.kab")).expect("std_coltanh.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_coltanh.kab")).expect("std_coltanh.kab");
     assert!(
         c.contains("pub fn stdColTanh") && c.contains("tanh(a[i])"),
         "SH20 Kab stdColTanh"
@@ -60609,7 +60697,7 @@ fn sh20_std_coltanh_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colasinh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colasinh.kab")).expect("std_colasinh.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colasinh.kab")).expect("std_colasinh.kab");
     assert!(
         c.contains("pub fn stdColAsinh") && c.contains("asinh(a[i])"),
         "SH20 Kab stdColAsinh"
@@ -60634,7 +60722,7 @@ fn sh20_std_colasinh_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colacosh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colacosh.kab")).expect("std_colacosh.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colacosh.kab")).expect("std_colacosh.kab");
     assert!(
         c.contains("pub fn stdColAcosh") && c.contains("acosh(a[i])"),
         "SH20 Kab stdColAcosh"
@@ -60659,7 +60747,7 @@ fn sh20_std_colacosh_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colatanh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colatanh.kab")).expect("std_colatanh.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colatanh.kab")).expect("std_colatanh.kab");
     assert!(
         c.contains("pub fn stdColAtanh") && c.contains("atanh(a[i])"),
         "SH20 Kab stdColAtanh"
@@ -60684,7 +60772,7 @@ fn sh20_std_colatanh_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colfmod_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colfmod.kab")).expect("std_colfmod.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colfmod.kab")).expect("std_colfmod.kab");
     assert!(
         c.contains("pub fn stdColFmod") && c.contains("fmod(a[i], b[i])"),
         "SH20 Kab stdColFmod"
@@ -60709,7 +60797,7 @@ fn sh20_std_colfmod_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colrandom_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colrandom.kab")).expect("std_colrandom.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colrandom.kab")).expect("std_colrandom.kab");
     assert!(
         c.contains("pub fn stdColRandom") && c.contains("random()"),
         "SH20 Kab stdColRandom"
@@ -60734,7 +60822,7 @@ fn sh20_std_colrandom_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colpi_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colpi.kab")).expect("std_colpi.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colpi.kab")).expect("std_colpi.kab");
     assert!(
         c.contains("pub fn stdColPi") && c.contains("pi()"),
         "SH20 Kab stdColPi"
@@ -60759,7 +60847,7 @@ fn sh20_std_colpi_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_cole_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_cole.kab")).expect("std_cole.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_cole.kab")).expect("std_cole.kab");
     assert!(
         c.contains("pub fn stdColE") && c.contains("e()"),
         "SH20 Kab stdColE"
@@ -60784,7 +60872,7 @@ fn sh20_std_cole_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colln2_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colln2.kab")).expect("std_colln2.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colln2.kab")).expect("std_colln2.kab");
     assert!(
         c.contains("pub fn stdColLn2") && c.contains("ln2()"),
         "SH20 Kab stdColLn2"
@@ -60809,7 +60897,7 @@ fn sh20_std_colln2_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colln10_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colln10.kab")).expect("std_colln10.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colln10.kab")).expect("std_colln10.kab");
     assert!(
         c.contains("pub fn stdColLn10") && c.contains("ln10()"),
         "SH20 Kab stdColLn10"
@@ -60834,7 +60922,7 @@ fn sh20_std_colln10_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_collog2e_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_collog2e.kab")).expect("std_collog2e.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_collog2e.kab")).expect("std_collog2e.kab");
     assert!(
         c.contains("pub fn stdColLog2e") && c.contains("log2e()"),
         "SH20 Kab stdColLog2e"
@@ -60859,7 +60947,7 @@ fn sh20_std_collog2e_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_collog10e_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_collog10e.kab")).expect("std_collog10e.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_collog10e.kab")).expect("std_collog10e.kab");
     assert!(
         c.contains("pub fn stdColLog10e") && c.contains("log10e()"),
         "SH20 Kab stdColLog10e"
@@ -60884,7 +60972,7 @@ fn sh20_std_collog10e_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsqrt2_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsqrt2.kab")).expect("std_colsqrt2.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsqrt2.kab")).expect("std_colsqrt2.kab");
     assert!(
         c.contains("pub fn stdColSqrt2") && c.contains("sqrt2()"),
         "SH20 Kab stdColSqrt2"
@@ -60909,7 +60997,7 @@ fn sh20_std_colsqrt2_host_dual_bind_in_kab() {
 #[test]
 fn sh20_std_colsqrt12_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/std_colsqrt12.kab")).expect("std_colsqrt12.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/std/std_colsqrt12.kab")).expect("std_colsqrt12.kab");
     assert!(
         c.contains("pub fn stdColSqrt12") && c.contains("sqrt1_2()"),
         "SH20 Kab stdColSqrt12"
@@ -60948,7 +61036,7 @@ fn sh21_os_plan_in_kab() {
 #[test]
 fn sh21_os_fs_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/os_fs.kab")).expect("os_fs.kab");
+    let f = std::fs::read_to_string(root.join("lib/kab/os/os_fs.kab")).expect("os_fs.kab");
     assert!(
         f.contains("pub fn kabOsIsFile") && f.contains("."),
         "SH21 Kab kabOsIsFile"
@@ -60959,7 +61047,7 @@ fn sh21_os_fs_in_kab() {
 #[test]
 fn sh21_os_proc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let p = std::fs::read_to_string(root.join("lib/kab/os_proc.kab")).expect("os_proc.kab");
+    let p = std::fs::read_to_string(root.join("lib/kab/os/os_proc.kab")).expect("os_proc.kab");
     assert!(
         p.contains("pub fn kabOsArgvOk"),
         "SH21 Kab kabOsArgvOk"
@@ -60970,7 +61058,7 @@ fn sh21_os_proc_in_kab() {
 #[test]
 fn sh21_os_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/os_host.kab")).expect("os_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/os/os_host.kab")).expect("os_host.kab");
     assert!(
         h.contains("pub fn kabOsHostDeleteOk") && h.contains("false"),
         "SH21 Kab kabOsHostDeleteOk delete gate"
@@ -60998,7 +61086,7 @@ fn sh21_os_host_dual_bind_in_kab() {
 #[test]
 fn sh21_os_env_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let e = std::fs::read_to_string(root.join("lib/kab/os_env.kab")).expect("os_env.kab");
+    let e = std::fs::read_to_string(root.join("lib/kab/os/os_env.kab")).expect("os_env.kab");
     assert!(
         e.contains("pub fn kabOsEnvOk") && e.contains("len"),
         "SH21 Kab kabOsEnvOk"
@@ -61023,7 +61111,7 @@ fn sh21_os_env_host_dual_bind_in_kab() {
 #[test]
 fn sh21_os_cwd_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/os_cwd.kab")).expect("os_cwd.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/os/os_cwd.kab")).expect("os_cwd.kab");
     assert!(
         c.contains("pub fn kabOsCwdOk") && c.contains("/"),
         "SH21 Kab kabOsCwdOk"
@@ -61048,7 +61136,7 @@ fn sh21_os_cwd_host_dual_bind_in_kab() {
 #[test]
 fn sh21_os_dir_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/os_dir.kab")).expect("os_dir.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/os/os_dir.kab")).expect("os_dir.kab");
     assert!(
         d.contains("pub fn kabOsIsDir") && d.contains("/"),
         "SH21 Kab kabOsIsDir"
@@ -61073,7 +61161,7 @@ fn sh21_os_dir_host_dual_bind_in_kab() {
 #[test]
 fn sh21_os_join_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let j = std::fs::read_to_string(root.join("lib/kab/os_join.kab")).expect("os_join.kab");
+    let j = std::fs::read_to_string(root.join("lib/kab/os/os_join.kab")).expect("os_join.kab");
     assert!(
         j.contains("pub fn kabOsJoin") && j.contains("/"),
         "SH21 Kab kabOsJoin"
@@ -61098,7 +61186,7 @@ fn sh21_os_join_host_dual_bind_in_kab() {
 #[test]
 fn sh21_os_base_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let b = std::fs::read_to_string(root.join("lib/kab/os_base.kab")).expect("os_base.kab");
+    let b = std::fs::read_to_string(root.join("lib/kab/os/os_base.kab")).expect("os_base.kab");
     assert!(
         b.contains("pub fn kabOsBase") && b.contains("str_slice"),
         "SH21 Kab kabOsBase"
@@ -61123,7 +61211,7 @@ fn sh21_os_base_host_dual_bind_in_kab() {
 #[test]
 fn sh21_os_ext_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let e = std::fs::read_to_string(root.join("lib/kab/os_ext.kab")).expect("os_ext.kab");
+    let e = std::fs::read_to_string(root.join("lib/kab/os/os_ext.kab")).expect("os_ext.kab");
     assert!(
         e.contains("pub fn kabOsExt") && e.contains("kabOsBase"),
         "SH21 Kab kabOsExt"
@@ -61148,7 +61236,7 @@ fn sh21_os_ext_host_dual_bind_in_kab() {
 #[test]
 fn sh21_os_dn_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/os_dn.kab")).expect("os_dn.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/os/os_dn.kab")).expect("os_dn.kab");
     assert!(
         d.contains("pub fn kabOsDirname") && d.contains("str_slice"),
         "SH21 Kab kabOsDirname"
@@ -61173,7 +61261,7 @@ fn sh21_os_dn_host_dual_bind_in_kab() {
 #[test]
 fn sh21_os_norm_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let n = std::fs::read_to_string(root.join("lib/kab/os_norm.kab")).expect("os_norm.kab");
+    let n = std::fs::read_to_string(root.join("lib/kab/os/os_norm.kab")).expect("os_norm.kab");
     assert!(
         n.contains("pub fn kabOsNorm") && n.contains("prev != \"/\""),
         "SH21 Kab kabOsNorm"
@@ -61198,7 +61286,7 @@ fn sh21_os_norm_host_dual_bind_in_kab() {
 #[test]
 fn sh21_os_abs_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/os_abs.kab")).expect("os_abs.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/os/os_abs.kab")).expect("os_abs.kab");
     assert!(
         a.contains("pub fn kabOsAbs") && a.contains("kabOsJoin"),
         "SH21 Kab kabOsAbs"
@@ -61223,7 +61311,7 @@ fn sh21_os_abs_host_dual_bind_in_kab() {
 #[test]
 fn sh21_os_rel_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let r = std::fs::read_to_string(root.join("lib/kab/os_rel.kab")).expect("os_rel.kab");
+    let r = std::fs::read_to_string(root.join("lib/kab/os/os_rel.kab")).expect("os_rel.kab");
     assert!(
         r.contains("pub fn kabOsRel") && r.contains("kabOsNorm"),
         "SH21 Kab kabOsRel"
@@ -61261,7 +61349,7 @@ fn sh22_sql_plan_in_kab() {
 #[test]
 fn sh22_sql_where_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let w = std::fs::read_to_string(root.join("lib/kab/sql_where.kab")).expect("sql_where.kab");
+    let w = std::fs::read_to_string(root.join("lib/kab/sql/sql_where.kab")).expect("sql_where.kab");
     assert!(
         w.contains("pub fn sqlIsWhere") && w.contains("WHERE"),
         "SH22 Kab sqlIsWhere"
@@ -61272,7 +61360,7 @@ fn sh22_sql_where_in_kab() {
 #[test]
 fn sh22_sql_store_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/sql_store.kab")).expect("sql_store.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/sql/sql_store.kab")).expect("sql_store.kab");
     assert!(
         s.contains("pub fn sqlStoreOk"),
         "SH22 Kab sqlStoreOk"
@@ -61283,7 +61371,7 @@ fn sh22_sql_store_in_kab() {
 #[test]
 fn sh22_sql_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/sql_host.kab")).expect("sql_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/sql/sql_host.kab")).expect("sql_host.kab");
     assert!(
         h.contains("pub fn sqlHostDeleteOk") && h.contains("false"),
         "SH22 Kab sqlHostDeleteOk delete gate"
@@ -61310,7 +61398,7 @@ fn sh22_sql_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_limit_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/sql_limit.kab")).expect("sql_limit.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/sql/sql_limit.kab")).expect("sql_limit.kab");
     assert!(
         l.contains("pub fn sqlIsLimit") && l.contains("LIMIT"),
         "SH22 Kab sqlIsLimit"
@@ -61335,7 +61423,7 @@ fn sh22_sql_limit_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_order_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let o = std::fs::read_to_string(root.join("lib/kab/sql_order.kab")).expect("sql_order.kab");
+    let o = std::fs::read_to_string(root.join("lib/kab/sql/sql_order.kab")).expect("sql_order.kab");
     assert!(
         o.contains("pub fn sqlIsOrder") && o.contains("ORDER"),
         "SH22 Kab sqlIsOrder"
@@ -61360,7 +61448,7 @@ fn sh22_sql_order_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_insert_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/sql_insert.kab")).expect("sql_insert.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/sql/sql_insert.kab")).expect("sql_insert.kab");
     assert!(
         i.contains("pub fn sqlIsInsert") && i.contains("INSERT"),
         "SH22 Kab sqlIsInsert"
@@ -61385,7 +61473,7 @@ fn sh22_sql_insert_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_update_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let u = std::fs::read_to_string(root.join("lib/kab/sql_update.kab")).expect("sql_update.kab");
+    let u = std::fs::read_to_string(root.join("lib/kab/sql/sql_update.kab")).expect("sql_update.kab");
     assert!(
         u.contains("pub fn sqlIsUpdate") && u.contains("UPDATE"),
         "SH22 Kab sqlIsUpdate"
@@ -61410,7 +61498,7 @@ fn sh22_sql_update_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_delete_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/sql_delete.kab")).expect("sql_delete.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/sql/sql_delete.kab")).expect("sql_delete.kab");
     assert!(
         d.contains("pub fn sqlIsDelete") && d.contains("DELETE"),
         "SH22 Kab sqlIsDelete"
@@ -61435,7 +61523,7 @@ fn sh22_sql_delete_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_create_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/sql_create.kab")).expect("sql_create.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/sql/sql_create.kab")).expect("sql_create.kab");
     assert!(
         c.contains("pub fn sqlIsCreate") && c.contains("CREATE"),
         "SH22 Kab sqlIsCreate"
@@ -61460,7 +61548,7 @@ fn sh22_sql_create_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_join_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let j = std::fs::read_to_string(root.join("lib/kab/sql_join.kab")).expect("sql_join.kab");
+    let j = std::fs::read_to_string(root.join("lib/kab/sql/sql_join.kab")).expect("sql_join.kab");
     assert!(
         j.contains("pub fn sqlIsJoin") && j.contains("JOIN"),
         "SH22 Kab sqlIsJoin"
@@ -61485,7 +61573,7 @@ fn sh22_sql_join_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_group_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let g = std::fs::read_to_string(root.join("lib/kab/sql_group.kab")).expect("sql_group.kab");
+    let g = std::fs::read_to_string(root.join("lib/kab/sql/sql_group.kab")).expect("sql_group.kab");
     assert!(
         g.contains("pub fn sqlIsGroup") && g.contains("GROUP"),
         "SH22 Kab sqlIsGroup"
@@ -61510,7 +61598,7 @@ fn sh22_sql_group_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_having_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/sql_having.kab")).expect("sql_having.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/sql/sql_having.kab")).expect("sql_having.kab");
     assert!(
         h.contains("pub fn sqlIsHaving") && h.contains("HAVING"),
         "SH22 Kab sqlIsHaving"
@@ -61535,7 +61623,7 @@ fn sh22_sql_having_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_dist_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/sql_dist.kab")).expect("sql_dist.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/sql/sql_dist.kab")).expect("sql_dist.kab");
     assert!(
         d.contains("pub fn sqlIsDistinct") && d.contains("DISTINCT"),
         "SH22 Kab sqlIsDistinct"
@@ -61560,7 +61648,7 @@ fn sh22_sql_dist_host_dual_bind_in_kab() {
 #[test]
 fn sh22_sql_union_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let u = std::fs::read_to_string(root.join("lib/kab/sql_union.kab")).expect("sql_union.kab");
+    let u = std::fs::read_to_string(root.join("lib/kab/sql/sql_union.kab")).expect("sql_union.kab");
     assert!(
         u.contains("pub fn sqlIsUnion") && u.contains("UNION"),
         "SH22 Kab sqlIsUnion"
@@ -62538,7 +62626,7 @@ fn sh26_sci_plan_in_kab() {
 #[test]
 fn sh26_sci_nd_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let n = std::fs::read_to_string(root.join("lib/kab/sci_nd.kab")).expect("sci_nd.kab");
+    let n = std::fs::read_to_string(root.join("lib/kab/sci/sci_nd.kab")).expect("sci_nd.kab");
     assert!(
         n.contains("pub fn sciNdLenOk"),
         "SH26 Kab sciNdLenOk"
@@ -62549,7 +62637,7 @@ fn sh26_sci_nd_in_kab() {
 #[test]
 fn sh26_sci_fft_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/sci_fft.kab")).expect("sci_fft.kab");
+    let f = std::fs::read_to_string(root.join("lib/kab/sci/sci_fft.kab")).expect("sci_fft.kab");
     assert!(
         f.contains("pub fn sciFftPow2") && f.contains("8"),
         "SH26 Kab sciFftPow2"
@@ -62560,7 +62648,7 @@ fn sh26_sci_fft_in_kab() {
 #[test]
 fn sh26_sci_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/sci_host.kab")).expect("sci_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/sci/sci_host.kab")).expect("sci_host.kab");
     assert!(
         h.contains("pub fn sciHostDeleteOk") && h.contains("false"),
         "SH26 Kab sciHostDeleteOk delete gate"
@@ -62589,7 +62677,7 @@ fn sh26_sci_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_sub_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/sci_sub.kab")).expect("sci_sub.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/sci/sci_sub.kab")).expect("sci_sub.kab");
     assert!(
         s.contains("pub fn sciSub") && s.contains("-"),
         "SH26 Kab sciSub"
@@ -62614,7 +62702,7 @@ fn sh26_sci_sub_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_div_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/sci_div.kab")).expect("sci_div.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/sci/sci_div.kab")).expect("sci_div.kab");
     assert!(
         d.contains("pub fn sciDiv") && d.contains("/"),
         "SH26 Kab sciDiv"
@@ -62639,7 +62727,7 @@ fn sh26_sci_div_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_neg_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let n = std::fs::read_to_string(root.join("lib/kab/sci_neg.kab")).expect("sci_neg.kab");
+    let n = std::fs::read_to_string(root.join("lib/kab/sci/sci_neg.kab")).expect("sci_neg.kab");
     assert!(
         n.contains("pub fn sciNeg") && n.contains("0 - a"),
         "SH26 Kab sciNeg"
@@ -62664,7 +62752,7 @@ fn sh26_sci_neg_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_abs_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/sci_abs.kab")).expect("sci_abs.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/sci/sci_abs.kab")).expect("sci_abs.kab");
     assert!(
         a.contains("pub fn sciAbs") && a.contains("0 - a"),
         "SH26 Kab sciAbs"
@@ -62689,7 +62777,7 @@ fn sh26_sci_abs_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_max_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let m = std::fs::read_to_string(root.join("lib/kab/sci_max.kab")).expect("sci_max.kab");
+    let m = std::fs::read_to_string(root.join("lib/kab/sci/sci_max.kab")).expect("sci_max.kab");
     assert!(
         m.contains("pub fn sciMax") && m.contains("a > b"),
         "SH26 Kab sciMax"
@@ -62714,7 +62802,7 @@ fn sh26_sci_max_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_min_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let m = std::fs::read_to_string(root.join("lib/kab/sci_min.kab")).expect("sci_min.kab");
+    let m = std::fs::read_to_string(root.join("lib/kab/sci/sci_min.kab")).expect("sci_min.kab");
     assert!(
         m.contains("pub fn sciMin") && m.contains("a < b"),
         "SH26 Kab sciMin"
@@ -62739,7 +62827,7 @@ fn sh26_sci_min_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_clmp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/sci_clmp.kab")).expect("sci_clmp.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/sci/sci_clmp.kab")).expect("sci_clmp.kab");
     assert!(
         c.contains("pub fn sciClamp") && c.contains("x < lo"),
         "SH26 Kab sciClamp"
@@ -62764,7 +62852,7 @@ fn sh26_sci_clmp_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_pow_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let p = std::fs::read_to_string(root.join("lib/kab/sci_pow.kab")).expect("sci_pow.kab");
+    let p = std::fs::read_to_string(root.join("lib/kab/sci/sci_pow.kab")).expect("sci_pow.kab");
     assert!(
         p.contains("pub fn sciPow") && p.contains("while i < e"),
         "SH26 Kab sciPow"
@@ -62789,7 +62877,7 @@ fn sh26_sci_pow_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_sqr_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let q = std::fs::read_to_string(root.join("lib/kab/sci_sqr.kab")).expect("sci_sqr.kab");
+    let q = std::fs::read_to_string(root.join("lib/kab/sci/sci_sqr.kab")).expect("sci_sqr.kab");
     assert!(
         q.contains("pub fn sciSqr") && q.contains("a * a"),
         "SH26 Kab sciSqr"
@@ -62814,7 +62902,7 @@ fn sh26_sci_sqr_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_cub_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/sci_cub.kab")).expect("sci_cub.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/sci/sci_cub.kab")).expect("sci_cub.kab");
     assert!(
         c.contains("pub fn sciCub") && c.contains("a * a * a"),
         "SH26 Kab sciCub"
@@ -62839,7 +62927,7 @@ fn sh26_sci_cub_host_dual_bind_in_kab() {
 #[test]
 fn sh26_sci_sgn_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let g = std::fs::read_to_string(root.join("lib/kab/sci_sgn.kab")).expect("sci_sgn.kab");
+    let g = std::fs::read_to_string(root.join("lib/kab/sci/sci_sgn.kab")).expect("sci_sgn.kab");
     assert!(
         g.contains("pub fn sciSign") && g.contains("a < 0"),
         "SH26 Kab sciSign"
@@ -62877,7 +62965,7 @@ fn sh27_ui_plan_in_kab() {
 #[test]
 fn sh27_ui_cv_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/ui_cv.kab")).expect("ui_cv.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/ui/ui_cv.kab")).expect("ui_cv.kab");
     assert!(
         c.contains("pub fn uiIsCanvas") && c.contains("canvas"),
         "SH27 Kab uiIsCanvas"
@@ -62888,7 +62976,7 @@ fn sh27_ui_cv_in_kab() {
 #[test]
 fn sh27_ui_fps_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/ui_fps.kab")).expect("ui_fps.kab");
+    let f = std::fs::read_to_string(root.join("lib/kab/ui/ui_fps.kab")).expect("ui_fps.kab");
     assert!(
         f.contains("pub fn uiFpsOk") && f.contains("16"),
         "SH27 Kab uiFpsOk"
@@ -62899,7 +62987,7 @@ fn sh27_ui_fps_in_kab() {
 #[test]
 fn sh27_ui_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/ui_host.kab")).expect("ui_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/ui/ui_host.kab")).expect("ui_host.kab");
     assert!(
         h.contains("pub fn uiHostDeleteOk") && h.contains("false"),
         "SH27 Kab uiHostDeleteOk delete gate"
@@ -62927,7 +63015,7 @@ fn sh27_ui_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_span_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/ui_span.kab")).expect("ui_span.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/ui/ui_span.kab")).expect("ui_span.kab");
     assert!(
         s.contains("pub fn uiIsSpan") && s.contains("span"),
         "SH27 Kab uiIsSpan"
@@ -62952,7 +63040,7 @@ fn sh27_ui_span_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_button_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let b = std::fs::read_to_string(root.join("lib/kab/ui_button.kab")).expect("ui_button.kab");
+    let b = std::fs::read_to_string(root.join("lib/kab/ui/ui_button.kab")).expect("ui_button.kab");
     assert!(
         b.contains("pub fn uiIsButton") && b.contains("button"),
         "SH27 Kab uiIsButton"
@@ -62977,7 +63065,7 @@ fn sh27_ui_button_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_input_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/ui_input.kab")).expect("ui_input.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/ui/ui_input.kab")).expect("ui_input.kab");
     assert!(
         i.contains("pub fn uiIsInput") && i.contains("input"),
         "SH27 Kab uiIsInput"
@@ -63002,7 +63090,7 @@ fn sh27_ui_input_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_img_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/ui_img.kab")).expect("ui_img.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/ui/ui_img.kab")).expect("ui_img.kab");
     assert!(
         i.contains("pub fn uiIsImg") && i.contains("img"),
         "SH27 Kab uiIsImg"
@@ -63027,7 +63115,7 @@ fn sh27_ui_img_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_para_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let p = std::fs::read_to_string(root.join("lib/kab/ui_p.kab")).expect("ui_p.kab");
+    let p = std::fs::read_to_string(root.join("lib/kab/ui/ui_p.kab")).expect("ui_p.kab");
     assert!(
         p.contains("pub fn uiIsP") && p.contains("\"p\""),
         "SH27 Kab uiIsP"
@@ -63052,7 +63140,7 @@ fn sh27_ui_para_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_anchor_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/ui_a.kab")).expect("ui_a.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/ui/ui_a.kab")).expect("ui_a.kab");
     assert!(
         a.contains("pub fn uiIsA") && a.contains("\"a\""),
         "SH27 Kab uiIsA"
@@ -63077,7 +63165,7 @@ fn sh27_ui_anchor_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ul_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let u = std::fs::read_to_string(root.join("lib/kab/ui_ul.kab")).expect("ui_ul.kab");
+    let u = std::fs::read_to_string(root.join("lib/kab/ui/ui_ul.kab")).expect("ui_ul.kab");
     assert!(
         u.contains("pub fn uiIsUl") && u.contains("ul"),
         "SH27 Kab uiIsUl"
@@ -63102,7 +63190,7 @@ fn sh27_ui_ul_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_li_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_li.kab")).expect("ui_li.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_li.kab")).expect("ui_li.kab");
     assert!(
         l.contains("pub fn uiIsLi") && l.contains("li"),
         "SH27 Kab uiIsLi"
@@ -63127,7 +63215,7 @@ fn sh27_ui_li_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ol_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let o = std::fs::read_to_string(root.join("lib/kab/ui_ol.kab")).expect("ui_ol.kab");
+    let o = std::fs::read_to_string(root.join("lib/kab/ui/ui_ol.kab")).expect("ui_ol.kab");
     assert!(
         o.contains("pub fn uiIsOl") && o.contains("ol"),
         "SH27 Kab uiIsOl"
@@ -63152,7 +63240,7 @@ fn sh27_ui_ol_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_h1_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/ui_h1.kab")).expect("ui_h1.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/ui/ui_h1.kab")).expect("ui_h1.kab");
     assert!(
         h.contains("pub fn uiIsH1") && h.contains("h1"),
         "SH27 Kab uiIsH1"
@@ -63177,7 +63265,7 @@ fn sh27_ui_h1_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_h2_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/ui_h2.kab")).expect("ui_h2.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/ui/ui_h2.kab")).expect("ui_h2.kab");
     assert!(
         h.contains("pub fn uiIsH2") && h.contains("h2"),
         "SH27 Kab uiIsH2"
@@ -63202,7 +63290,7 @@ fn sh27_ui_h2_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_h3_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/ui_h3.kab")).expect("ui_h3.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/ui/ui_h3.kab")).expect("ui_h3.kab");
     assert!(
         h.contains("pub fn uiIsH3") && h.contains("h3"),
         "SH27 Kab uiIsH3"
@@ -63227,7 +63315,7 @@ fn sh27_ui_h3_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_h4_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/ui_h4.kab")).expect("ui_h4.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/ui/ui_h4.kab")).expect("ui_h4.kab");
     assert!(
         h.contains("pub fn uiIsH4") && h.contains("h4"),
         "SH27 Kab uiIsH4"
@@ -63252,7 +63340,7 @@ fn sh27_ui_h4_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_h5_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/ui_h5.kab")).expect("ui_h5.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/ui/ui_h5.kab")).expect("ui_h5.kab");
     assert!(
         h.contains("pub fn uiIsH5") && h.contains("h5"),
         "SH27 Kab uiIsH5"
@@ -63277,7 +63365,7 @@ fn sh27_ui_h5_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_h6_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/ui_h6.kab")).expect("ui_h6.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/ui/ui_h6.kab")).expect("ui_h6.kab");
     assert!(
         h.contains("pub fn uiIsH6") && h.contains("h6"),
         "SH27 Kab uiIsH6"
@@ -63302,7 +63390,7 @@ fn sh27_ui_h6_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_form_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/ui_form.kab")).expect("ui_form.kab");
+    let f = std::fs::read_to_string(root.join("lib/kab/ui/ui_form.kab")).expect("ui_form.kab");
     assert!(
         f.contains("pub fn uiIsForm") && f.contains("form"),
         "SH27 Kab uiIsForm"
@@ -63327,7 +63415,7 @@ fn sh27_ui_form_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_label_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_label.kab")).expect("ui_label.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_label.kab")).expect("ui_label.kab");
     assert!(
         l.contains("pub fn uiIsLabel") && l.contains("label"),
         "SH27 Kab uiIsLabel"
@@ -63352,7 +63440,7 @@ fn sh27_ui_label_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_textarea_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/ui_textarea.kab")).expect("ui_textarea.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/ui/ui_textarea.kab")).expect("ui_textarea.kab");
     assert!(
         t.contains("pub fn uiIsTextarea") && t.contains("textarea"),
         "SH27 Kab uiIsTextarea"
@@ -63377,7 +63465,7 @@ fn sh27_ui_textarea_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_select_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/ui_select.kab")).expect("ui_select.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/ui/ui_select.kab")).expect("ui_select.kab");
     assert!(
         s.contains("pub fn uiIsSelect") && s.contains("select"),
         "SH27 Kab uiIsSelect"
@@ -63402,7 +63490,7 @@ fn sh27_ui_select_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_option_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let o = std::fs::read_to_string(root.join("lib/kab/ui_option.kab")).expect("ui_option.kab");
+    let o = std::fs::read_to_string(root.join("lib/kab/ui/ui_option.kab")).expect("ui_option.kab");
     assert!(
         o.contains("pub fn uiIsOption") && o.contains("option"),
         "SH27 Kab uiIsOption"
@@ -63427,7 +63515,7 @@ fn sh27_ui_option_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_table_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/ui_table.kab")).expect("ui_table.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/ui/ui_table.kab")).expect("ui_table.kab");
     assert!(
         t.contains("pub fn uiIsTable") && t.contains("table"),
         "SH27 Kab uiIsTable"
@@ -63452,7 +63540,7 @@ fn sh27_ui_table_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_tr_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/ui_tr.kab")).expect("ui_tr.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/ui/ui_tr.kab")).expect("ui_tr.kab");
     assert!(
         t.contains("pub fn uiIsTr") && t.contains("tr"),
         "SH27 Kab uiIsTr"
@@ -63477,7 +63565,7 @@ fn sh27_ui_tr_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_th_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/ui_th.kab")).expect("ui_th.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/ui/ui_th.kab")).expect("ui_th.kab");
     assert!(
         t.contains("pub fn uiIsTh") && t.contains("th"),
         "SH27 Kab uiIsTh"
@@ -63502,7 +63590,7 @@ fn sh27_ui_th_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_td_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/ui_td.kab")).expect("ui_td.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/ui/ui_td.kab")).expect("ui_td.kab");
     assert!(
         t.contains("pub fn uiIsTd") && t.contains("td"),
         "SH27 Kab uiIsTd"
@@ -63527,7 +63615,7 @@ fn sh27_ui_td_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_thead_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/ui_thead.kab")).expect("ui_thead.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/ui/ui_thead.kab")).expect("ui_thead.kab");
     assert!(
         t.contains("pub fn uiIsThead") && t.contains("thead"),
         "SH27 Kab uiIsThead"
@@ -63552,7 +63640,7 @@ fn sh27_ui_thead_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_tbody_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/ui_tbody.kab")).expect("ui_tbody.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/ui/ui_tbody.kab")).expect("ui_tbody.kab");
     assert!(
         t.contains("pub fn uiIsTbody") && t.contains("tbody"),
         "SH27 Kab uiIsTbody"
@@ -63577,7 +63665,7 @@ fn sh27_ui_tbody_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_tfoot_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/ui_tfoot.kab")).expect("ui_tfoot.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/ui/ui_tfoot.kab")).expect("ui_tfoot.kab");
     assert!(
         t.contains("pub fn uiIsTfoot") && t.contains("tfoot"),
         "SH27 Kab uiIsTfoot"
@@ -63602,7 +63690,7 @@ fn sh27_ui_tfoot_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_nav_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let n = std::fs::read_to_string(root.join("lib/kab/ui_nav.kab")).expect("ui_nav.kab");
+    let n = std::fs::read_to_string(root.join("lib/kab/ui/ui_nav.kab")).expect("ui_nav.kab");
     assert!(
         n.contains("pub fn uiIsNav") && n.contains("nav"),
         "SH27 Kab uiIsNav"
@@ -63627,7 +63715,7 @@ fn sh27_ui_nav_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_header_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/ui_header.kab")).expect("ui_header.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/ui/ui_header.kab")).expect("ui_header.kab");
     assert!(
         h.contains("pub fn uiIsHeader") && h.contains("header"),
         "SH27 Kab uiIsHeader"
@@ -63652,7 +63740,7 @@ fn sh27_ui_header_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_footer_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/ui_footer.kab")).expect("ui_footer.kab");
+    let f = std::fs::read_to_string(root.join("lib/kab/ui/ui_footer.kab")).expect("ui_footer.kab");
     assert!(
         f.contains("pub fn uiIsFooter") && f.contains("footer"),
         "SH27 Kab uiIsFooter"
@@ -63677,7 +63765,7 @@ fn sh27_ui_footer_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_main_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let m = std::fs::read_to_string(root.join("lib/kab/ui_main.kab")).expect("ui_main.kab");
+    let m = std::fs::read_to_string(root.join("lib/kab/ui/ui_main.kab")).expect("ui_main.kab");
     assert!(
         m.contains("pub fn uiIsMain") && m.contains("main"),
         "SH27 Kab uiIsMain"
@@ -63702,7 +63790,7 @@ fn sh27_ui_main_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_section_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/ui_section.kab")).expect("ui_section.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/ui/ui_section.kab")).expect("ui_section.kab");
     assert!(
         s.contains("pub fn uiIsSection") && s.contains("section"),
         "SH27 Kab uiIsSection"
@@ -63727,7 +63815,7 @@ fn sh27_ui_section_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_article_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/ui_article.kab")).expect("ui_article.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/ui/ui_article.kab")).expect("ui_article.kab");
     assert!(
         a.contains("pub fn uiIsArticle") && a.contains("article"),
         "SH27 Kab uiIsArticle"
@@ -63752,7 +63840,7 @@ fn sh27_ui_article_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_aside_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/ui_aside.kab")).expect("ui_aside.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/ui/ui_aside.kab")).expect("ui_aside.kab");
     assert!(
         a.contains("pub fn uiIsAside") && a.contains("aside"),
         "SH27 Kab uiIsAside"
@@ -63777,7 +63865,7 @@ fn sh27_ui_aside_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_figure_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/ui_figure.kab")).expect("ui_figure.kab");
+    let f = std::fs::read_to_string(root.join("lib/kab/ui/ui_figure.kab")).expect("ui_figure.kab");
     assert!(
         f.contains("pub fn uiIsFigure") && f.contains("figure"),
         "SH27 Kab uiIsFigure"
@@ -63802,7 +63890,7 @@ fn sh27_ui_figure_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_figcaption_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/ui_figcaption.kab")).expect("ui_figcaption.kab");
+    let f = std::fs::read_to_string(root.join("lib/kab/ui/ui_figcaption.kab")).expect("ui_figcaption.kab");
     assert!(
         f.contains("pub fn uiIsFigcaption") && f.contains("figcaption"),
         "SH27 Kab uiIsFigcaption"
@@ -63827,7 +63915,7 @@ fn sh27_ui_figcaption_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_details_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/ui_details.kab")).expect("ui_details.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/ui/ui_details.kab")).expect("ui_details.kab");
     assert!(
         d.contains("pub fn uiIsDetails") && d.contains("details"),
         "SH27 Kab uiIsDetails"
@@ -63852,7 +63940,7 @@ fn sh27_ui_details_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_summary_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/ui_summary.kab")).expect("ui_summary.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/ui/ui_summary.kab")).expect("ui_summary.kab");
     assert!(
         s.contains("pub fn uiIsSummary") && s.contains("summary"),
         "SH27 Kab uiIsSummary"
@@ -63877,7 +63965,7 @@ fn sh27_ui_summary_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_dialog_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/ui_dialog.kab")).expect("ui_dialog.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/ui/ui_dialog.kab")).expect("ui_dialog.kab");
     assert!(
         d.contains("pub fn uiIsDialog") && d.contains("dialog"),
         "SH27 Kab uiIsDialog"
@@ -63902,7 +63990,7 @@ fn sh27_ui_dialog_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_pre_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let p = std::fs::read_to_string(root.join("lib/kab/ui_pre.kab")).expect("ui_pre.kab");
+    let p = std::fs::read_to_string(root.join("lib/kab/ui/ui_pre.kab")).expect("ui_pre.kab");
     assert!(
         p.contains("pub fn uiIsPre") && p.contains("pre"),
         "SH27 Kab uiIsPre"
@@ -63927,7 +64015,7 @@ fn sh27_ui_pre_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_code_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/ui_code.kab")).expect("ui_code.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/ui/ui_code.kab")).expect("ui_code.kab");
     assert!(
         c.contains("pub fn uiIsCode") && c.contains("code"),
         "SH27 Kab uiIsCode"
@@ -63952,7 +64040,7 @@ fn sh27_ui_code_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_blockquote_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let b = std::fs::read_to_string(root.join("lib/kab/ui_blockquote.kab")).expect("ui_blockquote.kab");
+    let b = std::fs::read_to_string(root.join("lib/kab/ui/ui_blockquote.kab")).expect("ui_blockquote.kab");
     assert!(
         b.contains("pub fn uiIsBlockquote") && b.contains("blockquote"),
         "SH27 Kab uiIsBlockquote"
@@ -63977,7 +64065,7 @@ fn sh27_ui_blockquote_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_video_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let v = std::fs::read_to_string(root.join("lib/kab/ui_video.kab")).expect("ui_video.kab");
+    let v = std::fs::read_to_string(root.join("lib/kab/ui/ui_video.kab")).expect("ui_video.kab");
     assert!(
         v.contains("pub fn uiIsVideo") && v.contains("video"),
         "SH27 Kab uiIsVideo"
@@ -64002,7 +64090,7 @@ fn sh27_ui_video_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_audio_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/ui_audio.kab")).expect("ui_audio.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/ui/ui_audio.kab")).expect("ui_audio.kab");
     assert!(
         a.contains("pub fn uiIsAudio") && a.contains("audio"),
         "SH27 Kab uiIsAudio"
@@ -64027,7 +64115,7 @@ fn sh27_ui_audio_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_source_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/ui_source.kab")).expect("ui_source.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/ui/ui_source.kab")).expect("ui_source.kab");
     assert!(
         s.contains("pub fn uiIsSource") && s.contains("source"),
         "SH27 Kab uiIsSource"
@@ -64052,7 +64140,7 @@ fn sh27_ui_source_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_track_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/ui_track.kab")).expect("ui_track.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/ui/ui_track.kab")).expect("ui_track.kab");
     assert!(
         t.contains("pub fn uiIsTrack") && t.contains("track"),
         "SH27 Kab uiIsTrack"
@@ -64077,7 +64165,7 @@ fn sh27_ui_track_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_iframe_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/ui_iframe.kab")).expect("ui_iframe.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/ui/ui_iframe.kab")).expect("ui_iframe.kab");
     assert!(
         i.contains("pub fn uiIsIframe") && i.contains("iframe"),
         "SH27 Kab uiIsIframe"
@@ -64102,7 +64190,7 @@ fn sh27_ui_iframe_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fieldset_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/ui_fieldset.kab")).expect("ui_fieldset.kab");
+    let f = std::fs::read_to_string(root.join("lib/kab/ui/ui_fieldset.kab")).expect("ui_fieldset.kab");
     assert!(
         f.contains("pub fn uiIsFieldset") && f.contains("fieldset"),
         "SH27 Kab uiIsFieldset"
@@ -64127,7 +64215,7 @@ fn sh27_ui_fieldset_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_legend_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_legend.kab")).expect("ui_legend.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_legend.kab")).expect("ui_legend.kab");
     assert!(
         l.contains("pub fn uiIsLegend") && l.contains("legend"),
         "SH27 Kab uiIsLegend"
@@ -64152,7 +64240,7 @@ fn sh27_ui_legend_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_hr_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_hr.kab")).expect("ui_hr.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_hr.kab")).expect("ui_hr.kab");
     assert!(
         l.contains("pub fn uiIsHr") && l.contains("hr"),
         "SH27 Kab uiIsHr"
@@ -64177,7 +64265,7 @@ fn sh27_ui_hr_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_br_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_br.kab")).expect("ui_br.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_br.kab")).expect("ui_br.kab");
     assert!(
         l.contains("pub fn uiIsBr") && l.contains("br"),
         "SH27 Kab uiIsBr"
@@ -64202,7 +64290,7 @@ fn sh27_ui_br_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_kbd_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_kbd.kab")).expect("ui_kbd.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_kbd.kab")).expect("ui_kbd.kab");
     assert!(
         l.contains("pub fn uiIsKbd") && l.contains("kbd"),
         "SH27 Kab uiIsKbd"
@@ -64227,7 +64315,7 @@ fn sh27_ui_kbd_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_samp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_samp.kab")).expect("ui_samp.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_samp.kab")).expect("ui_samp.kab");
     assert!(
         l.contains("pub fn uiIsSamp") && l.contains("samp"),
         "SH27 Kab uiIsSamp"
@@ -64252,7 +64340,7 @@ fn sh27_ui_samp_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_var_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_var.kab")).expect("ui_var.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_var.kab")).expect("ui_var.kab");
     assert!(
         l.contains("pub fn uiIsVar") && l.contains("var"),
         "SH27 Kab uiIsVar"
@@ -64277,7 +64365,7 @@ fn sh27_ui_var_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_abbr_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_abbr.kab")).expect("ui_abbr.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_abbr.kab")).expect("ui_abbr.kab");
     assert!(
         l.contains("pub fn uiIsAbbr") && l.contains("abbr"),
         "SH27 Kab uiIsAbbr"
@@ -64302,7 +64390,7 @@ fn sh27_ui_abbr_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cite_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_cite.kab")).expect("ui_cite.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_cite.kab")).expect("ui_cite.kab");
     assert!(
         l.contains("pub fn uiIsCite") && l.contains("cite"),
         "SH27 Kab uiIsCite"
@@ -64327,7 +64415,7 @@ fn sh27_ui_cite_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mark_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mark.kab")).expect("ui_mark.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mark.kab")).expect("ui_mark.kab");
     assert!(
         l.contains("pub fn uiIsMark") && l.contains("mark"),
         "SH27 Kab uiIsMark"
@@ -64352,7 +64440,7 @@ fn sh27_ui_mark_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_small_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_small.kab")).expect("ui_small.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_small.kab")).expect("ui_small.kab");
     assert!(
         l.contains("pub fn uiIsSmall") && l.contains("small"),
         "SH27 Kab uiIsSmall"
@@ -64377,7 +64465,7 @@ fn sh27_ui_small_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_strong_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_strong.kab")).expect("ui_strong.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_strong.kab")).expect("ui_strong.kab");
     assert!(
         l.contains("pub fn uiIsStrong") && l.contains("strong"),
         "SH27 Kab uiIsStrong"
@@ -64402,7 +64490,7 @@ fn sh27_ui_strong_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_em_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_em.kab")).expect("ui_em.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_em.kab")).expect("ui_em.kab");
     assert!(
         l.contains("pub fn uiIsEm") && l.contains("em"),
         "SH27 Kab uiIsEm"
@@ -64427,7 +64515,7 @@ fn sh27_ui_em_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_sub_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_sub.kab")).expect("ui_sub.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_sub.kab")).expect("ui_sub.kab");
     assert!(
         l.contains("pub fn uiIsSub") && l.contains("sub"),
         "SH27 Kab uiIsSub"
@@ -64452,7 +64540,7 @@ fn sh27_ui_sub_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_sup_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_sup.kab")).expect("ui_sup.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_sup.kab")).expect("ui_sup.kab");
     assert!(
         l.contains("pub fn uiIsSup") && l.contains("sup"),
         "SH27 Kab uiIsSup"
@@ -64477,7 +64565,7 @@ fn sh27_ui_sup_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_time_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_time.kab")).expect("ui_time.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_time.kab")).expect("ui_time.kab");
     assert!(
         l.contains("pub fn uiIsTime") && l.contains("time"),
         "SH27 Kab uiIsTime"
@@ -64502,7 +64590,7 @@ fn sh27_ui_time_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_q_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_q.kab")).expect("ui_q.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_q.kab")).expect("ui_q.kab");
     assert!(
         l.contains("pub fn uiIsQ") && l.contains("q"),
         "SH27 Kab uiIsQ"
@@ -64527,7 +64615,7 @@ fn sh27_ui_q_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_b_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_b.kab")).expect("ui_b.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_b.kab")).expect("ui_b.kab");
     assert!(
         l.contains("pub fn uiIsB") && l.contains("b"),
         "SH27 Kab uiIsB"
@@ -64552,7 +64640,7 @@ fn sh27_ui_b_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_i_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_i.kab")).expect("ui_i.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_i.kab")).expect("ui_i.kab");
     assert!(
         l.contains("pub fn uiIsI") && l.contains("i"),
         "SH27 Kab uiIsI"
@@ -64577,7 +64665,7 @@ fn sh27_ui_i_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_u_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_u.kab")).expect("ui_u.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_u.kab")).expect("ui_u.kab");
     assert!(
         l.contains("pub fn uiIsU") && l.contains("u"),
         "SH27 Kab uiIsU"
@@ -64602,7 +64690,7 @@ fn sh27_ui_u_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_s_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_s.kab")).expect("ui_s.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_s.kab")).expect("ui_s.kab");
     assert!(
         l.contains("pub fn uiIsS") && l.contains("s"),
         "SH27 Kab uiIsS"
@@ -64627,7 +64715,7 @@ fn sh27_ui_s_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_del_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_del.kab")).expect("ui_del.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_del.kab")).expect("ui_del.kab");
     assert!(
         l.contains("pub fn uiIsDel") && l.contains("del"),
         "SH27 Kab uiIsDel"
@@ -64652,7 +64740,7 @@ fn sh27_ui_del_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ins_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_ins.kab")).expect("ui_ins.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_ins.kab")).expect("ui_ins.kab");
     assert!(
         l.contains("pub fn uiIsIns") && l.contains("ins"),
         "SH27 Kab uiIsIns"
@@ -64677,7 +64765,7 @@ fn sh27_ui_ins_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_wbr_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_wbr.kab")).expect("ui_wbr.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_wbr.kab")).expect("ui_wbr.kab");
     assert!(
         l.contains("pub fn uiIsWbr") && l.contains("wbr"),
         "SH27 Kab uiIsWbr"
@@ -64702,7 +64790,7 @@ fn sh27_ui_wbr_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ruby_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_ruby.kab")).expect("ui_ruby.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_ruby.kab")).expect("ui_ruby.kab");
     assert!(
         l.contains("pub fn uiIsRuby") && l.contains("ruby"),
         "SH27 Kab uiIsRuby"
@@ -64727,7 +64815,7 @@ fn sh27_ui_ruby_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_rt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_rt.kab")).expect("ui_rt.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_rt.kab")).expect("ui_rt.kab");
     assert!(
         l.contains("pub fn uiIsRt") && l.contains("rt"),
         "SH27 Kab uiIsRt"
@@ -64752,7 +64840,7 @@ fn sh27_ui_rt_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_rp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_rp.kab")).expect("ui_rp.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_rp.kab")).expect("ui_rp.kab");
     assert!(
         l.contains("pub fn uiIsRp") && l.contains("rp"),
         "SH27 Kab uiIsRp"
@@ -64777,7 +64865,7 @@ fn sh27_ui_rp_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_bdi_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_bdi.kab")).expect("ui_bdi.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_bdi.kab")).expect("ui_bdi.kab");
     assert!(
         l.contains("pub fn uiIsBdi") && l.contains("bdi"),
         "SH27 Kab uiIsBdi"
@@ -64802,7 +64890,7 @@ fn sh27_ui_bdi_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_bdo_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_bdo.kab")).expect("ui_bdo.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_bdo.kab")).expect("ui_bdo.kab");
     assert!(
         l.contains("pub fn uiIsBdo") && l.contains("bdo"),
         "SH27 Kab uiIsBdo"
@@ -64827,7 +64915,7 @@ fn sh27_ui_bdo_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_data_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_data.kab")).expect("ui_data.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_data.kab")).expect("ui_data.kab");
     assert!(
         l.contains("pub fn uiIsData") && l.contains("data"),
         "SH27 Kab uiIsData"
@@ -64852,7 +64940,7 @@ fn sh27_ui_data_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_dfn_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_dfn.kab")).expect("ui_dfn.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_dfn.kab")).expect("ui_dfn.kab");
     assert!(
         l.contains("pub fn uiIsDfn") && l.contains("dfn"),
         "SH27 Kab uiIsDfn"
@@ -64877,7 +64965,7 @@ fn sh27_ui_dfn_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_meter_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_meter.kab")).expect("ui_meter.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_meter.kab")).expect("ui_meter.kab");
     assert!(
         l.contains("pub fn uiIsMeter") && l.contains("meter"),
         "SH27 Kab uiIsMeter"
@@ -64902,7 +64990,7 @@ fn sh27_ui_meter_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_progress_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_progress.kab")).expect("ui_progress.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_progress.kab")).expect("ui_progress.kab");
     assert!(
         l.contains("pub fn uiIsProgress") && l.contains("progress"),
         "SH27 Kab uiIsProgress"
@@ -64927,7 +65015,7 @@ fn sh27_ui_progress_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_output_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_output.kab")).expect("ui_output.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_output.kab")).expect("ui_output.kab");
     assert!(
         l.contains("pub fn uiIsOutput") && l.contains("output"),
         "SH27 Kab uiIsOutput"
@@ -64952,7 +65040,7 @@ fn sh27_ui_output_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_datalist_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_datalist.kab")).expect("ui_datalist.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_datalist.kab")).expect("ui_datalist.kab");
     assert!(
         l.contains("pub fn uiIsDatalist") && l.contains("datalist"),
         "SH27 Kab uiIsDatalist"
@@ -64977,7 +65065,7 @@ fn sh27_ui_datalist_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_optgroup_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_optgroup.kab")).expect("ui_optgroup.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_optgroup.kab")).expect("ui_optgroup.kab");
     assert!(
         l.contains("pub fn uiIsOptgroup") && l.contains("optgroup"),
         "SH27 Kab uiIsOptgroup"
@@ -65002,7 +65090,7 @@ fn sh27_ui_optgroup_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_picture_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_picture.kab")).expect("ui_picture.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_picture.kab")).expect("ui_picture.kab");
     assert!(
         l.contains("pub fn uiIsPicture") && l.contains("picture"),
         "SH27 Kab uiIsPicture"
@@ -65027,7 +65115,7 @@ fn sh27_ui_picture_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_map_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_map.kab")).expect("ui_map.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_map.kab")).expect("ui_map.kab");
     assert!(
         l.contains("pub fn uiIsMap") && l.contains("map"),
         "SH27 Kab uiIsMap"
@@ -65052,7 +65140,7 @@ fn sh27_ui_map_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_area_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_area.kab")).expect("ui_area.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_area.kab")).expect("ui_area.kab");
     assert!(
         l.contains("pub fn uiIsArea") && l.contains("area"),
         "SH27 Kab uiIsArea"
@@ -65077,7 +65165,7 @@ fn sh27_ui_area_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_embed_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_embed.kab")).expect("ui_embed.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_embed.kab")).expect("ui_embed.kab");
     assert!(
         l.contains("pub fn uiIsEmbed") && l.contains("embed"),
         "SH27 Kab uiIsEmbed"
@@ -65102,7 +65190,7 @@ fn sh27_ui_embed_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_object_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_object.kab")).expect("ui_object.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_object.kab")).expect("ui_object.kab");
     assert!(
         l.contains("pub fn uiIsObject") && l.contains("object"),
         "SH27 Kab uiIsObject"
@@ -65127,7 +65215,7 @@ fn sh27_ui_object_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_param_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_param.kab")).expect("ui_param.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_param.kab")).expect("ui_param.kab");
     assert!(
         l.contains("pub fn uiIsParam") && l.contains("param"),
         "SH27 Kab uiIsParam"
@@ -65152,7 +65240,7 @@ fn sh27_ui_param_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_colgroup_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_colgroup.kab")).expect("ui_colgroup.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_colgroup.kab")).expect("ui_colgroup.kab");
     assert!(
         l.contains("pub fn uiIsColgroup") && l.contains("colgroup"),
         "SH27 Kab uiIsColgroup"
@@ -65177,7 +65265,7 @@ fn sh27_ui_colgroup_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_col_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_col.kab")).expect("ui_col.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_col.kab")).expect("ui_col.kab");
     assert!(
         l.contains("pub fn uiIsCol") && l.contains("col"),
         "SH27 Kab uiIsCol"
@@ -65202,7 +65290,7 @@ fn sh27_ui_col_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_caption_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_caption.kab")).expect("ui_caption.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_caption.kab")).expect("ui_caption.kab");
     assert!(
         l.contains("pub fn uiIsCaption") && l.contains("caption"),
         "SH27 Kab uiIsCaption"
@@ -65227,7 +65315,7 @@ fn sh27_ui_caption_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_template_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_template.kab")).expect("ui_template.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_template.kab")).expect("ui_template.kab");
     assert!(
         l.contains("pub fn uiIsTemplate") && l.contains("template"),
         "SH27 Kab uiIsTemplate"
@@ -65252,7 +65340,7 @@ fn sh27_ui_template_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_slot_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_slot.kab")).expect("ui_slot.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_slot.kab")).expect("ui_slot.kab");
     assert!(
         l.contains("pub fn uiIsSlot") && l.contains("slot"),
         "SH27 Kab uiIsSlot"
@@ -65277,7 +65365,7 @@ fn sh27_ui_slot_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_noscript_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_noscript.kab")).expect("ui_noscript.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_noscript.kab")).expect("ui_noscript.kab");
     assert!(
         l.contains("pub fn uiIsNoscript") && l.contains("noscript"),
         "SH27 Kab uiIsNoscript"
@@ -65302,7 +65390,7 @@ fn sh27_ui_noscript_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_script_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_script.kab")).expect("ui_script.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_script.kab")).expect("ui_script.kab");
     assert!(
         l.contains("pub fn uiIsScript") && l.contains("script"),
         "SH27 Kab uiIsScript"
@@ -65327,7 +65415,7 @@ fn sh27_ui_script_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_style_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_style.kab")).expect("ui_style.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_style.kab")).expect("ui_style.kab");
     assert!(
         l.contains("pub fn uiIsStyle") && l.contains("style"),
         "SH27 Kab uiIsStyle"
@@ -65352,7 +65440,7 @@ fn sh27_ui_style_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_link_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_link.kab")).expect("ui_link.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_link.kab")).expect("ui_link.kab");
     assert!(
         l.contains("pub fn uiIsLink") && l.contains("link"),
         "SH27 Kab uiIsLink"
@@ -65377,7 +65465,7 @@ fn sh27_ui_link_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_meta_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_meta.kab")).expect("ui_meta.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_meta.kab")).expect("ui_meta.kab");
     assert!(
         l.contains("pub fn uiIsMeta") && l.contains("meta"),
         "SH27 Kab uiIsMeta"
@@ -65402,7 +65490,7 @@ fn sh27_ui_meta_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_title_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_title.kab")).expect("ui_title.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_title.kab")).expect("ui_title.kab");
     assert!(
         l.contains("pub fn uiIsTitle") && l.contains("title"),
         "SH27 Kab uiIsTitle"
@@ -65427,7 +65515,7 @@ fn sh27_ui_title_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_base_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_base.kab")).expect("ui_base.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_base.kab")).expect("ui_base.kab");
     assert!(
         l.contains("pub fn uiIsBase") && l.contains("base"),
         "SH27 Kab uiIsBase"
@@ -65452,7 +65540,7 @@ fn sh27_ui_base_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_head_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_head.kab")).expect("ui_head.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_head.kab")).expect("ui_head.kab");
     assert!(
         l.contains("pub fn uiIsHead") && l.contains("head"),
         "SH27 Kab uiIsHead"
@@ -65477,7 +65565,7 @@ fn sh27_ui_head_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_body_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_body.kab")).expect("ui_body.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_body.kab")).expect("ui_body.kab");
     assert!(
         l.contains("pub fn uiIsBody") && l.contains("body"),
         "SH27 Kab uiIsBody"
@@ -65502,7 +65590,7 @@ fn sh27_ui_body_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_html_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_html.kab")).expect("ui_html.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_html.kab")).expect("ui_html.kab");
     assert!(
         l.contains("pub fn uiIsHtml") && l.contains("html"),
         "SH27 Kab uiIsHtml"
@@ -65527,7 +65615,7 @@ fn sh27_ui_html_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_hgroup_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_hgroup.kab")).expect("ui_hgroup.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_hgroup.kab")).expect("ui_hgroup.kab");
     assert!(
         l.contains("pub fn uiIsHgroup") && l.contains("hgroup"),
         "SH27 Kab uiIsHgroup"
@@ -65552,7 +65640,7 @@ fn sh27_ui_hgroup_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_address_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_address.kab")).expect("ui_address.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_address.kab")).expect("ui_address.kab");
     assert!(
         l.contains("pub fn uiIsAddress") && l.contains("address"),
         "SH27 Kab uiIsAddress"
@@ -65577,7 +65665,7 @@ fn sh27_ui_address_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_dl_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_dl.kab")).expect("ui_dl.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_dl.kab")).expect("ui_dl.kab");
     assert!(
         l.contains("pub fn uiIsDl") && l.contains("dl"),
         "SH27 Kab uiIsDl"
@@ -65602,7 +65690,7 @@ fn sh27_ui_dl_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_dt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_dt.kab")).expect("ui_dt.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_dt.kab")).expect("ui_dt.kab");
     assert!(
         l.contains("pub fn uiIsDt") && l.contains("dt"),
         "SH27 Kab uiIsDt"
@@ -65627,7 +65715,7 @@ fn sh27_ui_dt_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_dd_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_dd.kab")).expect("ui_dd.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_dd.kab")).expect("ui_dd.kab");
     assert!(
         l.contains("pub fn uiIsDd") && l.contains("dd"),
         "SH27 Kab uiIsDd"
@@ -65652,7 +65740,7 @@ fn sh27_ui_dd_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_menu_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_menu.kab")).expect("ui_menu.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_menu.kab")).expect("ui_menu.kab");
     assert!(
         l.contains("pub fn uiIsMenu") && l.contains("menu"),
         "SH27 Kab uiIsMenu"
@@ -65677,7 +65765,7 @@ fn sh27_ui_menu_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_search_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_search.kab")).expect("ui_search.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_search.kab")).expect("ui_search.kab");
     assert!(
         l.contains("pub fn uiIsSearch") && l.contains("search"),
         "SH27 Kab uiIsSearch"
@@ -65702,7 +65790,7 @@ fn sh27_ui_search_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_portal_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_portal.kab")).expect("ui_portal.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_portal.kab")).expect("ui_portal.kab");
     assert!(
         l.contains("pub fn uiIsPortal") && l.contains("portal"),
         "SH27 Kab uiIsPortal"
@@ -65727,7 +65815,7 @@ fn sh27_ui_portal_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_svg_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_svg.kab")).expect("ui_svg.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_svg.kab")).expect("ui_svg.kab");
     assert!(
         l.contains("pub fn uiIsSvg") && l.contains("svg"),
         "SH27 Kab uiIsSvg"
@@ -65752,7 +65840,7 @@ fn sh27_ui_svg_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_math_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_math.kab")).expect("ui_math.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_math.kab")).expect("ui_math.kab");
     assert!(
         l.contains("pub fn uiIsMath") && l.contains("math"),
         "SH27 Kab uiIsMath"
@@ -65777,7 +65865,7 @@ fn sh27_ui_math_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_selectedcontent_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_selectedcontent.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_selectedcontent.kab"))
         .expect("ui_selectedcontent.kab");
     assert!(
         l.contains("pub fn uiIsSelectedcontent") && l.contains("selectedcontent"),
@@ -65805,7 +65893,7 @@ fn sh27_ui_selectedcontent_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fencedframe_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fencedframe.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fencedframe.kab"))
         .expect("ui_fencedframe.kab");
     assert!(
         l.contains("pub fn uiIsFencedframe") && l.contains("fencedframe"),
@@ -65833,7 +65921,7 @@ fn sh27_ui_fencedframe_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_frameset_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_frameset.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_frameset.kab"))
         .expect("ui_frameset.kab");
     assert!(
         l.contains("pub fn uiIsFrameset") && l.contains("frameset"),
@@ -65861,7 +65949,7 @@ fn sh27_ui_frameset_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_frame_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_frame.kab")).expect("ui_frame.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_frame.kab")).expect("ui_frame.kab");
     assert!(
         l.contains("pub fn uiIsFrame") && l.contains("frame"),
         "SH27 Kab uiIsFrame"
@@ -65886,7 +65974,7 @@ fn sh27_ui_frame_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_noframes_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_noframes.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_noframes.kab"))
         .expect("ui_noframes.kab");
     assert!(
         l.contains("pub fn uiIsNoframes") && l.contains("noframes"),
@@ -65914,7 +66002,7 @@ fn sh27_ui_noframes_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_marquee_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_marquee.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_marquee.kab"))
         .expect("ui_marquee.kab");
     assert!(
         l.contains("pub fn uiIsMarquee") && l.contains("marquee"),
@@ -65942,7 +66030,7 @@ fn sh27_ui_marquee_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_font_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_font.kab")).expect("ui_font.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_font.kab")).expect("ui_font.kab");
     assert!(
         l.contains("pub fn uiIsFont") && l.contains("font"),
         "SH27 Kab uiIsFont"
@@ -65967,7 +66055,7 @@ fn sh27_ui_font_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_center_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_center.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_center.kab"))
         .expect("ui_center.kab");
     assert!(
         l.contains("pub fn uiIsCenter") && l.contains("center"),
@@ -65995,7 +66083,7 @@ fn sh27_ui_center_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_nobr_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_nobr.kab")).expect("ui_nobr.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_nobr.kab")).expect("ui_nobr.kab");
     assert!(
         l.contains("pub fn uiIsNobr") && l.contains("nobr"),
         "SH27 Kab uiIsNobr"
@@ -66020,7 +66108,7 @@ fn sh27_ui_nobr_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_dir_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_dir.kab")).expect("ui_dir.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_dir.kab")).expect("ui_dir.kab");
     assert!(
         l.contains("pub fn uiIsDir") && l.contains("dir"),
         "SH27 Kab uiIsDir"
@@ -66045,7 +66133,7 @@ fn sh27_ui_dir_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_blink_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_blink.kab")).expect("ui_blink.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_blink.kab")).expect("ui_blink.kab");
     assert!(
         l.contains("pub fn uiIsBlink") && l.contains("blink"),
         "SH27 Kab uiIsBlink"
@@ -66070,7 +66158,7 @@ fn sh27_ui_blink_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_applet_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_applet.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_applet.kab"))
         .expect("ui_applet.kab");
     assert!(
         l.contains("pub fn uiIsApplet") && l.contains("applet"),
@@ -66098,7 +66186,7 @@ fn sh27_ui_applet_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_basefont_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_basefont.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_basefont.kab"))
         .expect("ui_basefont.kab");
     assert!(
         l.contains("pub fn uiIsBasefont") && l.contains("basefont"),
@@ -66126,7 +66214,7 @@ fn sh27_ui_basefont_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_isindex_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_isindex.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_isindex.kab"))
         .expect("ui_isindex.kab");
     assert!(
         l.contains("pub fn uiIsIsindex") && l.contains("isindex"),
@@ -66154,7 +66242,7 @@ fn sh27_ui_isindex_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_keygen_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_keygen.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_keygen.kab"))
         .expect("ui_keygen.kab");
     assert!(
         l.contains("pub fn uiIsKeygen") && l.contains("keygen"),
@@ -66182,7 +66270,7 @@ fn sh27_ui_keygen_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_listing_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_listing.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_listing.kab"))
         .expect("ui_listing.kab");
     assert!(
         l.contains("pub fn uiIsListing") && l.contains("listing"),
@@ -66210,7 +66298,7 @@ fn sh27_ui_listing_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_xmp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_xmp.kab")).expect("ui_xmp.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_xmp.kab")).expect("ui_xmp.kab");
     assert!(
         l.contains("pub fn uiIsXmp") && l.contains("xmp"),
         "SH27 Kab uiIsXmp"
@@ -66235,7 +66323,7 @@ fn sh27_ui_xmp_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_plaintext_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_plaintext.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_plaintext.kab"))
         .expect("ui_plaintext.kab");
     assert!(
         l.contains("pub fn uiIsPlaintext") && l.contains("plaintext"),
@@ -66263,7 +66351,7 @@ fn sh27_ui_plaintext_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_menuitem_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_menuitem.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_menuitem.kab"))
         .expect("ui_menuitem.kab");
     assert!(
         l.contains("pub fn uiIsMenuitem") && l.contains("menuitem"),
@@ -66291,7 +66379,7 @@ fn sh27_ui_menuitem_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_noembed_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_noembed.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_noembed.kab"))
         .expect("ui_noembed.kab");
     assert!(
         l.contains("pub fn uiIsNoembed") && l.contains("noembed"),
@@ -66319,7 +66407,7 @@ fn sh27_ui_noembed_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_spacer_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_spacer.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_spacer.kab"))
         .expect("ui_spacer.kab");
     assert!(
         l.contains("pub fn uiIsSpacer") && l.contains("spacer"),
@@ -66347,7 +66435,7 @@ fn sh27_ui_spacer_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_bgsound_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_bgsound.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_bgsound.kab"))
         .expect("ui_bgsound.kab");
     assert!(
         l.contains("pub fn uiIsBgsound") && l.contains("bgsound"),
@@ -66375,7 +66463,7 @@ fn sh27_ui_bgsound_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_acronym_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_acronym.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_acronym.kab"))
         .expect("ui_acronym.kab");
     assert!(
         l.contains("pub fn uiIsAcronym") && l.contains("acronym"),
@@ -66403,7 +66491,7 @@ fn sh27_ui_acronym_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_big_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_big.kab")).expect("ui_big.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_big.kab")).expect("ui_big.kab");
     assert!(
         l.contains("pub fn uiIsBig") && l.contains("big"),
         "SH27 Kab uiIsBig"
@@ -66428,7 +66516,7 @@ fn sh27_ui_big_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_tt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_tt.kab")).expect("ui_tt.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_tt.kab")).expect("ui_tt.kab");
     assert!(
         l.contains("pub fn uiIsTt") && l.contains("tt"),
         "SH27 Kab uiIsTt"
@@ -66453,7 +66541,7 @@ fn sh27_ui_tt_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_strike_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_strike.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_strike.kab"))
         .expect("ui_strike.kab");
     assert!(
         l.contains("pub fn uiIsStrike") && l.contains("strike"),
@@ -66481,7 +66569,7 @@ fn sh27_ui_strike_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_rb_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_rb.kab")).expect("ui_rb.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_rb.kab")).expect("ui_rb.kab");
     assert!(
         l.contains("pub fn uiIsRb") && l.contains("rb"),
         "SH27 Kab uiIsRb"
@@ -66506,7 +66594,7 @@ fn sh27_ui_rb_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_rtc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_rtc.kab")).expect("ui_rtc.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_rtc.kab")).expect("ui_rtc.kab");
     assert!(
         l.contains("pub fn uiIsRtc") && l.contains("rtc"),
         "SH27 Kab uiIsRtc"
@@ -66531,7 +66619,7 @@ fn sh27_ui_rtc_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_rbc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_rbc.kab")).expect("ui_rbc.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_rbc.kab")).expect("ui_rbc.kab");
     assert!(
         l.contains("pub fn uiIsRbc") && l.contains("rbc"),
         "SH27 Kab uiIsRbc"
@@ -66556,7 +66644,7 @@ fn sh27_ui_rbc_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_shadow_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_shadow.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_shadow.kab"))
         .expect("ui_shadow.kab");
     assert!(
         l.contains("pub fn uiIsShadow") && l.contains("shadow"),
@@ -66584,7 +66672,7 @@ fn sh27_ui_shadow_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_content_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_content.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_content.kab"))
         .expect("ui_content.kab");
     assert!(
         l.contains("pub fn uiIsContent") && l.contains("content"),
@@ -66612,7 +66700,7 @@ fn sh27_ui_content_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_element_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_element.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_element.kab"))
         .expect("ui_element.kab");
     assert!(
         l.contains("pub fn uiIsElement") && l.contains("element"),
@@ -66640,7 +66728,7 @@ fn sh27_ui_element_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_nextid_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_nextid.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_nextid.kab"))
         .expect("ui_nextid.kab");
     assert!(
         l.contains("pub fn uiIsNextid") && l.contains("nextid"),
@@ -66668,7 +66756,7 @@ fn sh27_ui_nextid_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_layer_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_layer.kab")).expect("ui_layer.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_layer.kab")).expect("ui_layer.kab");
     assert!(
         l.contains("pub fn uiIsLayer") && l.contains("layer"),
         "SH27 Kab uiIsLayer"
@@ -66693,7 +66781,7 @@ fn sh27_ui_layer_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ilayer_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_ilayer.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_ilayer.kab"))
         .expect("ui_ilayer.kab");
     assert!(
         l.contains("pub fn uiIsIlayer") && l.contains("ilayer"),
@@ -66721,7 +66809,7 @@ fn sh27_ui_ilayer_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_nolayer_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_nolayer.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_nolayer.kab"))
         .expect("ui_nolayer.kab");
     assert!(
         l.contains("pub fn uiIsNolayer") && l.contains("nolayer"),
@@ -66749,7 +66837,7 @@ fn sh27_ui_nolayer_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_multicol_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_multicol.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_multicol.kab"))
         .expect("ui_multicol.kab");
     assert!(
         l.contains("pub fn uiIsMulticol") && l.contains("multicol"),
@@ -66777,7 +66865,7 @@ fn sh27_ui_multicol_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_comment_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_comment.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_comment.kab"))
         .expect("ui_comment.kab");
     assert!(
         l.contains("pub fn uiIsComment") && l.contains("comment"),
@@ -66805,7 +66893,7 @@ fn sh27_ui_comment_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_xml_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_xml.kab")).expect("ui_xml.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_xml.kab")).expect("ui_xml.kab");
     assert!(
         l.contains("pub fn uiIsXml") && l.contains("xml"),
         "SH27 Kab uiIsXml"
@@ -66830,7 +66918,7 @@ fn sh27_ui_xml_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_image_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_image.kab")).expect("ui_image.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_image.kab")).expect("ui_image.kab");
     assert!(
         l.contains("pub fn uiIsImage") && l.contains("image"),
         "SH27 Kab uiIsImage"
@@ -66855,7 +66943,7 @@ fn sh27_ui_image_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_server_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_server.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_server.kab"))
         .expect("ui_server.kab");
     assert!(
         l.contains("pub fn uiIsServer") && l.contains("server"),
@@ -66883,7 +66971,7 @@ fn sh27_ui_server_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_div_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_div.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_div.kab"))
         .expect("ui_div.kab");
     assert!(
         l.contains("pub fn uiIsDiv") && l.contains("div"),
@@ -66911,7 +66999,7 @@ fn sh27_ui_div_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_rect_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_rect.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_rect.kab"))
         .expect("ui_rect.kab");
     assert!(
         l.contains("pub fn uiIsRect") && l.contains("rect"),
@@ -66939,7 +67027,7 @@ fn sh27_ui_rect_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_circle_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_circle.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_circle.kab"))
         .expect("ui_circle.kab");
     assert!(
         l.contains("pub fn uiIsCircle") && l.contains("circle"),
@@ -66967,7 +67055,7 @@ fn sh27_ui_circle_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ellipse_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_ellipse.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_ellipse.kab"))
         .expect("ui_ellipse.kab");
     assert!(
         l.contains("pub fn uiIsEllipse") && l.contains("ellipse"),
@@ -66995,7 +67083,7 @@ fn sh27_ui_ellipse_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_line_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_line.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_line.kab"))
         .expect("ui_line.kab");
     assert!(
         l.contains("pub fn uiIsLine") && l.contains("line"),
@@ -67023,7 +67111,7 @@ fn sh27_ui_line_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_polyline_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_polyline.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_polyline.kab"))
         .expect("ui_polyline.kab");
     assert!(
         l.contains("pub fn uiIsPolyline") && l.contains("polyline"),
@@ -67051,7 +67139,7 @@ fn sh27_ui_polyline_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_polygon_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_polygon.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_polygon.kab"))
         .expect("ui_polygon.kab");
     assert!(
         l.contains("pub fn uiIsPolygon") && l.contains("polygon"),
@@ -67079,7 +67167,7 @@ fn sh27_ui_polygon_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_path_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_path.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_path.kab"))
         .expect("ui_path.kab");
     assert!(
         l.contains("pub fn uiIsPath") && l.contains("path"),
@@ -67107,7 +67195,7 @@ fn sh27_ui_path_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_g_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_g.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_g.kab"))
         .expect("ui_g.kab");
     assert!(
         l.contains("pub fn uiIsG") && l.contains("g"),
@@ -67135,7 +67223,7 @@ fn sh27_ui_g_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_use_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_use.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_use.kab"))
         .expect("ui_use.kab");
     assert!(
         l.contains("pub fn uiIsUse") && l.contains("use"),
@@ -67163,7 +67251,7 @@ fn sh27_ui_use_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_defs_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_defs.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_defs.kab"))
         .expect("ui_defs.kab");
     assert!(
         l.contains("pub fn uiIsDefs") && l.contains("defs"),
@@ -67191,7 +67279,7 @@ fn sh27_ui_defs_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_symbol_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_symbol.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_symbol.kab"))
         .expect("ui_symbol.kab");
     assert!(
         l.contains("pub fn uiIsSymbol") && l.contains("symbol"),
@@ -67219,7 +67307,7 @@ fn sh27_ui_symbol_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_marker_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_marker.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_marker.kab"))
         .expect("ui_marker.kab");
     assert!(
         l.contains("pub fn uiIsMarker") && l.contains("marker"),
@@ -67247,7 +67335,7 @@ fn sh27_ui_marker_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_clip_path_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_clip_path.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_clip_path.kab"))
         .expect("ui_clip_path.kab");
     assert!(
         l.contains("pub fn uiIsClipPath") && l.contains("clipPath"),
@@ -67275,7 +67363,7 @@ fn sh27_ui_clip_path_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mask_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mask.kab")).expect("ui_mask.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mask.kab")).expect("ui_mask.kab");
     assert!(
         l.contains("pub fn uiIsMask") && l.contains("mask"),
         "SH27 Kab uiIsMask"
@@ -67298,7 +67386,7 @@ fn sh27_ui_mask_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_pattern_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_pattern.kab")).expect("ui_pattern.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_pattern.kab")).expect("ui_pattern.kab");
     assert!(
         l.contains("pub fn uiIsPattern") && l.contains("pattern"),
         "SH27 Kab uiIsPattern"
@@ -67323,7 +67411,7 @@ fn sh27_ui_pattern_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_linear_gradient_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_linear_gradient.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_linear_gradient.kab"))
         .expect("ui_linear_gradient.kab");
     assert!(
         l.contains("pub fn uiIsLinearGradient") && l.contains("linearGradient"),
@@ -67351,7 +67439,7 @@ fn sh27_ui_linear_gradient_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_radial_gradient_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_radial_gradient.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_radial_gradient.kab"))
         .expect("ui_radial_gradient.kab");
     assert!(
         l.contains("pub fn uiIsRadialGradient") && l.contains("radialGradient"),
@@ -67379,7 +67467,7 @@ fn sh27_ui_radial_gradient_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_stop_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_stop.kab")).expect("ui_stop.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_stop.kab")).expect("ui_stop.kab");
     assert!(
         l.contains("pub fn uiIsStop") && l.contains("stop"),
         "SH27 Kab uiIsStop"
@@ -67402,7 +67490,7 @@ fn sh27_ui_stop_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_text_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_text.kab")).expect("ui_text.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_text.kab")).expect("ui_text.kab");
     assert!(
         l.contains("pub fn uiIsText") && l.contains("\"text\""),
         "SH27 Kab uiIsText"
@@ -67425,7 +67513,7 @@ fn sh27_ui_text_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_tspan_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_tspan.kab")).expect("ui_tspan.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_tspan.kab")).expect("ui_tspan.kab");
     assert!(
         l.contains("pub fn uiIsTspan") && l.contains("tspan"),
         "SH27 Kab uiIsTspan"
@@ -67448,7 +67536,7 @@ fn sh27_ui_tspan_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_text_path_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_text_path.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_text_path.kab"))
         .expect("ui_text_path.kab");
     assert!(
         l.contains("pub fn uiIsTextPath") && l.contains("textPath"),
@@ -67474,7 +67562,7 @@ fn sh27_ui_text_path_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_foreign_object_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_foreign_object.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_foreign_object.kab"))
         .expect("ui_foreign_object.kab");
     assert!(
         l.contains("pub fn uiIsForeignObject") && l.contains("foreignObject"),
@@ -67502,7 +67590,7 @@ fn sh27_ui_foreign_object_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_switch_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_switch.kab")).expect("ui_switch.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_switch.kab")).expect("ui_switch.kab");
     assert!(
         l.contains("pub fn uiIsSwitch") && l.contains("switch"),
         "SH27 Kab uiIsSwitch"
@@ -67525,7 +67613,7 @@ fn sh27_ui_switch_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_filter_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_filter.kab")).expect("ui_filter.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_filter.kab")).expect("ui_filter.kab");
     assert!(
         l.contains("pub fn uiIsFilter") && l.contains("filter"),
         "SH27 Kab uiIsFilter"
@@ -67548,7 +67636,7 @@ fn sh27_ui_filter_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_gaussian_blur_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_gaussian_blur.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_gaussian_blur.kab"))
         .expect("ui_fe_gaussian_blur.kab");
     assert!(
         l.contains("pub fn uiIsFeGaussianBlur") && l.contains("feGaussianBlur"),
@@ -67576,7 +67664,7 @@ fn sh27_ui_fe_gaussian_blur_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_blend_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_blend.kab")).expect("ui_fe_blend.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_blend.kab")).expect("ui_fe_blend.kab");
     assert!(
         l.contains("pub fn uiIsFeBlend") && l.contains("feBlend"),
         "SH27 Kab uiIsFeBlend"
@@ -67601,7 +67689,7 @@ fn sh27_ui_fe_blend_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_color_matrix_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_color_matrix.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_color_matrix.kab"))
         .expect("ui_fe_color_matrix.kab");
     assert!(
         l.contains("pub fn uiIsFeColorMatrix") && l.contains("feColorMatrix"),
@@ -67629,7 +67717,7 @@ fn sh27_ui_fe_color_matrix_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_component_transfer_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_component_transfer.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_component_transfer.kab"))
         .expect("ui_fe_component_transfer.kab");
     assert!(
         l.contains("pub fn uiIsFeComponentTransfer") && l.contains("feComponentTransfer"),
@@ -67657,7 +67745,7 @@ fn sh27_ui_fe_component_transfer_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_composite_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_composite.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_composite.kab"))
         .expect("ui_fe_composite.kab");
     assert!(
         l.contains("pub fn uiIsFeComposite") && l.contains("feComposite"),
@@ -67685,7 +67773,7 @@ fn sh27_ui_fe_composite_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_convolve_matrix_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_convolve_matrix.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_convolve_matrix.kab"))
         .expect("ui_fe_convolve_matrix.kab");
     assert!(
         l.contains("pub fn uiIsFeConvolveMatrix") && l.contains("feConvolveMatrix"),
@@ -67713,7 +67801,7 @@ fn sh27_ui_fe_convolve_matrix_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_diffuse_lighting_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_diffuse_lighting.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_diffuse_lighting.kab"))
         .expect("ui_fe_diffuse_lighting.kab");
     assert!(
         l.contains("pub fn uiIsFeDiffuseLighting") && l.contains("feDiffuseLighting"),
@@ -67741,7 +67829,7 @@ fn sh27_ui_fe_diffuse_lighting_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_displacement_map_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_displacement_map.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_displacement_map.kab"))
         .expect("ui_fe_displacement_map.kab");
     assert!(
         l.contains("pub fn uiIsFeDisplacementMap") && l.contains("feDisplacementMap"),
@@ -67769,7 +67857,7 @@ fn sh27_ui_fe_displacement_map_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_flood_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_flood.kab")).expect("ui_fe_flood.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_flood.kab")).expect("ui_fe_flood.kab");
     assert!(
         l.contains("pub fn uiIsFeFlood") && l.contains("feFlood"),
         "SH27 Kab uiIsFeFlood"
@@ -67794,7 +67882,7 @@ fn sh27_ui_fe_flood_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_func_a_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_func_a.kab")).expect("ui_fe_func_a.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_func_a.kab")).expect("ui_fe_func_a.kab");
     assert!(
         l.contains("pub fn uiIsFeFuncA") && l.contains("feFuncA"),
         "SH27 Kab uiIsFeFuncA"
@@ -67819,7 +67907,7 @@ fn sh27_ui_fe_func_a_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_func_b_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_func_b.kab")).expect("ui_fe_func_b.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_func_b.kab")).expect("ui_fe_func_b.kab");
     assert!(
         l.contains("pub fn uiIsFeFuncB") && l.contains("feFuncB"),
         "SH27 Kab uiIsFeFuncB"
@@ -67844,7 +67932,7 @@ fn sh27_ui_fe_func_b_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_func_g_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_func_g.kab")).expect("ui_fe_func_g.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_func_g.kab")).expect("ui_fe_func_g.kab");
     assert!(
         l.contains("pub fn uiIsFeFuncG") && l.contains("feFuncG"),
         "SH27 Kab uiIsFeFuncG"
@@ -67869,7 +67957,7 @@ fn sh27_ui_fe_func_g_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_func_r_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_func_r.kab")).expect("ui_fe_func_r.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_func_r.kab")).expect("ui_fe_func_r.kab");
     assert!(
         l.contains("pub fn uiIsFeFuncR") && l.contains("feFuncR"),
         "SH27 Kab uiIsFeFuncR"
@@ -67894,7 +67982,7 @@ fn sh27_ui_fe_func_r_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_image_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_image.kab")).expect("ui_fe_image.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_image.kab")).expect("ui_fe_image.kab");
     assert!(
         l.contains("pub fn uiIsFeImage") && l.contains("feImage"),
         "SH27 Kab uiIsFeImage"
@@ -67919,7 +68007,7 @@ fn sh27_ui_fe_image_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_merge_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_merge.kab")).expect("ui_fe_merge.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_merge.kab")).expect("ui_fe_merge.kab");
     assert!(
         l.contains("pub fn uiIsFeMerge") && l.contains("feMerge"),
         "SH27 Kab uiIsFeMerge"
@@ -67944,7 +68032,7 @@ fn sh27_ui_fe_merge_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_merge_node_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_merge_node.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_merge_node.kab"))
         .expect("ui_fe_merge_node.kab");
     assert!(
         l.contains("pub fn uiIsFeMergeNode") && l.contains("feMergeNode"),
@@ -67972,7 +68060,7 @@ fn sh27_ui_fe_merge_node_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_morphology_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_morphology.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_morphology.kab"))
         .expect("ui_fe_morphology.kab");
     assert!(
         l.contains("pub fn uiIsFeMorphology") && l.contains("feMorphology"),
@@ -68000,7 +68088,7 @@ fn sh27_ui_fe_morphology_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_offset_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_offset.kab")).expect("ui_fe_offset.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_offset.kab")).expect("ui_fe_offset.kab");
     assert!(
         l.contains("pub fn uiIsFeOffset") && l.contains("feOffset"),
         "SH27 Kab uiIsFeOffset"
@@ -68025,7 +68113,7 @@ fn sh27_ui_fe_offset_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_point_light_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_point_light.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_point_light.kab"))
         .expect("ui_fe_point_light.kab");
     assert!(
         l.contains("pub fn uiIsFePointLight") && l.contains("fePointLight"),
@@ -68053,7 +68141,7 @@ fn sh27_ui_fe_point_light_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_specular_lighting_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_specular_lighting.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_specular_lighting.kab"))
         .expect("ui_fe_specular_lighting.kab");
     assert!(
         l.contains("pub fn uiIsFeSpecularLighting") && l.contains("feSpecularLighting"),
@@ -68081,7 +68169,7 @@ fn sh27_ui_fe_specular_lighting_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_spot_light_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_spot_light.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_spot_light.kab"))
         .expect("ui_fe_spot_light.kab");
     assert!(
         l.contains("pub fn uiIsFeSpotLight") && l.contains("feSpotLight"),
@@ -68109,7 +68197,7 @@ fn sh27_ui_fe_spot_light_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_tile_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_tile.kab")).expect("ui_fe_tile.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_tile.kab")).expect("ui_fe_tile.kab");
     assert!(
         l.contains("pub fn uiIsFeTile") && l.contains("feTile"),
         "SH27 Kab uiIsFeTile"
@@ -68134,7 +68222,7 @@ fn sh27_ui_fe_tile_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_turbulence_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_turbulence.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_turbulence.kab"))
         .expect("ui_fe_turbulence.kab");
     assert!(
         l.contains("pub fn uiIsFeTurbulence") && l.contains("feTurbulence"),
@@ -68162,7 +68250,7 @@ fn sh27_ui_fe_turbulence_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_distant_light_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_distant_light.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_distant_light.kab"))
         .expect("ui_fe_distant_light.kab");
     assert!(
         l.contains("pub fn uiIsFeDistantLight") && l.contains("feDistantLight"),
@@ -68190,7 +68278,7 @@ fn sh27_ui_fe_distant_light_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fe_drop_shadow_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fe_drop_shadow.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fe_drop_shadow.kab"))
         .expect("ui_fe_drop_shadow.kab");
     assert!(
         l.contains("pub fn uiIsFeDropShadow") && l.contains("feDropShadow"),
@@ -68218,7 +68306,7 @@ fn sh27_ui_fe_drop_shadow_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_animate_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_animate.kab")).expect("ui_animate.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_animate.kab")).expect("ui_animate.kab");
     assert!(
         l.contains("pub fn uiIsAnimate") && l.contains("\"animate\""),
         "SH27 Kab uiIsAnimate"
@@ -68241,7 +68329,7 @@ fn sh27_ui_animate_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_animate_motion_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_animate_motion.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_animate_motion.kab"))
         .expect("ui_animate_motion.kab");
     assert!(
         l.contains("pub fn uiIsAnimateMotion") && l.contains("animateMotion"),
@@ -68269,7 +68357,7 @@ fn sh27_ui_animate_motion_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_animate_transform_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_animate_transform.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_animate_transform.kab"))
         .expect("ui_animate_transform.kab");
     assert!(
         l.contains("pub fn uiIsAnimateTransform") && l.contains("animateTransform"),
@@ -68297,7 +68385,7 @@ fn sh27_ui_animate_transform_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_set_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_set.kab")).expect("ui_set.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_set.kab")).expect("ui_set.kab");
     assert!(
         l.contains("pub fn uiIsSet") && l.contains("\"set\""),
         "SH27 Kab uiIsSet"
@@ -68320,7 +68408,7 @@ fn sh27_ui_set_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mpath_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mpath.kab")).expect("ui_mpath.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mpath.kab")).expect("ui_mpath.kab");
     assert!(
         l.contains("pub fn uiIsMpath") && l.contains("mpath"),
         "SH27 Kab uiIsMpath"
@@ -68343,7 +68431,7 @@ fn sh27_ui_mpath_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_view_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_view.kab")).expect("ui_view.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_view.kab")).expect("ui_view.kab");
     assert!(
         l.contains("pub fn uiIsView") && l.contains("\"view\""),
         "SH27 Kab uiIsView"
@@ -68366,7 +68454,7 @@ fn sh27_ui_view_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_metadata_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_metadata.kab")).expect("ui_metadata.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_metadata.kab")).expect("ui_metadata.kab");
     assert!(
         l.contains("pub fn uiIsMetadata") && l.contains("metadata"),
         "SH27 Kab uiIsMetadata"
@@ -68389,7 +68477,7 @@ fn sh27_ui_metadata_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_desc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_desc.kab")).expect("ui_desc.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_desc.kab")).expect("ui_desc.kab");
     assert!(
         l.contains("pub fn uiIsDesc") && l.contains("\"desc\""),
         "SH27 Kab uiIsDesc"
@@ -68412,7 +68500,7 @@ fn sh27_ui_desc_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_hatch_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_hatch.kab")).expect("ui_hatch.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_hatch.kab")).expect("ui_hatch.kab");
     assert!(
         l.contains("pub fn uiIsHatch") && l.contains("\"hatch\""),
         "SH27 Kab uiIsHatch"
@@ -68435,7 +68523,7 @@ fn sh27_ui_hatch_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_hatchpath_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_hatchpath.kab")).expect("ui_hatchpath.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_hatchpath.kab")).expect("ui_hatchpath.kab");
     assert!(
         l.contains("pub fn uiIsHatchpath") && l.contains("hatchpath"),
         "SH27 Kab uiIsHatchpath"
@@ -68458,7 +68546,7 @@ fn sh27_ui_hatchpath_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_solidcolor_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_solidcolor.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_solidcolor.kab"))
         .expect("ui_solidcolor.kab");
     assert!(
         l.contains("pub fn uiIsSolidcolor") && l.contains("solidcolor"),
@@ -68484,7 +68572,7 @@ fn sh27_ui_solidcolor_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cursor_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_cursor.kab")).expect("ui_cursor.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_cursor.kab")).expect("ui_cursor.kab");
     assert!(
         l.contains("pub fn uiIsCursor") && l.contains("\"cursor\""),
         "SH27 Kab uiIsCursor"
@@ -68507,7 +68595,7 @@ fn sh27_ui_cursor_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_tref_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_tref.kab")).expect("ui_tref.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_tref.kab")).expect("ui_tref.kab");
     assert!(
         l.contains("pub fn uiIsTref") && l.contains("tref"),
         "SH27 Kab uiIsTref"
@@ -68530,7 +68618,7 @@ fn sh27_ui_tref_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_alt_glyph_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_alt_glyph.kab")).expect("ui_alt_glyph.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_alt_glyph.kab")).expect("ui_alt_glyph.kab");
     assert!(
         l.contains("pub fn uiIsAltGlyph") && l.contains("altGlyph"),
         "SH27 Kab uiIsAltGlyph"
@@ -68553,7 +68641,7 @@ fn sh27_ui_alt_glyph_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_alt_glyph_def_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_alt_glyph_def.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_alt_glyph_def.kab"))
         .expect("ui_alt_glyph_def.kab");
     assert!(
         l.contains("pub fn uiIsAltGlyphDef") && l.contains("altGlyphDef"),
@@ -68579,7 +68667,7 @@ fn sh27_ui_alt_glyph_def_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_alt_glyph_item_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_alt_glyph_item.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_alt_glyph_item.kab"))
         .expect("ui_alt_glyph_item.kab");
     assert!(
         l.contains("pub fn uiIsAltGlyphItem") && l.contains("altGlyphItem"),
@@ -68607,7 +68695,7 @@ fn sh27_ui_alt_glyph_item_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_glyph_ref_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_glyph_ref.kab")).expect("ui_glyph_ref.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_glyph_ref.kab")).expect("ui_glyph_ref.kab");
     assert!(
         l.contains("pub fn uiIsGlyphRef") && l.contains("glyphRef"),
         "SH27 Kab uiIsGlyphRef"
@@ -68630,7 +68718,7 @@ fn sh27_ui_glyph_ref_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_glyph_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_glyph.kab")).expect("ui_glyph.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_glyph.kab")).expect("ui_glyph.kab");
     assert!(
         l.contains("pub fn uiIsGlyph") && l.contains("\"glyph\""),
         "SH27 Kab uiIsGlyph"
@@ -68653,7 +68741,7 @@ fn sh27_ui_glyph_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_missing_glyph_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_missing_glyph.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_missing_glyph.kab"))
         .expect("ui_missing_glyph.kab");
     assert!(
         l.contains("pub fn uiIsMissingGlyph") && l.contains("missing-glyph"),
@@ -68681,7 +68769,7 @@ fn sh27_ui_missing_glyph_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_font_face_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_font_face.kab")).expect("ui_font_face.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_font_face.kab")).expect("ui_font_face.kab");
     assert!(
         l.contains("pub fn uiIsFontFace") && l.contains("font-face"),
         "SH27 Kab uiIsFontFace"
@@ -68704,7 +68792,7 @@ fn sh27_ui_font_face_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_font_face_src_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_font_face_src.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_font_face_src.kab"))
         .expect("ui_font_face_src.kab");
     assert!(
         l.contains("pub fn uiIsFontFaceSrc") && l.contains("font-face-src"),
@@ -68732,7 +68820,7 @@ fn sh27_ui_font_face_src_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_font_face_uri_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_font_face_uri.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_font_face_uri.kab"))
         .expect("ui_font_face_uri.kab");
     assert!(
         l.contains("pub fn uiIsFontFaceUri") && l.contains("font-face-uri"),
@@ -68760,7 +68848,7 @@ fn sh27_ui_font_face_uri_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_font_face_format_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_font_face_format.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_font_face_format.kab"))
         .expect("ui_font_face_format.kab");
     assert!(
         l.contains("pub fn uiIsFontFaceFormat") && l.contains("font-face-format"),
@@ -68788,7 +68876,7 @@ fn sh27_ui_font_face_format_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_font_face_name_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_font_face_name.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_font_face_name.kab"))
         .expect("ui_font_face_name.kab");
     assert!(
         l.contains("pub fn uiIsFontFaceName") && l.contains("font-face-name"),
@@ -68816,7 +68904,7 @@ fn sh27_ui_font_face_name_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_hkern_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_hkern.kab")).expect("ui_hkern.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_hkern.kab")).expect("ui_hkern.kab");
     assert!(
         l.contains("pub fn uiIsHkern") && l.contains("hkern"),
         "SH27 Kab uiIsHkern"
@@ -68839,7 +68927,7 @@ fn sh27_ui_hkern_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_vkern_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_vkern.kab")).expect("ui_vkern.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_vkern.kab")).expect("ui_vkern.kab");
     assert!(
         l.contains("pub fn uiIsVkern") && l.contains("vkern"),
         "SH27 Kab uiIsVkern"
@@ -68862,7 +68950,7 @@ fn sh27_ui_vkern_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_meshgradient_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_meshgradient.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_meshgradient.kab"))
         .expect("ui_meshgradient.kab");
     assert!(
         l.contains("pub fn uiIsMeshgradient") && l.contains("meshgradient"),
@@ -68890,7 +68978,7 @@ fn sh27_ui_meshgradient_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_meshrow_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_meshrow.kab")).expect("ui_meshrow.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_meshrow.kab")).expect("ui_meshrow.kab");
     assert!(
         l.contains("pub fn uiIsMeshrow") && l.contains("meshrow"),
         "SH27 Kab uiIsMeshrow"
@@ -68913,7 +69001,7 @@ fn sh27_ui_meshrow_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_meshpatch_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_meshpatch.kab")).expect("ui_meshpatch.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_meshpatch.kab")).expect("ui_meshpatch.kab");
     assert!(
         l.contains("pub fn uiIsMeshpatch") && l.contains("meshpatch"),
         "SH27 Kab uiIsMeshpatch"
@@ -68936,7 +69024,7 @@ fn sh27_ui_meshpatch_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_discard_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_discard.kab")).expect("ui_discard.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_discard.kab")).expect("ui_discard.kab");
     assert!(
         l.contains("pub fn uiIsDiscard") && l.contains("\"discard\""),
         "SH27 Kab uiIsDiscard"
@@ -68959,7 +69047,7 @@ fn sh27_ui_discard_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_unknown_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_unknown.kab")).expect("ui_unknown.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_unknown.kab")).expect("ui_unknown.kab");
     assert!(
         l.contains("pub fn uiIsUnknown") && l.contains("\"unknown\""),
         "SH27 Kab uiIsUnknown"
@@ -68982,7 +69070,7 @@ fn sh27_ui_unknown_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mrow_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mrow.kab")).expect("ui_mrow.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mrow.kab")).expect("ui_mrow.kab");
     assert!(
         l.contains("pub fn uiIsMrow") && l.contains("\"mrow\""),
         "SH27 Kab uiIsMrow"
@@ -69005,7 +69093,7 @@ fn sh27_ui_mrow_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mi_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mi.kab")).expect("ui_mi.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mi.kab")).expect("ui_mi.kab");
     assert!(
         l.contains("pub fn uiIsMi") && l.contains("\"mi\""),
         "SH27 Kab uiIsMi"
@@ -69028,7 +69116,7 @@ fn sh27_ui_mi_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mn_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mn.kab")).expect("ui_mn.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mn.kab")).expect("ui_mn.kab");
     assert!(
         l.contains("pub fn uiIsMn") && l.contains("\"mn\""),
         "SH27 Kab uiIsMn"
@@ -69051,7 +69139,7 @@ fn sh27_ui_mn_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mo_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mo.kab")).expect("ui_mo.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mo.kab")).expect("ui_mo.kab");
     assert!(
         l.contains("pub fn uiIsMo") && l.contains("\"mo\""),
         "SH27 Kab uiIsMo"
@@ -69074,7 +69162,7 @@ fn sh27_ui_mo_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mtext_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mtext.kab")).expect("ui_mtext.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mtext.kab")).expect("ui_mtext.kab");
     assert!(
         l.contains("pub fn uiIsMtext") && l.contains("mtext"),
         "SH27 Kab uiIsMtext"
@@ -69097,7 +69185,7 @@ fn sh27_ui_mtext_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ms_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_ms.kab")).expect("ui_ms.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_ms.kab")).expect("ui_ms.kab");
     assert!(
         l.contains("pub fn uiIsMs") && l.contains("\"ms\""),
         "SH27 Kab uiIsMs"
@@ -69120,7 +69208,7 @@ fn sh27_ui_ms_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mspace_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mspace.kab")).expect("ui_mspace.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mspace.kab")).expect("ui_mspace.kab");
     assert!(
         l.contains("pub fn uiIsMspace") && l.contains("mspace"),
         "SH27 Kab uiIsMspace"
@@ -69143,7 +69231,7 @@ fn sh27_ui_mspace_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mfrac_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mfrac.kab")).expect("ui_mfrac.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mfrac.kab")).expect("ui_mfrac.kab");
     assert!(
         l.contains("pub fn uiIsMfrac") && l.contains("mfrac"),
         "SH27 Kab uiIsMfrac"
@@ -69166,7 +69254,7 @@ fn sh27_ui_mfrac_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_msqrt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_msqrt.kab")).expect("ui_msqrt.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_msqrt.kab")).expect("ui_msqrt.kab");
     assert!(
         l.contains("pub fn uiIsMsqrt") && l.contains("msqrt"),
         "SH27 Kab uiIsMsqrt"
@@ -69189,7 +69277,7 @@ fn sh27_ui_msqrt_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mroot_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mroot.kab")).expect("ui_mroot.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mroot.kab")).expect("ui_mroot.kab");
     assert!(
         l.contains("pub fn uiIsMroot") && l.contains("mroot"),
         "SH27 Kab uiIsMroot"
@@ -69212,7 +69300,7 @@ fn sh27_ui_mroot_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_msub_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_msub.kab")).expect("ui_msub.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_msub.kab")).expect("ui_msub.kab");
     assert!(
         l.contains("pub fn uiIsMsub") && l.contains("\"msub\""),
         "SH27 Kab uiIsMsub"
@@ -69235,7 +69323,7 @@ fn sh27_ui_msub_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_msup_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_msup.kab")).expect("ui_msup.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_msup.kab")).expect("ui_msup.kab");
     assert!(
         l.contains("pub fn uiIsMsup") && l.contains("\"msup\""),
         "SH27 Kab uiIsMsup"
@@ -69258,7 +69346,7 @@ fn sh27_ui_msup_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_msubsup_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_msubsup.kab")).expect("ui_msubsup.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_msubsup.kab")).expect("ui_msubsup.kab");
     assert!(
         l.contains("pub fn uiIsMsubsup") && l.contains("msubsup"),
         "SH27 Kab uiIsMsubsup"
@@ -69281,7 +69369,7 @@ fn sh27_ui_msubsup_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_munder_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_munder.kab")).expect("ui_munder.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_munder.kab")).expect("ui_munder.kab");
     assert!(
         l.contains("pub fn uiIsMunder") && l.contains("\"munder\""),
         "SH27 Kab uiIsMunder"
@@ -69304,7 +69392,7 @@ fn sh27_ui_munder_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mover_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mover.kab")).expect("ui_mover.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mover.kab")).expect("ui_mover.kab");
     assert!(
         l.contains("pub fn uiIsMover") && l.contains("mover"),
         "SH27 Kab uiIsMover"
@@ -69327,7 +69415,7 @@ fn sh27_ui_mover_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_munderover_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_munderover.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_munderover.kab"))
         .expect("ui_munderover.kab");
     assert!(
         l.contains("pub fn uiIsMunderover") && l.contains("munderover"),
@@ -69353,7 +69441,7 @@ fn sh27_ui_munderover_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mmultiscripts_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mmultiscripts.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mmultiscripts.kab"))
         .expect("ui_mmultiscripts.kab");
     assert!(
         l.contains("pub fn uiIsMmultiscripts") && l.contains("mmultiscripts"),
@@ -69381,7 +69469,7 @@ fn sh27_ui_mmultiscripts_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mprescripts_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mprescripts.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mprescripts.kab"))
         .expect("ui_mprescripts.kab");
     assert!(
         l.contains("pub fn uiIsMprescripts") && l.contains("mprescripts"),
@@ -69407,7 +69495,7 @@ fn sh27_ui_mprescripts_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_none_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_none.kab")).expect("ui_none.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_none.kab")).expect("ui_none.kab");
     assert!(
         l.contains("pub fn uiIsNone") && l.contains("\"none\""),
         "SH27 Kab uiIsNone"
@@ -69430,7 +69518,7 @@ fn sh27_ui_none_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mtable_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mtable.kab")).expect("ui_mtable.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mtable.kab")).expect("ui_mtable.kab");
     assert!(
         l.contains("pub fn uiIsMtable") && l.contains("\"mtable\""),
         "SH27 Kab uiIsMtable"
@@ -69453,7 +69541,7 @@ fn sh27_ui_mtable_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mtr_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mtr.kab")).expect("ui_mtr.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mtr.kab")).expect("ui_mtr.kab");
     assert!(
         l.contains("pub fn uiIsMtr") && l.contains("\"mtr\""),
         "SH27 Kab uiIsMtr"
@@ -69476,7 +69564,7 @@ fn sh27_ui_mtr_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mtd_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mtd.kab")).expect("ui_mtd.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mtd.kab")).expect("ui_mtd.kab");
     assert!(
         l.contains("pub fn uiIsMtd") && l.contains("\"mtd\""),
         "SH27 Kab uiIsMtd"
@@ -69499,7 +69587,7 @@ fn sh27_ui_mtd_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mth_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mth.kab")).expect("ui_mth.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mth.kab")).expect("ui_mth.kab");
     assert!(
         l.contains("pub fn uiIsMth") && l.contains("\"mth\""),
         "SH27 Kab uiIsMth"
@@ -69522,7 +69610,7 @@ fn sh27_ui_mth_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mlabeledtr_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mlabeledtr.kab")).expect("ui_mlabeledtr.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mlabeledtr.kab")).expect("ui_mlabeledtr.kab");
     assert!(
         l.contains("pub fn uiIsMlabeledtr") && l.contains("\"mlabeledtr\""),
         "SH27 Kab uiIsMlabeledtr"
@@ -69545,7 +69633,7 @@ fn sh27_ui_mlabeledtr_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_maligngroup_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_maligngroup.kab")).expect("ui_maligngroup.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_maligngroup.kab")).expect("ui_maligngroup.kab");
     assert!(
         l.contains("pub fn uiIsMaligngroup") && l.contains("\"maligngroup\""),
         "SH27 Kab uiIsMaligngroup"
@@ -69568,7 +69656,7 @@ fn sh27_ui_maligngroup_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_malignmark_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_malignmark.kab")).expect("ui_malignmark.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_malignmark.kab")).expect("ui_malignmark.kab");
     assert!(
         l.contains("pub fn uiIsMalignmark") && l.contains("\"malignmark\""),
         "SH27 Kab uiIsMalignmark"
@@ -69591,7 +69679,7 @@ fn sh27_ui_malignmark_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mstyle_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mstyle.kab")).expect("ui_mstyle.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mstyle.kab")).expect("ui_mstyle.kab");
     assert!(
         l.contains("pub fn uiIsMstyle") && l.contains("\"mstyle\""),
         "SH27 Kab uiIsMstyle"
@@ -69614,7 +69702,7 @@ fn sh27_ui_mstyle_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_merror_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_merror.kab")).expect("ui_merror.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_merror.kab")).expect("ui_merror.kab");
     assert!(
         l.contains("pub fn uiIsMerror") && l.contains("\"merror\""),
         "SH27 Kab uiIsMerror"
@@ -69637,7 +69725,7 @@ fn sh27_ui_merror_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mpadded_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mpadded.kab")).expect("ui_mpadded.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mpadded.kab")).expect("ui_mpadded.kab");
     assert!(
         l.contains("pub fn uiIsMpadded") && l.contains("\"mpadded\""),
         "SH27 Kab uiIsMpadded"
@@ -69660,7 +69748,7 @@ fn sh27_ui_mpadded_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mphantom_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mphantom.kab")).expect("ui_mphantom.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mphantom.kab")).expect("ui_mphantom.kab");
     assert!(
         l.contains("pub fn uiIsMphantom") && l.contains("\"mphantom\""),
         "SH27 Kab uiIsMphantom"
@@ -69683,7 +69771,7 @@ fn sh27_ui_mphantom_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mfenced_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mfenced.kab")).expect("ui_mfenced.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mfenced.kab")).expect("ui_mfenced.kab");
     assert!(
         l.contains("pub fn uiIsMfenced") && l.contains("\"mfenced\""),
         "SH27 Kab uiIsMfenced"
@@ -69706,7 +69794,7 @@ fn sh27_ui_mfenced_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_menclose_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_menclose.kab")).expect("ui_menclose.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_menclose.kab")).expect("ui_menclose.kab");
     assert!(
         l.contains("pub fn uiIsMenclose") && l.contains("\"menclose\""),
         "SH27 Kab uiIsMenclose"
@@ -69729,7 +69817,7 @@ fn sh27_ui_menclose_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_semantics_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_semantics.kab")).expect("ui_semantics.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_semantics.kab")).expect("ui_semantics.kab");
     assert!(
         l.contains("pub fn uiIsSemantics") && l.contains("\"semantics\""),
         "SH27 Kab uiIsSemantics"
@@ -69752,7 +69840,7 @@ fn sh27_ui_semantics_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_annotation_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_annotation.kab")).expect("ui_annotation.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_annotation.kab")).expect("ui_annotation.kab");
     assert!(
         l.contains("pub fn uiIsAnnotation") && l.contains("\"annotation\""),
         "SH27 Kab uiIsAnnotation"
@@ -69775,7 +69863,7 @@ fn sh27_ui_annotation_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_annotation_xml_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_annotation_xml.kab")).expect("ui_annotation_xml.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_annotation_xml.kab")).expect("ui_annotation_xml.kab");
     assert!(
         l.contains("pub fn uiIsAnnotationXml") && l.contains("\"annotation-xml\""),
         "SH27 Kab uiIsAnnotationXml"
@@ -69798,7 +69886,7 @@ fn sh27_ui_annotation_xml_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_maction_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_maction.kab")).expect("ui_maction.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_maction.kab")).expect("ui_maction.kab");
     assert!(
         l.contains("pub fn uiIsMaction") && l.contains("\"maction\""),
         "SH27 Kab uiIsMaction"
@@ -69821,7 +69909,7 @@ fn sh27_ui_maction_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mlongdiv_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mlongdiv.kab")).expect("ui_mlongdiv.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mlongdiv.kab")).expect("ui_mlongdiv.kab");
     assert!(
         l.contains("pub fn uiIsMlongdiv") && l.contains("\"mlongdiv\""),
         "SH27 Kab uiIsMlongdiv"
@@ -69844,7 +69932,7 @@ fn sh27_ui_mlongdiv_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mstack_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mstack.kab")).expect("ui_mstack.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mstack.kab")).expect("ui_mstack.kab");
     assert!(
         l.contains("pub fn uiIsMstack") && l.contains("\"mstack\""),
         "SH27 Kab uiIsMstack"
@@ -69867,7 +69955,7 @@ fn sh27_ui_mstack_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_msrow_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_msrow.kab")).expect("ui_msrow.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_msrow.kab")).expect("ui_msrow.kab");
     assert!(
         l.contains("pub fn uiIsMsrow") && l.contains("\"msrow\""),
         "SH27 Kab uiIsMsrow"
@@ -69890,7 +69978,7 @@ fn sh27_ui_msrow_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mscarries_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mscarries.kab")).expect("ui_mscarries.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mscarries.kab")).expect("ui_mscarries.kab");
     assert!(
         l.contains("pub fn uiIsMscarries") && l.contains("\"mscarries\""),
         "SH27 Kab uiIsMscarries"
@@ -69913,7 +70001,7 @@ fn sh27_ui_mscarries_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mscarry_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mscarry.kab")).expect("ui_mscarry.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mscarry.kab")).expect("ui_mscarry.kab");
     assert!(
         l.contains("pub fn uiIsMscarry") && l.contains("\"mscarry\""),
         "SH27 Kab uiIsMscarry"
@@ -69936,7 +70024,7 @@ fn sh27_ui_mscarry_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_msline_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_msline.kab")).expect("ui_msline.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_msline.kab")).expect("ui_msline.kab");
     assert!(
         l.contains("pub fn uiIsMsline") && l.contains("\"msline\""),
         "SH27 Kab uiIsMsline"
@@ -69959,7 +70047,7 @@ fn sh27_ui_msline_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mglyph_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mglyph.kab")).expect("ui_mglyph.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mglyph.kab")).expect("ui_mglyph.kab");
     assert!(
         l.contains("pub fn uiIsMglyph") && l.contains("\"mglyph\""),
         "SH27 Kab uiIsMglyph"
@@ -69982,7 +70070,7 @@ fn sh27_ui_mglyph_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ci_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_ci.kab")).expect("ui_ci.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_ci.kab")).expect("ui_ci.kab");
     assert!(
         l.contains("pub fn uiIsCi") && l.contains("\"ci\""),
         "SH27 Kab uiIsCi"
@@ -70005,7 +70093,7 @@ fn sh27_ui_ci_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cn_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_cn.kab")).expect("ui_cn.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_cn.kab")).expect("ui_cn.kab");
     assert!(
         l.contains("pub fn uiIsCn") && l.contains("\"cn\""),
         "SH27 Kab uiIsCn"
@@ -70028,7 +70116,7 @@ fn sh27_ui_cn_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_csymbol_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_csymbol.kab")).expect("ui_csymbol.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_csymbol.kab")).expect("ui_csymbol.kab");
     assert!(
         l.contains("pub fn uiIsCsymbol") && l.contains("\"csymbol\""),
         "SH27 Kab uiIsCsymbol"
@@ -70051,7 +70139,7 @@ fn sh27_ui_csymbol_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_apply_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_apply.kab")).expect("ui_apply.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_apply.kab")).expect("ui_apply.kab");
     assert!(
         l.contains("pub fn uiIsApply") && l.contains("\"apply\""),
         "SH27 Kab uiIsApply"
@@ -70074,7 +70162,7 @@ fn sh27_ui_apply_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_bind_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_bind.kab")).expect("ui_bind.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_bind.kab")).expect("ui_bind.kab");
     assert!(
         l.contains("pub fn uiIsBind") && l.contains("\"bind\""),
         "SH27 Kab uiIsBind"
@@ -70097,7 +70185,7 @@ fn sh27_ui_bind_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_bvar_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_bvar.kab")).expect("ui_bvar.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_bvar.kab")).expect("ui_bvar.kab");
     assert!(
         l.contains("pub fn uiIsBvar") && l.contains("\"bvar\""),
         "SH27 Kab uiIsBvar"
@@ -70120,7 +70208,7 @@ fn sh27_ui_bvar_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_share_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_share.kab")).expect("ui_share.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_share.kab")).expect("ui_share.kab");
     assert!(
         l.contains("pub fn uiIsShare") && l.contains("\"share\""),
         "SH27 Kab uiIsShare"
@@ -70143,7 +70231,7 @@ fn sh27_ui_share_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_condition_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_condition.kab")).expect("ui_condition.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_condition.kab")).expect("ui_condition.kab");
     assert!(
         l.contains("pub fn uiIsCondition") && l.contains("\"condition\""),
         "SH27 Kab uiIsCondition"
@@ -70166,7 +70254,7 @@ fn sh27_ui_condition_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_piecewise_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_piecewise.kab")).expect("ui_piecewise.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_piecewise.kab")).expect("ui_piecewise.kab");
     assert!(
         l.contains("pub fn uiIsPiecewise") && l.contains("\"piecewise\""),
         "SH27 Kab uiIsPiecewise"
@@ -70189,7 +70277,7 @@ fn sh27_ui_piecewise_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_piece_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_piece.kab")).expect("ui_piece.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_piece.kab")).expect("ui_piece.kab");
     assert!(
         l.contains("pub fn uiIsPiece") && l.contains("\"piece\""),
         "SH27 Kab uiIsPiece"
@@ -70212,7 +70300,7 @@ fn sh27_ui_piece_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_otherwise_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_otherwise.kab")).expect("ui_otherwise.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_otherwise.kab")).expect("ui_otherwise.kab");
     assert!(
         l.contains("pub fn uiIsOtherwise") && l.contains("\"otherwise\""),
         "SH27 Kab uiIsOtherwise"
@@ -70235,7 +70323,7 @@ fn sh27_ui_otherwise_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_lambda_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_lambda.kab")).expect("ui_lambda.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_lambda.kab")).expect("ui_lambda.kab");
     assert!(
         l.contains("pub fn uiIsLambda") && l.contains("\"lambda\""),
         "SH27 Kab uiIsLambda"
@@ -70258,7 +70346,7 @@ fn sh27_ui_lambda_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_reln_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_reln.kab")).expect("ui_reln.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_reln.kab")).expect("ui_reln.kab");
     assert!(
         l.contains("pub fn uiIsReln") && l.contains("\"reln\""),
         "SH27 Kab uiIsReln"
@@ -70281,7 +70369,7 @@ fn sh27_ui_reln_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_fn_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_fn.kab")).expect("ui_fn.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_fn.kab")).expect("ui_fn.kab");
     assert!(
         l.contains("pub fn uiIsFn") && l.contains("\"fn\""),
         "SH27 Kab uiIsFn"
@@ -70304,7 +70392,7 @@ fn sh27_ui_fn_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_interval_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_interval.kab")).expect("ui_interval.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_interval.kab")).expect("ui_interval.kab");
     assert!(
         l.contains("pub fn uiIsInterval") && l.contains("\"interval\""),
         "SH27 Kab uiIsInterval"
@@ -70327,7 +70415,7 @@ fn sh27_ui_interval_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_list_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_list.kab")).expect("ui_list.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_list.kab")).expect("ui_list.kab");
     assert!(
         l.contains("pub fn uiIsList") && l.contains("\"list\""),
         "SH27 Kab uiIsList"
@@ -70350,7 +70438,7 @@ fn sh27_ui_list_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_vector_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_vector.kab")).expect("ui_vector.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_vector.kab")).expect("ui_vector.kab");
     assert!(
         l.contains("pub fn uiIsVector") && l.contains("\"vector\""),
         "SH27 Kab uiIsVector"
@@ -70373,7 +70461,7 @@ fn sh27_ui_vector_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_matrix_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_matrix.kab")).expect("ui_matrix.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_matrix.kab")).expect("ui_matrix.kab");
     assert!(
         l.contains("pub fn uiIsMatrix") && l.contains("\"matrix\""),
         "SH27 Kab uiIsMatrix"
@@ -70396,7 +70484,7 @@ fn sh27_ui_matrix_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_matrixrow_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_matrixrow.kab")).expect("ui_matrixrow.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_matrixrow.kab")).expect("ui_matrixrow.kab");
     assert!(
         l.contains("pub fn uiIsMatrixrow") && l.contains("\"matrixrow\""),
         "SH27 Kab uiIsMatrixrow"
@@ -70419,7 +70507,7 @@ fn sh27_ui_matrixrow_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_selector_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_selector.kab")).expect("ui_selector.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_selector.kab")).expect("ui_selector.kab");
     assert!(
         l.contains("pub fn uiIsSelector") && l.contains("\"selector\""),
         "SH27 Kab uiIsSelector"
@@ -70442,7 +70530,7 @@ fn sh27_ui_selector_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_domain_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_domain.kab")).expect("ui_domain.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_domain.kab")).expect("ui_domain.kab");
     assert!(
         l.contains("pub fn uiIsDomain") && l.contains("\"domain\""),
         "SH27 Kab uiIsDomain"
@@ -70465,7 +70553,7 @@ fn sh27_ui_domain_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_codomain_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_codomain.kab")).expect("ui_codomain.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_codomain.kab")).expect("ui_codomain.kab");
     assert!(
         l.contains("pub fn uiIsCodomain") && l.contains("\"codomain\""),
         "SH27 Kab uiIsCodomain"
@@ -70488,7 +70576,7 @@ fn sh27_ui_codomain_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_domainof_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_domainof.kab")).expect("ui_domainof.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_domainof.kab")).expect("ui_domainof.kab");
     assert!(
         l.contains("pub fn uiIsDomainof") && l.contains("\"domainof\""),
         "SH27 Kab uiIsDomainof"
@@ -70511,7 +70599,7 @@ fn sh27_ui_domainof_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ident_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_ident.kab")).expect("ui_ident.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_ident.kab")).expect("ui_ident.kab");
     assert!(
         l.contains("pub fn uiIsIdent") && l.contains("\"ident\""),
         "SH27 Kab uiIsIdent"
@@ -70534,7 +70622,7 @@ fn sh27_ui_ident_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_compose_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_compose.kab")).expect("ui_compose.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_compose.kab")).expect("ui_compose.kab");
     assert!(
         l.contains("pub fn uiIsCompose") && l.contains("\"compose\""),
         "SH27 Kab uiIsCompose"
@@ -70557,7 +70645,7 @@ fn sh27_ui_compose_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_inverse_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_inverse.kab")).expect("ui_inverse.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_inverse.kab")).expect("ui_inverse.kab");
     assert!(
         l.contains("pub fn uiIsInverse") && l.contains("\"inverse\""),
         "SH27 Kab uiIsInverse"
@@ -70580,7 +70668,7 @@ fn sh27_ui_inverse_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_plus_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_plus.kab")).expect("ui_plus.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_plus.kab")).expect("ui_plus.kab");
     assert!(
         l.contains("pub fn uiIsPlus") && l.contains("\"plus\""),
         "SH27 Kab uiIsPlus"
@@ -70603,7 +70691,7 @@ fn sh27_ui_plus_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_minus_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_minus.kab")).expect("ui_minus.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_minus.kab")).expect("ui_minus.kab");
     assert!(
         l.contains("pub fn uiIsMinus") && l.contains("\"minus\""),
         "SH27 Kab uiIsMinus"
@@ -70626,7 +70714,7 @@ fn sh27_ui_minus_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_times_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_times.kab")).expect("ui_times.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_times.kab")).expect("ui_times.kab");
     assert!(
         l.contains("pub fn uiIsTimes") && l.contains("\"times\""),
         "SH27 Kab uiIsTimes"
@@ -70649,7 +70737,7 @@ fn sh27_ui_times_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_divide_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_divide.kab")).expect("ui_divide.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_divide.kab")).expect("ui_divide.kab");
     assert!(
         l.contains("pub fn uiIsDivide") && l.contains("\"divide\""),
         "SH27 Kab uiIsDivide"
@@ -70672,7 +70760,7 @@ fn sh27_ui_divide_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_power_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_power.kab")).expect("ui_power.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_power.kab")).expect("ui_power.kab");
     assert!(
         l.contains("pub fn uiIsPower") && l.contains("\"power\""),
         "SH27 Kab uiIsPower"
@@ -70695,7 +70783,7 @@ fn sh27_ui_power_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_root_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_root.kab")).expect("ui_root.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_root.kab")).expect("ui_root.kab");
     assert!(
         l.contains("pub fn uiIsRoot") && l.contains("\"root\""),
         "SH27 Kab uiIsRoot"
@@ -70718,7 +70806,7 @@ fn sh27_ui_root_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_gcd_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_gcd.kab")).expect("ui_gcd.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_gcd.kab")).expect("ui_gcd.kab");
     assert!(
         l.contains("pub fn uiIsGcd") && l.contains("\"gcd\""),
         "SH27 Kab uiIsGcd"
@@ -70741,7 +70829,7 @@ fn sh27_ui_gcd_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_and_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_and.kab")).expect("ui_and.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_and.kab")).expect("ui_and.kab");
     assert!(
         l.contains("pub fn uiIsAnd") && l.contains("\"and\""),
         "SH27 Kab uiIsAnd"
@@ -70764,7 +70852,7 @@ fn sh27_ui_and_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cm_or_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_or.kab")).expect("ui_or.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_or.kab")).expect("ui_or.kab");
     assert!(
         l.contains("pub fn uiIsOr") && l.contains("\"or\""),
         "SH27 Kab uiIsOr"
@@ -70787,7 +70875,7 @@ fn sh27_ui_cm_or_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_xor_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_xor.kab")).expect("ui_xor.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_xor.kab")).expect("ui_xor.kab");
     assert!(
         l.contains("pub fn uiIsXor") && l.contains("\"xor\""),
         "SH27 Kab uiIsXor"
@@ -70810,7 +70898,7 @@ fn sh27_ui_xor_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_not_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_not.kab")).expect("ui_not.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_not.kab")).expect("ui_not.kab");
     assert!(
         l.contains("pub fn uiIsNot") && l.contains("\"not\""),
         "SH27 Kab uiIsNot"
@@ -70833,7 +70921,7 @@ fn sh27_ui_not_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_implies_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_implies.kab")).expect("ui_implies.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_implies.kab")).expect("ui_implies.kab");
     assert!(
         l.contains("pub fn uiIsImplies") && l.contains("\"implies\""),
         "SH27 Kab uiIsImplies"
@@ -70856,7 +70944,7 @@ fn sh27_ui_implies_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_forall_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_forall.kab")).expect("ui_forall.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_forall.kab")).expect("ui_forall.kab");
     assert!(
         l.contains("pub fn uiIsForall") && l.contains("\"forall\""),
         "SH27 Kab uiIsForall"
@@ -70879,7 +70967,7 @@ fn sh27_ui_forall_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_exists_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_exists.kab")).expect("ui_exists.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_exists.kab")).expect("ui_exists.kab");
     assert!(
         l.contains("pub fn uiIsExists") && l.contains("\"exists\""),
         "SH27 Kab uiIsExists"
@@ -70902,7 +70990,7 @@ fn sh27_ui_exists_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_equivalent_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_equivalent.kab")).expect("ui_equivalent.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_equivalent.kab")).expect("ui_equivalent.kab");
     assert!(
         l.contains("pub fn uiIsEquivalent") && l.contains("\"equivalent\""),
         "SH27 Kab uiIsEquivalent"
@@ -70925,7 +71013,7 @@ fn sh27_ui_equivalent_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_approx_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_approx.kab")).expect("ui_approx.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_approx.kab")).expect("ui_approx.kab");
     assert!(
         l.contains("pub fn uiIsApprox") && l.contains("\"approx\""),
         "SH27 Kab uiIsApprox"
@@ -70948,7 +71036,7 @@ fn sh27_ui_approx_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_factorof_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_factorof.kab")).expect("ui_factorof.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_factorof.kab")).expect("ui_factorof.kab");
     assert!(
         l.contains("pub fn uiIsFactorof") && l.contains("\"factorof\""),
         "SH27 Kab uiIsFactorof"
@@ -70971,7 +71059,7 @@ fn sh27_ui_factorof_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_tendsto_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_tendsto.kab")).expect("ui_tendsto.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_tendsto.kab")).expect("ui_tendsto.kab");
     assert!(
         l.contains("pub fn uiIsTendsto") && l.contains("\"tendsto\""),
         "SH27 Kab uiIsTendsto"
@@ -70994,7 +71082,7 @@ fn sh27_ui_tendsto_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_int_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_int.kab")).expect("ui_int.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_int.kab")).expect("ui_int.kab");
     assert!(
         l.contains("pub fn uiIsInt") && l.contains("\"int\""),
         "SH27 Kab uiIsInt"
@@ -71017,7 +71105,7 @@ fn sh27_ui_int_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_diff_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_diff.kab")).expect("ui_diff.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_diff.kab")).expect("ui_diff.kab");
     assert!(
         l.contains("pub fn uiIsDiff") && l.contains("\"diff\""),
         "SH27 Kab uiIsDiff"
@@ -71040,7 +71128,7 @@ fn sh27_ui_diff_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_partialdiff_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_partialdiff.kab")).expect("ui_partialdiff.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_partialdiff.kab")).expect("ui_partialdiff.kab");
     assert!(
         l.contains("pub fn uiIsPartialdiff") && l.contains("\"partialdiff\""),
         "SH27 Kab uiIsPartialdiff"
@@ -71063,7 +71151,7 @@ fn sh27_ui_partialdiff_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_lowlimit_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_lowlimit.kab")).expect("ui_lowlimit.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_lowlimit.kab")).expect("ui_lowlimit.kab");
     assert!(
         l.contains("pub fn uiIsLowlimit") && l.contains("\"lowlimit\""),
         "SH27 Kab uiIsLowlimit"
@@ -71086,7 +71174,7 @@ fn sh27_ui_lowlimit_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_uplimit_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_uplimit.kab")).expect("ui_uplimit.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_uplimit.kab")).expect("ui_uplimit.kab");
     assert!(
         l.contains("pub fn uiIsUplimit") && l.contains("\"uplimit\""),
         "SH27 Kab uiIsUplimit"
@@ -71109,7 +71197,7 @@ fn sh27_ui_uplimit_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_degree_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_degree.kab")).expect("ui_degree.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_degree.kab")).expect("ui_degree.kab");
     assert!(
         l.contains("pub fn uiIsDegree") && l.contains("\"degree\""),
         "SH27 Kab uiIsDegree"
@@ -71132,7 +71220,7 @@ fn sh27_ui_degree_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_logbase_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_logbase.kab")).expect("ui_logbase.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_logbase.kab")).expect("ui_logbase.kab");
     assert!(
         l.contains("pub fn uiIsLogbase") && l.contains("\"logbase\""),
         "SH27 Kab uiIsLogbase"
@@ -71155,7 +71243,7 @@ fn sh27_ui_logbase_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_log_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_log.kab")).expect("ui_log.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_log.kab")).expect("ui_log.kab");
     assert!(
         l.contains("pub fn uiIsLog") && l.contains("\"log\""),
         "SH27 Kab uiIsLog"
@@ -71178,7 +71266,7 @@ fn sh27_ui_log_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ln_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_ln.kab")).expect("ui_ln.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_ln.kab")).expect("ui_ln.kab");
     assert!(
         l.contains("pub fn uiIsLn") && l.contains("\"ln\""),
         "SH27 Kab uiIsLn"
@@ -71201,7 +71289,7 @@ fn sh27_ui_ln_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_exp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_exp.kab")).expect("ui_exp.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_exp.kab")).expect("ui_exp.kab");
     assert!(
         l.contains("pub fn uiIsExp") && l.contains("\"exp\""),
         "SH27 Kab uiIsExp"
@@ -71224,7 +71312,7 @@ fn sh27_ui_exp_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_sin_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_sin.kab")).expect("ui_sin.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_sin.kab")).expect("ui_sin.kab");
     assert!(
         l.contains("pub fn uiIsSin") && l.contains("\"sin\""),
         "SH27 Kab uiIsSin"
@@ -71247,7 +71335,7 @@ fn sh27_ui_sin_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cos_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_cos.kab")).expect("ui_cos.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_cos.kab")).expect("ui_cos.kab");
     assert!(
         l.contains("pub fn uiIsCos") && l.contains("\"cos\""),
         "SH27 Kab uiIsCos"
@@ -71270,7 +71358,7 @@ fn sh27_ui_cos_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_tan_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_tan.kab")).expect("ui_tan.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_tan.kab")).expect("ui_tan.kab");
     assert!(
         l.contains("pub fn uiIsTan") && l.contains("\"tan\""),
         "SH27 Kab uiIsTan"
@@ -71293,7 +71381,7 @@ fn sh27_ui_tan_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_sec_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_sec.kab")).expect("ui_sec.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_sec.kab")).expect("ui_sec.kab");
     assert!(
         l.contains("pub fn uiIsSec") && l.contains("\"sec\""),
         "SH27 Kab uiIsSec"
@@ -71316,7 +71404,7 @@ fn sh27_ui_sec_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_csc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_csc.kab")).expect("ui_csc.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_csc.kab")).expect("ui_csc.kab");
     assert!(
         l.contains("pub fn uiIsCsc") && l.contains("\"csc\""),
         "SH27 Kab uiIsCsc"
@@ -71339,7 +71427,7 @@ fn sh27_ui_csc_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cot_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_cot.kab")).expect("ui_cot.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_cot.kab")).expect("ui_cot.kab");
     assert!(
         l.contains("pub fn uiIsCot") && l.contains("\"cot\""),
         "SH27 Kab uiIsCot"
@@ -71362,7 +71450,7 @@ fn sh27_ui_cot_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_sinh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_sinh.kab")).expect("ui_sinh.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_sinh.kab")).expect("ui_sinh.kab");
     assert!(
         l.contains("pub fn uiIsSinh") && l.contains("\"sinh\""),
         "SH27 Kab uiIsSinh"
@@ -71385,7 +71473,7 @@ fn sh27_ui_sinh_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cosh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_cosh.kab")).expect("ui_cosh.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_cosh.kab")).expect("ui_cosh.kab");
     assert!(
         l.contains("pub fn uiIsCosh") && l.contains("\"cosh\""),
         "SH27 Kab uiIsCosh"
@@ -71408,7 +71496,7 @@ fn sh27_ui_cosh_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_tanh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_tanh.kab")).expect("ui_tanh.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_tanh.kab")).expect("ui_tanh.kab");
     assert!(
         l.contains("pub fn uiIsTanh") && l.contains("\"tanh\""),
         "SH27 Kab uiIsTanh"
@@ -71431,7 +71519,7 @@ fn sh27_ui_tanh_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_sech_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_sech.kab")).expect("ui_sech.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_sech.kab")).expect("ui_sech.kab");
     assert!(
         l.contains("pub fn uiIsSech") && l.contains("\"sech\""),
         "SH27 Kab uiIsSech"
@@ -71454,7 +71542,7 @@ fn sh27_ui_sech_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_csch_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_csch.kab")).expect("ui_csch.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_csch.kab")).expect("ui_csch.kab");
     assert!(
         l.contains("pub fn uiIsCsch") && l.contains("\"csch\""),
         "SH27 Kab uiIsCsch"
@@ -71477,7 +71565,7 @@ fn sh27_ui_csch_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_coth_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_coth.kab")).expect("ui_coth.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_coth.kab")).expect("ui_coth.kab");
     assert!(
         l.contains("pub fn uiIsCoth") && l.contains("\"coth\""),
         "SH27 Kab uiIsCoth"
@@ -71500,7 +71588,7 @@ fn sh27_ui_coth_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arcsin_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arcsin.kab")).expect("ui_arcsin.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arcsin.kab")).expect("ui_arcsin.kab");
     assert!(
         l.contains("pub fn uiIsArcsin") && l.contains("\"arcsin\""),
         "SH27 Kab uiIsArcsin"
@@ -71523,7 +71611,7 @@ fn sh27_ui_arcsin_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arccos_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arccos.kab")).expect("ui_arccos.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arccos.kab")).expect("ui_arccos.kab");
     assert!(
         l.contains("pub fn uiIsArccos") && l.contains("\"arccos\""),
         "SH27 Kab uiIsArccos"
@@ -71546,7 +71634,7 @@ fn sh27_ui_arccos_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arctan_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arctan.kab")).expect("ui_arctan.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arctan.kab")).expect("ui_arctan.kab");
     assert!(
         l.contains("pub fn uiIsArctan") && l.contains("\"arctan\""),
         "SH27 Kab uiIsArctan"
@@ -71569,7 +71657,7 @@ fn sh27_ui_arctan_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arccosh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arccosh.kab")).expect("ui_arccosh.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arccosh.kab")).expect("ui_arccosh.kab");
     assert!(
         l.contains("pub fn uiIsArccosh") && l.contains("\"arccosh\""),
         "SH27 Kab uiIsArccosh"
@@ -71592,7 +71680,7 @@ fn sh27_ui_arccosh_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arccot_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arccot.kab")).expect("ui_arccot.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arccot.kab")).expect("ui_arccot.kab");
     assert!(
         l.contains("pub fn uiIsArccot") && l.contains("\"arccot\""),
         "SH27 Kab uiIsArccot"
@@ -71615,7 +71703,7 @@ fn sh27_ui_arccot_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arccoth_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arccoth.kab")).expect("ui_arccoth.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arccoth.kab")).expect("ui_arccoth.kab");
     assert!(
         l.contains("pub fn uiIsArccoth") && l.contains("\"arccoth\""),
         "SH27 Kab uiIsArccoth"
@@ -71638,7 +71726,7 @@ fn sh27_ui_arccoth_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arccsc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arccsc.kab")).expect("ui_arccsc.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arccsc.kab")).expect("ui_arccsc.kab");
     assert!(
         l.contains("pub fn uiIsArccsc") && l.contains("\"arccsc\""),
         "SH27 Kab uiIsArccsc"
@@ -71661,7 +71749,7 @@ fn sh27_ui_arccsc_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arccsch_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arccsch.kab")).expect("ui_arccsch.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arccsch.kab")).expect("ui_arccsch.kab");
     assert!(
         l.contains("pub fn uiIsArccsch") && l.contains("\"arccsch\""),
         "SH27 Kab uiIsArccsch"
@@ -71684,7 +71772,7 @@ fn sh27_ui_arccsch_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arcsec_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arcsec.kab")).expect("ui_arcsec.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arcsec.kab")).expect("ui_arcsec.kab");
     assert!(
         l.contains("pub fn uiIsArcsec") && l.contains("\"arcsec\""),
         "SH27 Kab uiIsArcsec"
@@ -71707,7 +71795,7 @@ fn sh27_ui_arcsec_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arcsech_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arcsech.kab")).expect("ui_arcsech.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arcsech.kab")).expect("ui_arcsech.kab");
     assert!(
         l.contains("pub fn uiIsArcsech") && l.contains("\"arcsech\""),
         "SH27 Kab uiIsArcsech"
@@ -71730,7 +71818,7 @@ fn sh27_ui_arcsech_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arcsinh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arcsinh.kab")).expect("ui_arcsinh.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arcsinh.kab")).expect("ui_arcsinh.kab");
     assert!(
         l.contains("pub fn uiIsArcsinh") && l.contains("\"arcsinh\""),
         "SH27 Kab uiIsArcsinh"
@@ -71753,7 +71841,7 @@ fn sh27_ui_arcsinh_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arctanh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arctanh.kab")).expect("ui_arctanh.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arctanh.kab")).expect("ui_arctanh.kab");
     assert!(
         l.contains("pub fn uiIsArctanh") && l.contains("\"arctanh\""),
         "SH27 Kab uiIsArctanh"
@@ -71776,7 +71864,7 @@ fn sh27_ui_arctanh_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_abs_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_abs.kab")).expect("ui_abs.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_abs.kab")).expect("ui_abs.kab");
     assert!(
         l.contains("pub fn uiIsAbs") && l.contains("\"abs\""),
         "SH27 Kab uiIsAbs"
@@ -71799,7 +71887,7 @@ fn sh27_ui_abs_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_conjugate_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_conjugate.kab")).expect("ui_conjugate.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_conjugate.kab")).expect("ui_conjugate.kab");
     assert!(
         l.contains("pub fn uiIsConjugate") && l.contains("\"conjugate\""),
         "SH27 Kab uiIsConjugate"
@@ -71822,7 +71910,7 @@ fn sh27_ui_conjugate_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_arg_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_arg.kab")).expect("ui_arg.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_arg.kab")).expect("ui_arg.kab");
     assert!(
         l.contains("pub fn uiIsArg") && l.contains("\"arg\""),
         "SH27 Kab uiIsArg"
@@ -71845,7 +71933,7 @@ fn sh27_ui_arg_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_real_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_real.kab")).expect("ui_real.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_real.kab")).expect("ui_real.kab");
     assert!(
         l.contains("pub fn uiIsReal") && l.contains("\"real\""),
         "SH27 Kab uiIsReal"
@@ -71868,7 +71956,7 @@ fn sh27_ui_real_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_imaginary_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_imaginary.kab")).expect("ui_imaginary.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_imaginary.kab")).expect("ui_imaginary.kab");
     assert!(
         l.contains("pub fn uiIsImaginary") && l.contains("\"imaginary\""),
         "SH27 Kab uiIsImaginary"
@@ -71891,7 +71979,7 @@ fn sh27_ui_imaginary_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_floor_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_floor.kab")).expect("ui_floor.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_floor.kab")).expect("ui_floor.kab");
     assert!(
         l.contains("pub fn uiIsFloor") && l.contains("\"floor\""),
         "SH27 Kab uiIsFloor"
@@ -71914,7 +72002,7 @@ fn sh27_ui_floor_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_ceiling_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_ceiling.kab")).expect("ui_ceiling.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_ceiling.kab")).expect("ui_ceiling.kab");
     assert!(
         l.contains("pub fn uiIsCeiling") && l.contains("\"ceiling\""),
         "SH27 Kab uiIsCeiling"
@@ -71937,7 +72025,7 @@ fn sh27_ui_ceiling_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_min_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_min.kab")).expect("ui_min.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_min.kab")).expect("ui_min.kab");
     assert!(
         l.contains("pub fn uiIsMin") && l.contains("\"min\""),
         "SH27 Kab uiIsMin"
@@ -71960,7 +72048,7 @@ fn sh27_ui_min_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_max_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_max.kab")).expect("ui_max.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_max.kab")).expect("ui_max.kab");
     assert!(
         l.contains("pub fn uiIsMax") && l.contains("\"max\""),
         "SH27 Kab uiIsMax"
@@ -71983,7 +72071,7 @@ fn sh27_ui_max_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_lcm_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_lcm.kab")).expect("ui_lcm.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_lcm.kab")).expect("ui_lcm.kab");
     assert!(
         l.contains("pub fn uiIsLcm") && l.contains("\"lcm\""),
         "SH27 Kab uiIsLcm"
@@ -72006,7 +72094,7 @@ fn sh27_ui_lcm_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mean_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mean.kab")).expect("ui_mean.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mean.kab")).expect("ui_mean.kab");
     assert!(
         l.contains("pub fn uiIsMean") && l.contains("\"mean\""),
         "SH27 Kab uiIsMean"
@@ -72029,7 +72117,7 @@ fn sh27_ui_mean_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_sdev_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_sdev.kab")).expect("ui_sdev.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_sdev.kab")).expect("ui_sdev.kab");
     assert!(
         l.contains("pub fn uiIsSdev") && l.contains("\"sdev\""),
         "SH27 Kab uiIsSdev"
@@ -72052,7 +72140,7 @@ fn sh27_ui_sdev_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_variance_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_variance.kab")).expect("ui_variance.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_variance.kab")).expect("ui_variance.kab");
     assert!(
         l.contains("pub fn uiIsVariance") && l.contains("\"variance\""),
         "SH27 Kab uiIsVariance"
@@ -72075,7 +72163,7 @@ fn sh27_ui_variance_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_median_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_median.kab")).expect("ui_median.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_median.kab")).expect("ui_median.kab");
     assert!(
         l.contains("pub fn uiIsMedian") && l.contains("\"median\""),
         "SH27 Kab uiIsMedian"
@@ -72098,7 +72186,7 @@ fn sh27_ui_median_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mode_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mode.kab")).expect("ui_mode.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mode.kab")).expect("ui_mode.kab");
     assert!(
         l.contains("pub fn uiIsMode") && l.contains("\"mode\""),
         "SH27 Kab uiIsMode"
@@ -72121,7 +72209,7 @@ fn sh27_ui_mode_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_moment_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_moment.kab")).expect("ui_moment.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_moment.kab")).expect("ui_moment.kab");
     assert!(
         l.contains("pub fn uiIsMoment") && l.contains("\"moment\""),
         "SH27 Kab uiIsMoment"
@@ -72144,7 +72232,7 @@ fn sh27_ui_moment_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_momentabout_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_momentabout.kab")).expect("ui_momentabout.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_momentabout.kab")).expect("ui_momentabout.kab");
     assert!(
         l.contains("pub fn uiIsMomentabout") && l.contains("\"momentabout\""),
         "SH27 Kab uiIsMomentabout"
@@ -72167,7 +72255,7 @@ fn sh27_ui_momentabout_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cartesianproduct_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_cartesianproduct.kab")).expect("ui_cartesianproduct.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_cartesianproduct.kab")).expect("ui_cartesianproduct.kab");
     assert!(
         l.contains("pub fn uiIsCartesianproduct") && l.contains("\"cartesianproduct\""),
         "SH27 Kab uiIsCartesianproduct"
@@ -72190,7 +72278,7 @@ fn sh27_ui_cartesianproduct_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_vectorproduct_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_vectorproduct.kab")).expect("ui_vectorproduct.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_vectorproduct.kab")).expect("ui_vectorproduct.kab");
     assert!(
         l.contains("pub fn uiIsVectorproduct") && l.contains("\"vectorproduct\""),
         "SH27 Kab uiIsVectorproduct"
@@ -72213,7 +72301,7 @@ fn sh27_ui_vectorproduct_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_scalarproduct_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_scalarproduct.kab")).expect("ui_scalarproduct.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_scalarproduct.kab")).expect("ui_scalarproduct.kab");
     assert!(
         l.contains("pub fn uiIsScalarproduct") && l.contains("\"scalarproduct\""),
         "SH27 Kab uiIsScalarproduct"
@@ -72236,7 +72324,7 @@ fn sh27_ui_scalarproduct_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_outerproduct_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_outerproduct.kab")).expect("ui_outerproduct.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_outerproduct.kab")).expect("ui_outerproduct.kab");
     assert!(
         l.contains("pub fn uiIsOuterproduct") && l.contains("\"outerproduct\""),
         "SH27 Kab uiIsOuterproduct"
@@ -72259,7 +72347,7 @@ fn sh27_ui_outerproduct_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_transpose_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_transpose.kab")).expect("ui_transpose.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_transpose.kab")).expect("ui_transpose.kab");
     assert!(
         l.contains("pub fn uiIsTranspose") && l.contains("\"transpose\""),
         "SH27 Kab uiIsTranspose"
@@ -72282,7 +72370,7 @@ fn sh27_ui_transpose_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_determinant_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_determinant.kab")).expect("ui_determinant.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_determinant.kab")).expect("ui_determinant.kab");
     assert!(
         l.contains("pub fn uiIsDeterminant") && l.contains("\"determinant\""),
         "SH27 Kab uiIsDeterminant"
@@ -72305,7 +72393,7 @@ fn sh27_ui_determinant_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_union_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_union.kab")).expect("ui_union.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_union.kab")).expect("ui_union.kab");
     assert!(
         l.contains("pub fn uiIsUnion") && l.contains("\"union\""),
         "SH27 Kab uiIsUnion"
@@ -72328,7 +72416,7 @@ fn sh27_ui_union_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_intersect_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_intersect.kab")).expect("ui_intersect.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_intersect.kab")).expect("ui_intersect.kab");
     assert!(
         l.contains("pub fn uiIsIntersect") && l.contains("\"intersect\""),
         "SH27 Kab uiIsIntersect"
@@ -72351,7 +72439,7 @@ fn sh27_ui_intersect_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_in_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_in.kab")).expect("ui_in.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_in.kab")).expect("ui_in.kab");
     assert!(
         l.contains("pub fn uiIsIn") && l.contains("\"in\""),
         "SH27 Kab uiIsIn"
@@ -72374,7 +72462,7 @@ fn sh27_ui_in_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_notin_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_notin.kab")).expect("ui_notin.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_notin.kab")).expect("ui_notin.kab");
     assert!(
         l.contains("pub fn uiIsNotin") && l.contains("\"notin\""),
         "SH27 Kab uiIsNotin"
@@ -72397,7 +72485,7 @@ fn sh27_ui_notin_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_subset_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_subset.kab")).expect("ui_subset.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_subset.kab")).expect("ui_subset.kab");
     assert!(
         l.contains("pub fn uiIsSubset") && l.contains("\"subset\""),
         "SH27 Kab uiIsSubset"
@@ -72420,7 +72508,7 @@ fn sh27_ui_subset_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_prsubset_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_prsubset.kab")).expect("ui_prsubset.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_prsubset.kab")).expect("ui_prsubset.kab");
     assert!(
         l.contains("pub fn uiIsPrsubset") && l.contains("\"prsubset\""),
         "SH27 Kab uiIsPrsubset"
@@ -72443,7 +72531,7 @@ fn sh27_ui_prsubset_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_notsubset_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_notsubset.kab")).expect("ui_notsubset.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_notsubset.kab")).expect("ui_notsubset.kab");
     assert!(
         l.contains("pub fn uiIsNotsubset") && l.contains("\"notsubset\""),
         "SH27 Kab uiIsNotsubset"
@@ -72466,7 +72554,7 @@ fn sh27_ui_notsubset_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_notprsubset_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_notprsubset.kab")).expect("ui_notprsubset.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_notprsubset.kab")).expect("ui_notprsubset.kab");
     assert!(
         l.contains("pub fn uiIsNotprsubset") && l.contains("\"notprsubset\""),
         "SH27 Kab uiIsNotprsubset"
@@ -72489,7 +72577,7 @@ fn sh27_ui_notprsubset_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_setdiff_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_setdiff.kab")).expect("ui_setdiff.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_setdiff.kab")).expect("ui_setdiff.kab");
     assert!(
         l.contains("pub fn uiIsSetdiff") && l.contains("\"setdiff\""),
         "SH27 Kab uiIsSetdiff"
@@ -72512,7 +72600,7 @@ fn sh27_ui_setdiff_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_card_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_card.kab")).expect("ui_card.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_card.kab")).expect("ui_card.kab");
     assert!(
         l.contains("pub fn uiIsCard") && l.contains("\"card\""),
         "SH27 Kab uiIsCard"
@@ -72535,7 +72623,7 @@ fn sh27_ui_card_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_sum_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_sum.kab")).expect("ui_sum.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_sum.kab")).expect("ui_sum.kab");
     assert!(
         l.contains("pub fn uiIsSum") && l.contains("\"sum\""),
         "SH27 Kab uiIsSum"
@@ -72558,7 +72646,7 @@ fn sh27_ui_sum_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_product_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_product.kab")).expect("ui_product.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_product.kab")).expect("ui_product.kab");
     assert!(
         l.contains("pub fn uiIsProduct") && l.contains("\"product\""),
         "SH27 Kab uiIsProduct"
@@ -72581,7 +72669,7 @@ fn sh27_ui_product_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_limit_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_limit.kab")).expect("ui_limit.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_limit.kab")).expect("ui_limit.kab");
     assert!(
         l.contains("pub fn uiIsLimit") && l.contains("\"limit\""),
         "SH27 Kab uiIsLimit"
@@ -72604,7 +72692,7 @@ fn sh27_ui_limit_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_curl_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_curl.kab")).expect("ui_curl.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_curl.kab")).expect("ui_curl.kab");
     assert!(
         l.contains("pub fn uiIsCurl") && l.contains("\"curl\""),
         "SH27 Kab uiIsCurl"
@@ -72627,7 +72715,7 @@ fn sh27_ui_curl_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_divergence_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_divergence.kab")).expect("ui_divergence.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_divergence.kab")).expect("ui_divergence.kab");
     assert!(
         l.contains("pub fn uiIsDivergence") && l.contains("\"divergence\""),
         "SH27 Kab uiIsDivergence"
@@ -72650,7 +72738,7 @@ fn sh27_ui_divergence_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_grad_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_grad.kab")).expect("ui_grad.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_grad.kab")).expect("ui_grad.kab");
     assert!(
         l.contains("pub fn uiIsGrad") && l.contains("\"grad\""),
         "SH27 Kab uiIsGrad"
@@ -72673,7 +72761,7 @@ fn sh27_ui_grad_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_laplacian_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_laplacian.kab")).expect("ui_laplacian.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_laplacian.kab")).expect("ui_laplacian.kab");
     assert!(
         l.contains("pub fn uiIsLaplacian") && l.contains("\"laplacian\""),
         "SH27 Kab uiIsLaplacian"
@@ -72696,7 +72784,7 @@ fn sh27_ui_laplacian_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_emptyset_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_emptyset.kab")).expect("ui_emptyset.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_emptyset.kab")).expect("ui_emptyset.kab");
     assert!(
         l.contains("pub fn uiIsEmptyset") && l.contains("\"emptyset\""),
         "SH27 Kab uiIsEmptyset"
@@ -72719,7 +72807,7 @@ fn sh27_ui_emptyset_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_integers_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_integers.kab")).expect("ui_integers.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_integers.kab")).expect("ui_integers.kab");
     assert!(
         l.contains("pub fn uiIsIntegers") && l.contains("\"integers\""),
         "SH27 Kab uiIsIntegers"
@@ -72742,7 +72830,7 @@ fn sh27_ui_integers_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_rationals_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_rationals.kab")).expect("ui_rationals.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_rationals.kab")).expect("ui_rationals.kab");
     assert!(
         l.contains("pub fn uiIsRationals") && l.contains("\"rationals\""),
         "SH27 Kab uiIsRationals"
@@ -72765,7 +72853,7 @@ fn sh27_ui_rationals_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_reals_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_reals.kab")).expect("ui_reals.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_reals.kab")).expect("ui_reals.kab");
     assert!(
         l.contains("pub fn uiIsReals") && l.contains("\"reals\""),
         "SH27 Kab uiIsReals"
@@ -72788,7 +72876,7 @@ fn sh27_ui_reals_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_complexes_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_complexes.kab")).expect("ui_complexes.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_complexes.kab")).expect("ui_complexes.kab");
     assert!(
         l.contains("pub fn uiIsComplexes") && l.contains("\"complexes\""),
         "SH27 Kab uiIsComplexes"
@@ -72811,7 +72899,7 @@ fn sh27_ui_complexes_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_naturalnumbers_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_naturalnumbers.kab")).expect("ui_naturalnumbers.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_naturalnumbers.kab")).expect("ui_naturalnumbers.kab");
     assert!(
         l.contains("pub fn uiIsNaturalnumbers") && l.contains("\"naturalnumbers\""),
         "SH27 Kab uiIsNaturalnumbers"
@@ -72834,7 +72922,7 @@ fn sh27_ui_naturalnumbers_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_primes_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_primes.kab")).expect("ui_primes.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_primes.kab")).expect("ui_primes.kab");
     assert!(
         l.contains("pub fn uiIsPrimes") && l.contains("\"primes\""),
         "SH27 Kab uiIsPrimes"
@@ -72857,7 +72945,7 @@ fn sh27_ui_primes_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_exponentiale_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_exponentiale.kab")).expect("ui_exponentiale.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_exponentiale.kab")).expect("ui_exponentiale.kab");
     assert!(
         l.contains("pub fn uiIsExponentiale") && l.contains("\"exponentiale\""),
         "SH27 Kab uiIsExponentiale"
@@ -72880,7 +72968,7 @@ fn sh27_ui_exponentiale_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_imaginaryi_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_imaginaryi.kab")).expect("ui_imaginaryi.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_imaginaryi.kab")).expect("ui_imaginaryi.kab");
     assert!(
         l.contains("pub fn uiIsImaginaryi") && l.contains("\"imaginaryi\""),
         "SH27 Kab uiIsImaginaryi"
@@ -72903,7 +72991,7 @@ fn sh27_ui_imaginaryi_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_pi_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_pi.kab")).expect("ui_pi.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_pi.kab")).expect("ui_pi.kab");
     assert!(
         l.contains("pub fn uiIsPi") && l.contains("\"pi\""),
         "SH27 Kab uiIsPi"
@@ -72926,7 +73014,7 @@ fn sh27_ui_pi_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_eulergamma_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_eulergamma.kab")).expect("ui_eulergamma.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_eulergamma.kab")).expect("ui_eulergamma.kab");
     assert!(
         l.contains("pub fn uiIsEulergamma") && l.contains("\"eulergamma\""),
         "SH27 Kab uiIsEulergamma"
@@ -72949,7 +73037,7 @@ fn sh27_ui_eulergamma_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_infinity_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_infinity.kab")).expect("ui_infinity.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_infinity.kab")).expect("ui_infinity.kab");
     assert!(
         l.contains("pub fn uiIsInfinity") && l.contains("\"infinity\""),
         "SH27 Kab uiIsInfinity"
@@ -72972,7 +73060,7 @@ fn sh27_ui_infinity_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_notanumber_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_notanumber.kab")).expect("ui_notanumber.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_notanumber.kab")).expect("ui_notanumber.kab");
     assert!(
         l.contains("pub fn uiIsNotanumber") && l.contains("\"notanumber\""),
         "SH27 Kab uiIsNotanumber"
@@ -72995,7 +73083,7 @@ fn sh27_ui_notanumber_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_true_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_true.kab")).expect("ui_true.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_true.kab")).expect("ui_true.kab");
     assert!(
         l.contains("pub fn uiIsTrue") && l.contains("\"true\""),
         "SH27 Kab uiIsTrue"
@@ -73018,7 +73106,7 @@ fn sh27_ui_true_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_false_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_false.kab")).expect("ui_false.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_false.kab")).expect("ui_false.kab");
     assert!(
         l.contains("pub fn uiIsFalse") && l.contains("\"false\""),
         "SH27 Kab uiIsFalse"
@@ -73041,7 +73129,7 @@ fn sh27_ui_false_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_domainofapplication_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_domainofapplication.kab")).expect("ui_domainofapplication.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_domainofapplication.kab")).expect("ui_domainofapplication.kab");
     assert!(
         l.contains("pub fn uiIsDomainofapplication") && l.contains("\"domainofapplication\""),
         "SH27 Kab uiIsDomainofapplication"
@@ -73064,7 +73152,7 @@ fn sh27_ui_domainofapplication_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_sep_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_sep.kab")).expect("ui_sep.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_sep.kab")).expect("ui_sep.kab");
     assert!(
         l.contains("pub fn uiIsSep") && l.contains("\"sep\""),
         "SH27 Kab uiIsSep"
@@ -73087,7 +73175,7 @@ fn sh27_ui_sep_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_declare_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_declare.kab")).expect("ui_declare.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_declare.kab")).expect("ui_declare.kab");
     assert!(
         l.contains("pub fn uiIsDeclare") && l.contains("\"declare\""),
         "SH27 Kab uiIsDeclare"
@@ -73110,7 +73198,7 @@ fn sh27_ui_declare_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cerror_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_cerror.kab")).expect("ui_cerror.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_cerror.kab")).expect("ui_cerror.kab");
     assert!(
         l.contains("pub fn uiIsCerror") && l.contains("\"cerror\""),
         "SH27 Kab uiIsCerror"
@@ -73133,7 +73221,7 @@ fn sh27_ui_cerror_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cs_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_cs.kab")).expect("ui_cs.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_cs.kab")).expect("ui_cs.kab");
     assert!(
         l.contains("pub fn uiIsCs") && l.contains("\"cs\""),
         "SH27 Kab uiIsCs"
@@ -73156,7 +73244,7 @@ fn sh27_ui_cs_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_cbytes_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_cbytes.kab")).expect("ui_cbytes.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_cbytes.kab")).expect("ui_cbytes.kab");
     assert!(
         l.contains("pub fn uiIsCbytes") && l.contains("\"cbytes\""),
         "SH27 Kab uiIsCbytes"
@@ -73179,7 +73267,7 @@ fn sh27_ui_cbytes_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_msgroup_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_msgroup.kab")).expect("ui_msgroup.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_msgroup.kab")).expect("ui_msgroup.kab");
     assert!(
         l.contains("pub fn uiIsMsgroup") && l.contains("\"msgroup\""),
         "SH27 Kab uiIsMsgroup"
@@ -73202,7 +73290,7 @@ fn sh27_ui_msgroup_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_neq_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_neq.kab")).expect("ui_neq.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_neq.kab")).expect("ui_neq.kab");
     assert!(
         l.contains("pub fn uiIsNeq") && l.contains("\"neq\""),
         "SH27 Kab uiIsNeq"
@@ -73225,7 +73313,7 @@ fn sh27_ui_neq_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_lt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_lt.kab")).expect("ui_lt.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_lt.kab")).expect("ui_lt.kab");
     assert!(
         l.contains("pub fn uiIsLt") && l.contains("\"lt\""),
         "SH27 Kab uiIsLt"
@@ -73248,7 +73336,7 @@ fn sh27_ui_lt_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_gt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_gt.kab")).expect("ui_gt.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_gt.kab")).expect("ui_gt.kab");
     assert!(
         l.contains("pub fn uiIsGt") && l.contains("\"gt\""),
         "SH27 Kab uiIsGt"
@@ -73271,7 +73359,7 @@ fn sh27_ui_gt_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_leq_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_leq.kab")).expect("ui_leq.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_leq.kab")).expect("ui_leq.kab");
     assert!(
         l.contains("pub fn uiIsLeq") && l.contains("\"leq\""),
         "SH27 Kab uiIsLeq"
@@ -73294,7 +73382,7 @@ fn sh27_ui_leq_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_geq_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_geq.kab")).expect("ui_geq.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_geq.kab")).expect("ui_geq.kab");
     assert!(
         l.contains("pub fn uiIsGeq") && l.contains("\"geq\""),
         "SH27 Kab uiIsGeq"
@@ -73317,7 +73405,7 @@ fn sh27_ui_geq_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_rem_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_rem.kab")).expect("ui_rem.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_rem.kab")).expect("ui_rem.kab");
     assert!(
         l.contains("pub fn uiIsRem") && l.contains("\"rem\""),
         "SH27 Kab uiIsRem"
@@ -73340,7 +73428,7 @@ fn sh27_ui_rem_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_quotient_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_quotient.kab")).expect("ui_quotient.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_quotient.kab")).expect("ui_quotient.kab");
     assert!(
         l.contains("pub fn uiIsQuotient") && l.contains("\"quotient\""),
         "SH27 Kab uiIsQuotient"
@@ -73363,7 +73451,7 @@ fn sh27_ui_quotient_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_factorial_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_factorial.kab")).expect("ui_factorial.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_factorial.kab")).expect("ui_factorial.kab");
     assert!(
         l.contains("pub fn uiIsFactorial") && l.contains("\"factorial\""),
         "SH27 Kab uiIsFactorial"
@@ -73386,7 +73474,7 @@ fn sh27_ui_factorial_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_eq_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_eq.kab")).expect("ui_eq.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_eq.kab")).expect("ui_eq.kab");
     assert!(
         l.contains("pub fn uiIsEq") && l.contains("\"eq\""),
         "SH27 Kab uiIsEq"
@@ -73409,7 +73497,7 @@ fn sh27_ui_eq_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_animate_color_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_animate_color.kab")).expect("ui_animate_color.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_animate_color.kab")).expect("ui_animate_color.kab");
     assert!(
         l.contains("pub fn uiIsAnimateColor") && l.contains("\"animateColor\""),
         "SH27 Kab uiIsAnimateColor"
@@ -73434,7 +73522,7 @@ fn sh27_ui_animate_color_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_color_profile_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_color_profile.kab")).expect("ui_color_profile.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_color_profile.kab")).expect("ui_color_profile.kab");
     assert!(
         l.contains("pub fn uiIsColorProfile") && l.contains("\"color-profile\""),
         "SH27 Kab uiIsColorProfile"
@@ -73459,7 +73547,7 @@ fn sh27_ui_color_profile_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_definition_src_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_definition_src.kab")).expect("ui_definition_src.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_definition_src.kab")).expect("ui_definition_src.kab");
     assert!(
         l.contains("pub fn uiIsDefinitionSrc") && l.contains("\"definition-src\""),
         "SH27 Kab uiIsDefinitionSrc"
@@ -73484,7 +73572,7 @@ fn sh27_ui_definition_src_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_prefetch_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_prefetch.kab")).expect("ui_prefetch.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_prefetch.kab")).expect("ui_prefetch.kab");
     assert!(
         l.contains("pub fn uiIsPrefetch") && l.contains("\"prefetch\""),
         "SH27 Kab uiIsPrefetch"
@@ -73509,7 +73597,7 @@ fn sh27_ui_prefetch_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_handler_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_handler.kab")).expect("ui_handler.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_handler.kab")).expect("ui_handler.kab");
     assert!(
         l.contains("pub fn uiIsHandler") && l.contains("\"handler\""),
         "SH27 Kab uiIsHandler"
@@ -73534,7 +73622,7 @@ fn sh27_ui_handler_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_listener_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_listener.kab")).expect("ui_listener.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_listener.kab")).expect("ui_listener.kab");
     assert!(
         l.contains("pub fn uiIsListener") && l.contains("\"listener\""),
         "SH27 Kab uiIsListener"
@@ -73559,7 +73647,7 @@ fn sh27_ui_listener_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_animation_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_animation.kab")).expect("ui_animation.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_animation.kab")).expect("ui_animation.kab");
     assert!(
         l.contains("pub fn uiIsAnimation") && l.contains("\"animation\""),
         "SH27 Kab uiIsAnimation"
@@ -73584,7 +73672,7 @@ fn sh27_ui_animation_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_tbreak_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_tbreak.kab")).expect("ui_tbreak.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_tbreak.kab")).expect("ui_tbreak.kab");
     assert!(
         l.contains("pub fn uiIsTbreak") && l.contains("\"tbreak\""),
         "SH27 Kab uiIsTbreak"
@@ -73609,7 +73697,7 @@ fn sh27_ui_tbreak_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_text_area_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_text_area.kab")).expect("ui_text_area.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_text_area.kab")).expect("ui_text_area.kab");
     assert!(
         l.contains("pub fn uiIsTextArea") && l.contains("\"textArea\""),
         "SH27 Kab uiIsTextArea"
@@ -73634,7 +73722,7 @@ fn sh27_ui_text_area_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_flow_root_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_flow_root.kab")).expect("ui_flow_root.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_flow_root.kab")).expect("ui_flow_root.kab");
     assert!(
         l.contains("pub fn uiIsFlowRoot") && l.contains("\"flowRoot\""),
         "SH27 Kab uiIsFlowRoot"
@@ -73659,7 +73747,7 @@ fn sh27_ui_flow_root_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_flow_region_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_flow_region.kab")).expect("ui_flow_region.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_flow_region.kab")).expect("ui_flow_region.kab");
     assert!(
         l.contains("pub fn uiIsFlowRegion") && l.contains("\"flowRegion\""),
         "SH27 Kab uiIsFlowRegion"
@@ -73684,7 +73772,7 @@ fn sh27_ui_flow_region_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_flow_div_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_flow_div.kab")).expect("ui_flow_div.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_flow_div.kab")).expect("ui_flow_div.kab");
     assert!(
         l.contains("pub fn uiIsFlowDiv") && l.contains("\"flowDiv\""),
         "SH27 Kab uiIsFlowDiv"
@@ -73709,7 +73797,7 @@ fn sh27_ui_flow_div_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_flow_para_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_flow_para.kab")).expect("ui_flow_para.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_flow_para.kab")).expect("ui_flow_para.kab");
     assert!(
         l.contains("pub fn uiIsFlowPara") && l.contains("\"flowPara\""),
         "SH27 Kab uiIsFlowPara"
@@ -73734,7 +73822,7 @@ fn sh27_ui_flow_para_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_flow_span_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_flow_span.kab")).expect("ui_flow_span.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_flow_span.kab")).expect("ui_flow_span.kab");
     assert!(
         l.contains("pub fn uiIsFlowSpan") && l.contains("\"flowSpan\""),
         "SH27 Kab uiIsFlowSpan"
@@ -73759,7 +73847,7 @@ fn sh27_ui_flow_span_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_flow_line_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_flow_line.kab")).expect("ui_flow_line.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_flow_line.kab")).expect("ui_flow_line.kab");
     assert!(
         l.contains("pub fn uiIsFlowLine") && l.contains("\"flowLine\""),
         "SH27 Kab uiIsFlowLine"
@@ -73784,7 +73872,7 @@ fn sh27_ui_flow_line_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_flow_tref_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_flow_tref.kab")).expect("ui_flow_tref.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_flow_tref.kab")).expect("ui_flow_tref.kab");
     assert!(
         l.contains("pub fn uiIsFlowTref") && l.contains("\"flowTref\""),
         "SH27 Kab uiIsFlowTref"
@@ -73809,7 +73897,7 @@ fn sh27_ui_flow_tref_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_flow_region_exclude_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_flow_region_exclude.kab"))
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_flow_region_exclude.kab"))
         .expect("ui_flow_region_exclude.kab");
     assert!(
         l.contains("pub fn uiIsFlowRegionExclude") && l.contains("\"flowRegionExclude\""),
@@ -73835,7 +73923,7 @@ fn sh27_ui_flow_region_exclude_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_flow_image_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_flow_image.kab")).expect("ui_flow_image.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_flow_image.kab")).expect("ui_flow_image.kab");
     assert!(
         l.contains("pub fn uiIsFlowImage") && l.contains("\"flowImage\""),
         "SH27 Kab uiIsFlowImage"
@@ -73860,7 +73948,7 @@ fn sh27_ui_flow_image_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_solid_color_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_solid_color.kab")).expect("ui_solid_color.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_solid_color.kab")).expect("ui_solid_color.kab");
     assert!(
         l.contains("pub fn uiIsSolidColor") && l.contains("\"solidColor\""),
         "SH27 Kab uiIsSolidColor"
@@ -73885,7 +73973,7 @@ fn sh27_ui_solid_color_host_dual_bind_in_kab() {
 #[test]
 fn sh27_ui_mesh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/ui_mesh.kab")).expect("ui_mesh.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_mesh.kab")).expect("ui_mesh.kab");
     assert!(
         l.contains("pub fn uiIsMesh(tag)") && l.contains("\"mesh\""),
         "SH27 Kab uiIsMesh"
@@ -73924,7 +74012,7 @@ fn sh28_noll_plan_in_kab() {
 #[test]
 fn sh28_noll_aot_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/noll_aot.kab")).expect("noll_aot.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/noll/noll_aot.kab")).expect("noll_aot.kab");
     assert!(
         a.contains("pub fn nollAotReady") && a.contains("return false"),
         "SH28 Kab nollAotReady is false"
@@ -73935,7 +74023,7 @@ fn sh28_noll_aot_in_kab() {
 #[test]
 fn sh28_noll_keep_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let k = std::fs::read_to_string(root.join("lib/kab/noll_keep.kab")).expect("noll_keep.kab");
+    let k = std::fs::read_to_string(root.join("lib/kab/noll/noll_keep.kab")).expect("noll_keep.kab");
     assert!(
         k.contains("pub fn nollKeepSrc") && k.contains("return true"),
         "SH28 Kab nollKeepSrc"
@@ -73946,7 +74034,7 @@ fn sh28_noll_keep_in_kab() {
 #[test]
 fn sh28_noll_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/noll_host.kab")).expect("noll_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/noll/noll_host.kab")).expect("noll_host.kab");
     assert!(
         h.contains("pub fn nollHostDeleteOk")
             && h.contains("pub fn nollAllHostGatesClosed")
@@ -73977,7 +74065,7 @@ fn sh28_noll_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_image_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_image.kab")).expect("noll_image.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_image.kab")).expect("noll_image.kab");
     assert!(
         i.contains("pub fn nollBootstrapImage") && i.contains("kabootar.kbc"),
         "SH28 Kab nollBootstrapImage"
@@ -74003,7 +74091,7 @@ fn sh28_noll_image_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cargo_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cargo.kab")).expect("noll_cargo.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cargo.kab")).expect("noll_cargo.kab");
     assert!(
         i.contains("pub fn nollCargoNotRuntime") && i.contains("return false"),
         "SH28 Kab nollCargoNotRuntime"
@@ -74029,7 +74117,7 @@ fn sh28_noll_cargo_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_rustc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_rustc.kab")).expect("noll_rustc.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_rustc.kab")).expect("noll_rustc.kab");
     assert!(
         i.contains("pub fn nollRustcNotProcess") && i.contains("return false"),
         "SH28 Kab nollRustcNotProcess"
@@ -74055,7 +74143,7 @@ fn sh28_noll_rustc_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_mmap_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_mmap.kab")).expect("noll_mmap.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_mmap.kab")).expect("noll_mmap.kab");
     assert!(
         i.contains("pub fn nollMmapStub") && i.contains("return false"),
         "SH28 Kab nollMmapStub"
@@ -74081,7 +74169,7 @@ fn sh28_noll_mmap_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_stub_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_stub.kab")).expect("noll_stub.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_stub.kab")).expect("noll_stub.kab");
     assert!(
         i.contains("pub fn nollStubFrozen") && i.contains("return false"),
         "SH28 Kab nollStubFrozen"
@@ -74107,7 +74195,7 @@ fn sh28_noll_stub_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_syscall_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_syscall.kab")).expect("noll_syscall.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_syscall.kab")).expect("noll_syscall.kab");
     assert!(
         i.contains("pub fn nollHostSyscallGone") && i.contains("return false"),
         "SH28 Kab nollHostSyscallGone"
@@ -74133,7 +74221,7 @@ fn sh28_noll_syscall_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_srcprod_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_srcprod.kab")).expect("noll_srcprod.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_srcprod.kab")).expect("noll_srcprod.kab");
     assert!(
         i.contains("pub fn nollProductSrcGone") && i.contains("return false"),
         "SH28 Kab nollProductSrcGone"
@@ -74159,7 +74247,7 @@ fn sh28_noll_srcprod_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_toml_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_toml.kab")).expect("noll_toml.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_toml.kab")).expect("noll_toml.kab");
     assert!(
         i.contains("pub fn nollCargoTomlGone") && i.contains("return false"),
         "SH28 Kab nollCargoTomlGone"
@@ -74185,7 +74273,7 @@ fn sh28_noll_toml_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_ci_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_ci.kab")).expect("noll_ci.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_ci.kab")).expect("noll_ci.kab");
     assert!(
         i.contains("pub fn nollRustcCiGone") && i.contains("return false"),
         "SH28 Kab nollRustcCiGone"
@@ -74211,7 +74299,7 @@ fn sh28_noll_ci_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_kabtest_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_kabtest.kab")).expect("noll_kabtest.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_kabtest.kab")).expect("noll_kabtest.kab");
     assert!(
         i.contains("pub fn nollKabtestProductCi") && i.contains("return false"),
         "SH28 Kab nollKabtestProductCi"
@@ -74237,7 +74325,7 @@ fn sh28_noll_kabtest_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_user_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_user.kab")).expect("noll_user.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_user.kab")).expect("noll_user.kab");
     assert!(
         i.contains("pub fn nollUserNoRustc") && i.contains("return false"),
         "SH28 Kab nollUserNoRustc"
@@ -74263,7 +74351,7 @@ fn sh28_noll_user_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_drop_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_drop.kab")).expect("noll_drop.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_drop.kab")).expect("noll_drop.kab");
     assert!(
         i.contains("pub fn nollDropSrc") && i.contains("return false"),
         "SH28 Kab nollDropSrc"
@@ -74289,7 +74377,7 @@ fn sh28_noll_drop_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_proc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_proc.kab")).expect("noll_proc.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_proc.kab")).expect("noll_proc.kab");
     assert!(
         i.contains("pub fn nollProcessIsKab") && i.contains("return false"),
         "SH28 Kab nollProcessIsKab"
@@ -74315,7 +74403,7 @@ fn sh28_noll_proc_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_aotproc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_aotproc.kab")).expect("noll_aotproc.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_aotproc.kab")).expect("noll_aotproc.kab");
     assert!(
         i.contains("pub fn nollAotProcess") && i.contains("return false"),
         "SH28 Kab nollAotProcess"
@@ -74341,7 +74429,7 @@ fn sh28_noll_aotproc_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_imgproc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_imgproc.kab")).expect("noll_imgproc.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_imgproc.kab")).expect("noll_imgproc.kab");
     assert!(
         i.contains("pub fn nollImageIsProcess") && i.contains("return false"),
         "SH28 Kab nollImageIsProcess"
@@ -74367,7 +74455,7 @@ fn sh28_noll_imgproc_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_mmexec_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_mmexec.kab")).expect("noll_mmexec.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_mmexec.kab")).expect("noll_mmexec.kab");
     assert!(
         i.contains("pub fn nollMmapExecProcess") && i.contains("return false"),
         "SH28 Kab nollMmapExecProcess"
@@ -74393,7 +74481,7 @@ fn sh28_noll_mmexec_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_stubproc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_stubproc.kab")).expect("noll_stubproc.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_stubproc.kab")).expect("noll_stubproc.kab");
     assert!(
         i.contains("pub fn nollStubIsProcess") && i.contains("return false"),
         "SH28 Kab nollStubIsProcess"
@@ -74419,7 +74507,7 @@ fn sh28_noll_stubproc_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_syskab_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_syskab.kab")).expect("noll_syskab.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_syskab.kab")).expect("noll_syskab.kab");
     assert!(
         i.contains("pub fn nollSyscallIsKab") && i.contains("return false"),
         "SH28 Kab nollSyscallIsKab"
@@ -74445,7 +74533,7 @@ fn sh28_noll_syskab_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_rchost_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_rchost.kab")).expect("noll_rchost.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_rchost.kab")).expect("noll_rchost.kab");
     assert!(
         i.contains("pub fn nollRustcNotHost") && i.contains("return false"),
         "SH28 Kab nollRustcNotHost"
@@ -74471,7 +74559,7 @@ fn sh28_noll_rchost_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_hopt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_hopt.kab")).expect("noll_hopt.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_hopt.kab")).expect("noll_hopt.kab");
     assert!(
         i.contains("pub fn nollHostOptional") && i.contains("return false"),
         "SH28 Kab nollHostOptional"
@@ -74497,7 +74585,7 @@ fn sh28_noll_hopt_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_nors_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_nors.kab")).expect("noll_nors.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_nors.kab")).expect("noll_nors.kab");
     assert!(
         i.contains("pub fn nollNoNewRs") && i.contains("return true"),
         "SH28 Kab nollNoNewRs"
@@ -74523,7 +74611,7 @@ fn sh28_noll_nors_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_srcz_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_srcz.kab")).expect("noll_srcz.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_srcz.kab")).expect("noll_srcz.kab");
     assert!(
         i.contains("pub fn nollSrcGoalZero") && i.contains("return 0"),
         "SH28 Kab nollSrcGoalZero"
@@ -74549,7 +74637,7 @@ fn sh28_noll_srcz_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_bootk_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_bootk.kab")).expect("noll_bootk.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_bootk.kab")).expect("noll_bootk.kab");
     assert!(
         i.contains("pub fn nollBootstrapFromKabOk") && i.contains("return true"),
         "SH28 Kab nollBootstrapFromKabOk"
@@ -74575,7 +74663,7 @@ fn sh28_noll_bootk_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_gates_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_gates.kab")).expect("noll_gates.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_gates.kab")).expect("noll_gates.kab");
     assert!(
         i.contains("pub fn nollAllGatesClosedOk") && i.contains("return true"),
         "SH28 Kab nollAllGatesClosedOk"
@@ -74601,7 +74689,7 @@ fn sh28_noll_gates_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_host_rollup_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/noll_host.kab")).expect("noll_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/noll/noll_host.kab")).expect("noll_host.kab");
     assert!(
         h.contains("loadMainDeleteOk")
             && h.contains("gcHostDeleteOk")
@@ -74621,7 +74709,7 @@ fn sh28_noll_host_rollup_in_kab() {
 #[test]
 fn sh28_noll_cranelift_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cranelift.kab")).expect("noll_cranelift.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cranelift.kab")).expect("noll_cranelift.kab");
     assert!(
         i.contains("pub fn nollCraneliftGone") && i.contains("return false"),
         "SH28 Kab nollCraneliftGone"
@@ -74647,7 +74735,7 @@ fn sh28_noll_cranelift_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_jit_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_jit.kab")).expect("noll_jit.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_jit.kab")).expect("noll_jit.kab");
     assert!(
         i.contains("pub fn nollJitIsKab") && i.contains("return false"),
         "SH28 Kab nollJitIsKab"
@@ -74673,7 +74761,7 @@ fn sh28_noll_jit_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_vm_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_vm.kab")).expect("noll_vm.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_vm.kab")).expect("noll_vm.kab");
     assert!(
         i.contains("pub fn nollVmIsKab") && i.contains("return false"),
         "SH28 Kab nollVmIsKab"
@@ -74699,7 +74787,7 @@ fn sh28_noll_vm_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_gc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_gc.kab")).expect("noll_gc.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_gc.kab")).expect("noll_gc.kab");
     assert!(
         i.contains("pub fn nollGcIsKab") && i.contains("return false"),
         "SH28 Kab nollGcIsKab"
@@ -74725,7 +74813,7 @@ fn sh28_noll_gc_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_compile_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_compile.kab")).expect("noll_compile.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_compile.kab")).expect("noll_compile.kab");
     assert!(
         i.contains("pub fn nollCompileIsKab") && i.contains("return false"),
         "SH28 Kab nollCompileIsKab"
@@ -74751,7 +74839,7 @@ fn sh28_noll_compile_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_parse_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_parse.kab")).expect("noll_parse.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_parse.kab")).expect("noll_parse.kab");
     assert!(
         i.contains("pub fn nollParseIsKab") && i.contains("return false"),
         "SH28 Kab nollParseIsKab"
@@ -74777,7 +74865,7 @@ fn sh28_noll_parse_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_lex_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_lex.kab")).expect("noll_lex.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_lex.kab")).expect("noll_lex.kab");
     assert!(
         i.contains("pub fn nollLexIsKab") && i.contains("return false"),
         "SH28 Kab nollLexIsKab"
@@ -74803,7 +74891,7 @@ fn sh28_noll_lex_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_type_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_type.kab")).expect("noll_type.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_type.kab")).expect("noll_type.kab");
     assert!(
         i.contains("pub fn nollTypeIsKab") && i.contains("return false"),
         "SH28 Kab nollTypeIsKab"
@@ -74829,7 +74917,7 @@ fn sh28_noll_type_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_emit_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_emit.kab")).expect("noll_emit.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_emit.kab")).expect("noll_emit.kab");
     assert!(
         i.contains("pub fn nollEmitIsKab") && i.contains("return false"),
         "SH28 Kab nollEmitIsKab"
@@ -74855,7 +74943,7 @@ fn sh28_noll_emit_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_opt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_opt.kab")).expect("noll_opt.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_opt.kab")).expect("noll_opt.kab");
     assert!(
         i.contains("pub fn nollOptIsKab") && i.contains("return false"),
         "SH28 Kab nollOptIsKab"
@@ -74881,7 +74969,7 @@ fn sh28_noll_opt_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_link_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_link.kab")).expect("noll_link.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_link.kab")).expect("noll_link.kab");
     assert!(
         i.contains("pub fn nollLinkIsKab") && i.contains("return false"),
         "SH28 Kab nollLinkIsKab"
@@ -74907,7 +74995,7 @@ fn sh28_noll_link_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_std_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_std.kab")).expect("noll_std.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_std.kab")).expect("noll_std.kab");
     assert!(
         i.contains("pub fn nollStdIsKab") && i.contains("return false"),
         "SH28 Kab nollStdIsKab"
@@ -74933,7 +75021,7 @@ fn sh28_noll_std_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cli_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cli.kab")).expect("noll_cli.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cli.kab")).expect("noll_cli.kab");
     assert!(
         i.contains("pub fn nollCliIsKab") && i.contains("return false"),
         "SH28 Kab nollCliIsKab"
@@ -74959,7 +75047,7 @@ fn sh28_noll_cli_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_repl_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_repl.kab")).expect("noll_repl.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_repl.kab")).expect("noll_repl.kab");
     assert!(
         i.contains("pub fn nollReplIsKab") && i.contains("return false"),
         "SH28 Kab nollReplIsKab"
@@ -74985,7 +75073,7 @@ fn sh28_noll_repl_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_fmt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_fmt.kab")).expect("noll_fmt.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_fmt.kab")).expect("noll_fmt.kab");
     assert!(
         i.contains("pub fn nollFmtIsKab") && i.contains("return false"),
         "SH28 Kab nollFmtIsKab"
@@ -75011,7 +75099,7 @@ fn sh28_noll_fmt_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_lsp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_lsp.kab")).expect("noll_lsp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_lsp.kab")).expect("noll_lsp.kab");
     assert!(
         i.contains("pub fn nollLspIsKab") && i.contains("return false"),
         "SH28 Kab nollLspIsKab"
@@ -75037,7 +75125,7 @@ fn sh28_noll_lsp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_doc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_doc.kab")).expect("noll_doc.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_doc.kab")).expect("noll_doc.kab");
     assert!(
         i.contains("pub fn nollDocIsKab") && i.contains("return false"),
         "SH28 Kab nollDocIsKab"
@@ -75063,7 +75151,7 @@ fn sh28_noll_doc_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_bench_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_bench.kab")).expect("noll_bench.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_bench.kab")).expect("noll_bench.kab");
     assert!(
         i.contains("pub fn nollBenchIsKab") && i.contains("return false"),
         "SH28 Kab nollBenchIsKab"
@@ -75089,7 +75177,7 @@ fn sh28_noll_bench_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_new_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_new.kab")).expect("noll_new.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_new.kab")).expect("noll_new.kab");
     assert!(
         i.contains("pub fn nollNewIsKab") && i.contains("return false"),
         "SH28 Kab nollNewIsKab"
@@ -75115,7 +75203,7 @@ fn sh28_noll_new_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_init_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_init.kab")).expect("noll_init.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_init.kab")).expect("noll_init.kab");
     assert!(
         i.contains("pub fn nollInitIsKab") && i.contains("return false"),
         "SH28 Kab nollInitIsKab"
@@ -75141,7 +75229,7 @@ fn sh28_noll_init_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_watch_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_watch.kab")).expect("noll_watch.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_watch.kab")).expect("noll_watch.kab");
     assert!(
         i.contains("pub fn nollWatchIsKab") && i.contains("return false"),
         "SH28 Kab nollWatchIsKab"
@@ -75167,7 +75255,7 @@ fn sh28_noll_watch_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_clean_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_clean.kab")).expect("noll_clean.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_clean.kab")).expect("noll_clean.kab");
     assert!(
         i.contains("pub fn nollCleanIsKab") && i.contains("return false"),
         "SH28 Kab nollCleanIsKab"
@@ -75193,7 +75281,7 @@ fn sh28_noll_clean_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_add_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_add.kab")).expect("noll_add.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_add.kab")).expect("noll_add.kab");
     assert!(
         i.contains("pub fn nollAddIsKab") && i.contains("return false"),
         "SH28 Kab nollAddIsKab"
@@ -75219,7 +75307,7 @@ fn sh28_noll_add_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_rm_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_rm.kab")).expect("noll_rm.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_rm.kab")).expect("noll_rm.kab");
     assert!(
         i.contains("pub fn nollRmIsKab") && i.contains("return false"),
         "SH28 Kab nollRmIsKab"
@@ -75245,7 +75333,7 @@ fn sh28_noll_rm_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_mod_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_mod.kab")).expect("noll_mod.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_mod.kab")).expect("noll_mod.kab");
     assert!(
         i.contains("pub fn nollModIsKab") && i.contains("return false"),
         "SH28 Kab nollModIsKab"
@@ -75271,7 +75359,7 @@ fn sh28_noll_mod_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_ls_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_ls.kab")).expect("noll_ls.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_ls.kab")).expect("noll_ls.kab");
     assert!(
         i.contains("pub fn nollLsIsKab") && i.contains("return false"),
         "SH28 Kab nollLsIsKab"
@@ -75297,7 +75385,7 @@ fn sh28_noll_ls_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cat_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cat.kab")).expect("noll_cat.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cat.kab")).expect("noll_cat.kab");
     assert!(
         i.contains("pub fn nollCatIsKab") && i.contains("return false"),
         "SH28 Kab nollCatIsKab"
@@ -75323,7 +75411,7 @@ fn sh28_noll_cat_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_pkg_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_pkg.kab")).expect("noll_pkg.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_pkg.kab")).expect("noll_pkg.kab");
     assert!(
         i.contains("pub fn nollPkgIsKab") && i.contains("return false"),
         "SH28 Kab nollPkgIsKab"
@@ -75349,7 +75437,7 @@ fn sh28_noll_pkg_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_lock_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_lock.kab")).expect("noll_lock.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_lock.kab")).expect("noll_lock.kab");
     assert!(
         i.contains("pub fn nollLockIsKab") && i.contains("return false"),
         "SH28 Kab nollLockIsKab"
@@ -75375,7 +75463,7 @@ fn sh28_noll_lock_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_pub_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_pub.kab")).expect("noll_pub.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_pub.kab")).expect("noll_pub.kab");
     assert!(
         i.contains("pub fn nollPubIsKab") && i.contains("return false"),
         "SH28 Kab nollPubIsKab"
@@ -75401,7 +75489,7 @@ fn sh28_noll_pub_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_reg_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_reg.kab")).expect("noll_reg.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_reg.kab")).expect("noll_reg.kab");
     assert!(
         i.contains("pub fn nollRegIsKab") && i.contains("return false"),
         "SH28 Kab nollRegIsKab"
@@ -75427,7 +75515,7 @@ fn sh28_noll_reg_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_auth_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_auth.kab")).expect("noll_auth.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_auth.kab")).expect("noll_auth.kab");
     assert!(
         i.contains("pub fn nollAuthIsKab") && i.contains("return false"),
         "SH28 Kab nollAuthIsKab"
@@ -75453,7 +75541,7 @@ fn sh28_noll_auth_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_log_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_log.kab")).expect("noll_log.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_log.kab")).expect("noll_log.kab");
     assert!(
         i.contains("pub fn nollLogIsKab") && i.contains("return false"),
         "SH28 Kab nollLogIsKab"
@@ -75479,7 +75567,7 @@ fn sh28_noll_log_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_dbg_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_dbg.kab")).expect("noll_dbg.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_dbg.kab")).expect("noll_dbg.kab");
     assert!(
         i.contains("pub fn nollDbgIsKab") && i.contains("return false"),
         "SH28 Kab nollDbgIsKab"
@@ -75505,7 +75593,7 @@ fn sh28_noll_dbg_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_prof_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_prof.kab")).expect("noll_prof.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_prof.kab")).expect("noll_prof.kab");
     assert!(
         i.contains("pub fn nollProfIsKab") && i.contains("return false"),
         "SH28 Kab nollProfIsKab"
@@ -75531,7 +75619,7 @@ fn sh28_noll_prof_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_trace_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_trace.kab")).expect("noll_trace.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_trace.kab")).expect("noll_trace.kab");
     assert!(
         i.contains("pub fn nollTraceIsKab") && i.contains("return false"),
         "SH28 Kab nollTraceIsKab"
@@ -75557,7 +75645,7 @@ fn sh28_noll_trace_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cov_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cov.kab")).expect("noll_cov.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cov.kab")).expect("noll_cov.kab");
     assert!(
         i.contains("pub fn nollCovIsKab") && i.contains("return false"),
         "SH28 Kab nollCovIsKab"
@@ -75583,7 +75671,7 @@ fn sh28_noll_cov_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_fuzz_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_fuzz.kab")).expect("noll_fuzz.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_fuzz.kab")).expect("noll_fuzz.kab");
     assert!(
         i.contains("pub fn nollFuzzIsKab") && i.contains("return false"),
         "SH28 Kab nollFuzzIsKab"
@@ -75609,7 +75697,7 @@ fn sh28_noll_fuzz_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_san_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_san.kab")).expect("noll_san.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_san.kab")).expect("noll_san.kab");
     assert!(
         i.contains("pub fn nollSanIsKab") && i.contains("return false"),
         "SH28 Kab nollSanIsKab"
@@ -75635,7 +75723,7 @@ fn sh28_noll_san_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_snap_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_snap.kab")).expect("noll_snap.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_snap.kab")).expect("noll_snap.kab");
     assert!(
         i.contains("pub fn nollSnapIsKab") && i.contains("return false"),
         "SH28 Kab nollSnapIsKab"
@@ -75661,7 +75749,7 @@ fn sh28_noll_snap_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_mock_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_mock.kab")).expect("noll_mock.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_mock.kab")).expect("noll_mock.kab");
     assert!(
         i.contains("pub fn nollMockIsKab") && i.contains("return false"),
         "SH28 Kab nollMockIsKab"
@@ -75687,7 +75775,7 @@ fn sh28_noll_mock_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_fix_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_fix.kab")).expect("noll_fix.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_fix.kab")).expect("noll_fix.kab");
     assert!(
         i.contains("pub fn nollFixIsKab") && i.contains("return false"),
         "SH28 Kab nollFixIsKab"
@@ -75713,7 +75801,7 @@ fn sh28_noll_fix_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_spy_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_spy.kab")).expect("noll_spy.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_spy.kab")).expect("noll_spy.kab");
     assert!(
         i.contains("pub fn nollSpyIsKab") && i.contains("return false"),
         "SH28 Kab nollSpyIsKab"
@@ -75739,7 +75827,7 @@ fn sh28_noll_spy_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_fake_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_fake.kab")).expect("noll_fake.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_fake.kab")).expect("noll_fake.kab");
     assert!(
         i.contains("pub fn nollFakeIsKab") && i.contains("return false"),
         "SH28 Kab nollFakeIsKab"
@@ -75765,7 +75853,7 @@ fn sh28_noll_fake_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_clock_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_clock.kab")).expect("noll_clock.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_clock.kab")).expect("noll_clock.kab");
     assert!(
         i.contains("pub fn nollClockIsKab") && i.contains("return false"),
         "SH28 Kab nollClockIsKab"
@@ -75791,7 +75879,7 @@ fn sh28_noll_clock_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_rand_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_rand.kab")).expect("noll_rand.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_rand.kab")).expect("noll_rand.kab");
     assert!(
         i.contains("pub fn nollRandIsKab") && i.contains("return false"),
         "SH28 Kab nollRandIsKab"
@@ -75817,7 +75905,7 @@ fn sh28_noll_rand_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_net_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_net.kab")).expect("noll_net.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_net.kab")).expect("noll_net.kab");
     assert!(
         i.contains("pub fn nollNetIsKab") && i.contains("return false"),
         "SH28 Kab nollNetIsKab"
@@ -75843,7 +75931,7 @@ fn sh28_noll_net_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_dns_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_dns.kab")).expect("noll_dns.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_dns.kab")).expect("noll_dns.kab");
     assert!(
         i.contains("pub fn nollDnsIsKab") && i.contains("return false"),
         "SH28 Kab nollDnsIsKab"
@@ -75869,7 +75957,7 @@ fn sh28_noll_dns_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_tls_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_tls.kab")).expect("noll_tls.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_tls.kab")).expect("noll_tls.kab");
     assert!(
         i.contains("pub fn nollTlsIsKab") && i.contains("return false"),
         "SH28 Kab nollTlsIsKab"
@@ -75895,7 +75983,7 @@ fn sh28_noll_tls_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_http_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_http.kab")).expect("noll_http.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_http.kab")).expect("noll_http.kab");
     assert!(
         i.contains("pub fn nollHttpIsKab") && i.contains("return false"),
         "SH28 Kab nollHttpIsKab"
@@ -75921,7 +76009,7 @@ fn sh28_noll_http_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_ws_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_ws.kab")).expect("noll_ws.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_ws.kab")).expect("noll_ws.kab");
     assert!(
         i.contains("pub fn nollWsIsKab") && i.contains("return false"),
         "SH28 Kab nollWsIsKab"
@@ -75947,7 +76035,7 @@ fn sh28_noll_ws_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_udp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_udp.kab")).expect("noll_udp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_udp.kab")).expect("noll_udp.kab");
     assert!(
         i.contains("pub fn nollUdpIsKab") && i.contains("return false"),
         "SH28 Kab nollUdpIsKab"
@@ -75973,7 +76061,7 @@ fn sh28_noll_udp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_quic_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_quic.kab")).expect("noll_quic.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_quic.kab")).expect("noll_quic.kab");
     assert!(
         i.contains("pub fn nollQuicIsKab") && i.contains("return false"),
         "SH28 Kab nollQuicIsKab"
@@ -75999,7 +76087,7 @@ fn sh28_noll_quic_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_icmp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_icmp.kab")).expect("noll_icmp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_icmp.kab")).expect("noll_icmp.kab");
     assert!(
         i.contains("pub fn nollIcmpIsKab") && i.contains("return false"),
         "SH28 Kab nollIcmpIsKab"
@@ -76025,7 +76113,7 @@ fn sh28_noll_icmp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_sctp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_sctp.kab")).expect("noll_sctp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_sctp.kab")).expect("noll_sctp.kab");
     assert!(
         i.contains("pub fn nollSctpIsKab") && i.contains("return false"),
         "SH28 Kab nollSctpIsKab"
@@ -76051,7 +76139,7 @@ fn sh28_noll_sctp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_grpc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_grpc.kab")).expect("noll_grpc.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_grpc.kab")).expect("noll_grpc.kab");
     assert!(
         i.contains("pub fn nollGrpcIsKab") && i.contains("return false"),
         "SH28 Kab nollGrpcIsKab"
@@ -76077,7 +76165,7 @@ fn sh28_noll_grpc_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_mqtt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_mqtt.kab")).expect("noll_mqtt.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_mqtt.kab")).expect("noll_mqtt.kab");
     assert!(
         i.contains("pub fn nollMqttIsKab") && i.contains("return false"),
         "SH28 Kab nollMqttIsKab"
@@ -76103,7 +76191,7 @@ fn sh28_noll_mqtt_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_smtp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_smtp.kab")).expect("noll_smtp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_smtp.kab")).expect("noll_smtp.kab");
     assert!(
         i.contains("pub fn nollSmtpIsKab") && i.contains("return false"),
         "SH28 Kab nollSmtpIsKab"
@@ -76129,7 +76217,7 @@ fn sh28_noll_smtp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_imap_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_imap.kab")).expect("noll_imap.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_imap.kab")).expect("noll_imap.kab");
     assert!(
         i.contains("pub fn nollImapIsKab") && i.contains("return false"),
         "SH28 Kab nollImapIsKab"
@@ -76155,7 +76243,7 @@ fn sh28_noll_imap_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_pop_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_pop.kab")).expect("noll_pop.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_pop.kab")).expect("noll_pop.kab");
     assert!(
         i.contains("pub fn nollPopIsKab") && i.contains("return false"),
         "SH28 Kab nollPopIsKab"
@@ -76181,7 +76269,7 @@ fn sh28_noll_pop_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_ftp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_ftp.kab")).expect("noll_ftp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_ftp.kab")).expect("noll_ftp.kab");
     assert!(
         i.contains("pub fn nollFtpIsKab") && i.contains("return false"),
         "SH28 Kab nollFtpIsKab"
@@ -76207,7 +76295,7 @@ fn sh28_noll_ftp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_ssh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_ssh.kab")).expect("noll_ssh.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_ssh.kab")).expect("noll_ssh.kab");
     assert!(
         i.contains("pub fn nollSshIsKab") && i.contains("return false"),
         "SH28 Kab nollSshIsKab"
@@ -76233,7 +76321,7 @@ fn sh28_noll_ssh_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_ldap_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_ldap.kab")).expect("noll_ldap.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_ldap.kab")).expect("noll_ldap.kab");
     assert!(
         i.contains("pub fn nollLdapIsKab") && i.contains("return false"),
         "SH28 Kab nollLdapIsKab"
@@ -76259,7 +76347,7 @@ fn sh28_noll_ldap_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_ntp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_ntp.kab")).expect("noll_ntp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_ntp.kab")).expect("noll_ntp.kab");
     assert!(
         i.contains("pub fn nollNtpIsKab") && i.contains("return false"),
         "SH28 Kab nollNtpIsKab"
@@ -76285,7 +76373,7 @@ fn sh28_noll_ntp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_snmp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_snmp.kab")).expect("noll_snmp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_snmp.kab")).expect("noll_snmp.kab");
     assert!(
         i.contains("pub fn nollSnmpIsKab") && i.contains("return false"),
         "SH28 Kab nollSnmpIsKab"
@@ -76311,7 +76399,7 @@ fn sh28_noll_snmp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_dhcp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_dhcp.kab")).expect("noll_dhcp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_dhcp.kab")).expect("noll_dhcp.kab");
     assert!(
         i.contains("pub fn nollDhcpIsKab") && i.contains("return false"),
         "SH28 Kab nollDhcpIsKab"
@@ -76337,7 +76425,7 @@ fn sh28_noll_dhcp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_tftp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_tftp.kab")).expect("noll_tftp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_tftp.kab")).expect("noll_tftp.kab");
     assert!(
         i.contains("pub fn nollTftpIsKab") && i.contains("return false"),
         "SH28 Kab nollTftpIsKab"
@@ -76363,7 +76451,7 @@ fn sh28_noll_tftp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_radius_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_radius.kab")).expect("noll_radius.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_radius.kab")).expect("noll_radius.kab");
     assert!(
         i.contains("pub fn nollRadiusIsKab") && i.contains("return false"),
         "SH28 Kab nollRadiusIsKab"
@@ -76389,7 +76477,7 @@ fn sh28_noll_radius_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_kerberos_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_kerberos.kab")).expect("noll_kerberos.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_kerberos.kab")).expect("noll_kerberos.kab");
     assert!(
         i.contains("pub fn nollKerberosIsKab") && i.contains("return false"),
         "SH28 Kab nollKerberosIsKab"
@@ -76415,7 +76503,7 @@ fn sh28_noll_kerberos_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_oauth_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_oauth.kab")).expect("noll_oauth.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_oauth.kab")).expect("noll_oauth.kab");
     assert!(
         i.contains("pub fn nollOauthIsKab") && i.contains("return false"),
         "SH28 Kab nollOauthIsKab"
@@ -76441,7 +76529,7 @@ fn sh28_noll_oauth_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_oidc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_oidc.kab")).expect("noll_oidc.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_oidc.kab")).expect("noll_oidc.kab");
     assert!(
         i.contains("pub fn nollOidcIsKab") && i.contains("return false"),
         "SH28 Kab nollOidcIsKab"
@@ -76467,7 +76555,7 @@ fn sh28_noll_oidc_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_saml_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_saml.kab")).expect("noll_saml.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_saml.kab")).expect("noll_saml.kab");
     assert!(
         i.contains("pub fn nollSamlIsKab") && i.contains("return false"),
         "SH28 Kab nollSamlIsKab"
@@ -76493,7 +76581,7 @@ fn sh28_noll_saml_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_jwt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_jwt.kab")).expect("noll_jwt.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_jwt.kab")).expect("noll_jwt.kab");
     assert!(
         i.contains("pub fn nollJwtIsKab") && i.contains("return false"),
         "SH28 Kab nollJwtIsKab"
@@ -76519,7 +76607,7 @@ fn sh28_noll_jwt_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_jwks_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_jwks.kab")).expect("noll_jwks.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_jwks.kab")).expect("noll_jwks.kab");
     assert!(
         i.contains("pub fn nollJwksIsKab") && i.contains("return false"),
         "SH28 Kab nollJwksIsKab"
@@ -76545,7 +76633,7 @@ fn sh28_noll_jwks_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_webauthn_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_webauthn.kab")).expect("noll_webauthn.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_webauthn.kab")).expect("noll_webauthn.kab");
     assert!(
         i.contains("pub fn nollWebauthnIsKab") && i.contains("return false"),
         "SH28 Kab nollWebauthnIsKab"
@@ -76571,7 +76659,7 @@ fn sh28_noll_webauthn_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_totp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_totp.kab")).expect("noll_totp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_totp.kab")).expect("noll_totp.kab");
     assert!(
         i.contains("pub fn nollTotpIsKab") && i.contains("return false"),
         "SH28 Kab nollTotpIsKab"
@@ -76597,7 +76685,7 @@ fn sh28_noll_totp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_hotp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_hotp.kab")).expect("noll_hotp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_hotp.kab")).expect("noll_hotp.kab");
     assert!(
         i.contains("pub fn nollHotpIsKab") && i.contains("return false"),
         "SH28 Kab nollHotpIsKab"
@@ -76623,7 +76711,7 @@ fn sh28_noll_hotp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_argon_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_argon.kab")).expect("noll_argon.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_argon.kab")).expect("noll_argon.kab");
     assert!(
         i.contains("pub fn nollArgonIsKab") && i.contains("return false"),
         "SH28 Kab nollArgonIsKab"
@@ -76649,7 +76737,7 @@ fn sh28_noll_argon_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_scrypt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_scrypt.kab")).expect("noll_scrypt.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_scrypt.kab")).expect("noll_scrypt.kab");
     assert!(
         i.contains("pub fn nollScryptIsKab") && i.contains("return false"),
         "SH28 Kab nollScryptIsKab"
@@ -76675,7 +76763,7 @@ fn sh28_noll_scrypt_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_bcrypt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_bcrypt.kab")).expect("noll_bcrypt.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_bcrypt.kab")).expect("noll_bcrypt.kab");
     assert!(
         i.contains("pub fn nollBcryptIsKab") && i.contains("return false"),
         "SH28 Kab nollBcryptIsKab"
@@ -76701,7 +76789,7 @@ fn sh28_noll_bcrypt_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_pbkdf_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_pbkdf.kab")).expect("noll_pbkdf.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_pbkdf.kab")).expect("noll_pbkdf.kab");
     assert!(
         i.contains("pub fn nollPbkdfIsKab") && i.contains("return false"),
         "SH28 Kab nollPbkdfIsKab"
@@ -76727,7 +76815,7 @@ fn sh28_noll_pbkdf_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_hkdf_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_hkdf.kab")).expect("noll_hkdf.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_hkdf.kab")).expect("noll_hkdf.kab");
     assert!(
         i.contains("pub fn nollHkdfIsKab") && i.contains("return false"),
         "SH28 Kab nollHkdfIsKab"
@@ -76753,7 +76841,7 @@ fn sh28_noll_hkdf_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_hmac_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_hmac.kab")).expect("noll_hmac.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_hmac.kab")).expect("noll_hmac.kab");
     assert!(
         i.contains("pub fn nollHmacIsKab") && i.contains("return false"),
         "SH28 Kab nollHmacIsKab"
@@ -76779,7 +76867,7 @@ fn sh28_noll_hmac_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_sha_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_sha.kab")).expect("noll_sha.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_sha.kab")).expect("noll_sha.kab");
     assert!(
         i.contains("pub fn nollShaIsKab") && i.contains("return false"),
         "SH28 Kab nollShaIsKab"
@@ -76805,7 +76893,7 @@ fn sh28_noll_sha_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_aes_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_aes.kab")).expect("noll_aes.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_aes.kab")).expect("noll_aes.kab");
     assert!(
         i.contains("pub fn nollAesIsKab") && i.contains("return false"),
         "SH28 Kab nollAesIsKab"
@@ -76831,7 +76919,7 @@ fn sh28_noll_aes_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_chacha_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_chacha.kab")).expect("noll_chacha.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_chacha.kab")).expect("noll_chacha.kab");
     assert!(
         i.contains("pub fn nollChachaIsKab") && i.contains("return false"),
         "SH28 Kab nollChachaIsKab"
@@ -76857,7 +76945,7 @@ fn sh28_noll_chacha_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_poly_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_poly.kab")).expect("noll_poly.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_poly.kab")).expect("noll_poly.kab");
     assert!(
         i.contains("pub fn nollPolyIsKab") && i.contains("return false"),
         "SH28 Kab nollPolyIsKab"
@@ -76883,7 +76971,7 @@ fn sh28_noll_poly_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_x25519_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_x25519.kab")).expect("noll_x25519.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_x25519.kab")).expect("noll_x25519.kab");
     assert!(
         i.contains("pub fn nollX25519IsKab") && i.contains("return false"),
         "SH28 Kab nollX25519IsKab"
@@ -76909,7 +76997,7 @@ fn sh28_noll_x25519_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_ed25519_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_ed25519.kab")).expect("noll_ed25519.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_ed25519.kab")).expect("noll_ed25519.kab");
     assert!(
         i.contains("pub fn nollEd25519IsKab") && i.contains("return false"),
         "SH28 Kab nollEd25519IsKab"
@@ -76935,7 +77023,7 @@ fn sh28_noll_ed25519_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_kyber_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_kyber.kab")).expect("noll_kyber.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_kyber.kab")).expect("noll_kyber.kab");
     assert!(
         i.contains("pub fn nollKyberIsKab") && i.contains("return false"),
         "SH28 Kab nollKyberIsKab"
@@ -76961,7 +77049,7 @@ fn sh28_noll_kyber_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_dilithium_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_dilithium.kab")).expect("noll_dilithium.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_dilithium.kab")).expect("noll_dilithium.kab");
     assert!(
         i.contains("pub fn nollDilithiumIsKab") && i.contains("return false"),
         "SH28 Kab nollDilithiumIsKab"
@@ -76987,7 +77075,7 @@ fn sh28_noll_dilithium_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_sphincs_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_sphincs.kab")).expect("noll_sphincs.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_sphincs.kab")).expect("noll_sphincs.kab");
     assert!(
         i.contains("pub fn nollSphincsIsKab") && i.contains("return false"),
         "SH28 Kab nollSphincsIsKab"
@@ -77013,7 +77101,7 @@ fn sh28_noll_sphincs_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_falcon_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_falcon.kab")).expect("noll_falcon.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_falcon.kab")).expect("noll_falcon.kab");
     assert!(
         i.contains("pub fn nollFalconIsKab") && i.contains("return false"),
         "SH28 Kab nollFalconIsKab"
@@ -77039,7 +77127,7 @@ fn sh28_noll_falcon_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_ntru_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_ntru.kab")).expect("noll_ntru.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_ntru.kab")).expect("noll_ntru.kab");
     assert!(
         i.contains("pub fn nollNtruIsKab") && i.contains("return false"),
         "SH28 Kab nollNtruIsKab"
@@ -77065,7 +77153,7 @@ fn sh28_noll_ntru_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_mceliece_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_mceliece.kab")).expect("noll_mceliece.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_mceliece.kab")).expect("noll_mceliece.kab");
     assert!(
         i.contains("pub fn nollMcelieceIsKab") && i.contains("return false"),
         "SH28 Kab nollMcelieceIsKab"
@@ -77091,7 +77179,7 @@ fn sh28_noll_mceliece_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_bike_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_bike.kab")).expect("noll_bike.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_bike.kab")).expect("noll_bike.kab");
     assert!(
         i.contains("pub fn nollBikeIsKab") && i.contains("return false"),
         "SH28 Kab nollBikeIsKab"
@@ -77117,7 +77205,7 @@ fn sh28_noll_bike_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_hqc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_hqc.kab")).expect("noll_hqc.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_hqc.kab")).expect("noll_hqc.kab");
     assert!(
         i.contains("pub fn nollHqcIsKab") && i.contains("return false"),
         "SH28 Kab nollHqcIsKab"
@@ -77143,7 +77231,7 @@ fn sh28_noll_hqc_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_frodo_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_frodo.kab")).expect("noll_frodo.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_frodo.kab")).expect("noll_frodo.kab");
     assert!(
         i.contains("pub fn nollFrodoIsKab") && i.contains("return false"),
         "SH28 Kab nollFrodoIsKab"
@@ -77169,7 +77257,7 @@ fn sh28_noll_frodo_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_sike_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_sike.kab")).expect("noll_sike.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_sike.kab")).expect("noll_sike.kab");
     assert!(
         i.contains("pub fn nollSikeIsKab") && i.contains("return false"),
         "SH28 Kab nollSikeIsKab"
@@ -77195,7 +77283,7 @@ fn sh28_noll_sike_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_rainbow_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_rainbow.kab")).expect("noll_rainbow.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_rainbow.kab")).expect("noll_rainbow.kab");
     assert!(
         i.contains("pub fn nollRainbowIsKab") && i.contains("return false"),
         "SH28 Kab nollRainbowIsKab"
@@ -77221,7 +77309,7 @@ fn sh28_noll_rainbow_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_gemss_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_gemss.kab")).expect("noll_gemss.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_gemss.kab")).expect("noll_gemss.kab");
     assert!(
         i.contains("pub fn nollGemssIsKab") && i.contains("return false"),
         "SH28 Kab nollGemssIsKab"
@@ -77247,7 +77335,7 @@ fn sh28_noll_gemss_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_picnic_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_picnic.kab")).expect("noll_picnic.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_picnic.kab")).expect("noll_picnic.kab");
     assert!(
         i.contains("pub fn nollPicnicIsKab") && i.contains("return false"),
         "SH28 Kab nollPicnicIsKab"
@@ -77273,7 +77361,7 @@ fn sh28_noll_picnic_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_xmss_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_xmss.kab")).expect("noll_xmss.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_xmss.kab")).expect("noll_xmss.kab");
     assert!(
         i.contains("pub fn nollXmssIsKab") && i.contains("return false"),
         "SH28 Kab nollXmssIsKab"
@@ -77299,7 +77387,7 @@ fn sh28_noll_xmss_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_lms_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_lms.kab")).expect("noll_lms.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_lms.kab")).expect("noll_lms.kab");
     assert!(
         i.contains("pub fn nollLmsIsKab") && i.contains("return false"),
         "SH28 Kab nollLmsIsKab"
@@ -77325,7 +77413,7 @@ fn sh28_noll_lms_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_wots_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_wots.kab")).expect("noll_wots.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_wots.kab")).expect("noll_wots.kab");
     assert!(
         i.contains("pub fn nollWotsIsKab") && i.contains("return false"),
         "SH28 Kab nollWotsIsKab"
@@ -77351,7 +77439,7 @@ fn sh28_noll_wots_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_merkle_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_merkle.kab")).expect("noll_merkle.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_merkle.kab")).expect("noll_merkle.kab");
     assert!(
         i.contains("pub fn nollMerkleIsKab") && i.contains("return false"),
         "SH28 Kab nollMerkleIsKab"
@@ -77377,7 +77465,7 @@ fn sh28_noll_merkle_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_slhdsa_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_slhdsa.kab")).expect("noll_slhdsa.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_slhdsa.kab")).expect("noll_slhdsa.kab");
     assert!(
         i.contains("pub fn nollSlhdsaIsKab") && i.contains("return false"),
         "SH28 Kab nollSlhdsaIsKab"
@@ -77403,7 +77491,7 @@ fn sh28_noll_slhdsa_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_mlkem_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_mlkem.kab")).expect("noll_mlkem.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_mlkem.kab")).expect("noll_mlkem.kab");
     assert!(
         i.contains("pub fn nollMlkemIsKab") && i.contains("return false"),
         "SH28 Kab nollMlkemIsKab"
@@ -77429,7 +77517,7 @@ fn sh28_noll_mlkem_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_mldsa_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_mldsa.kab")).expect("noll_mldsa.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_mldsa.kab")).expect("noll_mldsa.kab");
     assert!(
         i.contains("pub fn nollMldsaIsKab") && i.contains("return false"),
         "SH28 Kab nollMldsaIsKab"
@@ -77455,7 +77543,7 @@ fn sh28_noll_mldsa_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_fndsa_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_fndsa.kab")).expect("noll_fndsa.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_fndsa.kab")).expect("noll_fndsa.kab");
     assert!(
         i.contains("pub fn nollFndsaIsKab") && i.contains("return false"),
         "SH28 Kab nollFndsaIsKab"
@@ -77481,7 +77569,7 @@ fn sh28_noll_fndsa_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_hybrid_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_hybrid.kab")).expect("noll_hybrid.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_hybrid.kab")).expect("noll_hybrid.kab");
     assert!(
         i.contains("pub fn nollHybridIsKab") && i.contains("return false"),
         "SH28 Kab nollHybridIsKab"
@@ -77507,7 +77595,7 @@ fn sh28_noll_hybrid_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_xwing_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_xwing.kab")).expect("noll_xwing.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_xwing.kab")).expect("noll_xwing.kab");
     assert!(
         i.contains("pub fn nollXwingIsKab") && i.contains("return false"),
         "SH28 Kab nollXwingIsKab"
@@ -77533,7 +77621,7 @@ fn sh28_noll_xwing_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_hpke_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_hpke.kab")).expect("noll_hpke.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_hpke.kab")).expect("noll_hpke.kab");
     assert!(
         i.contains("pub fn nollHpkeIsKab") && i.contains("return false"),
         "SH28 Kab nollHpkeIsKab"
@@ -77559,7 +77647,7 @@ fn sh28_noll_hpke_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_noise_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_noise.kab")).expect("noll_noise.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_noise.kab")).expect("noll_noise.kab");
     assert!(
         i.contains("pub fn nollNoiseIsKab") && i.contains("return false"),
         "SH28 Kab nollNoiseIsKab"
@@ -77585,7 +77673,7 @@ fn sh28_noll_noise_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_age_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_age.kab")).expect("noll_age.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_age.kab")).expect("noll_age.kab");
     assert!(
         i.contains("pub fn nollAgeIsKab") && i.contains("return false"),
         "SH28 Kab nollAgeIsKab"
@@ -77611,7 +77699,7 @@ fn sh28_noll_age_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_pgp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_pgp.kab")).expect("noll_pgp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_pgp.kab")).expect("noll_pgp.kab");
     assert!(
         i.contains("pub fn nollPgpIsKab") && i.contains("return false"),
         "SH28 Kab nollPgpIsKab"
@@ -77637,7 +77725,7 @@ fn sh28_noll_pgp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_minisign_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_minisign.kab")).expect("noll_minisign.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_minisign.kab")).expect("noll_minisign.kab");
     assert!(
         i.contains("pub fn nollMinisignIsKab") && i.contains("return false"),
         "SH28 Kab nollMinisignIsKab"
@@ -77663,7 +77751,7 @@ fn sh28_noll_minisign_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_signify_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_signify.kab")).expect("noll_signify.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_signify.kab")).expect("noll_signify.kab");
     assert!(
         i.contains("pub fn nollSignifyIsKab") && i.contains("return false"),
         "SH28 Kab nollSignifyIsKab"
@@ -77689,7 +77777,7 @@ fn sh28_noll_signify_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cosign_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cosign.kab")).expect("noll_cosign.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cosign.kab")).expect("noll_cosign.kab");
     assert!(
         i.contains("pub fn nollCosignIsKab") && i.contains("return false"),
         "SH28 Kab nollCosignIsKab"
@@ -77715,7 +77803,7 @@ fn sh28_noll_cosign_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_notary_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_notary.kab")).expect("noll_notary.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_notary.kab")).expect("noll_notary.kab");
     assert!(
         i.contains("pub fn nollNotaryIsKab") && i.contains("return false"),
         "SH28 Kab nollNotaryIsKab"
@@ -77741,7 +77829,7 @@ fn sh28_noll_notary_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_rekor_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_rekor.kab")).expect("noll_rekor.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_rekor.kab")).expect("noll_rekor.kab");
     assert!(
         i.contains("pub fn nollRekorIsKab") && i.contains("return false"),
         "SH28 Kab nollRekorIsKab"
@@ -77767,7 +77855,7 @@ fn sh28_noll_rekor_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_fulcio_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_fulcio.kab")).expect("noll_fulcio.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_fulcio.kab")).expect("noll_fulcio.kab");
     assert!(
         i.contains("pub fn nollFulcioIsKab") && i.contains("return false"),
         "SH28 Kab nollFulcioIsKab"
@@ -77793,7 +77881,7 @@ fn sh28_noll_fulcio_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_sigstore_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_sigstore.kab")).expect("noll_sigstore.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_sigstore.kab")).expect("noll_sigstore.kab");
     assert!(
         i.contains("pub fn nollSigstoreIsKab") && i.contains("return false"),
         "SH28 Kab nollSigstoreIsKab"
@@ -77819,7 +77907,7 @@ fn sh28_noll_sigstore_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_intoto_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_intoto.kab")).expect("noll_intoto.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_intoto.kab")).expect("noll_intoto.kab");
     assert!(
         i.contains("pub fn nollIntotoIsKab") && i.contains("return false"),
         "SH28 Kab nollIntotoIsKab"
@@ -77845,7 +77933,7 @@ fn sh28_noll_intoto_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_slsa_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_slsa.kab")).expect("noll_slsa.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_slsa.kab")).expect("noll_slsa.kab");
     assert!(
         i.contains("pub fn nollSlsaIsKab") && i.contains("return false"),
         "SH28 Kab nollSlsaIsKab"
@@ -77871,7 +77959,7 @@ fn sh28_noll_slsa_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_spdx_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_spdx.kab")).expect("noll_spdx.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_spdx.kab")).expect("noll_spdx.kab");
     assert!(
         i.contains("pub fn nollSpdxIsKab") && i.contains("return false"),
         "SH28 Kab nollSpdxIsKab"
@@ -77897,7 +77985,7 @@ fn sh28_noll_spdx_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cyclonedx_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cyclonedx.kab")).expect("noll_cyclonedx.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cyclonedx.kab")).expect("noll_cyclonedx.kab");
     assert!(
         i.contains("pub fn nollCyclonedxIsKab") && i.contains("return false"),
         "SH28 Kab nollCyclonedxIsKab"
@@ -77923,7 +78011,7 @@ fn sh28_noll_cyclonedx_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_sbom_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_sbom.kab")).expect("noll_sbom.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_sbom.kab")).expect("noll_sbom.kab");
     assert!(
         i.contains("pub fn nollSbomIsKab") && i.contains("return false"),
         "SH28 Kab nollSbomIsKab"
@@ -77949,7 +78037,7 @@ fn sh28_noll_sbom_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_vex_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_vex.kab")).expect("noll_vex.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_vex.kab")).expect("noll_vex.kab");
     assert!(
         i.contains("pub fn nollVexIsKab") && i.contains("return false"),
         "SH28 Kab nollVexIsKab"
@@ -77975,7 +78063,7 @@ fn sh28_noll_vex_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cve_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cve.kab")).expect("noll_cve.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cve.kab")).expect("noll_cve.kab");
     assert!(
         i.contains("pub fn nollCveIsKab") && i.contains("return false"),
         "SH28 Kab nollCveIsKab"
@@ -78001,7 +78089,7 @@ fn sh28_noll_cve_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cwe_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cwe.kab")).expect("noll_cwe.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cwe.kab")).expect("noll_cwe.kab");
     assert!(
         i.contains("pub fn nollCweIsKab") && i.contains("return false"),
         "SH28 Kab nollCweIsKab"
@@ -78027,7 +78115,7 @@ fn sh28_noll_cwe_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cpe_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cpe.kab")).expect("noll_cpe.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cpe.kab")).expect("noll_cpe.kab");
     assert!(
         i.contains("pub fn nollCpeIsKab") && i.contains("return false"),
         "SH28 Kab nollCpeIsKab"
@@ -78053,7 +78141,7 @@ fn sh28_noll_cpe_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cvss_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cvss.kab")).expect("noll_cvss.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cvss.kab")).expect("noll_cvss.kab");
     assert!(
         i.contains("pub fn nollCvssIsKab") && i.contains("return false"),
         "SH28 Kab nollCvssIsKab"
@@ -78079,7 +78167,7 @@ fn sh28_noll_cvss_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_osv_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_osv.kab")).expect("noll_osv.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_osv.kab")).expect("noll_osv.kab");
     assert!(
         i.contains("pub fn nollOsvIsKab") && i.contains("return false"),
         "SH28 Kab nollOsvIsKab"
@@ -78105,7 +78193,7 @@ fn sh28_noll_osv_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_ghsa_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_ghsa.kab")).expect("noll_ghsa.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_ghsa.kab")).expect("noll_ghsa.kab");
     assert!(
         i.contains("pub fn nollGhsaIsKab") && i.contains("return false"),
         "SH28 Kab nollGhsaIsKab"
@@ -78131,7 +78219,7 @@ fn sh28_noll_ghsa_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_nvd_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_nvd.kab")).expect("noll_nvd.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_nvd.kab")).expect("noll_nvd.kab");
     assert!(
         i.contains("pub fn nollNvdIsKab") && i.contains("return false"),
         "SH28 Kab nollNvdIsKab"
@@ -78157,7 +78245,7 @@ fn sh28_noll_nvd_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_kev_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_kev.kab")).expect("noll_kev.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_kev.kab")).expect("noll_kev.kab");
     assert!(
         i.contains("pub fn nollKevIsKab") && i.contains("return false"),
         "SH28 Kab nollKevIsKab"
@@ -78183,7 +78271,7 @@ fn sh28_noll_kev_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cisa_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cisa.kab")).expect("noll_cisa.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cisa.kab")).expect("noll_cisa.kab");
     assert!(
         i.contains("pub fn nollCisaIsKab") && i.contains("return false"),
         "SH28 Kab nollCisaIsKab"
@@ -78209,7 +78297,7 @@ fn sh28_noll_cisa_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_mitre_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_mitre.kab")).expect("noll_mitre.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_mitre.kab")).expect("noll_mitre.kab");
     assert!(
         i.contains("pub fn nollMitreIsKab") && i.contains("return false"),
         "SH28 Kab nollMitreIsKab"
@@ -78235,7 +78323,7 @@ fn sh28_noll_mitre_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_attack_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_attack.kab")).expect("noll_attack.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_attack.kab")).expect("noll_attack.kab");
     assert!(
         i.contains("pub fn nollAttackIsKab") && i.contains("return false"),
         "SH28 Kab nollAttackIsKab"
@@ -78261,7 +78349,7 @@ fn sh28_noll_attack_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_capec_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_capec.kab")).expect("noll_capec.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_capec.kab")).expect("noll_capec.kab");
     assert!(
         i.contains("pub fn nollCapecIsKab") && i.contains("return false"),
         "SH28 Kab nollCapecIsKab"
@@ -78287,7 +78375,7 @@ fn sh28_noll_capec_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_stix_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_stix.kab")).expect("noll_stix.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_stix.kab")).expect("noll_stix.kab");
     assert!(
         i.contains("pub fn nollStixIsKab") && i.contains("return false"),
         "SH28 Kab nollStixIsKab"
@@ -78313,7 +78401,7 @@ fn sh28_noll_stix_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_taxii_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_taxii.kab")).expect("noll_taxii.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_taxii.kab")).expect("noll_taxii.kab");
     assert!(
         i.contains("pub fn nollTaxiiIsKab") && i.contains("return false"),
         "SH28 Kab nollTaxiiIsKab"
@@ -78339,7 +78427,7 @@ fn sh28_noll_taxii_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_misp_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_misp.kab")).expect("noll_misp.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_misp.kab")).expect("noll_misp.kab");
     assert!(
         i.contains("pub fn nollMispIsKab") && i.contains("return false"),
         "SH28 Kab nollMispIsKab"
@@ -78365,7 +78453,7 @@ fn sh28_noll_misp_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_opencti_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_opencti.kab")).expect("noll_opencti.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_opencti.kab")).expect("noll_opencti.kab");
     assert!(
         i.contains("pub fn nollOpenctiIsKab") && i.contains("return false"),
         "SH28 Kab nollOpenctiIsKab"
@@ -78391,7 +78479,7 @@ fn sh28_noll_opencti_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_thehive_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_thehive.kab")).expect("noll_thehive.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_thehive.kab")).expect("noll_thehive.kab");
     assert!(
         i.contains("pub fn nollThehiveIsKab") && i.contains("return false"),
         "SH28 Kab nollThehiveIsKab"
@@ -78417,7 +78505,7 @@ fn sh28_noll_thehive_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cortex_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cortex.kab")).expect("noll_cortex.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cortex.kab")).expect("noll_cortex.kab");
     assert!(
         i.contains("pub fn nollCortexIsKab") && i.contains("return false"),
         "SH28 Kab nollCortexIsKab"
@@ -78443,7 +78531,7 @@ fn sh28_noll_cortex_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_shuffle_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_shuffle.kab")).expect("noll_shuffle.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_shuffle.kab")).expect("noll_shuffle.kab");
     assert!(
         i.contains("pub fn nollShuffleIsKab") && i.contains("return false"),
         "SH28 Kab nollShuffleIsKab"
@@ -78469,7 +78557,7 @@ fn sh28_noll_shuffle_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_wazuh_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_wazuh.kab")).expect("noll_wazuh.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_wazuh.kab")).expect("noll_wazuh.kab");
     assert!(
         i.contains("pub fn nollWazuhIsKab") && i.contains("return false"),
         "SH28 Kab nollWazuhIsKab"
@@ -78495,7 +78583,7 @@ fn sh28_noll_wazuh_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_osquery_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_osquery.kab")).expect("noll_osquery.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_osquery.kab")).expect("noll_osquery.kab");
     assert!(
         i.contains("pub fn nollOsqueryIsKab") && i.contains("return false"),
         "SH28 Kab nollOsqueryIsKab"
@@ -78521,7 +78609,7 @@ fn sh28_noll_osquery_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_suricata_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_suricata.kab")).expect("noll_suricata.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_suricata.kab")).expect("noll_suricata.kab");
     assert!(
         i.contains("pub fn nollSuricataIsKab") && i.contains("return false"),
         "SH28 Kab nollSuricataIsKab"
@@ -78547,7 +78635,7 @@ fn sh28_noll_suricata_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_zeek_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_zeek.kab")).expect("noll_zeek.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_zeek.kab")).expect("noll_zeek.kab");
     assert!(
         i.contains("pub fn nollZeekIsKab") && i.contains("return false"),
         "SH28 Kab nollZeekIsKab"
@@ -78573,7 +78661,7 @@ fn sh28_noll_zeek_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_snort_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_snort.kab")).expect("noll_snort.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_snort.kab")).expect("noll_snort.kab");
     assert!(
         i.contains("pub fn nollSnortIsKab") && i.contains("return false"),
         "SH28 Kab nollSnortIsKab"
@@ -78599,7 +78687,7 @@ fn sh28_noll_snort_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_yara_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_yara.kab")).expect("noll_yara.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_yara.kab")).expect("noll_yara.kab");
     assert!(
         i.contains("pub fn nollYaraIsKab") && i.contains("return false"),
         "SH28 Kab nollYaraIsKab"
@@ -78625,7 +78713,7 @@ fn sh28_noll_yara_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_sigma_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_sigma.kab")).expect("noll_sigma.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_sigma.kab")).expect("noll_sigma.kab");
     assert!(
         i.contains("pub fn nollSigmaIsKab") && i.contains("return false"),
         "SH28 Kab nollSigmaIsKab"
@@ -78651,7 +78739,7 @@ fn sh28_noll_sigma_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_clamav_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_clamav.kab")).expect("noll_clamav.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_clamav.kab")).expect("noll_clamav.kab");
     assert!(
         i.contains("pub fn nollClamavIsKab") && i.contains("return false"),
         "SH28 Kab nollClamavIsKab"
@@ -78677,7 +78765,7 @@ fn sh28_noll_clamav_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_virustotal_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_virustotal.kab")).expect("noll_virustotal.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_virustotal.kab")).expect("noll_virustotal.kab");
     assert!(
         i.contains("pub fn nollVirustotalIsKab") && i.contains("return false"),
         "SH28 Kab nollVirustotalIsKab"
@@ -78703,7 +78791,7 @@ fn sh28_noll_virustotal_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_hybridanalysis_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_hybridanalysis.kab")).expect("noll_hybridanalysis.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_hybridanalysis.kab")).expect("noll_hybridanalysis.kab");
     assert!(
         i.contains("pub fn nollHybridanalysisIsKab") && i.contains("return false"),
         "SH28 Kab nollHybridanalysisIsKab"
@@ -78729,7 +78817,7 @@ fn sh28_noll_hybridanalysis_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_anyrun_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_anyrun.kab")).expect("noll_anyrun.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_anyrun.kab")).expect("noll_anyrun.kab");
     assert!(
         i.contains("pub fn nollAnyrunIsKab") && i.contains("return false"),
         "SH28 Kab nollAnyrunIsKab"
@@ -78755,7 +78843,7 @@ fn sh28_noll_anyrun_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cuckoo_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cuckoo.kab")).expect("noll_cuckoo.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cuckoo.kab")).expect("noll_cuckoo.kab");
     assert!(
         i.contains("pub fn nollCuckooIsKab") && i.contains("return false"),
         "SH28 Kab nollCuckooIsKab"
@@ -78781,7 +78869,7 @@ fn sh28_noll_cuckoo_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_joe_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_joe.kab")).expect("noll_joe.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_joe.kab")).expect("noll_joe.kab");
     assert!(
         i.contains("pub fn nollJoeIsKab") && i.contains("return false"),
         "SH28 Kab nollJoeIsKab"
@@ -78807,7 +78895,7 @@ fn sh28_noll_joe_host_dual_bind_in_kab() {
 #[test]
 fn sh28_noll_cape_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/noll_cape.kab")).expect("noll_cape.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cape.kab")).expect("noll_cape.kab");
     assert!(
         i.contains("pub fn nollCapeIsKab") && i.contains("return false"),
         "SH28 Kab nollCapeIsKab"

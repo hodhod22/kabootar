@@ -1,6 +1,0 @@
-// SH28: product init CLI is not Kab-only yet. import "kab/noll_init"
-// Do not grow noll_new.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollInitIsKab() {
-    return false
-}

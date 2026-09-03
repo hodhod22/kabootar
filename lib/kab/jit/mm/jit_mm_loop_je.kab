@@ -1,0 +1,39 @@
+// SH17 deepen: loop-je guest mmap args. import "kab/jit/jit_mm_loop_je"
+// Do not grow jit_mm_loop_test.kab. Separate virt slot from loop-test.
+
+import "kab/jit/jit_loop_je"
+
+pub fn jitMmLoopJePid() {
+    return 1
+}
+
+pub fn jitMmLoopJeVirt() {
+    return 581632
+}
+
+pub fn jitMmLoopJeLen() {
+    return 4096
+}
+
+pub fn jitMmLoopJeProt() {
+    return 7
+}
+
+pub fn jitOsMmapLoopJeOk(nBytes, kind, n, k) {
+    if jitLoopJeOk(n, k) == false {
+        return false
+    }
+    if nBytes != jitLoopJeLen() {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    if jitMmLoopJeLen() != 4096 {
+        return false
+    }
+    if jitMmLoopJeProt() != 7 {
+        return false
+    }
+    return true
+}

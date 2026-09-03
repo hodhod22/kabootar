@@ -1,3 +1,3 @@
-import "kab/aot_frame_exit_op"
+import "kab/aot/aot_frame_exit_op"
 
 return aotFrameExitOp("x64") == "c9"

@@ -1,6 +1,6 @@
-import "kab/ui_cite"
-import "kab/ui_abbr"
-import "kab/ui_host"
+import "kab/ui/ui_cite"
+import "kab/ui/ui_abbr"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

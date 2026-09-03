@@ -1,0 +1,24 @@
+// SH21: write/read a path after join+norm. import "kab/os/os_rw"
+// Do not grow os.kab. Host os_* stay capabilities; kabOsHostDeleteOk stays false.
+
+import "kab/os"
+import "kab/os/os_join"
+import "kab/os/os_norm"
+
+/// Join+norm, mkdir, os_write, os_read; true when the body roundtrips.
+pub fn kabOsWriteReadOk(dir, name, body) {
+    if kabOsCapWrite() == false {
+        return false
+    }
+    if kabOsCapRead() == false {
+        return false
+    }
+    let path = kabOsNorm(kabOsJoin(dir, name))
+    os_mkdir(dir)
+    os_write(path, body)
+    let got = os_read(path)
+    if got == body {
+        return true
+    }
+    return false
+}

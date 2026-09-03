@@ -1,9 +1,0 @@
-// SH22: row-store gate off sql.kab. import "kab/sql_store"
-// Do not grow sql.kab. Host storage remains skuld.
-
-pub fn sqlStoreOk(nRows) {
-    if nRows >= 0 {
-        return true
-    }
-    return false
-}

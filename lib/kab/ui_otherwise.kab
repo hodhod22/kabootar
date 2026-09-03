@@ -1,6 +1,0 @@
-// SH27: otherwise tag off ui_piece.kab. import "kab/ui_otherwise"
-// Do not grow ui_piece.kab. Host browser* remains skuld.
-
-pub fn uiIsOtherwise(tag) {
-    return tag == "otherwise"
-}

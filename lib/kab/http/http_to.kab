@@ -1,0 +1,7 @@
+// F14/SH24: fetch timeout via host capability. import "kab/http/http_to"
+// Local env only — no TCP.
+
+pub fn httpSetTimeout(ms) {
+    http_set_timeout(ms)
+    return true
+}

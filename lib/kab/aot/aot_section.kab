@@ -1,0 +1,35 @@
+// F10: Kab native images carry only known sections. import "kab/aot/aot_section"
+// Do not import other kab/aot* leaves. Section layout remains Kab-owned.
+
+pub fn aotSectionOk(name) {
+    if name == "text" {
+        return true
+    }
+    if name == "rodata" {
+        return true
+    }
+    if name == "data" {
+        return true
+    }
+    return false
+}
+
+// F10: a known image section resolves from its non-negative base and offset.
+pub fn aotSectionAddress(base, name, offset) {
+    if base < 0 {
+        return -1
+    }
+    if offset < 0 {
+        return -1
+    }
+    if name == "text" {
+        return base + offset
+    }
+    if name == "rodata" {
+        return base + offset
+    }
+    if name == "data" {
+        return base + offset
+    }
+    return -1
+}

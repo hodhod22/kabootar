@@ -1,6 +1,0 @@
-// SH28: product X-Wing stack is not Kab-only yet. import "kab/noll_xwing"
-// Do not grow noll_hybrid.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollXwingIsKab() {
-    return false
-}

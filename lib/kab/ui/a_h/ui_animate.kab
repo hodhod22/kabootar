@@ -1,0 +1,6 @@
+// SH27: animate tag off ui_fe_drop_shadow.kab. import "kab/ui/ui_animate"
+// Do not grow ui_fe_drop_shadow.kab. Host browser* remains skuld.
+
+pub fn uiIsAnimate(tag) {
+    return tag == "animate"
+}

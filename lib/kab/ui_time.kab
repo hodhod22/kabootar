@@ -1,6 +1,0 @@
-// SH27: time tag off ui_sup.kab. import "kab/ui_time"
-// Do not grow ui_sup.kab. Host browser* remains skuld.
-
-pub fn uiIsTime(tag) {
-    return tag == "time"
-}

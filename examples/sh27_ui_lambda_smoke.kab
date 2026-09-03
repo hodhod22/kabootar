@@ -1,3 +1,3 @@
-import "kab/ui_lambda"
+import "kab/ui/ui_lambda"
 
 return uiIsLambda("lambda")

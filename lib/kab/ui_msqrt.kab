@@ -1,6 +1,0 @@
-// SH27: msqrt tag off ui_mfrac.kab. import "kab/ui_msqrt"
-// Do not grow ui_mfrac.kab. Host browser* remains skuld.
-
-pub fn uiIsMsqrt(tag) {
-    return tag == "msqrt"
-}

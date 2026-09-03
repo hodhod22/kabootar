@@ -1,6 +1,0 @@
-// SH27: meter tag off ui_dfn.kab. import "kab/ui_meter"
-// Do not grow ui_dfn.kab. Host browser* remains skuld.
-
-pub fn uiIsMeter(tag) {
-    return tag == "meter"
-}

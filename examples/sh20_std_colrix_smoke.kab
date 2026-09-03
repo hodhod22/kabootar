@@ -1,6 +1,6 @@
-import "kab/std_colrix"
-import "kab/std_colfill"
-import "kab/std_colpush"
+import "kab/std/std_colrix"
+import "kab/std/std_colfill"
+import "kab/std/std_colpush"
 
 let p = stdColFill(1, 1)
 p = stdColPush(p, 42)

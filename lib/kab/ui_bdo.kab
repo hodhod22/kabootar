@@ -1,6 +1,0 @@
-// SH27: bdo tag off ui_bdi.kab. import "kab/ui_bdo"
-// Do not grow ui_bdi.kab. Host browser* remains skuld.
-
-pub fn uiIsBdo(tag) {
-    return tag == "bdo"
-}

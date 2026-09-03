@@ -1,6 +1,0 @@
-// SH27: legend tag off ui_fieldset.kab. import "kab/ui_legend"
-// Do not grow ui_fieldset.kab. Host browser* remains skuld.
-
-pub fn uiIsLegend(tag) {
-    return tag == "legend"
-}

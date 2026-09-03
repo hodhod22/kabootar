@@ -1,3 +1,3 @@
-import "kab/ui_hatchpath"
+import "kab/ui/ui_hatchpath"
 
 return uiIsHatchpath("hatchpath")

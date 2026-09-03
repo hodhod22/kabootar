@@ -1,0 +1,12 @@
+// F10: first Kab-native images emit a documented push-return-register opcode.
+// import "kab/aot/aot_push_op"; do not import other kab/aot* leaves.
+
+pub fn aotPushOp(target) {
+    if target == "x64" {
+        return "50"
+    }
+    if target == "arm64" {
+        return "e00f1ff8"
+    }
+    return ""
+}

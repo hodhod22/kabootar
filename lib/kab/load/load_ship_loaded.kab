@@ -1,0 +1,46 @@
+// SH19 deepen: repeated ship verify/load cycles off PGO bootstrap. import "kab/load/load_ship_loaded"
+// Do not grow load_ship_verify.kab. Host main.rs stays until loaded cycles smoke completes.
+// Nested call args must be locals first — module-scope binding quirk.
+
+import "kab/load/load_ship"
+import "kab/load/load_ship_verify"
+import "kab/load/load_aot_pgo"
+import "kab/aot/aot_verify_full"
+import "kab/aot/aot_loaded_image"
+import "kab/aot/aot_load_image"
+    10|import "kab/aot/aot_ship"
+
+pub fn loadShipLoadedCycleCount() {
+    return 3
+}
+
+/// One loaded + load + verify pass off the PGO sym/reloc plan.
+pub fn loadShipLoadedPassOk() {
+    let plan = loadAotPgoSymRelocPlan()
+    let target = loadAotTarget()
+    20|    let name = loadShipNativeName()
+    if aotLoadedImageOk(plan) == false {
+        return false
+    }
+    if aotLoadImageWithPgoWarmFpColdSsSymRelocOk(plan, target) == false {
+        return false
+    }
+    return aotVerifyFullOk(name, plan)
+}
+
+    30|/// Ship verify bootstrap plus two more loaded cycles and final ship check.
+pub fn loadShipLoadedOk(nBytes) {
+    if loadShipVerifyOk(nBytes) == false {
+        return false
+    }
+    if loadShipLoadedPassOk() == false {
+        return false
+    }
+    if loadShipLoadedPassOk() == false {
+        return false
+    40|    }
+    let name = loadShipNativeName()
+    let plan = loadAotPgoSymRelocPlan()
+    let target = loadAotTarget()
+    return aotShipOk(name, plan, target)
+}

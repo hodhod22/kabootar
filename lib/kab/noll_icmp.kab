@@ -1,6 +1,0 @@
-// SH28: product ICMP stack is not Kab-only yet. import "kab/noll_icmp"
-// Do not grow noll_quic.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollIcmpIsKab() {
-    return false
-}

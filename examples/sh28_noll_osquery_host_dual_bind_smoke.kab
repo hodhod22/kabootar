@@ -1,0 +1,18 @@
+import "kab/noll/noll_osquery"
+import "kab/noll/noll_wazuh"
+import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
+
+if nollHostDeleteOk() != false {
+    return false
+}
+if nollAotReady() {
+    return false
+}
+if nollWazuhIsKab() != false {
+    return false
+}
+if nollOsqueryIsKab() != false {
+    return false
+}
+return nollHostDeleteOk() == false

@@ -1,5 +1,5 @@
-import "kab/os_env"
-import "kab/os_host"
+import "kab/os/os_env"
+import "kab/os/os_host"
 
 if kabOsHostDeleteOk() != false {
     return false

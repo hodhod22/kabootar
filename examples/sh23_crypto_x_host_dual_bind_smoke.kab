@@ -1,6 +1,6 @@
-import "kab/crypto_x"
-import "kab/crypto_ed"
-import "kab/crypto_host"
+import "kab/crypto/crypto_x"
+import "kab/crypto/crypto_ed"
+import "kab/crypto/crypto_host"
 
 if cryptoHostDeleteOk() != false {
     return false

@@ -1,7 +1,0 @@
-// F10: persist a Kab-native image plan through the host filesystem capability.
-// import "kab/aot_write_plan"; do not import other kab/aot* leaves.
-
-pub fn aotWritePlan(path, plan) {
-    os_write(path, plan)
-    return true
-}

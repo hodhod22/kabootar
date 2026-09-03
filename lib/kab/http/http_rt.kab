@@ -1,0 +1,11 @@
+// F14/SH24: in-process route. import "kab/http/http_rt"
+// No TCP. Handler stays in this leaf (smokes must not add a second import).
+
+pub fn httpRtNop() {
+    return 1
+}
+
+pub fn httpRouteOk(method, path) {
+    http_route(method, path, httpRtNop)
+    return true
+}

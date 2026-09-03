@@ -1,6 +1,6 @@
-import "kab/ui_rb"
-import "kab/ui_strike"
-import "kab/ui_host"
+import "kab/ui/ui_rb"
+import "kab/ui/ui_strike"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

@@ -1,3 +1,3 @@
-import "kab/ui_frame"
+import "kab/ui/ui_frame"
 
 return uiIsFrame("frame")

@@ -1,3 +1,3 @@
-import "kab/ui_menclose"
+import "kab/ui/ui_menclose"
 
 return uiIsMenclose("menclose")

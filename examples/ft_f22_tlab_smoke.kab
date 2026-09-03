@@ -1,4 +1,4 @@
-import "kab/gc_host"
+import "kab/gc/gc_host"
 import "kab/tlab"
 
 if gcHostDeleteOk() != false {

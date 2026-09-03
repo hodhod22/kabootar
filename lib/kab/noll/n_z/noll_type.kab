@@ -1,0 +1,6 @@
+// SH28: product typechecker is not Kab-only yet. import "kab/noll/noll_type"
+// Do not grow noll_lex.kab. Do not delete src/. nollAotReady stays false.
+
+pub fn nollTypeIsKab() {
+    return false
+}

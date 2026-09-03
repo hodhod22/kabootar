@@ -1,6 +1,0 @@
-// SH27: feImage tag off ui_fe_func_r.kab. import "kab/ui_fe_image"
-// Do not grow ui_fe_func_r.kab. Host browser* remains skuld.
-
-pub fn uiIsFeImage(tag) {
-    return tag == "feImage"
-}

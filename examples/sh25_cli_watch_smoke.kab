@@ -1,3 +1,3 @@
-import "kab/cli_watch"
+import "kab/cli/cli_watch"
 
 return cliIsWatch("watch") == true

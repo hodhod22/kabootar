@@ -1,3 +1,3 @@
-import "kab/ui_td"
+import "kab/ui/ui_td"
 
 return uiIsTd("td")

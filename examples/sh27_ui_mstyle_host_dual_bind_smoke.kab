@@ -1,6 +1,6 @@
-import "kab/ui_mstyle"
-import "kab/ui_malignmark"
-import "kab/ui_host"
+import "kab/ui/ui_mstyle"
+import "kab/ui/ui_malignmark"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

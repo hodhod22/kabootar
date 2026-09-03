@@ -1,6 +1,0 @@
-// SH21: path join leaf off os_dir.kab. import "kab/os_join"
-// Do not grow os_dir.kab. kabOsHostDeleteOk stays false.
-
-pub fn kabOsJoin(a, b) {
-    return a + "/" + b
-}

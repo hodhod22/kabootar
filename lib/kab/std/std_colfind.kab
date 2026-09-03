@@ -1,0 +1,12 @@
+// SH20: collections find off std_coldesc.kab. import "kab/std/std_colfind"
+// Do not grow std_coldesc.kab. stdHostDeleteOk stays false.
+
+import "kab/std/std_colindex"
+
+pub fn stdColFind(p, x) {
+    let i = stdColIndex(p, x)
+    if i < 0 {
+        return 0 - 1
+    }
+    return p[i]
+}

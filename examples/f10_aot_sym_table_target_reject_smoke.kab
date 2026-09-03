@@ -1,4 +1,4 @@
-import "kab/aot_sym"
+import "kab/aot/aot_sym"
 
 if aotSymbolRecordOk("main", 32, "wasm") != false {
     return false

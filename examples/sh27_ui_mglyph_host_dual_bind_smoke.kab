@@ -1,6 +1,6 @@
-import "kab/ui_mglyph"
-import "kab/ui_msline"
-import "kab/ui_host"
+import "kab/ui/ui_mglyph"
+import "kab/ui/ui_msline"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

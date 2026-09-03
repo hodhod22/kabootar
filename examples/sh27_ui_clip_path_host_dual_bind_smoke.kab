@@ -1,6 +1,6 @@
-import "kab/ui_clip_path"
-import "kab/ui_marker"
-import "kab/ui_host"
+import "kab/ui/ui_clip_path"
+import "kab/ui/ui_marker"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

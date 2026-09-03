@@ -1,0 +1,6 @@
+// SH27: matrixrow tag off ui_matrix.kab. import "kab/ui/ui_matrixrow"
+// Do not grow ui_matrix.kab. Host browser* remains skuld.
+
+pub fn uiIsMatrixrow(tag) {
+    return tag == "matrixrow"
+}

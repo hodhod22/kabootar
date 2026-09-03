@@ -1,6 +1,6 @@
-import "kab/ui_hkern"
-import "kab/ui_font_face_name"
-import "kab/ui_host"
+import "kab/ui/ui_hkern"
+import "kab/ui/ui_font_face_name"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

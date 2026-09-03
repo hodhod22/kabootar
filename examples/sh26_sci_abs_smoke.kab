@@ -1,4 +1,4 @@
-import "kab/sci_abs"
+import "kab/sci/sci_abs"
 
 let n = sciAbs(0 - 4)
 if n == 4 {

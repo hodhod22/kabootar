@@ -1,6 +1,0 @@
-// SH27: dl tag off ui_address.kab. import "kab/ui_dl"
-// Do not grow ui_address.kab. Host browser* remains skuld.
-
-pub fn uiIsDl(tag) {
-    return tag == "dl"
-}

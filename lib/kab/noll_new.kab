@@ -1,6 +1,0 @@
-// SH28: product new CLI is not Kab-only yet. import "kab/noll_new"
-// Do not grow noll_bench.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollNewIsKab() {
-    return false
-}

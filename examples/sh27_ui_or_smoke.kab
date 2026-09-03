@@ -1,3 +1,3 @@
-import "kab/ui_or"
+import "kab/ui/ui_or"
 
 return uiIsOr("or")

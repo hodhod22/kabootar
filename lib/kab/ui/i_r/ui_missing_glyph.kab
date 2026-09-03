@@ -1,0 +1,6 @@
+// SH27: missing-glyph tag off ui_glyph.kab. import "kab/ui/ui_missing_glyph"
+// Do not grow ui_glyph.kab. Host browser* remains skuld.
+
+pub fn uiIsMissingGlyph(tag) {
+    return tag == "missing-glyph"
+}

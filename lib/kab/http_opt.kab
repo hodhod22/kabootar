@@ -1,6 +1,0 @@
-// SH24: OPTIONS method gate off http_delete.kab. import "kab/http_opt"
-// Do not grow http_delete.kab. httpHostDeleteOk stays false. No TCP.
-
-pub fn httpIsOptions(m) {
-    return m == "OPTIONS"
-}

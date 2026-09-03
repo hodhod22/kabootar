@@ -1,4 +1,4 @@
-import "kab/io_list"
+import "kab/io/io_list"
 
 let xs = ioList(".")
 let n = len(xs)

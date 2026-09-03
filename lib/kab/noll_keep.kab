@@ -1,6 +1,0 @@
-// SH28: keep host src/ until AOT. import "kab/noll_keep"
-// Do not grow noll.kab. Do not delete src/.
-
-pub fn nollKeepSrc() {
-    return true
-}

@@ -1,4 +1,4 @@
-import "kab/sci_sgn"
+import "kab/sci/sci_sgn"
 
 let n = sciSign(0 - 4)
 if n == 0 - 1 {

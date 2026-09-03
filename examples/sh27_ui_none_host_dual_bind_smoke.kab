@@ -1,6 +1,6 @@
-import "kab/ui_none"
-import "kab/ui_mprescripts"
-import "kab/ui_host"
+import "kab/ui/ui_none"
+import "kab/ui/ui_mprescripts"
+import "kab/ui/ui_host"
 
 if uiHostDeleteOk() != false {
     return false

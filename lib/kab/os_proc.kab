@@ -1,9 +1,0 @@
-// SH21: process argv leaf off os.kab. import "kab/os_proc"
-// Do not grow os.kab. Host process remains skuld.
-
-pub fn kabOsArgvOk(n) {
-    if n >= 1 {
-        return true
-    }
-    return false
-}

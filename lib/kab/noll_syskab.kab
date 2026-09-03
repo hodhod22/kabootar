@@ -1,7 +1,0 @@
-// SH28: product syscalls are not yet Kab — policy "syscall-is-kab" is false.
-// import "kab/noll_syskab"
-// Do not grow noll_stubproc.kab or noll_syscall.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollSyscallIsKab() {
-    return false
-}

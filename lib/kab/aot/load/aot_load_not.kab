@@ -1,0 +1,12 @@
+// F10: loader accepts only a documented first-image not opcode.
+// import "kab/aot/aot_load_not"; do not import other kab/aot* leaves.
+
+pub fn aotLoadNotOk(op, target) {
+    if target == "x64" {
+        return op == "f7d0"
+    }
+    if target == "arm64" {
+        return op == "aa2003e0"
+    }
+    return false
+}

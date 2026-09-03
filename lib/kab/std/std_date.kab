@@ -1,0 +1,9 @@
+// SH20: date/ms subset off stdlib.kab. import "kab/std/std_date"
+// Do not grow stdlib.kab. Host date natives remain skuld.
+
+pub fn stdDateEpochOk(ms) {
+    if ms >= 0 {
+        return true
+    }
+    return false
+}

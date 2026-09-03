@@ -1,0 +1,6 @@
+// SH27: mphantom tag off ui_mpadded.kab. import "kab/ui/ui_mphantom"
+// Do not grow ui_mpadded.kab. Host browser* remains skuld.
+
+pub fn uiIsMphantom(tag) {
+    return tag == "mphantom"
+}

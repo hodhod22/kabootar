@@ -1,6 +1,0 @@
-// SH27: line tag off ui_ellipse.kab. import "kab/ui_line"
-// Do not grow ui_ellipse.kab. Host browser* remains skuld.
-
-pub fn uiIsLine(tag) {
-    return tag == "line"
-}

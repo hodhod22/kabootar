@@ -1,6 +1,0 @@
-// SH25: ls argv off cli_mod.kab. import "kab/cli_ls"
-// Do not grow cli_mod.kab. Host src/cli remains skuld.
-
-pub fn cliIsLs(cmd) {
-    return cmd == "ls"
-}

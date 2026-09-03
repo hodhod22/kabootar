@@ -1,6 +1,0 @@
-// F14 deepen: one-shot write via host capability. import "kab/io_put"
-
-pub fn ioPut(path, body) {
-    os_write(path, body)
-    return true
-}

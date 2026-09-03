@@ -1,6 +1,0 @@
-// SH27: style tag off ui_script.kab. import "kab/ui_style"
-// Do not grow ui_script.kab. Host browser* remains skuld.
-
-pub fn uiIsStyle(tag) {
-    return tag == "style"
-}

@@ -1,6 +1,0 @@
-// SH28: product SLSA stack is not Kab-only yet. import "kab/noll_slsa"
-// Do not grow noll_intoto.kab. Do not delete src/. nollAotReady stays false.
-
-pub fn nollSlsaIsKab() {
-    return false
-}

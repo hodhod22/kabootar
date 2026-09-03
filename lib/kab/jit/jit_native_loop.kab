@@ -1,0 +1,19 @@
+// F8 deepen: native i64-loop eligibility. import "kab/jit/jit_native_loop"
+// Do not grow jit_ssa.kab. SSA + LICM + loopN; exec stays on loopN wr+call.
+
+import "kab/jit/jit_ssa"
+import "kab/jit/jit_licm"
+import "kab/jit/jit_loop_n"
+
+pub fn jitNativeLoopOk(nPhi, nInv, n) {
+    if jitSsaOk(nPhi) == false {
+        return false
+    }
+    if jitLicmOk(nInv) == false {
+        return false
+    }
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    return true
+}

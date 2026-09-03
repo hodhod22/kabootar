@@ -1,5 +1,5 @@
-import "kab/aot_shr_op"
-import "kab/aot_load_shr"
+import "kab/aot/aot_shr_op"
+import "kab/aot/aot_load_shr"
 
 let op = aotShrOp("x64")
 return aotLoadShrOk(op, "x64")

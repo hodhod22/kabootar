@@ -1,9 +1,9 @@
-import "kab/std_colpop"
-import "kab/std_colpush"
-import "kab/std_collen"
-import "kab/std_colget"
-import "kab/std_col"
-import "kab/std_host"
+import "kab/std/std_colpop"
+import "kab/std/std_colpush"
+import "kab/std/std_collen"
+import "kab/std/std_colget"
+import "kab/std/std_col"
+import "kab/std/std_host"
 
 if stdHostDeleteOk() != false {
     return false
