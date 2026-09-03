@@ -61923,6 +61923,50 @@ fn sh23_crypto_sha_eval_smoke() {
         .expect("join");
 }
 
+/// SH23: HMAC-SHA256 RFC 4231 test 2 via Kab eval (not a string-gate).
+#[test]
+fn sh23_crypto_hmac_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_hmac_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-hmac-eval".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile hmac eval smoke");
+            let value = eval_program(&program, &mut env).expect("run hmac eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: TLS 1.2 PRF + Finished verify_data via Kab HMAC-SHA256 (not a string-gate).
+#[test]
+fn sh23_crypto_tls_prf_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_tls_prf_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-tls-prf".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile tls prf eval smoke");
+            let value = eval_program(&program, &mut env).expect("run tls prf eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH23 deepen: HMAC alg gate lives off crypto.kab.
 #[test]
 fn sh23_crypto_hmac_in_kab() {

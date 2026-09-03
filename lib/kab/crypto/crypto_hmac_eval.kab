@@ -1,0 +1,239 @@
+// SH23: HMAC-SHA256 eval (RFC 2104 / 4231). import "kab/crypto/crypto_hmac_eval"
+// Do not grow crypto_hmac.kab. Host MAC natives remain skuld.
+
+import "kab/crypto/crypto_sha_eval"
+
+pub fn hmacXorByte(a, b) {
+    return ((a | b) - (a & b)) | 0
+}
+
+pub fn hmacIpadMsg(key, msg) {
+    let out = []
+    let kn = len(key)
+    let i = 0
+    while i < 64 {
+        let b = 0
+        if i < kn {
+            b = char_code_at(key, i) & 255
+        }
+        out = push(out, hmacXorByte(b, 54) & 255)
+        i = i + 1
+    }
+    let j = 0
+    while j < len(msg) {
+        out = push(out, char_code_at(msg, j) & 255)
+        j = j + 1
+    }
+    return out
+}
+
+pub fn hmacOpadDigest(key, inner) {
+    let w0 = inner["0"]
+    let w1 = inner["1"]
+    let w2 = inner["2"]
+    let w3 = inner["3"]
+    let w4 = inner["4"]
+    let w5 = inner["5"]
+    let w6 = inner["6"]
+    let w7 = inner["7"]
+    let out = []
+    let kn = len(key)
+    let i = 0
+    while i < 64 {
+        let b = 0
+        if i < kn {
+            b = char_code_at(key, i) & 255
+        }
+        out = push(out, hmacXorByte(b, 92) & 255)
+        i = i + 1
+    }
+    out = push(out, (w0 >>> 24) & 255)
+    out = push(out, (w0 >>> 16) & 255)
+    out = push(out, (w0 >>> 8) & 255)
+    out = push(out, w0 & 255)
+    out = push(out, (w1 >>> 24) & 255)
+    out = push(out, (w1 >>> 16) & 255)
+    out = push(out, (w1 >>> 8) & 255)
+    out = push(out, w1 & 255)
+    out = push(out, (w2 >>> 24) & 255)
+    out = push(out, (w2 >>> 16) & 255)
+    out = push(out, (w2 >>> 8) & 255)
+    out = push(out, w2 & 255)
+    out = push(out, (w3 >>> 24) & 255)
+    out = push(out, (w3 >>> 16) & 255)
+    out = push(out, (w3 >>> 8) & 255)
+    out = push(out, w3 & 255)
+    out = push(out, (w4 >>> 24) & 255)
+    out = push(out, (w4 >>> 16) & 255)
+    out = push(out, (w4 >>> 8) & 255)
+    out = push(out, w4 & 255)
+    out = push(out, (w5 >>> 24) & 255)
+    out = push(out, (w5 >>> 16) & 255)
+    out = push(out, (w5 >>> 8) & 255)
+    out = push(out, w5 & 255)
+    out = push(out, (w6 >>> 24) & 255)
+    out = push(out, (w6 >>> 16) & 255)
+    out = push(out, (w6 >>> 8) & 255)
+    out = push(out, w6 & 255)
+    out = push(out, (w7 >>> 24) & 255)
+    out = push(out, (w7 >>> 16) & 255)
+    out = push(out, (w7 >>> 8) & 255)
+    out = push(out, w7 & 255)
+    return out
+}
+
+pub fn hmacSha256Hex(key, msg) {
+    let inner = sha256Bytes(hmacIpadMsg(key, msg))
+    return sha256HexFromBytes(hmacOpadDigest(key, inner))
+}
+
+/// RFC 4231 test case 2.
+pub fn hmacSha256EvalOk() {
+    if hmacSha256Hex("Jefe", "what do ya want for nothing?") != "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843" {
+        return false
+    }
+    return true
+}
+
+pub fn hmacStrBytes(s) {
+    let o = {}
+    let n = len(s)
+    let i = 0
+    while i < n {
+        o["" + i] = char_code_at(s, i) & 255
+        i = i + 1
+    }
+    o["n"] = n
+    return o
+}
+
+pub fn hmacIpadMsgObj(key, msg) {
+    let kn = key["n"]
+    let mn = msg["n"]
+    let out = []
+    let i = 0
+    while i < 64 {
+        let b = 0
+        if i < kn {
+            b = key["" + i] & 255
+        }
+        out = push(out, hmacXorByte(b, 54) & 255)
+        i = i + 1
+    }
+    let j = 0
+    while j < mn {
+        out = push(out, msg["" + j] & 255)
+        j = j + 1
+    }
+    return out
+}
+
+pub fn hmacOpadDigestObj(key, inner) {
+    let w0 = inner["0"]
+    let w1 = inner["1"]
+    let w2 = inner["2"]
+    let w3 = inner["3"]
+    let w4 = inner["4"]
+    let w5 = inner["5"]
+    let w6 = inner["6"]
+    let w7 = inner["7"]
+    let kn = key["n"]
+    let out = []
+    let i = 0
+    while i < 64 {
+        let b = 0
+        if i < kn {
+            b = key["" + i] & 255
+        }
+        out = push(out, hmacXorByte(b, 92) & 255)
+        i = i + 1
+    }
+    out = push(out, (w0 >>> 24) & 255)
+    out = push(out, (w0 >>> 16) & 255)
+    out = push(out, (w0 >>> 8) & 255)
+    out = push(out, w0 & 255)
+    out = push(out, (w1 >>> 24) & 255)
+    out = push(out, (w1 >>> 16) & 255)
+    out = push(out, (w1 >>> 8) & 255)
+    out = push(out, w1 & 255)
+    out = push(out, (w2 >>> 24) & 255)
+    out = push(out, (w2 >>> 16) & 255)
+    out = push(out, (w2 >>> 8) & 255)
+    out = push(out, w2 & 255)
+    out = push(out, (w3 >>> 24) & 255)
+    out = push(out, (w3 >>> 16) & 255)
+    out = push(out, (w3 >>> 8) & 255)
+    out = push(out, w3 & 255)
+    out = push(out, (w4 >>> 24) & 255)
+    out = push(out, (w4 >>> 16) & 255)
+    out = push(out, (w4 >>> 8) & 255)
+    out = push(out, w4 & 255)
+    out = push(out, (w5 >>> 24) & 255)
+    out = push(out, (w5 >>> 16) & 255)
+    out = push(out, (w5 >>> 8) & 255)
+    out = push(out, w5 & 255)
+    out = push(out, (w6 >>> 24) & 255)
+    out = push(out, (w6 >>> 16) & 255)
+    out = push(out, (w6 >>> 8) & 255)
+    out = push(out, w6 & 255)
+    out = push(out, (w7 >>> 24) & 255)
+    out = push(out, (w7 >>> 16) & 255)
+    out = push(out, (w7 >>> 8) & 255)
+    out = push(out, w7 & 255)
+    return out
+}
+
+pub fn hmacSha256WordsObj(key, msg) {
+    let inner = sha256Bytes(hmacIpadMsgObj(key, msg))
+    return sha256Bytes(hmacOpadDigestObj(key, inner))
+}
+
+pub fn hmacWordsHex(w) {
+    return shaHexWord(w["0"]) + shaHexWord(w["1"]) + shaHexWord(w["2"]) + shaHexWord(w["3"]) + shaHexWord(w["4"]) + shaHexWord(w["5"]) + shaHexWord(w["6"]) + shaHexWord(w["7"])
+}
+
+pub fn hmacDigestToObj(inner) {
+    let w0 = inner["0"]
+    let w1 = inner["1"]
+    let w2 = inner["2"]
+    let w3 = inner["3"]
+    let w4 = inner["4"]
+    let w5 = inner["5"]
+    let w6 = inner["6"]
+    let w7 = inner["7"]
+    let o = {}
+    o["0"] = (w0 >>> 24) & 255
+    o["1"] = (w0 >>> 16) & 255
+    o["2"] = (w0 >>> 8) & 255
+    o["3"] = w0 & 255
+    o["4"] = (w1 >>> 24) & 255
+    o["5"] = (w1 >>> 16) & 255
+    o["6"] = (w1 >>> 8) & 255
+    o["7"] = w1 & 255
+    o["8"] = (w2 >>> 24) & 255
+    o["9"] = (w2 >>> 16) & 255
+    o["10"] = (w2 >>> 8) & 255
+    o["11"] = w2 & 255
+    o["12"] = (w3 >>> 24) & 255
+    o["13"] = (w3 >>> 16) & 255
+    o["14"] = (w3 >>> 8) & 255
+    o["15"] = w3 & 255
+    o["16"] = (w4 >>> 24) & 255
+    o["17"] = (w4 >>> 16) & 255
+    o["18"] = (w4 >>> 8) & 255
+    o["19"] = w4 & 255
+    o["20"] = (w5 >>> 24) & 255
+    o["21"] = (w5 >>> 16) & 255
+    o["22"] = (w5 >>> 8) & 255
+    o["23"] = w5 & 255
+    o["24"] = (w6 >>> 24) & 255
+    o["25"] = (w6 >>> 16) & 255
+    o["26"] = (w6 >>> 8) & 255
+    o["27"] = w6 & 255
+    o["28"] = (w7 >>> 24) & 255
+    o["29"] = (w7 >>> 16) & 255
+    o["30"] = (w7 >>> 8) & 255
+    o["31"] = w7 & 255
+    o["n"] = 32
+    return o
+}
