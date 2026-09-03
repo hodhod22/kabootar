@@ -1,0 +1,54 @@
+// SH19: open a .kbc file and eval on Kab-VM. import "kab/load_file"
+// Do not grow load.kab. Host main.rs stays skuld.
+
+import "kab/load"
+import "kab/load_kbc"
+import "kab/boot"
+import "kab/vm"
+
+pub fn loadIsKbcb(path) {
+    return str_includes(path, ".kbcb")
+}
+
+pub fn loadKind(path) {
+    if loadIsKbcb(path) {
+        return "kbcb"
+    }
+    if loadIsKbc(path) {
+        return "kbc"
+    }
+    if loadIsKab(path) {
+        return "kab"
+    }
+    return ""
+}
+
+pub fn loadOpenBody(path) {
+    return os_read(path)
+}
+
+/// Read .kbc text from disk and run it on Kab-VM (no host VM).
+pub fn loadEvalKbcFile(path) {
+    if loadKind(path) != "kbc" {
+        return false
+    }
+    let body = loadOpenBody(path)
+    if loadReady(len("" + body)) == false {
+        return false
+    }
+    if isBytecode(body) == false {
+        return false
+    }
+    return evalKbcKabOnly(body)
+}
+
+/// Compile source, persist .kbc, eval from disk.
+pub fn loadEvalKbcRoundtripOk(path, source, expect) {
+    let kbc = bootCompile(source)
+    os_write(path, kbc)
+    let got = loadEvalKbcFile(path)
+    if got == expect {
+        return true
+    }
+    return false
+}

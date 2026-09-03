@@ -6,6 +6,8 @@ Produktkompilatorn är `self_host/compile.kab`. Plan: **[docs/ROADMAP.md — Vå
 
 **Dok efter varje deepen:** uppdatera [docs/ROADMAP.md](../docs/ROADMAP.md) (status + **Nästa**) och den här filen (nuläge + milstolpar + tester) i samma pass. Språkparitet: även [docs/LANGUAGE.md](../docs/LANGUAGE.md).
 
+**SH6 = KLAR.** **SH17** i64-loop-subset stängt. **SH18** nursery på `new_instance`. **SH19:** `loadEvalKbcRoundtripOk` (`sh19_load_file_exec_smoke`). **Nästa:** SH19 `.kbcb` open+deserialize. Inte fler loader-flagg-kloner.
+
 ## Kedja
 
 ```
@@ -371,6 +373,7 @@ cargo test --test sh_wave sh6_self_host_triple_index_mul_compound_assign_ok -- -
 cargo test --test sh_wave sh6_self_host_index_compound_assign_eval_once_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_method_this_writeback_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_using_class_close_writeback_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_with_bind_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_generic_super_bound_tag_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_dynamic_import_math_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_async_fn_ok -- --test-threads=1
@@ -598,6 +601,7 @@ cargo test --test sh_wave sh6_self_host_generator_nested_try_yield_star_symbol_i
 cargo test --test sh_wave sh6_self_host_generator_nested_try_yield_star_custom_throw_done_false_continue_send_return_method_send_done_throw_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_generator_nested_try_yield_star_symbol_iterator_throw_done_false_continue_send_return_method_send_done_throw_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_generator_nested_try_yield_star_custom_throw_done_false_continue_send_return_method_send_done_return_ok -- --test-threads=1
+cargo test --test sh_wave sh6_self_host_generator_nested_try_yield_star_symbol_iterator_throw_done_false_continue_send_return_method_send_done_return_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_generator_try_finally_no_catch_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_generator_return_finally_no_catch_ok -- --test-threads=1
 cargo test --test sh_wave sh6_self_host_generator_throw_finally_no_catch_ok -- --test-threads=1
@@ -698,7 +702,7 @@ Kort ordning:
 3. ~~**SH16**~~ ✅ appar: ingen rust-emit (`eval_file_cached` / `compile --rust`); toolchain `self_host/` får rust
 4. **SH5 platå** — compile-DAG **12**; `ownership` får **inte** `pub import compile` (suiten laddar hela pipelinen). Inte `parser_stmt`/`postfix`/`emit_*_body` förrän leaf ≤10 s / ~550 rader. **`match`**: enum unit + payload + `if let`/`while let`.
 5. ~~**SH17/SH18**~~ ✅ subset + deepen (`jitMmapOk` mmap/exec dual-bind; loop8/loopN/arith-imm/bit-ops/shifts/unary/eq/ne/lt/gt/le/ge/test/je/jne/jmp/jl/jle/jg/jge/nop `os_mm_call`; `gcHostDeleteOk` host-GC dual-bind)
-6. ~~**SH19**~~ ✅ subset + deepen (`loadMainDeleteOk` main.rs dual-bind)
+6. ~~**SH19**~~ ✅ subset + deepen (`loadEvalKbcRoundtripOk` `.kbc` disk eval; `loadMainDeleteOk` still false)
 7. ~~**SH20**~~ ✅ subset (JSON/datum/regex + math + objekt + collections + colget + collen + colpush + colpop + colfirst + collast + colrest + colempty + colconcat + colrev + colcontains + colindex + colcount + coltake + coldrop + colzip + colunzip + colflat + colunique + coleq + colclone + colrepeat + colfill + colrange + colsum + colmax + colmin + colprod + colavg + colmed + colmode + colsort + coldesc + colfind + colrfind + colrix + colslice + colwin + colchunk + colrot + colpad + colilv + coltr + coldiag + colident + coltrc + colrow + colcol + colshape + colrshp + coldot + colmv + colmm + colout + colcrs + coldet + colnorm + colunit + colproj + colrej + coldist + collerp + colscale + coladd + colsub + colmul + coldiv + colneg + colabs + colsign + colclamp + colmod + colpow + colsqrt + colsqr + colcub + colfloor + colceil + colround + coltrunc + collog + collog2 + collog10 + colexp + colsin + colcos + coltan + colasin + colacos + colatan + colatan2 + colhypot + colcbrt + colimul + colclz32 + colfround + colf16round + colsumprec + collog1p + colexpm1 + colsinh + colcosh + coltanh + colasinh + colacosh + colatanh + colfmod + colrandom + colpi + cole + colln2 + colln10 + collog2e + collog10e + colsqrt2 + colsqrt12 leaves); radera natives deepen
 8. ~~**SH21**~~ ✅ subset (`kabOsIsFile` + `kabOsArgvOk` + `kabOsEnvOk` + `kabOsCwdOk` + `kabOsIsDir` + `kabOsJoin` + `kabOsBase` + `kabOsExt` + `kabOsDirname` + `kabOsNorm` + `kabOsAbs` + `kabOsRel`); radera `runtime/os` deepen
 9. ~~**SH22**~~ ✅ subset (`sqlIsWhere` + `sqlStoreOk` + `sqlIsLimit` + `sqlIsOrder` + `sqlIsInsert` + `sqlIsUpdate` + `sqlIsDelete` + `sqlIsCreate` + `sqlIsJoin` + `sqlIsGroup` + `sqlIsHaving` + `sqlIsDistinct` + `sqlIsUnion`); radera `src/sql` deepen

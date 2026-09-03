@@ -9542,6 +9542,36 @@ fn sh6_self_host_generator_nested_try_yield_star_custom_throw_done_false_continu
     assert_eq!(formatted, "1473981");
 }
 
+/// SH6: `g.return` immediately after `g.next(v)` send after completion of `Symbol.iterator` send + `return()` `{ done: false }` chain.
+#[test]
+fn sh6_self_host_generator_nested_try_yield_star_symbol_iterator_throw_done_false_continue_send_return_method_send_done_return_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let st = { k: 0 }\nfn itNext(v) {\n  if st.k == 0 {\n    st.k = 1\n    return { value: 1, done: false }\n  }\n  if st.k == 2 {\n    st.k = 3\n    return { value: v, done: false }\n  }\n  return { value: 0, done: true }\n}\nfn itThrow(e) {\n  st.k = 2\n  return { value: e, done: false }\n}\nfn itRet(v) {\n  st.k = 2\n  return { value: v, done: false }\n}\nfn mkIter() {\n  let it = { next: itNext }\n  it[\"throw\"] = itThrow\n  it[\"return\"] = itRet\n  return it\n}\nlet o = {}\no[\"Symbol.iterator\"] = mkIter\nfn* gen() {\n  try {\n    try {\n      yield* o\n    } finally {\n      yield 9\n    }\n  } catch (err) {\n    return err\n  } finally {\n    yield 8\n  }\n}\nfn wrapFin() {\n  let g = gen()\n  let a = g.next()\n  let b = g.throw(4)\n  let c = g.next(7)\n  let d = g.return(3)\n  let e = g.next()\n  let h = g.next()\n  let i = g.next()\n  let t = g.next(6)\n  let u = g.return(2)\n  let f = 0\n  if u.done == true {\n    f = 1\n  } else {\n    if u.done == 1 {\n      f = 1\n    } else {\n      f = u.value\n    }\n  }\n  return a.value * 1000000 + b.value * 100000 + c.value * 10000 + d.value * 1000 + e.value * 100 + h.value * 10 + f\n}\nreturn wrapFin()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-gen-ntry-ys-sym-tdfsrmsr".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested try yield-star Symbol.iterator throw done false continue send return method send done return");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1473981");
+}
+
 /// SH6: `try/finally` without `catch` in `fn*` runs after yield resume.
 #[test]
 fn sh6_self_host_generator_try_finally_no_catch_ok() {
@@ -21673,6 +21703,7 @@ fn sh6_self_host_method_this_writeback_ok() {
 #[test]
 fn sh6_self_host_using_class_close_writeback_ok() {
     use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
     let prev = std::env::var("KABOOTAR_VM").ok();
     std::env::remove_var("KABOOTAR_VM");
     let src = "class R {\n  n: number;\n  fn init() { this.n = 0 }\n  fn close() { this.n = 1 }\n}\nfn run() {\n  let x = R()\n  {\n    using y = x\n  }\n  return x.n\n}\nreturn run()";
@@ -21696,6 +21727,36 @@ fn sh6_self_host_using_class_close_writeback_ok() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "1");
+}
+
+/// SH6: `with r as y` binds the resource in the block (self-host + Kab VM).
+#[test]
+fn sh6_self_host_with_bind_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let acc = { n: 0 }\n  with { v: 4 } as r {\n    acc.n = r.v\n  }\n  return acc.n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-with-bind".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host with bind");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "4");
 }
 
 /// SH6: large string const exceeds text maxKbc but packed kbcb v2 still evals on Kab VM.
@@ -22245,6 +22306,28 @@ fn sh17_jit_os_mm_call_reject_in_kab() {
             && s.contains("0"),
         "SH17 Kab os_mm_call rejection"
     );
+}
+
+/// SH17: AccAdd/add/const/load_local/store_local/ret → inc+ret mmap/store/os_mm_call (eval).
+#[test]
+fn sh17_jit_from_ops_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_from_ops_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit from-ops exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit from-ops exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// SH17 deepen: i64 loop8 template lives off jit.kab.
@@ -57018,6 +57101,61 @@ fn sh18_gc_capstone_exec_smoke() {
         .expect("join");
 }
 
+/// SH18: nursery bump alloc + collect (eval, not string-gate).
+#[test]
+fn sh18_gc_alloc_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_alloc_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-alloc-exec".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc alloc exec smoke");
+            let value = eval_program(&program, &mut env).expect("run gc alloc exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18: Kab-VM new_instance nursery charge (eval many shells).
+#[test]
+fn sh18_gc_vm_new_instance_exec_smoke() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = std::fs::read_to_string(format!(
+        "{}/examples/sh18_gc_vm_new_instance_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read gc vm new_instance smoke");
+    let formatted = std::thread::Builder::new()
+        .name("sh18-gc-vm-new".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program = compile_source_self_host(&src)
+                .map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("gc vm new_instance smoke");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "1");
+}
+
 #[test]
 fn sh19_load_aot_capstone_exec_smoke() {
     let path = format!(
@@ -57032,6 +57170,28 @@ fn sh19_load_aot_capstone_exec_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile AOT capstone exec smoke");
             let value = eval_program(&program, &mut env).expect("run AOT capstone exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH19: persist .kbc, os_read, Kab-VM eval (not string-gate).
+#[test]
+fn sh19_load_file_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh19_load_file_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh19-load-file-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile load file exec smoke");
+            let value = eval_program(&program, &mut env).expect("run load file exec smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")

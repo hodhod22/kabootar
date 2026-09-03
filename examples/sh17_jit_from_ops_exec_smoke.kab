@@ -1,0 +1,4 @@
+import "kab/jit_from_ops"
+
+let ops = ["const", "store_local", "load_local", "const", "add", "store_local", "acc_add_local", "ret"]
+return jitFromOpsOk(ops)

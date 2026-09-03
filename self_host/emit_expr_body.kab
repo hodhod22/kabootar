@@ -452,7 +452,9 @@ pub fn emitExpr_arrow(E) {
             "params": arrUtil(E, "snap", aParams),
             "locals": arrUtil(E, "snap", E["eFnLocals"]),
             "ops": arrUtil(E, "snap", E["eFnOps"]),
-            "tryRegions": arrUtil(E, "snap", E["eFnTryRegions"])
+            "tryRegions": arrUtil(E, "snap", E["eFnTryRegions"]),
+            "isAsync": E["eNode"]["isAsync"],
+            "isGen": E["eNode"]["isGen"]
         })
         E["eInFn"] = saveIn
         E["eFnOps"] = saveOps
@@ -2000,7 +2002,10 @@ pub fn emitExprBody(E, node) {
     if node == null {
         throw "emitExpr: null node"
     }
-    let kind = node.kind
+    if node == 0 {
+        throw "emitExpr: zero node"
+    }
+    let kind = node["kind"]
     if kind == AST_LITERAL {
         emitExpr_literal(E)
         return

@@ -28,6 +28,12 @@ pub fn deserArrow(st, line) {
         st["arrows"][idx]["locals"] = commaList(list)
         return "ok"
     }
+    if starts_with(line, "arrow_async ") {
+        let rest = trim(str_slice(line, 12, len(line)))
+        let idx = parse_int(rest)
+        st["arrows"][idx]["isAsync"] = 1
+        return "ok"
+    }
     if starts_with(line, "arrow_op ") {
         let rest = str_slice(line, 9, len(line))
         let sp = str_index_of(rest, " ")
