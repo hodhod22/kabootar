@@ -387,7 +387,10 @@ pub fn parseAddShift_plus(sess) {
 
 pub fn parseAddShift_shift(sess) {
     while sess["pCur"].type == "<<" || sess["pCur"].type == ">>" || sess["pCur"].type == ">>>" {
+        let op = sess["pCur"].type
         bump(sess)
+        let left = sess["pLeft"]
+        let right = pCallMul(sess)
         // JS: + binds tighter than << — allow +/- on shift RHS.
         while sess["pCur"].type == "+" || sess["pCur"].type == "-" {
             let addOp = sess["pCur"].type
