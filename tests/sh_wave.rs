@@ -2963,9 +2963,14 @@ fn sh6_self_host_for_of_generator_ok() {
         .spawn(move || {
             let program =
                 compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bytecode = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bytecode);
             let mut env = create_global_env();
             eval_program(&program, &mut env)
-                .map(|v| kabootar_lib::value::format_value(&v))
+                .map(|v| format!("{}\n{kbc}", kabootar_lib::value::format_value(&v)))
                 .map_err(|e| format!("eval: {e}"))
         })
         .expect("spawn")
@@ -15826,6 +15831,65 @@ fn sh6_self_host_bitwise_compound_assign_ok() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "3");
+}
+
+/// SH23 prerequisite: self-host shift parser emits a signed high-bit result.
+#[test]
+fn sh23_self_host_shift_high_word_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let src = "fn run() {\n  let x = 305419896\n  return x << 28\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh23-high-word-shift".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host high-word shift");
+    assert_eq!(formatted, "-2147483648");
+}
+
+#[test]
+fn sh23_self_host_shift_or_emits_bit_or() {
+    use kabootar_lib::compile::compile_source_self_host;
+    let src = "fn run() {\n  let x = 305419896\n  return (x >>> 4) | (x << 28)\n}\nreturn run()";
+    let program = std::thread::Builder::new()
+        .name("sh23-shift-or-opcode".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src))
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host compile");
+    let run = program
+        .bytecode
+        .as_ref()
+        .expect("self-host produced bytecode")
+        .functions
+        .iter()
+        .find(|f| f.name == "run")
+        .expect("run function");
+    assert!(
+        run.code
+            .iter()
+            .any(|op| matches!(op, kabootar_lib::bytecode::Opcode::BitOr)),
+        "self-host emitter omitted bit_or: {:?}",
+        run.code
+    );
+    assert!(
+        run.code
+            .iter()
+            .any(|op| matches!(op, kabootar_lib::bytecode::Opcode::Shl)),
+        "self-host emitter omitted shl: {:?}",
+        run.code
+    );
 }
 
 /// SH6: product self-host `n |= 2` / `n ^= 3` bitwise compound assign + Kab VM.
@@ -61687,7 +61751,8 @@ fn sh23_crypto_plan_in_kab() {
 #[test]
 fn sh23_crypto_tls_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/crypto_tls.kab")).expect("crypto_tls.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_tls.kab"))
+        .expect("crypto_tls.kab");
     assert!(
         t.contains("pub fn cryptoTls12Ok") && t.contains("1.2"),
         "SH23 Kab cryptoTls12Ok"
@@ -61698,7 +61763,8 @@ fn sh23_crypto_tls_in_kab() {
 #[test]
 fn sh23_crypto_root_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let r = std::fs::read_to_string(root.join("lib/kab/crypto_root.kab")).expect("crypto_root.kab");
+    let r = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_root.kab"))
+        .expect("crypto_root.kab");
     assert!(
         r.contains("pub fn cryptoRootPem") && r.contains("BEGIN"),
         "SH23 Kab cryptoRootPem"
@@ -61709,7 +61775,8 @@ fn sh23_crypto_root_in_kab() {
 #[test]
 fn sh23_crypto_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/crypto_host.kab")).expect("crypto_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_host.kab"))
+        .expect("crypto_host.kab");
     assert!(
         h.contains("pub fn cryptoHostDeleteOk") && h.contains("false"),
         "SH23 Kab cryptoHostDeleteOk delete gate"
@@ -61737,7 +61804,8 @@ fn sh23_crypto_host_dual_bind_in_kab() {
 #[test]
 fn sh23_crypto_tls13_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/crypto_tls13.kab")).expect("crypto_tls13.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_tls13.kab"))
+        .expect("crypto_tls13.kab");
     assert!(
         t.contains("pub fn cryptoTls13Ok") && t.contains("1.3"),
         "SH23 Kab cryptoTls13Ok"
@@ -61762,7 +61830,8 @@ fn sh23_crypto_tls13_host_dual_bind_in_kab() {
 #[test]
 fn sh23_crypto_sha_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/crypto_sha.kab")).expect("crypto_sha.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_sha.kab"))
+        .expect("crypto_sha.kab");
     assert!(
         s.contains("pub fn cryptoSha256Ok") && s.contains("sha256"),
         "SH23 Kab cryptoSha256Ok"
@@ -61787,7 +61856,8 @@ fn sh23_crypto_sha_host_dual_bind_in_kab() {
 #[test]
 fn sh23_crypto_hmac_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/crypto_hmac.kab")).expect("crypto_hmac.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_hmac.kab"))
+        .expect("crypto_hmac.kab");
     assert!(
         h.contains("pub fn cryptoHmacOk") && h.contains("hmac-sha256"),
         "SH23 Kab cryptoHmacOk"
@@ -61812,7 +61882,8 @@ fn sh23_crypto_hmac_host_dual_bind_in_kab() {
 #[test]
 fn sh23_crypto_aes_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/crypto_aes.kab")).expect("crypto_aes.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_aes.kab"))
+        .expect("crypto_aes.kab");
     assert!(
         a.contains("pub fn cryptoAes256Ok") && a.contains("aes-256"),
         "SH23 Kab cryptoAes256Ok"
@@ -61837,7 +61908,8 @@ fn sh23_crypto_aes_host_dual_bind_in_kab() {
 #[test]
 fn sh23_crypto_chacha_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/crypto_chacha.kab")).expect("crypto_chacha.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_chacha.kab"))
+        .expect("crypto_chacha.kab");
     assert!(
         c.contains("pub fn cryptoChaChaOk") && c.contains("chacha20"),
         "SH23 Kab cryptoChaChaOk"
@@ -61862,7 +61934,8 @@ fn sh23_crypto_chacha_host_dual_bind_in_kab() {
 #[test]
 fn sh23_crypto_gcm_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let g = std::fs::read_to_string(root.join("lib/kab/crypto_gcm.kab")).expect("crypto_gcm.kab");
+    let g = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_gcm.kab"))
+        .expect("crypto_gcm.kab");
     assert!(
         g.contains("pub fn cryptoGcmOk") && g.contains("aes-256-gcm"),
         "SH23 Kab cryptoGcmOk"
@@ -61887,7 +61960,8 @@ fn sh23_crypto_gcm_host_dual_bind_in_kab() {
 #[test]
 fn sh23_crypto_ed_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let e = std::fs::read_to_string(root.join("lib/kab/crypto_ed.kab")).expect("crypto_ed.kab");
+    let e = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_ed.kab"))
+        .expect("crypto_ed.kab");
     assert!(
         e.contains("pub fn cryptoEd25519Ok") && e.contains("ed25519"),
         "SH23 Kab cryptoEd25519Ok"
@@ -61912,7 +61986,8 @@ fn sh23_crypto_ed_host_dual_bind_in_kab() {
 #[test]
 fn sh23_crypto_x_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let x = std::fs::read_to_string(root.join("lib/kab/crypto_x.kab")).expect("crypto_x.kab");
+    let x = std::fs::read_to_string(root.join("lib/kab/crypto/crypto_x.kab"))
+        .expect("crypto_x.kab");
     assert!(
         x.contains("pub fn cryptoX25519Ok") && x.contains("x25519"),
         "SH23 Kab cryptoX25519Ok"
