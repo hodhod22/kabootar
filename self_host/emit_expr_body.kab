@@ -387,8 +387,11 @@ pub fn emitExpr_array(E) {
 
 // --- emit_expr_arrow ---
 pub fn emitExpr_arrow(E) {
-    if E["eNode"].kind != AST_ARROW {
-        return false
+    let k = E["eNode"].kind
+    if k != AST_ARROW {
+        if k != AST_ARROW_ASYNC {
+            return false
+        }
     }
         let aParams = E["eNode"]["params"]
         let aBody = E["eNode"]["body"]
@@ -447,13 +450,17 @@ pub fn emitExpr_arrow(E) {
         }
         let ai = len(E["eArrows"])
         let arrowSym = "__arrow_" + ai
+        let aAsync = 0
+        if k == AST_ARROW_ASYNC {
+            aAsync = 1
+        }
         E["eArrows"] = push(E["eArrows"], {
             "sym": arrowSym,
             "params": arrUtil(E, "snap", aParams),
             "locals": arrUtil(E, "snap", E["eFnLocals"]),
             "ops": arrUtil(E, "snap", E["eFnOps"]),
             "tryRegions": arrUtil(E, "snap", E["eFnTryRegions"]),
-            "isAsync": E["eNode"]["isAsync"],
+            "isAsync": aAsync,
             "isGen": E["eNode"]["isGen"]
         })
         E["eInFn"] = saveIn
@@ -2022,6 +2029,10 @@ pub fn emitExprBody(E, node) {
         return
     }
     if kind == AST_ARROW {
+        emitExpr_arrow(E)
+        return
+    }
+    if kind == AST_ARROW_ASYNC {
         emitExpr_arrow(E)
         return
     }

@@ -2808,6 +2808,47 @@ fn sh6_self_host_async_fn_ok() {
     assert_eq!(formatted, "5");
 }
 
+/// SH6: `async (n) =>` compiles (`arrow_async`) and Kab-VM wraps with `promise_resolve`.
+#[test]
+fn sh6_self_host_async_arrow_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "let f = async (n) => n + 1\nreturn await f(9)";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-async-arrow".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("arrow_async") {
+                return Err(format!(
+                    "expected arrow_async, snippet:\n{}",
+                    kbc.chars().take(1500).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host async arrow");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "10");
+}
+
 /// SH6: `for await x of [1,2,3]` in `async fn` (async_iterator_begin + step_in_place + await).
 #[test]
 fn sh6_self_host_for_await_array_ok() {
@@ -62415,7 +62456,7 @@ fn sh23_crypto_http_resp_eval_smoke() {
         .expect("join");
 }
 
-/// SH23: http_fetch-shaped https URL + TLS record -> 200/OK (not rustls-delete).
+/// SH23: http_fetch via Kab TLS unwrap -> status/body (not rustls-delete).
 #[test]
 fn sh23_crypto_http_fetch_eval_smoke() {
     let path = format!(

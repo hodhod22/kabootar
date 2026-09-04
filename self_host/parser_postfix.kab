@@ -54,7 +54,11 @@ pub fn parsePostfix_bareArrow(sess) {
     } else {
         bareBody = pCallCompare(sess)
     }
-    sess["pLeft"] = { "kind": AST_ARROW, "params": bareParams, "body": bareBody }
+    let aKind = AST_ARROW
+    if sess["pPendingArrowAsync"] == 1 {
+        aKind = AST_ARROW_ASYNC
+    }
+    sess["pLeft"] = { "kind": aKind, "params": bareParams, "body": bareBody }
     return 0
 }
 
@@ -344,6 +348,8 @@ pub fn parsePostfix_obj(sess) {
 
 // --- parser_postfix_paren_arrow ---
 pub fn parsePostfix_paren_arrow(sess, scanned) {
+    let aAsync = sess["pPendingArrowAsync"]
+    sess["pPendingArrowAsync"] = 0
     bump(sess)
     let arrowBody = null
     if sess["pCur"].type == "{" {
@@ -355,8 +361,15 @@ pub fn parsePostfix_paren_arrow(sess, scanned) {
     } else {
         arrowBody = pCallCompare(sess)
     }
+    let aKind = AST_ARROW
+    if aAsync == 1 {
+        aKind = AST_ARROW_ASYNC
+    }
+    if aAsync == true {
+        aKind = AST_ARROW_ASYNC
+    }
     sess["pLeft"] = {
-        "kind": AST_ARROW,
+        "kind": aKind,
         "params": scanned["params"],
         "paramDefaults": scanned["defaults"],
         "rest": scanned["rest"],
@@ -995,6 +1008,28 @@ pub fn parsePostfix_match(sess) {
     return 1
 }
 
+// --- parser_postfix_async_prefix ---
+pub fn parsePostfix_asyncPrefix(sess) {
+    if sess["pCur"].type != TOKEN_ASYNC {
+        return 0
+    }
+    let pos = sess["pPos"]
+    let n = sess["pToksLen"]
+    let nxt = sess["pEofTok"]
+    if pos + 1 < n {
+        nxt = sess["pToks"][pos + 1]
+    }
+    let nt = nxt.type
+    if nt != "(" {
+        if nt != TOKEN_IDENT {
+            return 0
+        }
+    }
+    bump(sess)
+    sess["pPendingArrowAsync"] = 1
+    return 1
+}
+
 // --- parser_postfix_primary ---
 pub fn parsePostfix_primary(sess) {
     sess["pLeft"] = null
@@ -1020,7 +1055,17 @@ pub fn parsePostfix(sess) {
     if sess["pCur"].type == "EOF" {
         throw "parsePostfix EOF"
     }
+    let wantAsync = parsePostfix_asyncPrefix(sess)
     parsePostfix_primary(sess)
     parsePostfix_bareArrow(sess)
+    if wantAsync != 0 {
+        if sess["pLeft"]["kind"] != AST_ARROW {
+            if sess["pLeft"]["kind"] != AST_ARROW_ASYNC {
+                throw "`async` must be followed by `fn` or `=>`"
+            }
+        }
+        sess["pLeft"]["kind"] = AST_ARROW_ASYNC
+    }
+    sess["pPendingArrowAsync"] = 0
     return parsePostfix_tail(sess)
 }
