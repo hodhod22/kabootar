@@ -33,8 +33,15 @@ pub fn parse_http_url(url: &str) -> Result<ParsedUrl, String> {
 }
 
 fn parse_authority(rest: &str, scheme: Scheme, default_port: u16) -> Result<ParsedUrl, String> {
-    let (authority, path) = match rest.split_once('/') {
-        Some((auth, path)) => (auth, format!("/{path}")),
+    let rest = rest.split('#').next().unwrap_or(rest);
+    let (authority, path) = match rest.find(|c| c == '/' || c == '?') {
+        Some(path_start) if rest.as_bytes()[path_start] == b'/' => {
+            (&rest[..path_start], rest[path_start..].to_string())
+        }
+        Some(path_start) => (
+            &rest[..path_start],
+            format!("/{}", &rest[path_start..]),
+        ),
         None => (rest, "/".to_string()),
     };
     if authority.is_empty() {
@@ -157,10 +164,31 @@ fn is_redirect_status(status: i64) -> bool {
     matches!(status, 301 | 302 | 303 | 307 | 308)
 }
 
+fn normalize_url_path(path: &str) -> String {
+    let mut segments = Vec::new();
+    for segment in path.split('/') {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                segments.pop();
+            }
+            segment => segments.push(segment),
+        }
+    }
+    format!("/{}", segments.join("/"))
+}
+
 fn resolve_redirect_url(parsed: &ParsedUrl, location: &str) -> Result<String, String> {
     let location = location.trim();
     if location.starts_with("http://") || location.starts_with("https://") {
         return Ok(location.to_string());
+    }
+    if location.starts_with("//") {
+        let scheme = match parsed.scheme {
+            Scheme::Http => "http",
+            Scheme::Https => "https",
+        };
+        return Ok(format!("{scheme}:{location}"));
     }
     if location.starts_with('/') {
         let scheme = match parsed.scheme {
@@ -173,11 +201,78 @@ fn resolve_redirect_url(parsed: &ParsedUrl, location: &str) -> Result<String, St
             _ => String::new(),
         };
         return Ok(format!(
-            "{scheme}://{}{port_suffix}{location}",
+            "{scheme}://{}{port_suffix}{}",
+            parsed.host,
+            normalize_url_path(location)
+        ));
+    }
+    if location.starts_with('?') {
+        let scheme = match parsed.scheme {
+            Scheme::Http => "http",
+            Scheme::Https => "https",
+        };
+        let port_suffix = match parsed.scheme {
+            Scheme::Http if parsed.port != 80 => format!(":{}", parsed.port),
+            Scheme::Https if parsed.port != 443 => format!(":{}", parsed.port),
+            _ => String::new(),
+        };
+        let path = parsed.path.split('?').next().unwrap_or("/");
+        return Ok(format!(
+            "{scheme}://{}{port_suffix}{path}{location}",
             parsed.host
         ));
     }
+    if !location.contains(':') && !location.starts_with("//") {
+        let scheme = match parsed.scheme {
+            Scheme::Http => "http",
+            Scheme::Https => "https",
+        };
+        let port_suffix = match parsed.scheme {
+            Scheme::Http if parsed.port != 80 => format!(":{}", parsed.port),
+            Scheme::Https if parsed.port != 443 => format!(":{}", parsed.port),
+            _ => String::new(),
+        };
+        let current_path = parsed.path.split('?').next().unwrap_or("/");
+        let base_dir = match current_path.rsplit_once('/') {
+            Some(("", _)) => "/",
+            Some((dir, _)) => dir,
+            None => "/",
+        };
+        let path = if base_dir == "/" {
+            format!("/{location}")
+        } else {
+            format!("{base_dir}/{location}")
+        };
+        return Ok(format!(
+            "{scheme}://{}{port_suffix}{}",
+            parsed.host,
+            normalize_url_path(&path)
+        ));
+    }
     Err(format!("Unsupported redirect Location: {location}"))
+}
+
+fn is_same_origin(a: &ParsedUrl, b: &ParsedUrl) -> bool {
+    a.scheme == b.scheme && a.host.eq_ignore_ascii_case(&b.host) && a.port == b.port
+}
+
+fn remove_cross_origin_credentials(headers: &mut std::collections::HashMap<String, String>) {
+    headers.retain(|name, _| {
+        !matches!(
+            name.to_ascii_lowercase().as_str(),
+            "authorization" | "cookie" | "proxy-authorization"
+        )
+    });
+}
+
+fn sanitize_redirect_headers(
+    headers: &mut std::collections::HashMap<String, String>,
+    source: &ParsedUrl,
+    target: &ParsedUrl,
+) {
+    if !is_same_origin(source, target) {
+        remove_cross_origin_credentials(headers);
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -411,10 +506,11 @@ pub fn http_fetch(
     let mut url = url.to_string();
     let mut method = method.to_string();
     let mut body = body.to_string();
+    let mut headers = headers.clone();
 
     for hop in 0..=MAX_REDIRECTS {
         let parsed = parse_url(&url)?;
-        let response = http_fetch_once(&parsed, &method, &body, headers, trust, timeout_ms)?;
+        let response = http_fetch_once(&parsed, &method, &body, &headers, trust, timeout_ms)?;
 
         if !is_redirect_status(response.status) {
             return Ok(response);
@@ -433,6 +529,8 @@ pub fn http_fetch(
                 )
             })?;
         url = resolve_redirect_url(&parsed, location)?;
+        let redirect_target = parse_url(&url)?;
+        sanitize_redirect_headers(&mut headers, &parsed, &redirect_target);
 
         if matches!(response.status, 301 | 302 | 303) {
             method = "GET".to_string();
@@ -467,11 +565,12 @@ pub fn http_fetch_bytes(
     let mut url = url.to_string();
     let mut method = method.to_string();
     let mut body = body.to_string();
+    let mut headers = headers.clone();
 
     for hop in 0..=MAX_REDIRECTS {
         let parsed = parse_url(&url)?;
         let (response, bytes) =
-            http_fetch_bytes_once(&parsed, &method, &body, headers, trust, timeout_ms)?;
+            http_fetch_bytes_once(&parsed, &method, &body, &headers, trust, timeout_ms)?;
         if !is_redirect_status(response.status) {
             if response.status < 200 || response.status >= 300 {
                 return Err(format!(
@@ -494,6 +593,8 @@ pub fn http_fetch_bytes(
                 )
             })?;
         url = resolve_redirect_url(&parsed, location)?;
+        let redirect_target = parse_url(&url)?;
+        sanitize_redirect_headers(&mut headers, &parsed, &redirect_target);
         if matches!(response.status, 301 | 302 | 303) {
             method = "GET".to_string();
             body.clear();
@@ -610,6 +711,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_url_strips_fragment_and_preserves_query() {
+        let u = parse_url("https://example.com?query=value#fragment").unwrap();
+        assert_eq!(u.host, "example.com");
+        assert_eq!(u.path, "/?query=value");
+    }
+
+    #[test]
     fn parse_response_headers() {
         let raw = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nX-Test: abc\r\n\r\nok";
         let res = parse_http_response(raw).unwrap();
@@ -631,6 +739,66 @@ mod tests {
         let parsed = parse_url("http://example.com/old").unwrap();
         let url = resolve_redirect_url(&parsed, "https://other.test/path").unwrap();
         assert_eq!(url, "https://other.test/path");
+    }
+
+    #[test]
+    fn resolve_scheme_relative_redirect_url() {
+        let parsed = parse_url("https://example.com/old").unwrap();
+        let url = resolve_redirect_url(&parsed, "//other.test/path").unwrap();
+        assert_eq!(url, "https://other.test/path");
+    }
+
+    #[test]
+    fn resolve_query_only_redirect_url() {
+        let parsed = parse_url("https://example.com:8443/items?old=true").unwrap();
+        let url = resolve_redirect_url(&parsed, "?page=2").unwrap();
+        assert_eq!(url, "https://example.com:8443/items?page=2");
+    }
+
+    #[test]
+    fn resolve_relative_path_redirect_url() {
+        let parsed = parse_url("https://example.com:8443/items/current").unwrap();
+        let url = resolve_redirect_url(&parsed, "../next").unwrap();
+        assert_eq!(url, "https://example.com:8443/next");
+    }
+
+    #[test]
+    fn resolve_absolute_path_redirect_normalizes_segments() {
+        let parsed = parse_url("https://example.com/items/current").unwrap();
+        let url = resolve_redirect_url(&parsed, "/items/../next").unwrap();
+        assert_eq!(url, "https://example.com/next");
+    }
+
+    #[test]
+    fn cross_origin_redirect_removes_credentials() {
+        let mut headers = std::collections::HashMap::from([
+            ("Authorization".to_string(), "Bearer token".to_string()),
+            ("Cookie".to_string(), "session=abc".to_string()),
+            ("Proxy-Authorization".to_string(), "Basic abc".to_string()),
+            ("X-Trace".to_string(), "trace-id".to_string()),
+        ]);
+        let source = parse_url("https://example.com/start").unwrap();
+        let target = parse_url("https://other.test/final").unwrap();
+
+        sanitize_redirect_headers(&mut headers, &source, &target);
+        assert!(!headers.contains_key("Authorization"));
+        assert!(!headers.contains_key("Cookie"));
+        assert!(!headers.contains_key("Proxy-Authorization"));
+        assert_eq!(headers.get("X-Trace"), Some(&"trace-id".to_string()));
+    }
+
+    #[test]
+    fn same_origin_redirect_keeps_credentials() {
+        let mut headers = std::collections::HashMap::from([
+            ("Authorization".to_string(), "Bearer token".to_string()),
+            ("Cookie".to_string(), "session=abc".to_string()),
+        ]);
+        let source = parse_url("https://example.com:8443/start").unwrap();
+        let target = parse_url("https://EXAMPLE.com:8443/final").unwrap();
+
+        sanitize_redirect_headers(&mut headers, &source, &target);
+        assert_eq!(headers.get("Authorization"), Some(&"Bearer token".to_string()));
+        assert_eq!(headers.get("Cookie"), Some(&"session=abc".to_string()));
     }
 
     #[test]
