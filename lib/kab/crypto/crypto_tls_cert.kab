@@ -1,0 +1,253 @@
+// SH23: RSA PKCS#1 v1.5 SHA-256 verify for TLS CertificateVerify.
+// import "kab/crypto/crypto_tls_cert"
+// Do not grow crypto_tls.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_sha_eval"
+
+pub fn rsaParseHex(hx) {
+    let o = {}
+    let n = 0
+    let i = 0
+    let m = len(hx)
+    while i < m {
+        let hi = char_code_at(hx, i)
+        let lo = char_code_at(hx, i + 1)
+        if hi > 96 {
+            hi = hi - 87
+        } else {
+            hi = hi - 48
+        }
+        if lo > 96 {
+            lo = lo - 87
+        } else {
+            lo = lo - 48
+        }
+        o["" + n] = ((hi * 16) + lo) & 255
+        n = n + 1
+        i = i + 2
+    }
+    o["n"] = n
+    return o
+}
+
+pub fn rsaZero(nl) {
+    let o = {}
+    let i = 0
+    while i < nl {
+        o["" + i] = 0
+        i = i + 1
+    }
+    o["n"] = nl
+    return o
+}
+
+pub fn rsaFromBe(b) {
+    let nl = 32
+    let o = rsaZero(nl)
+    let k = b["n"]
+    let i = 0
+    while i < nl {
+        let off = k - 2 - i - i
+        if off >= 0 {
+            o["" + i] = (b["" + (off + 1)] & 255) + ((b["" + off] & 255) * 256)
+        }
+        i = i + 1
+    }
+    return o
+}
+
+pub fn rsaHexDigit(d) {
+    if d < 10 {
+        return from_char_code(48 + d)
+    }
+    return from_char_code(87 + d)
+}
+
+pub fn rsaToBeHex(a) {
+    let out = ""
+    let i = 31
+    while i >= 0 {
+        let v = rsaGet(a, i)
+        let hi = (v / 256) | 0
+        let lo = v - hi * 256
+        out = out + rsaHexDigit((hi / 16) | 0) + rsaHexDigit(hi - ((hi / 16) | 0) * 16)
+        out = out + rsaHexDigit((lo / 16) | 0) + rsaHexDigit(lo - ((lo / 16) | 0) * 16)
+        i = i - 1
+    }
+    return out
+}
+
+pub fn rsaGet(a, i) {
+    if i < 0 {
+        return 0
+    }
+    let nn = a["n"]
+    if i >= nn {
+        return 0
+    }
+    return a["" + i]
+}
+
+pub fn rsaGte(a, b) {
+    let i = 32
+    while i >= 0 {
+        let av = a["" + i]
+        let bv = b["" + i]
+        if av > bv {
+            return true
+        }
+        if av < bv {
+            return false
+        }
+        i = i - 1
+    }
+    return true
+}
+
+pub fn rsaSubIn(a, b) {
+    let br = 0
+    let i = 0
+    while i < 33 {
+        let v = a["" + i] - b["" + i] - br
+        if v < 0 {
+            v = v + 65536
+            br = 1
+        } else {
+            br = 0
+        }
+        a["" + i] = v
+        i = i + 1
+    }
+}
+
+pub fn rsaShl1In(a) {
+    let c = 0
+    let i = 0
+    while i < 33 {
+        let nv = a["" + i] + a["" + i] + c
+        c = (nv / 65536) | 0
+        a["" + i] = nv - c * 65536
+        i = i + 1
+    }
+}
+
+pub fn rsaBit(a, bit) {
+    let li = (bit / 16) | 0
+    let sh = bit - li * 16
+    let v = a["" + li]
+    let p = 1
+    let j = 0
+    while j < sh {
+        p = p * 2
+        j = j + 1
+    }
+    return ((v / p) | 0) - ((v / (p * 2)) | 0) * 2
+}
+
+pub fn rsaHighBit(a) {
+    let i = 63
+    while i >= 0 {
+        let v = a["" + i]
+        if v != 0 {
+            let b = 15
+            let p = 32768
+            while b >= 0 {
+                if ((v / p) | 0) != 0 {
+                    return i * 16 + b
+                }
+                p = (p / 2) | 0
+                b = b - 1
+            }
+        }
+        i = i - 1
+    }
+    return 0
+}
+
+pub fn rsaMod(t, nbits, n) {
+    let r = rsaZero(33)
+    n["32"] = 0
+    let bit = rsaHighBit(t)
+    if nbits < bit + 1 {
+        bit = nbits - 1
+    }
+    while bit >= 0 {
+        rsaShl1In(r)
+        if rsaBit(t, bit) != 0 {
+            r["0"] = r["0"] + 1
+            if r["0"] >= 65536 {
+                r["0"] = r["0"] - 65536
+                r["1"] = r["1"] + 1
+            }
+        }
+        if rsaGte(r, n) == true {
+            rsaSubIn(r, n)
+        }
+        bit = bit - 1
+    }
+    r["n"] = 32
+    return r
+}
+
+pub fn rsaMul(a, b) {
+    let t = {}
+    let i = 0
+    while i < 64 {
+        t["" + i] = 0
+        i = i + 1
+    }
+    i = 0
+    while i < 32 {
+        let j = 0
+        while j < 32 {
+            let k = i + j
+            t["" + k] = t["" + k] + a["" + i] * b["" + j]
+            j = j + 1
+        }
+        i = i + 1
+    }
+    i = 0
+    while i < 63 {
+        let v = t["" + i]
+        let c = (v / 65536) | 0
+        t["" + i] = v - c * 65536
+        t["" + (i + 1)] = t["" + (i + 1)] + c
+        i = i + 1
+    }
+    t["n"] = 64
+    return t
+}
+
+pub fn rsaMulMod(a, b, n) {
+    return rsaMod(rsaMul(a, b), 1024, n)
+}
+
+pub fn rsaPow3(base, n) {
+    return rsaMulMod(rsaMulMod(base, base, n), base, n)
+}
+
+pub fn rsaObjToArr(o) {
+    let out = []
+    let i = 0
+    let n = o["n"]
+    while i < n {
+        out = push(out, o["" + i] & 255)
+        i = i + 1
+    }
+    return out
+}
+
+/// TLS 1.2 CertificateVerify: RSA PKCS#1 v1.5 SHA-256 over handshake transcript.
+pub fn tlsCertRsaEvalOk() {
+    let tr = rsaParseHex("010000024348020000025348")
+    if sha256HexFromBytes(rsaObjToArr(tr)) != "85ddc8f575f54954bc9b5034b1d05ed6326850f24a184863946900a308b3f811" {
+        return false
+    }
+    let n = rsaFromBe(rsaParseHex("aafbaaeb5cf37916087fe43f52eaa509886fec05db68c89d9d61d87e7aa0d21c038a51a47abcd2c7fe57f4ed12ea9d2e3298d45eebb57e53d39ea86e3452a833"))
+    let s = rsaFromBe(rsaParseHex("3403b1423d65305969c2d16857de1277b05caa2b608f1936c58e5ad8e7c8f94ab4abc355d889e8db06ac7bbf7c4fed77c187d9f19e0906cf517aaae0791f67bd"))
+    let em = rsaToBeHex(rsaPow3(s, n))
+    if em != "0001ffffffffffffffffffff003031300d06096086480165030402010500042085ddc8f575f54954bc9b5034b1d05ed6326850f24a184863946900a308b3f811" {
+        return false
+    }
+    return true
+}

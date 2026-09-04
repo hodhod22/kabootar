@@ -1,0 +1,449 @@
+// SH23: HTTP/1.1 200 unwrap + case-insensitive headers + chunked decode + TLS records.
+// import "kab/crypto/crypto_http_resp"
+// Do not grow crypto.kab. cryptoHostDeleteOk stays false.
+
+import "kab/crypto/crypto_http_get"
+import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_aes_eval"
+
+pub fn httpSlice(o, start, n) {
+    let out = {}
+    let i = 0
+    while i < n {
+        out["" + i] = o["" + (start + i)] & 255
+        i = i + 1
+    }
+    out["n"] = n
+    return out
+}
+
+pub fn httpBytesToStr(o) {
+    let s = ""
+    let i = 0
+    let n = o["n"]
+    while i < n {
+        s = s + from_char_code(o["" + i] & 255)
+        i = i + 1
+    }
+    return s
+}
+
+pub fn httpAsciiFold(c) {
+    let b = c & 255
+    if b >= 65 {
+        if b <= 90 {
+            return b + 32
+        }
+    }
+    return b
+}
+
+pub fn httpHeaderNameEq(pt, start, end, name) {
+    if end - start != len(name) {
+        return false
+    }
+    let i = 0
+    while i < len(name) {
+        if httpAsciiFold(pt["" + (start + i)]) != httpAsciiFold(char_code_at(name, i)) {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+pub fn httpHeaderValue(pt, name) {
+    let i = 0
+    let n = pt["n"]
+    while i < n {
+        let line = i
+        while i < n {
+            if (pt["" + i] & 255) == 10 {
+                break
+            }
+            i = i + 1
+        }
+        let end = i
+        let lineEnd = end
+        if lineEnd > line {
+            if (pt["" + (lineEnd - 1)] & 255) == 13 {
+                lineEnd = lineEnd - 1
+            }
+        }
+        let colon = line
+        while colon < lineEnd {
+            if (pt["" + colon] & 255) == 58 {
+                break
+            }
+            colon = colon + 1
+        }
+        if colon < lineEnd {
+            if httpHeaderNameEq(pt, line, colon, name) {
+                let value = colon + 1
+                while value < lineEnd {
+                    let c = pt["" + value] & 255
+                    if c != 32 {
+                        if c != 9 {
+                            return str_slice(httpBytesToStr(pt), value, lineEnd)
+                        }
+                    }
+                    value = value + 1
+                }
+                return ""
+            }
+        }
+        if i >= n {
+            return ""
+        }
+        i = i + 1
+    }
+    return ""
+}
+
+pub fn httpStatusCode(pt) {
+    let i = 0
+    let n = pt["n"]
+    while i < n {
+        if (pt["" + i] & 255) == 32 {
+            let a = (pt["" + (i + 1)] & 255) - 48
+            let b = (pt["" + (i + 2)] & 255) - 48
+            let c = (pt["" + (i + 3)] & 255) - 48
+            return a * 100 + b * 10 + c
+        }
+        i = i + 1
+    }
+    return 0
+}
+
+pub fn httpHexDigit(c) {
+    let b = c & 255
+    if b >= 48 {
+        if b <= 57 {
+            return b - 48
+        }
+    }
+    if b >= 65 {
+        if b <= 70 {
+            return b - 55
+        }
+    }
+    if b >= 97 {
+        if b <= 102 {
+            return b - 87
+        }
+    }
+    return 0 - 1
+}
+
+pub fn httpChunkedDecode(body) {
+    let out = {}
+    out["n"] = 0
+    let i = 0
+    let n = body["n"]
+    while i < n {
+        let size = 0
+        let saw = false
+        while i < n {
+            let c = body["" + i] & 255
+            if c == 13 {
+                break
+            }
+            if c == 59 {
+                while i < n {
+                    if (body["" + i] & 255) == 13 {
+                        break
+                    }
+                    i = i + 1
+                }
+                break
+            }
+            let d = httpHexDigit(c)
+            if d < 0 {
+                return false
+            }
+            size = size * 16 + d
+            saw = true
+            i = i + 1
+        }
+        if saw != true {
+            return false
+        }
+        if i + 1 >= n {
+            return false
+        }
+        if (body["" + i] & 255) != 13 {
+            return false
+        }
+        if (body["" + (i + 1)] & 255) != 10 {
+            return false
+        }
+        i = i + 2
+        if size == 0 {
+            return out
+        }
+        if i + size + 2 > n {
+            return false
+        }
+        let k = 0
+        while k < size {
+            out["" + out["n"]] = body["" + (i + k)] & 255
+            out["n"] = out["n"] + 1
+            k = k + 1
+        }
+        i = i + size
+        if (body["" + i] & 255) != 13 {
+            return false
+        }
+        if (body["" + (i + 1)] & 255) != 10 {
+            return false
+        }
+        i = i + 2
+    }
+    return false
+}
+
+pub fn httpIsChunked(pt) {
+    let value = httpHeaderValue(pt, "transfer-encoding")
+    let i = 0
+    while i + 7 <= len(value) {
+        let matched = true
+        let j = 0
+        while j < 7 {
+            if httpAsciiFold(char_code_at(value, i + j)) != char_code_at("chunked", j) {
+                matched = false
+            }
+            j = j + 1
+        }
+        if matched == true {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn httpRespBody(pt) {
+    let i = 0
+    let n = pt["n"]
+    while i + 3 < n {
+        if (pt["" + i] & 255) == 13 {
+            if (pt["" + (i + 1)] & 255) == 10 {
+                if (pt["" + (i + 2)] & 255) == 13 {
+                    if (pt["" + (i + 3)] & 255) == 10 {
+                        return httpSlice(pt, i + 4, n - (i + 4))
+                    }
+                }
+            }
+        }
+        i = i + 1
+    }
+    return httpSlice(pt, 0, 0)
+}
+
+pub fn httpSeq8(n) {
+    let o = {}
+    let i = 0
+    while i < 7 {
+        o["" + i] = 0
+        i = i + 1
+    }
+    o["7"] = n & 255
+    o["n"] = 8
+    return o
+}
+
+pub fn httpTlsAad(seq, ctLen) {
+    let tv = {}
+    tv["0"] = 23
+    tv["1"] = 3
+    tv["2"] = 3
+    tv["n"] = 3
+    return httpConcat(httpConcat(seq, tv), httpU16Obj(ctLen))
+}
+
+pub fn httpNextRecord(stream, off) {
+    let n = stream["n"]
+    if off + 5 > n {
+        return false
+    }
+    if (stream["" + off] & 255) != 23 {
+        return false
+    }
+    let ln = (stream["" + (off + 3)] & 255) * 256 + (stream["" + (off + 4)] & 255)
+    if off + 5 + ln > n {
+        return false
+    }
+    let o = {}
+    o["rec"] = httpSlice(stream, off, 5 + ln)
+    o["next"] = off + 5 + ln
+    return o
+}
+
+pub fn httpDecryptApp(key, salt, rec, seqn) {
+    let u = httpUnwrapApp(rec)
+    let iv = httpConcat(salt, u["exp"])
+    let aad = httpTlsAad(httpSeq8(seqn), u["ct"]["n"])
+    let hx = gcmDecrypt(key, iv, u["ct"], u["tag"], aad)
+    if hx == false {
+        return false
+    }
+    return aesParseHex(hx)
+}
+
+pub fn httpDecryptAppStream(key, salt, stream) {
+    let off = 0
+    let seqn = 1
+    let acc = {}
+    acc["n"] = 0
+    let n = stream["n"]
+    if n == 0 {
+        return false
+    }
+    while off < n {
+        let nxt = httpNextRecord(stream, off)
+        if nxt == false {
+            return false
+        }
+        let piece = httpDecryptApp(key, salt, nxt["rec"], seqn)
+        if piece == false {
+            return false
+        }
+        acc = httpConcat(acc, piece)
+        off = nxt["next"]
+        seqn = seqn + 1
+    }
+    return acc
+}
+
+pub fn httpTlsRecordsEvalOk() {
+    let key = aesParseHex("e5de8f6d2524dfcae3b478d3d1210109")
+    let salt = aesParseHex("60cd6bc2")
+    let hdr = {}
+    hdr["n"] = 0
+    hdr = httpAppend(hdr, "HTTP/1.1 200 OK")
+    hdr = httpAppendCrLf(hdr)
+    hdr = httpAppend(hdr, "Content-Length: 2")
+    hdr = httpAppendCrLf(hdr)
+    hdr = httpAppendCrLf(hdr)
+    let body = {}
+    body["n"] = 0
+    body = httpAppend(body, "OK")
+    let exp1 = aesParseHex("0000000000000001")
+    let exp2 = aesParseHex("0000000000000002")
+    let e1 = gcmEncrypt(key, httpConcat(salt, exp1), hdr, httpTlsAad(httpSeq8(1), hdr["n"]))
+    let e2 = gcmEncrypt(key, httpConcat(salt, exp2), body, httpTlsAad(httpSeq8(2), body["n"]))
+    let stream = httpConcat(httpAppRecord(exp1, e1["ct"], e1["tag"]), httpAppRecord(exp2, e2["ct"], e2["tag"]))
+    let pt = httpDecryptAppStream(key, salt, stream)
+    if pt == false {
+        return false
+    }
+    if httpStatusCode(pt) != 200 {
+        return false
+    }
+    let got = httpRespBody(pt)
+    if got["n"] != 2 {
+        return false
+    }
+    if httpBytesToStr(got) != "OK" {
+        return false
+    }
+    return true
+}
+
+pub fn httpUnwrapApp(rec) {
+    let ln = (rec["3"] & 255) * 256 + (rec["4"] & 255)
+    let exp = httpSlice(rec, 5, 8)
+    let rest = httpSlice(rec, 13, ln - 8)
+    let tn = rest["n"]
+    let o = {}
+    o["exp"] = exp
+    o["ct"] = httpSlice(rest, 0, tn - 16)
+    o["tag"] = httpSlice(rest, tn - 16, 16)
+    return o
+}
+
+pub fn httpHttpsRespEvalOk() {
+    let pt = {}
+    pt["n"] = 0
+    pt = httpAppend(pt, "HTTP/1.1 200 OK")
+    pt = httpAppendCrLf(pt)
+    pt = httpAppend(pt, "Content-Length: 2")
+    pt = httpAppendCrLf(pt)
+    pt = httpAppendCrLf(pt)
+    pt = httpAppend(pt, "OK")
+    if aesObjHex(pt) != "485454502f312e3120323030204f4b0d0a436f6e74656e742d4c656e6774683a20320d0a0d0a4f4b" {
+        return false
+    }
+    let key = aesParseHex("e5de8f6d2524dfcae3b478d3d1210109")
+    let iv = aesParseHex("60cd6bc20000000000000001")
+    let aad = aesParseHex("00000000000000001703030028")
+    let e = gcmEncrypt(key, iv, pt, aad)
+    if aesObjHex(e["ct"]) != "2cca34babb104d8f8118d6f7769e8b1cde9e6c320da0636ddbe97845e241b336be9aed04913f2c85" {
+        return false
+    }
+    if aesObjHex(e["tag"]) != "7b40d37292f27258bf9ea854ac9fce4e" {
+        return false
+    }
+    let rec = httpAppRecord(aesParseHex("0000000000000001"), e["ct"], e["tag"])
+    if aesObjHex(rec) != "170303004000000000000000012cca34babb104d8f8118d6f7769e8b1cde9e6c320da0636ddbe97845e241b336be9aed04913f2c857b40d37292f27258bf9ea854ac9fce4e" {
+        return false
+    }
+    if (rec["0"] & 255) != 23 {
+        return false
+    }
+    let u = httpUnwrapApp(rec)
+    let plain = gcmDecrypt(key, iv, u["ct"], u["tag"], aad)
+    if plain != "485454502f312e3120323030204f4b0d0a436f6e74656e742d4c656e6774683a20320d0a0d0a4f4b" {
+        return false
+    }
+    let body = httpRespBody(aesParseHex(plain))
+    if httpBytesToStr(body) != "OK" {
+        return false
+    }
+    if httpStatusCode(aesParseHex(plain)) != 200 {
+        return false
+    }
+    if httpChunkedEvalOk() != true {
+        return false
+    }
+    return true
+}
+
+pub fn httpChunkedEvalOk() {
+    let pt = {}
+    pt["n"] = 0
+    pt = httpAppend(pt, "HTTP/1.1 200 OK")
+    pt = httpAppendCrLf(pt)
+    pt = httpAppend(pt, "Transfer-Encoding: chunked")
+    pt = httpAppendCrLf(pt)
+    pt = httpAppendCrLf(pt)
+    pt = httpAppend(pt, "4")
+    pt = httpAppendCrLf(pt)
+    pt = httpAppend(pt, "Wiki")
+    pt = httpAppendCrLf(pt)
+    pt = httpAppend(pt, "5")
+    pt = httpAppendCrLf(pt)
+    pt = httpAppend(pt, "pedia")
+    pt = httpAppendCrLf(pt)
+    pt = httpAppend(pt, "0")
+    pt = httpAppendCrLf(pt)
+    pt = httpAppendCrLf(pt)
+    if httpStatusCode(pt) != 200 {
+        return false
+    }
+    if httpIsChunked(pt) != true {
+        return false
+    }
+    let raw = httpRespBody(pt)
+    let body = httpChunkedDecode(raw)
+    if body == false {
+        return false
+    }
+    if httpBytesToStr(body) != "Wikipedia" {
+        return false
+    }
+    if body["n"] != 9 {
+        return false
+    }
+    return true
+}

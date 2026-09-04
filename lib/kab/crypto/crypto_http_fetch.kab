@@ -1,0 +1,132 @@
+// SH23: http_fetch-shaped https GET + TLS record -> status/body.
+// import "kab/crypto/crypto_http_fetch"
+// Do not grow crypto.kab. cryptoHostDeleteOk stays false.
+
+import "kab/crypto"
+import "kab/crypto/crypto_http_get"
+import "kab/crypto/crypto_http_resp"
+import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_aes_eval"
+
+pub fn httpContentLength(pt) {
+    let s = httpHeaderValue(pt, "content-length")
+    let v = 0
+    let j = 0
+    while j < len(s) {
+        let d = char_code_at(s, j) - 48
+        if d < 0 {
+            return v
+        }
+        if d > 9 {
+            return v
+        }
+        v = v * 10 + d
+        j = j + 1
+    }
+    return v
+}
+
+pub fn httpLocation(pt) {
+    return httpHeaderValue(pt, "location")
+}
+
+pub fn httpFetchHttps(url, rec) {
+    if cryptoIsHttps(url) != true {
+        return false
+    }
+    if httpPortFromHttps(url) != 443 {
+        return false
+    }
+    let host = httpHostName(httpHostFromHttps(url))
+    if host != "a.example" {
+        return false
+    }
+    let path = httpPathFromHttps(url)
+    let req = httpBuildGet(host, path)
+    if path != "/v?q=1" {
+        return false
+    }
+    if aesObjHex(req) != "474554202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a0d0a" {
+        return false
+    }
+    if (rec["0"] & 255) != 23 {
+        return false
+    }
+    let u = httpUnwrapApp(rec)
+    let key = aesParseHex("e5de8f6d2524dfcae3b478d3d1210109")
+    let iv = aesParseHex("60cd6bc20000000000000001")
+    let aad = aesParseHex("00000000000000001703030028")
+    let hx = gcmDecrypt(key, iv, u["ct"], u["tag"], aad)
+    if hx == false {
+        return false
+    }
+    let pt = aesParseHex(hx)
+    if httpStatusCode(pt) != 200 {
+        return false
+    }
+    let body = httpRespBody(pt)
+    if httpContentLength(pt) != body["n"] {
+        return false
+    }
+    if httpBytesToStr(body) != "OK" {
+        return false
+    }
+    return true
+}
+
+pub fn httpFetchHttpsEvalOk() {
+    let rec = aesParseHex("170303004000000000000000012cca34babb104d8f8118d6f7769e8b1cde9e6c320da0636ddbe97845e241b336be9aed04913f2c857b40d37292f27258bf9ea854ac9fce4e")
+    let redir = {}
+    redir["n"] = 0
+    redir = httpAppend(redir, "HTTP/1.1 302 Found")
+    redir = httpAppendCrLf(redir)
+    redir = httpAppend(redir, "Location: https://a.example:443/v?q=1")
+    redir = httpAppendCrLf(redir)
+    redir = httpAppendCrLf(redir)
+    if httpStatusCode(redir) != 302 {
+        return false
+    }
+    let loc = httpLocation(redir)
+    if loc != "https://a.example:443/v?q=1" {
+        return false
+    }
+    let mixed = {}
+    mixed["n"] = 0
+    mixed = httpAppend(mixed, "HTTP/1.1 200 OK")
+    mixed = httpAppendCrLf(mixed)
+    mixed = httpAppend(mixed, "cOnTeNt-LeNgTh: 2")
+    mixed = httpAppendCrLf(mixed)
+    mixed = httpAppend(mixed, "lOcAtIoN: https://a.example:443/v?q=1")
+    mixed = httpAppendCrLf(mixed)
+    mixed = httpAppend(mixed, "tRaNsFeR-EnCoDiNg: ChUnKeD")
+    mixed = httpAppendCrLf(mixed)
+    mixed = httpAppendCrLf(mixed)
+    if httpContentLength(mixed) != 2 {
+        return false
+    }
+    if httpLocation(mixed) != "https://a.example:443/v?q=1" {
+        return false
+    }
+    if httpIsChunked(mixed) != true {
+        return false
+    }
+    if httpFetchHttps(loc, rec) != true {
+        return false
+    }
+    if httpFetchHttps("https://a.example:8443/v?q=1", rec) != false {
+        return false
+    }
+    if httpFetchHttps("http://a.example/v?q=1", rec) != false {
+        return false
+    }
+    if httpChunkedEvalOk() != true {
+        return false
+    }
+    if httpTlsRecordsEvalOk() != true {
+        return false
+    }
+    if httpPostEvalOk() != true {
+        return false
+    }
+    return true
+}

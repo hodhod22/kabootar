@@ -123,8 +123,10 @@ fn array_arg(v: &Value) -> Result<&Vec<Value>, String> {
 }
 
 pub fn drain_until_resolved(promise: &SharedPromise, env: &mut Environment) -> Result<(), String> {
+    let mut owner = crate::runtime::io_async::io_promise_owner(promise);
     while matches!(*promise.borrow(), PromiseValue::Pending) {
-        if !drain_scheduler_step(env)? {
+        let scheduler = owner.as_mut().unwrap_or(env);
+        if !drain_scheduler_step(scheduler)? {
             return Err("promise never resolved".into());
         }
     }

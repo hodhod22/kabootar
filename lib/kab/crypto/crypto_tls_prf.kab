@@ -39,6 +39,35 @@ pub fn tlsPrfHex(secret, label, seed, nOut) {
     return str_slice(out, 0, want)
 }
 
+/// PRF(secret, label, binary seed) as hex of nOut bytes.
+pub fn tlsPrfHexSeed(secret, label, seedObj, nOut) {
+    let sec = hmacStrBytes(secret)
+    let seedAll = tlsConcatObj(hmacStrBytes(label), seedObj)
+    let a = seedAll
+    let out = ""
+    let want = nOut + nOut
+    while len(out) < want {
+        a = hmacDigestToObj(hmacSha256WordsObj(sec, a))
+        let chunk = hmacSha256WordsObj(sec, tlsConcatObj(a, seedAll))
+        out = out + hmacWordsHex(chunk)
+    }
+    return str_slice(out, 0, want)
+}
+
+/// PRF with binary secret and binary seed (ECDHE premaster / master_secret).
+pub fn tlsPrfHexKeySeed(sec, label, seedObj, nOut) {
+    let seedAll = tlsConcatObj(hmacStrBytes(label), seedObj)
+    let a = seedAll
+    let out = ""
+    let want = nOut + nOut
+    while len(out) < want {
+        a = hmacDigestToObj(hmacSha256WordsObj(sec, a))
+        let chunk = hmacSha256WordsObj(sec, tlsConcatObj(a, seedAll))
+        out = out + hmacWordsHex(chunk)
+    }
+    return str_slice(out, 0, want)
+}
+
 /// First 32 bytes of PRF(secret, "master secret", seed).
 pub fn tlsPrfEvalOk() {
     if tlsPrfHex("secret", "master secret", "seed", 32) != "5ea239aa2f6949c46c18bd3dccb71942d3809fa40fcf19c661430a9fd8abcf6a" {

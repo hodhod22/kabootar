@@ -1394,10 +1394,11 @@ pub fn emitStmt_return(E) {
         return false
     }
         emitActiveIterCloses(E)
-        if E["eNode"]["value"] == null {
+        let returnValue = E["eNode"]["value"]
+        if returnValue == null {
             emitOp(E, OP_CONST, symIndex(E, "const",null))
         } else {
-            eCallExpr(E, E["eNode"]["value"])
+            eCallExpr(E, returnValue)
         }
         let fs = E["eFinStack"]
         if fs != undefined {

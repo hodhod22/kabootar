@@ -1,0 +1,42 @@
+// SH23: TLS 1.2 ECDHE premaster -> key_block -> HTTPS GET record.
+// import "kab/crypto/crypto_tls_https"
+// Do not grow crypto_tls.kab. Do not delete rustls (cryptoHostDeleteOk stays false).
+
+import "kab/crypto/crypto_tls_prf"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_aes_eval"
+
+pub fn tlsHexSlice(hx, off, n) {
+    return aesParseHex(str_slice(hx, off + off, off + off + n + n))
+}
+
+/// RFC 5246 key schedule from RFC 7748 ECDHE K, then RFC 5288 GET / record.
+pub fn tlsHttpsEvalOk() {
+    let pms = aesParseHex("4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742")
+    let cr = hmacStrBytes("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    let sr = hmacStrBytes("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")
+    let ms = tlsPrfHexKeySeed(pms, "master secret", tlsConcatObj(cr, sr), 48)
+    if ms != "7b039bf9221e769d15d5439481d2c77a2360e8a39b581569028c3e406853b8df7ab6bdc3b440dfa583ab170e98cf4c14" {
+        return false
+    }
+    let kb = tlsPrfHexKeySeed(aesParseHex(ms), "key expansion", tlsConcatObj(sr, cr), 40)
+    if kb != "b7e3efd916e1ed74b02b33d8d4ccc221e5de8f6d2524dfcae3b478d3d121010977abb55a60cd6bc2" {
+        return false
+    }
+    let key = tlsHexSlice(kb, 0, 16)
+    let iv = tlsConcatObj(tlsHexSlice(kb, 32, 4), aesParseHex("0000000000000001"))
+    let pt = aesParseHex("474554202f")
+    let aad = aesParseHex("00000000000000001703030005")
+    let e = gcmEncrypt(key, iv, pt, aad)
+    if aesObjHex(e["ct"]) != "bb533d957d" {
+        return false
+    }
+    if aesObjHex(e["tag"]) != "2982563d7374b0f110fa55d963e0a623" {
+        return false
+    }
+    if gcmDecrypt(key, iv, e["ct"], e["tag"], aad) != "474554202f" {
+        return false
+    }
+    return true
+}

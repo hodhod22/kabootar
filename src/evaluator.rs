@@ -2377,7 +2377,10 @@ fn run_microtask(task: Microtask) -> Result<(), String> {
     // Keep a shared handle to the scheduled closure so capture/module mutations
     // can be written back (L4).
     let mut closure_root = task.env.share_bindings();
-    let mut call_env = Environment::child_from(&closure_root);
+    // Async imported bytecode retains its module closure, but its native calls
+    // must use the scheduler that queued this task for the invoking program.
+    let scheduler_owner = task.writeback.as_ref().unwrap_or(&closure_root);
+    let mut call_env = Environment::child_from_with_scheduler(&closure_root, scheduler_owner);
     let result = match &task.body {
         AsyncBody::Ast(body) => {
             if !task.bindings.is_empty() {

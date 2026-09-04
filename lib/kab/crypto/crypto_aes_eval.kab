@@ -1,0 +1,224 @@
+// SH23: AES-128 eval (FIPS 197). import "kab/crypto/crypto_aes_eval"
+// Do not grow crypto_aes.kab. Host cipher natives remain skuld.
+
+pub fn aesXor(a, b) {
+    return ((a | b) - (a & b)) | 0
+}
+
+pub fn aesHexDigit(d) {
+    if d < 10 {
+        return from_char_code(48 + d)
+    }
+    return from_char_code(87 + d)
+}
+
+pub fn aesHexByte(b) {
+    let v = b & 255
+    return aesHexDigit((v >>> 4) & 15) + aesHexDigit(v & 15)
+}
+
+pub fn aesObjHex(o) {
+    let out = ""
+    let i = 0
+    let n = o["n"]
+    while i < n {
+        out = out + aesHexByte(o["" + i])
+        i = i + 1
+    }
+    return out
+}
+
+pub fn aesParseHex(hx) {
+    let o = {}
+    let n = 0
+    let i = 0
+    let m = len(hx)
+    while i < m {
+        let hi = char_code_at(hx, i)
+        let lo = char_code_at(hx, i + 1)
+        if hi > 96 {
+            hi = hi - 87
+        } else {
+            hi = hi - 48
+        }
+        if lo > 96 {
+            lo = lo - 87
+        } else {
+            lo = lo - 48
+        }
+        o["" + n] = ((hi * 16) + lo) & 255
+        n = n + 1
+        i = i + 2
+    }
+    o["n"] = n
+    return o
+}
+
+pub fn aesSbox() {
+    return aesParseHex("637c777bf26b6fc53001672bfed7ab76ca82c97dfa5947f0add4a2af9ca472c0b7fd9326363ff7cc34a5e5f171d8311504c723c31896059a071280e2eb27b27509832c1a1b6e5aa0523bd6b329e32f8453d100ed20fcb15b6acbbe394a4c58cfd0efaafb434d338545f9027f503c9fa851a3408f929d38f5bcb6da2110fff3d2cd0c13ec5f974417c4a77e3d645d197360814fdc222a908846eeb814de5e0bdbe0323a0a4906245cc2d3ac629195e479e7c8376d8dd54ea96c56f4ea657aae08ba78252e1ca6b4c6e8dd741f4bbd8b8a703eb5664803f60e613557b986c11d9ee1f8981169d98e949b1e87e9ce5528df8ca1890dbfe6426841992d0fb054bb16")
+}
+
+pub fn aesXtime(a) {
+    let x = (a << 1) & 255
+    if (a & 128) != 0 {
+        return aesXor(x, 27)
+    }
+    return x
+}
+
+pub fn aesXor16(a, b) {
+    let o = {}
+    let i = 0
+    while i < 16 {
+        o["" + i] = aesXor(a["" + i], b["" + i]) & 255
+        i = i + 1
+    }
+    o["n"] = 16
+    return o
+}
+
+pub fn aesSubShift(sb, s) {
+    let t = {}
+    t["0"] = sb["" + s["0"]]
+    t["1"] = sb["" + s["1"]]
+    t["2"] = sb["" + s["2"]]
+    t["3"] = sb["" + s["3"]]
+    t["4"] = sb["" + s["4"]]
+    t["5"] = sb["" + s["5"]]
+    t["6"] = sb["" + s["6"]]
+    t["7"] = sb["" + s["7"]]
+    t["8"] = sb["" + s["8"]]
+    t["9"] = sb["" + s["9"]]
+    t["10"] = sb["" + s["10"]]
+    t["11"] = sb["" + s["11"]]
+    t["12"] = sb["" + s["12"]]
+    t["13"] = sb["" + s["13"]]
+    t["14"] = sb["" + s["14"]]
+    t["15"] = sb["" + s["15"]]
+    let o = {}
+    o["0"] = t["0"]
+    o["1"] = t["5"]
+    o["2"] = t["10"]
+    o["3"] = t["15"]
+    o["4"] = t["4"]
+    o["5"] = t["9"]
+    o["6"] = t["14"]
+    o["7"] = t["3"]
+    o["8"] = t["8"]
+    o["9"] = t["13"]
+    o["10"] = t["2"]
+    o["11"] = t["7"]
+    o["12"] = t["12"]
+    o["13"] = t["1"]
+    o["14"] = t["6"]
+    o["15"] = t["11"]
+    o["n"] = 16
+    return o
+}
+
+pub fn aesMix(s) {
+    let o = {}
+    let c = 0
+    while c < 4 {
+        let a = s["" + (c * 4)]
+        let b = s["" + (c * 4 + 1)]
+        let d = s["" + (c * 4 + 2)]
+        let e = s["" + (c * 4 + 3)]
+        o["" + (c * 4)] = aesXor(aesXor(aesXor(aesXtime(a), aesXor(aesXtime(b), b)), d), e) & 255
+        o["" + (c * 4 + 1)] = aesXor(aesXor(aesXor(a, aesXor(aesXtime(b), aesXor(aesXtime(d), d))), e), 0) & 255
+        o["" + (c * 4 + 2)] = aesXor(aesXor(aesXor(a, b), aesXor(aesXtime(d), aesXor(aesXtime(e), e))), 0) & 255
+        o["" + (c * 4 + 3)] = aesXor(aesXor(aesXor(aesXor(aesXtime(a), a), b), d), aesXtime(e)) & 255
+        c = c + 1
+    }
+    o["n"] = 16
+    return o
+}
+
+pub fn aesExpand(key) {
+    let sb = aesSbox()
+    let w = {}
+    let i = 0
+    while i < 4 {
+        let p = i * 4
+        w["" + i] = ((key["" + p] << 24) | (key["" + (p + 1)] << 16) | (key["" + (p + 2)] << 8) | key["" + (p + 3)]) | 0
+        i = i + 1
+    }
+    let rcon = {}
+    rcon["0"] = 1
+    rcon["1"] = 2
+    rcon["2"] = 4
+    rcon["3"] = 8
+    rcon["4"] = 16
+    rcon["5"] = 32
+    rcon["6"] = 64
+    rcon["7"] = 128
+    rcon["8"] = 27
+    rcon["9"] = 54
+    i = 4
+    while i < 44 {
+        let t = w["" + (i - 1)]
+        let q = (i / 4) | 0
+        if i == q * 4 {
+            t = ((t << 8) | (t >>> 24)) | 0
+            let s0 = sb["" + ((t >>> 24) & 255)]
+            let s1 = sb["" + ((t >>> 16) & 255)]
+            let s2 = sb["" + ((t >>> 8) & 255)]
+            let s3 = sb["" + (t & 255)]
+            t = ((s0 << 24) | (s1 << 16) | (s2 << 8) | s3) | 0
+            t = (t ^ (rcon["" + (q - 1)] << 24)) | 0
+        }
+        w["" + i] = (w["" + (i - 4)] ^ t) | 0
+        i = i + 1
+    }
+    let rk = {}
+    let r = 0
+    while r < 11 {
+        let j = 0
+        while j < 4 {
+            let ww = w["" + (r * 4 + j)]
+            let p = r * 16 + j * 4
+            rk["" + p] = (ww >>> 24) & 255
+            rk["" + (p + 1)] = (ww >>> 16) & 255
+            rk["" + (p + 2)] = (ww >>> 8) & 255
+            rk["" + (p + 3)] = ww & 255
+            j = j + 1
+        }
+        r = r + 1
+    }
+    rk["n"] = 176
+    return rk
+}
+
+pub fn aesRk16(rk, r) {
+    let o = {}
+    let i = 0
+    let b = r * 16
+    while i < 16 {
+        o["" + i] = rk["" + (b + i)]
+        i = i + 1
+    }
+    o["n"] = 16
+    return o
+}
+
+pub fn aesEncryptBlock(rk, pt) {
+    let sb = aesSbox()
+    let s = aesXor16(pt, aesRk16(rk, 0))
+    let r = 1
+    while r < 10 {
+        s = aesMix(aesSubShift(sb, s))
+        s = aesXor16(s, aesRk16(rk, r))
+        r = r + 1
+    }
+    s = aesSubShift(sb, s)
+    return aesXor16(s, aesRk16(rk, 10))
+}
+
+pub fn aes128FipsEvalOk() {
+    let key = aesParseHex("000102030405060708090a0b0c0d0e0f")
+    let pt = aesParseHex("00112233445566778899aabbccddeeff")
+    if aesObjHex(aesEncryptBlock(aesExpand(key), pt)) != "69c4e0d86a7b0430d8cdb78070b4c55a" {
+        return false
+    }
+    return true
+}

@@ -1,0 +1,324 @@
+// SH23: HTTP/1.1 methods from https URL + TLS 1.2 app-data record.
+// import "kab/crypto/crypto_http_get"
+// Do not grow crypto.kab. cryptoHostDeleteOk stays false.
+
+import "kab/crypto"
+import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_aes_eval"
+
+pub fn httpAppend(o, s) {
+    let n = o["n"]
+    let i = 0
+    while i < len(s) {
+        o["" + n] = char_code_at(s, i) & 255
+        n = n + 1
+        i = i + 1
+    }
+    o["n"] = n
+    return o
+}
+
+pub fn httpAppendCrLf(o) {
+    let n = o["n"]
+    o["" + n] = 13
+    o["" + (n + 1)] = 10
+    o["n"] = n + 2
+    return o
+}
+
+pub fn httpHostFromHttps(url) {
+    let i = 8
+    while i < len(url) {
+        if char_code_at(url, i) == 47 {
+            return str_slice(url, 8, i)
+        }
+        i = i + 1
+    }
+    return str_slice(url, 8, len(url))
+}
+
+pub fn httpHostName(auth) {
+    let i = 0
+    while i < len(auth) {
+        if char_code_at(auth, i) == 58 {
+            return str_slice(auth, 0, i)
+        }
+        i = i + 1
+    }
+    return auth
+}
+
+pub fn httpPortFromHttps(url) {
+    let auth = httpHostFromHttps(url)
+    let i = 0
+    while i < len(auth) {
+        if char_code_at(auth, i) == 58 {
+            let v = 0
+            let j = i + 1
+            while j < len(auth) {
+                let d = char_code_at(auth, j) - 48
+                if d < 0 {
+                    return v
+                }
+                if d > 9 {
+                    return v
+                }
+                v = v * 10 + d
+                j = j + 1
+            }
+            return v
+        }
+        i = i + 1
+    }
+    return 443
+}
+
+pub fn httpPathFromHttps(url) {
+    let i = 8
+    while i < len(url) {
+        if char_code_at(url, i) == 47 {
+            return str_slice(url, i, len(url))
+        }
+        i = i + 1
+    }
+    return "/"
+}
+
+pub fn httpBuildGet(host, path) {
+    return httpBuildRead("GET", host, path)
+}
+
+pub fn httpAppendHeader(o, name, value) {
+    o = httpAppend(o, name)
+    o = httpAppend(o, ": ")
+    o = httpAppend(o, value)
+    return httpAppendCrLf(o)
+}
+
+pub fn httpBuildRead(method, host, path) {
+    let o = {}
+    o["n"] = 0
+    o = httpAppend(o, method)
+    o = httpAppend(o, " ")
+    o = httpAppend(o, path)
+    o = httpAppend(o, " HTTP/1.1")
+    o = httpAppendCrLf(o)
+    o = httpAppendHeader(o, "Host", host)
+    o = httpAppendCrLf(o)
+    return o
+}
+
+pub fn httpBuildReadAuth(method, host, path, token) {
+    let o = {}
+    o["n"] = 0
+    o = httpAppend(o, method)
+    o = httpAppend(o, " ")
+    o = httpAppend(o, path)
+    o = httpAppend(o, " HTTP/1.1")
+    o = httpAppendCrLf(o)
+    o = httpAppendHeader(o, "Host", host)
+    o = httpAppendHeader(o, "User-Agent", "kab/1")
+    o = httpAppendHeader(o, "Authorization", "Bearer " + token)
+    o = httpAppendCrLf(o)
+    return o
+}
+
+pub fn httpDec(n) {
+    if n == 0 {
+        return "0"
+    }
+    let s = ""
+    let x = n
+    while x > 0 {
+        let d = x - (((x / 10) | 0) * 10)
+        s = from_char_code(48 + d) + s
+        x = (x / 10) | 0
+    }
+    return s
+}
+
+pub fn httpBuildPost(host, path, body, ctype) {
+    return httpBuildWrite("POST", host, path, body, ctype)
+}
+
+pub fn httpBuildWrite(method, host, path, body, ctype) {
+    let o = {}
+    o["n"] = 0
+    o = httpAppend(o, method)
+    o = httpAppend(o, " ")
+    o = httpAppend(o, path)
+    o = httpAppend(o, " HTTP/1.1")
+    o = httpAppendCrLf(o)
+    o = httpAppend(o, "Host: ")
+    o = httpAppend(o, host)
+    o = httpAppendCrLf(o)
+    o = httpAppend(o, "Content-Type: ")
+    o = httpAppend(o, ctype)
+    o = httpAppendCrLf(o)
+    o = httpAppend(o, "Content-Length: ")
+    o = httpAppend(o, httpDec(len(body)))
+    o = httpAppendCrLf(o)
+    o = httpAppendCrLf(o)
+    o = httpAppend(o, body)
+    return o
+}
+
+pub fn httpPostEvalOk() {
+    let req = httpBuildPost("a.example", "/v?q=1", "a=1", "application/x-www-form-urlencoded")
+    if req["n"] != 112 {
+        return false
+    }
+    if aesObjHex(req) != "504f5354202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a436f6e74656e742d547970653a206170706c69636174696f6e2f782d7777772d666f726d2d75726c656e636f6465640d0a436f6e74656e742d4c656e6774683a20330d0a0d0a613d31" {
+        return false
+    }
+    let js = httpBuildPost("a.example", "/v?q=1", "{\"n\":1}", "application/json")
+    if js["n"] != 99 {
+        return false
+    }
+    if aesObjHex(js) != "504f5354202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a436f6e74656e742d547970653a206170706c69636174696f6e2f6a736f6e0d0a436f6e74656e742d4c656e6774683a20370d0a0d0a7b226e223a317d" {
+        return false
+    }
+    let put = httpBuildWrite("PUT", "a.example", "/v?q=1", "{\"n\":1}", "application/json")
+    if put["n"] != 98 {
+        return false
+    }
+    if aesObjHex(put) != "505554202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a436f6e74656e742d547970653a206170706c69636174696f6e2f6a736f6e0d0a436f6e74656e742d4c656e6774683a20370d0a0d0a7b226e223a317d" {
+        return false
+    }
+    let patch = httpBuildWrite("PATCH", "a.example", "/v?q=1", "{\"n\":1}", "application/json")
+    if patch["n"] != 100 {
+        return false
+    }
+    if aesObjHex(patch) != "5041544348202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a436f6e74656e742d547970653a206170706c69636174696f6e2f6a736f6e0d0a436f6e74656e742d4c656e6774683a20370d0a0d0a7b226e223a317d" {
+        return false
+    }
+    let hd = httpBuildRead("HEAD", "a.example", "/v?q=1")
+    if hd["n"] != 41 {
+        return false
+    }
+    if aesObjHex(hd) != "48454144202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a0d0a" {
+        return false
+    }
+    let del = httpBuildRead("DELETE", "a.example", "/v?q=1")
+    if del["n"] != 43 {
+        return false
+    }
+    if aesObjHex(del) != "44454c455445202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a0d0a" {
+        return false
+    }
+    let opt = httpBuildRead("OPTIONS", "a.example", "/v?q=1")
+    if opt["n"] != 44 {
+        return false
+    }
+    if aesObjHex(opt) != "4f5054494f4e53202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a0d0a" {
+        return false
+    }
+    let conn = httpBuildRead("CONNECT", "a.example", "a.example:443")
+    if conn["n"] != 51 {
+        return false
+    }
+    if aesObjHex(conn) != "434f4e4e45435420612e6578616d706c653a34343320485454502f312e310d0a486f73743a20612e6578616d706c650d0a0d0a" {
+        return false
+    }
+    let tr = httpBuildRead("TRACE", "a.example", "/v?q=1")
+    if tr["n"] != 42 {
+        return false
+    }
+    if aesObjHex(tr) != "5452414345202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a0d0a" {
+        return false
+    }
+    let au = httpBuildReadAuth("GET", "a.example", "/v?q=1", "t")
+    if au["n"] != 84 {
+        return false
+    }
+    if aesObjHex(au) != "474554202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a557365722d4167656e743a206b61622f310d0a417574686f72697a6174696f6e3a2042656172657220740d0a0d0a" {
+        return false
+    }
+    if httpDec(3) != "3" {
+        return false
+    }
+    if httpDec(10) != "10" {
+        return false
+    }
+    return true
+}
+
+pub fn httpConcat(a, b) {
+    let o = {}
+    let n = 0
+    let i = 0
+    let an = a["n"]
+    while i < an {
+        o["" + n] = a["" + i] & 255
+        n = n + 1
+        i = i + 1
+    }
+    let j = 0
+    let bn = b["n"]
+    while j < bn {
+        o["" + n] = b["" + j] & 255
+        n = n + 1
+        j = j + 1
+    }
+    o["n"] = n
+    return o
+}
+
+pub fn httpU16Obj(n) {
+    let o = {}
+    o["0"] = (n / 256) | 0
+    o["1"] = n - (((n / 256) | 0) * 256)
+    o["n"] = 2
+    return o
+}
+
+pub fn httpAppRecord(exp, ct, tag) {
+    let body = httpConcat(httpConcat(exp, ct), tag)
+    let hdr = {}
+    hdr["0"] = 23
+    hdr["1"] = 3
+    hdr["2"] = 3
+    hdr["n"] = 3
+    return httpConcat(httpConcat(hdr, httpU16Obj(body["n"])), body)
+}
+
+pub fn httpHttpsGetEvalOk() {
+    let url = "https://a.example/"
+    if cryptoIsHttps(url) != true {
+        return false
+    }
+    if cryptoIsHttps("http://a.example/") != false {
+        return false
+    }
+    if httpHostFromHttps(url) != "a.example" {
+        return false
+    }
+    if httpPathFromHttps(url) != "/" {
+        return false
+    }
+    let pt = httpBuildGet(httpHostFromHttps(url), httpPathFromHttps(url))
+    if aesObjHex(pt) != "474554202f20485454502f312e310d0a486f73743a20612e6578616d706c650d0a0d0a" {
+        return false
+    }
+    let key = aesParseHex("b7e3efd916e1ed74b02b33d8d4ccc221")
+    let iv = aesParseHex("77abb55a0000000000000001")
+    let aad = aesParseHex("00000000000000001703030023")
+    let e = gcmEncrypt(key, iv, pt, aad)
+    if aesObjHex(e["ct"]) != "bb533d957d19ba7d6d55978fa2de267b4c2e20fafc02a0b835d944d010f7ebe68dfaba" {
+        return false
+    }
+    if aesObjHex(e["tag"]) != "0a4a4672dd0f435320b63cb65440ffc6" {
+        return false
+    }
+    if gcmDecrypt(key, iv, e["ct"], e["tag"], aad) != "474554202f20485454502f312e310d0a486f73743a20612e6578616d706c650d0a0d0a" {
+        return false
+    }
+    let rec = httpAppRecord(aesParseHex("0000000000000001"), e["ct"], e["tag"])
+    if aesObjHex(rec) != "170303003b0000000000000001bb533d957d19ba7d6d55978fa2de267b4c2e20fafc02a0b835d944d010f7ebe68dfaba0a4a4672dd0f435320b63cb65440ffc6" {
+        return false
+    }
+    if httpPostEvalOk() != true {
+        return false
+    }
+    return true
+}

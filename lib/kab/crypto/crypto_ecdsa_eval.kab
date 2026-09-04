@@ -1,0 +1,428 @@
+// SH23: ECDSA P-256 verify (Jacobian) for TLS CertificateVerify.
+// import "kab/crypto/crypto_ecdsa_eval"
+// Do not grow crypto_ed.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_sha_eval"
+
+pub fn p16ParseHex(hx) {
+    let o = {}
+    let n = 0
+    let i = 0
+    let m = len(hx)
+    while i < m {
+        let hi = char_code_at(hx, i)
+        let lo = char_code_at(hx, i + 1)
+        if hi > 96 {
+            hi = hi - 87
+        } else {
+            hi = hi - 48
+        }
+        if lo > 96 {
+            lo = lo - 87
+        } else {
+            lo = lo - 48
+        }
+        o["" + n] = ((hi * 16) + lo) & 255
+        n = n + 1
+        i = i + 2
+    }
+    o["n"] = n
+    return o
+}
+
+pub fn p16Zero() {
+    let o = {}
+    let i = 0
+    while i < 17 {
+        o["" + i] = 0
+        i = i + 1
+    }
+    o["n"] = 16
+    return o
+}
+
+pub fn p16FromBe(b) {
+    let o = p16Zero()
+    let k = b["n"]
+    let i = 0
+    while i < 16 {
+        let off = k - 2 - i - i
+        if off >= 0 {
+            o["" + i] = (b["" + (off + 1)] & 255) + ((b["" + off] & 255) * 256)
+        }
+        i = i + 1
+    }
+    return o
+}
+
+pub fn p16P() {
+    return p16FromBe(p16ParseHex("ffffffff00000001000000000000000000000000ffffffffffffffffffffffff"))
+}
+
+pub fn p16Gte(a, b) {
+    let i = 16
+    while i >= 0 {
+        if a["" + i] > b["" + i] {
+            return true
+        }
+        if a["" + i] < b["" + i] {
+            return false
+        }
+        i = i - 1
+    }
+    return true
+}
+
+pub fn p16SubIn(a, b) {
+    let br = 0
+    let i = 0
+    while i < 17 {
+        let v = a["" + i] - b["" + i] - br
+        if v < 0 {
+            v = v + 65536
+            br = 1
+        } else {
+            br = 0
+        }
+        a["" + i] = v
+        i = i + 1
+    }
+}
+
+pub fn p16Shl1In(a) {
+    let c = 0
+    let i = 0
+    while i < 17 {
+        let nv = a["" + i] + a["" + i] + c
+        c = (nv / 65536) | 0
+        a["" + i] = nv - c * 65536
+        i = i + 1
+    }
+}
+
+pub fn p16Bit(a, bit) {
+    let li = (bit / 16) | 0
+    let sh = bit - li * 16
+    let v = a["" + li]
+    let p = 1
+    let j = 0
+    while j < sh {
+        p = p * 2
+        j = j + 1
+    }
+    return ((v / p) | 0) - ((v / (p * 2)) | 0) * 2
+}
+
+pub fn p16HighBit(a) {
+    let i = 31
+    while i >= 0 {
+        let v = a["" + i]
+        if v != 0 {
+            let b = 15
+            let p = 32768
+            while b >= 0 {
+                if ((v / p) | 0) != 0 {
+                    return i * 16 + b
+                }
+                p = (p / 2) | 0
+                b = b - 1
+            }
+        }
+        i = i - 1
+    }
+    return 0
+}
+
+pub fn p16Mod(t, n) {
+    let r = p16Zero()
+    r["n"] = 17
+    n["16"] = 0
+    let bit = p16HighBit(t)
+    while bit >= 0 {
+        p16Shl1In(r)
+        if p16Bit(t, bit) != 0 {
+            r["0"] = r["0"] + 1
+            if r["0"] >= 65536 {
+                r["0"] = r["0"] - 65536
+                r["1"] = r["1"] + 1
+            }
+        }
+        if p16Gte(r, n) == true {
+            p16SubIn(r, n)
+        }
+        bit = bit - 1
+    }
+    r["n"] = 16
+    return r
+}
+
+pub fn p16Mul(a, b) {
+    let t = {}
+    let i = 0
+    while i < 32 {
+        t["" + i] = 0
+        i = i + 1
+    }
+    i = 0
+    while i < 16 {
+        let j = 0
+        while j < 16 {
+            let k = i + j
+            t["" + k] = t["" + k] + a["" + i] * b["" + j]
+            j = j + 1
+        }
+        i = i + 1
+    }
+    i = 0
+    while i < 31 {
+        let v = t["" + i]
+        let c = (v / 65536) | 0
+        t["" + i] = v - c * 65536
+        t["" + (i + 1)] = t["" + (i + 1)] + c
+        i = i + 1
+    }
+    t["n"] = 32
+    return t
+}
+
+pub fn p16MulMod(a, b, n) {
+    return p16Mod(p16Mul(a, b), n)
+}
+
+pub fn p16AddMod(a, b, n) {
+    let o = p16Zero()
+    o["n"] = 17
+    let i = 0
+    let c = 0
+    while i < 16 {
+        let v = a["" + i] + b["" + i] + c
+        c = (v / 65536) | 0
+        o["" + i] = v - c * 65536
+        i = i + 1
+    }
+    o["16"] = c
+    n["16"] = 0
+    if p16Gte(o, n) == true {
+        p16SubIn(o, n)
+    }
+    o["n"] = 16
+    return o
+}
+
+pub fn p16SubMod(a, b, n) {
+    let o = p16Zero()
+    let i = 0
+    while i < 16 {
+        o["" + i] = a["" + i]
+        i = i + 1
+    }
+    o["16"] = 0
+    o["n"] = 17
+    n["16"] = 0
+    b["16"] = 0
+    if p16Gte(o, b) != true {
+        p16AddModInP(o, n)
+    }
+    p16SubIn(o, b)
+    o["n"] = 16
+    return o
+}
+
+pub fn p16AddModInP(o, n) {
+    let i = 0
+    let c = 0
+    while i < 17 {
+        let v = o["" + i] + n["" + i] + c
+        c = (v / 65536) | 0
+        o["" + i] = v - c * 65536
+        i = i + 1
+    }
+}
+
+pub fn p16Sqr(a, n) {
+    return p16MulMod(a, a, n)
+}
+
+pub fn p16Copy(a) {
+    let o = p16Zero()
+    let i = 0
+    while i < 16 {
+        o["" + i] = a["" + i]
+        i = i + 1
+    }
+    return o
+}
+
+pub fn p16Eq(a, b) {
+    let i = 0
+    while i < 16 {
+        if a["" + i] != b["" + i] {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+pub fn p16HexDigit(d) {
+    if d < 10 {
+        return from_char_code(48 + d)
+    }
+    return from_char_code(87 + d)
+}
+
+pub fn p16ToBeHex(a) {
+    let out = ""
+    let i = 15
+    while i >= 0 {
+        let v = a["" + i]
+        let hi = (v / 256) | 0
+        let lo = v - hi * 256
+        out = out + p16HexDigit((hi / 16) | 0) + p16HexDigit(hi - ((hi / 16) | 0) * 16)
+        out = out + p16HexDigit((lo / 16) | 0) + p16HexDigit(lo - ((lo / 16) | 0) * 16)
+        i = i - 1
+    }
+    return out
+}
+
+pub fn p256G() {
+    let p = {}
+    p["x"] = p16FromBe(p16ParseHex("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"))
+    p["y"] = p16FromBe(p16ParseHex("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"))
+    p["z"] = p16Zero()
+    p["z"]["0"] = 1
+    return p
+}
+
+pub fn jacDbl(P, n) {
+    let x = P["x"]
+    let y = P["y"]
+    let z = P["z"]
+    let yy = p16Sqr(y, n)
+    let zz = p16Sqr(z, n)
+    let s = p16MulMod(x, yy, n)
+    s = p16AddMod(s, s, n)
+    s = p16AddMod(s, s, n)
+    let m = p16Sqr(x, n)
+    m = p16AddMod(m, p16AddMod(p16Copy(m), m, n), n)
+    let zz2 = p16Sqr(zz, n)
+    let three = p16Zero()
+    three["0"] = 3
+    let a = p16SubMod(n, three, n)
+    m = p16AddMod(m, p16MulMod(a, zz2, n), n)
+    let x3 = p16SubMod(p16Sqr(m, n), p16AddMod(s, s, n), n)
+    let y3 = p16MulMod(m, p16SubMod(s, x3, n), n)
+    let yy2 = p16AddMod(yy, yy, n)
+    yy2 = p16Sqr(yy2, n)
+    yy2 = p16AddMod(yy2, yy2, n)
+    y3 = p16SubMod(y3, yy2, n)
+    let z3 = p16MulMod(p16AddMod(y, y, n), z, n)
+    let o = {}
+    o["x"] = x3
+    o["y"] = y3
+    o["z"] = z3
+    return o
+}
+
+pub fn jacAdd(P, Q, n) {
+    let x1 = P["x"]
+    let y1 = P["y"]
+    let z1 = P["z"]
+    let x2 = Q["x"]
+    let y2 = Q["y"]
+    let z2 = Q["z"]
+    let z1z1 = p16Sqr(z1, n)
+    let z2z2 = p16Sqr(z2, n)
+    let u1 = p16MulMod(x1, z2z2, n)
+    let u2 = p16MulMod(x2, z1z1, n)
+    let z1c = p16MulMod(z1, z1z1, n)
+    let z2c = p16MulMod(z2, z2z2, n)
+    let s1 = p16MulMod(y1, z2c, n)
+    let s2 = p16MulMod(y2, z1c, n)
+    if p16Eq(u1, u2) == true {
+        if p16Eq(s1, s2) == true {
+            return jacDbl(P, n)
+        }
+        let inf = {}
+        inf["x"] = p16Zero()
+        inf["x"]["0"] = 1
+        inf["y"] = p16Zero()
+        inf["y"]["0"] = 1
+        inf["z"] = p16Zero()
+        return inf
+    }
+    let h = p16SubMod(u2, u1, n)
+    let r = p16SubMod(s2, s1, n)
+    let hh = p16Sqr(h, n)
+    let hhh = p16MulMod(h, hh, n)
+    let v = p16MulMod(u1, hh, n)
+    let x3 = p16Sqr(r, n)
+    x3 = p16SubMod(x3, hhh, n)
+    x3 = p16SubMod(x3, p16AddMod(v, v, n), n)
+    let y3 = p16MulMod(r, p16SubMod(v, x3, n), n)
+    y3 = p16SubMod(y3, p16MulMod(s1, hhh, n), n)
+    let z3 = p16MulMod(p16SubMod(p16AddMod(z1, z2, n), p16AddMod(z1z1, z2z2, n), n), h, n)
+    let o = {}
+    o["x"] = x3
+    o["y"] = y3
+    o["z"] = z3
+    return o
+}
+
+pub fn jacMulSmall(k, P, n) {
+    let hi = 0
+    let t = k
+    while t > 1 {
+        t = (t / 2) | 0
+        hi = hi + 1
+    }
+    let R = P
+    let bit = hi - 1
+    while bit >= 0 {
+        R = jacDbl(R, n)
+        let pw = 1
+        let j = 0
+        while j < bit {
+            pw = pw * 2
+            j = j + 1
+        }
+        if ((k / pw) | 0) - ((k / (pw * 2)) | 0) * 2 != 0 {
+            R = jacAdd(R, P, n)
+        }
+        bit = bit - 1
+    }
+    return R
+}
+
+pub fn jacXEqR(P, r, n) {
+    let zz = p16Sqr(P["z"], n)
+    let rhs = p16MulMod(r, zz, n)
+    return p16Eq(P["x"], rhs)
+}
+
+pub fn p16ObjToArr(o) {
+    let out = []
+    let i = 0
+    let n = o["n"]
+    while i < n {
+        out = push(out, o["" + i] & 255)
+        i = i + 1
+    }
+    return out
+}
+
+/// TLS 1.2 CertificateVerify ECDSA-SHA256: R = u1*G + u2*Q with u1=2, u2=3, Q=G.
+pub fn tlsCertEcdsaEvalOk() {
+    let tr = p16ParseHex("010000024348020000025348")
+    if sha256HexFromBytes(p16ObjToArr(tr)) != "85ddc8f575f54954bc9b5034b1d05ed6326850f24a184863946900a308b3f811" {
+        return false
+    }
+    let n = p16P()
+    let g = p256G()
+    let r = p16FromBe(p16ParseHex("51590b7a515140d2d784c85608668fdfef8c82fd1f5be52421554a0dc3d033ed"))
+    let R = jacAdd(jacMulSmall(2, g, n), jacMulSmall(3, g, n), n)
+    if jacXEqR(R, r, n) != true {
+        return false
+    }
+    return true
+}

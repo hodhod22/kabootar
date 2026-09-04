@@ -12,6 +12,7 @@ export 0 emit
 memory_mode=gc
 interfaces=0
 classes=0
+enums=0
 code
 load_global 0
 store_local 0

@@ -1,0 +1,344 @@
+// SH23: X25519 / ECDHE eval (RFC 7748). import "kab/crypto/crypto_x25519_eval"
+// Do not grow crypto_x.kab. Host rustls remains skuld.
+
+pub fn xHexDigit(d) {
+    if d < 10 {
+        return from_char_code(48 + d)
+    }
+    return from_char_code(87 + d)
+}
+
+pub fn xParseHex(hx) {
+    let o = {}
+    let n = 0
+    let i = 0
+    let m = len(hx)
+    while i < m {
+        let hi = char_code_at(hx, i)
+        let lo = char_code_at(hx, i + 1)
+        if hi > 96 {
+            hi = hi - 87
+        } else {
+            hi = hi - 48
+        }
+        if lo > 96 {
+            lo = lo - 87
+        } else {
+            lo = lo - 48
+        }
+        o["" + n] = ((hi * 16) + lo) & 255
+        n = n + 1
+        i = i + 2
+    }
+    o["n"] = n
+    return o
+}
+
+pub fn xBytesHex(o) {
+    let out = ""
+    let i = 0
+    while i < 32 {
+        let v = o["" + i] & 255
+        out = out + xHexDigit((v >>> 4) & 15) + xHexDigit(v & 15)
+        i = i + 1
+    }
+    return out
+}
+
+pub fn xZero() {
+    let o = {}
+    let i = 0
+    while i < 16 {
+        o["" + i] = 0
+        i = i + 1
+    }
+    o["n"] = 16
+    return o
+}
+
+pub fn xOne() {
+    let o = xZero()
+    o["0"] = 1
+    return o
+}
+
+pub fn xCopy(a) {
+    let o = {}
+    let i = 0
+    while i < 16 {
+        o["" + i] = a["" + i]
+        i = i + 1
+    }
+    o["n"] = 16
+    return o
+}
+
+pub fn xCarry16(a) {
+    let i = 0
+    while i < 15 {
+        let v = a["" + i]
+        let c = (v / 65536) | 0
+        a["" + i] = v - c * 65536
+        a["" + (i + 1)] = a["" + (i + 1)] + c
+        i = i + 1
+    }
+    return a
+}
+
+pub fn xP() {
+    let o = xZero()
+    o["0"] = 65517
+    let i = 1
+    while i < 15 {
+        o["" + i] = 65535
+        i = i + 1
+    }
+    o["15"] = 32767
+    return o
+}
+
+pub fn xGte(a, b) {
+    let i = 15
+    while i >= 0 {
+        let av = a["" + i]
+        let bv = b["" + i]
+        if av > bv {
+            return true
+        }
+        if av < bv {
+            return false
+        }
+        i = i - 1
+    }
+    return true
+}
+
+pub fn xSubRaw(a, b) {
+    let o = xZero()
+    let br = 0
+    let i = 0
+    while i < 16 {
+        let v = a["" + i] - b["" + i] - br
+        if v < 0 {
+            v = v + 65536
+            br = 1
+        } else {
+            br = 0
+        }
+        o["" + i] = v
+        i = i + 1
+    }
+    return o
+}
+
+pub fn xReduce(a) {
+    a = xCarry16(a)
+    let c = (a["15"] / 32768) | 0
+    a["15"] = a["15"] - c * 32768
+    a["0"] = a["0"] + c * 19
+    a = xCarry16(a)
+    c = (a["15"] / 32768) | 0
+    a["15"] = a["15"] - c * 32768
+    a["0"] = a["0"] + c * 19
+    a = xCarry16(a)
+    let p = xP()
+    if xGte(a, p) == true {
+        a = xSubRaw(a, p)
+    }
+    return a
+}
+
+pub fn xAdd(a, b) {
+    let o = xZero()
+    let i = 0
+    while i < 16 {
+        o["" + i] = a["" + i] + b["" + i]
+        i = i + 1
+    }
+    return xReduce(o)
+}
+
+pub fn xSub(a, b) {
+    return xReduce(xAdd(a, xSubRaw(xP(), b)))
+}
+
+pub fn xMul(a, b) {
+    let t = {}
+    let i = 0
+    while i < 32 {
+        t["" + i] = 0
+        i = i + 1
+    }
+    i = 0
+    while i < 16 {
+        let j = 0
+        while j < 16 {
+            let k = i + j
+            t["" + k] = t["" + k] + a["" + i] * b["" + j]
+            j = j + 1
+        }
+        i = i + 1
+    }
+    i = 0
+    while i < 31 {
+        let v = t["" + i]
+        let c = (v / 65536) | 0
+        t["" + i] = v - c * 65536
+        t["" + (i + 1)] = t["" + (i + 1)] + c
+        i = i + 1
+    }
+    let o = xZero()
+    i = 0
+    while i < 16 {
+        o["" + i] = t["" + i] + t["" + (i + 16)] * 38
+        i = i + 1
+    }
+    return xReduce(o)
+}
+
+pub fn xSqr(a) {
+    return xMul(a, a)
+}
+
+pub fn xMulA24(a) {
+    let s = xZero()
+    s["0"] = 56129
+    s["1"] = 1
+    return xMul(a, s)
+}
+
+pub fn xFromBytes(b) {
+    let o = xZero()
+    let i = 0
+    while i < 16 {
+        let p = i + i
+        o["" + i] = (b["" + p] & 255) + ((b["" + (p + 1)] & 255) * 256)
+        i = i + 1
+    }
+    o["15"] = o["15"] - ((o["15"] / 32768) | 0) * 32768
+    return o
+}
+
+pub fn xToBytes(a) {
+    a = xReduce(xCopy(a))
+    let o = {}
+    let i = 0
+    while i < 16 {
+        let v = a["" + i]
+        let p = i + i
+        o["" + p] = v - ((v / 256) | 0) * 256
+        o["" + (p + 1)] = (v / 256) | 0
+        i = i + 1
+    }
+    o["n"] = 32
+    return o
+}
+
+pub fn xInv(z) {
+    let e = xParseHex("ebffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f")
+    let r = xOne()
+    let t = 254
+    while t >= 0 {
+        r = xSqr(r)
+        let bi = (t / 8) | 0
+        let sh = t - bi * 8
+        if ((e["" + bi] >>> sh) & 1) != 0 {
+            r = xMul(r, z)
+        }
+        t = t - 1
+    }
+    return r
+}
+
+pub fn xCswap(swap, a, b) {
+    if swap != 0 {
+        let t = a
+        a = b
+        b = t
+    }
+    let o = {}
+    o["a"] = a
+    o["b"] = b
+    return o
+}
+
+pub fn xBit(k, t) {
+    let bi = (t / 8) | 0
+    let sh = t - bi * 8
+    return (k["" + bi] >>> sh) & 1
+}
+
+pub fn x25519(k, u) {
+    let kb = {}
+    let i = 0
+    while i < 32 {
+        kb["" + i] = k["" + i] & 255
+        i = i + 1
+    }
+    kb["0"] = kb["0"] - (kb["0"] - ((kb["0"] / 8) | 0) * 8)
+    kb["31"] = kb["31"] - ((kb["31"] / 128) | 0) * 128
+    kb["31"] = kb["31"] + (64 - ((kb["31"] / 64) | 0) * 64)
+    kb["n"] = 32
+    let ub = {}
+    i = 0
+    while i < 32 {
+        ub["" + i] = u["" + i] & 255
+        i = i + 1
+    }
+    ub["31"] = ub["31"] - ((ub["31"] / 128) | 0) * 128
+    let x1 = xFromBytes(ub)
+    let x2 = xOne()
+    let z2 = xZero()
+    let x3 = xCopy(x1)
+    let z3 = xOne()
+    let swap = 0
+    let t = 254
+    while t >= 0 {
+        let kt = xBit(kb, t)
+        swap = (swap + kt) - (swap * kt * 2)
+        if swap != 0 {
+            let tmp = x2
+            x2 = x3
+            x3 = tmp
+            tmp = z2
+            z2 = z3
+            z3 = tmp
+        }
+        swap = kt
+        let a = xAdd(x2, z2)
+        let aa = xSqr(a)
+        let b = xSub(x2, z2)
+        let bb = xSqr(b)
+        let e = xSub(aa, bb)
+        let c = xAdd(x3, z3)
+        let d = xSub(x3, z3)
+        let da = xMul(d, a)
+        let cb = xMul(c, b)
+        x3 = xSqr(xAdd(da, cb))
+        z3 = xMul(x1, xSqr(xSub(da, cb)))
+        x2 = xMul(aa, bb)
+        z2 = xMul(e, xAdd(aa, xMulA24(e)))
+        t = t - 1
+    }
+    if swap != 0 {
+        let tmp = x2
+        x2 = x3
+        x3 = tmp
+        tmp = z2
+        z2 = z3
+        z3 = tmp
+    }
+    return xToBytes(xMul(x2, xInv(z2)))
+}
+
+pub fn x25519Hex(khex, uhex) {
+    return xBytesHex(x25519(xParseHex(khex), xParseHex(uhex)))
+}
+
+/// RFC 7748 ECDHE: X25519(Alice_priv, Bob_pub) == K.
+pub fn x25519EvalOk() {
+    if x25519Hex("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a", "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f") != "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742" {
+        return false
+    }
+    return true
+}

@@ -537,6 +537,23 @@ impl Environment {
         }
     }
 
+    /// Child frame using lexical bindings from `parent` and runtime state from
+    /// `scheduler_owner`. Imported bytecode keeps its module closure, while
+    /// native capabilities must belong to the program that invoked it.
+    pub fn child_from_with_scheduler(parent: &Environment, scheduler_owner: &Environment) -> Self {
+        Self {
+            inner: Rc::new(EnvironmentInner {
+                bindings: RefCell::new(HashMap::new()),
+                immutable: RefCell::new(HashSet::new()),
+                parent: Some(Rc::clone(&parent.inner)),
+                classes: ClassRegistry::default(),
+                exports: RefCell::new(HashSet::new()),
+                scheduler: scheduler_owner.inner.scheduler.clone(),
+                private_access_class: RefCell::new(parent.inner.private_access_class.borrow().clone()),
+            }),
+        }
+    }
+
     pub fn schedule_microtask(&self, task: Microtask) {
         self.inner
             .scheduler
