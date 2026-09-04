@@ -53,6 +53,7 @@ fn pSessionInit_expr(sess) {
     sess["pAngleTok"] = null
     sess["pAngleOut"] = []
     sess["pMemberName"] = ""
+    sess["pPendingArrowAsync"] = 0
     return 0
 }
 

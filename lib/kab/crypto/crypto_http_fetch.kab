@@ -1,6 +1,7 @@
-// SH23: http_fetch-shaped https GET + TLS record -> status/body.
+// SH23: http_fetch_async-shaped GET + 302/307 follow + TLS record -> status/body in Kab.
+// Live rustls remains in http_fetch_async. Do not delete rustls until Kab is stable.
 // import "kab/crypto/crypto_http_fetch"
-// Do not grow crypto.kab. cryptoHostDeleteOk stays false.
+// Live rustls remains in http_fetch_async. cryptoHostDeleteOk stays false.
 
 import "kab/crypto"
 import "kab/crypto/crypto_http_get"
@@ -30,25 +31,7 @@ pub fn httpLocation(pt) {
     return httpHeaderValue(pt, "location")
 }
 
-pub fn httpFetchHttps(url, rec) {
-    if cryptoIsHttps(url) != true {
-        return false
-    }
-    if httpPortFromHttps(url) != 443 {
-        return false
-    }
-    let host = httpHostName(httpHostFromHttps(url))
-    if host != "a.example" {
-        return false
-    }
-    let path = httpPathFromHttps(url)
-    let req = httpBuildGet(host, path)
-    if path != "/v?q=1" {
-        return false
-    }
-    if aesObjHex(req) != "474554202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a0d0a" {
-        return false
-    }
+pub fn httpFetchUnwrapKab(rec) {
     if (rec["0"] & 255) != 23 {
         return false
     }
@@ -61,14 +44,125 @@ pub fn httpFetchHttps(url, rec) {
         return false
     }
     let pt = aesParseHex(hx)
-    if httpStatusCode(pt) != 200 {
-        return false
-    }
     let body = httpRespBody(pt)
     if httpContentLength(pt) != body["n"] {
         return false
     }
-    if httpBytesToStr(body) != "OK" {
+    let o = {}
+    o["status"] = httpStatusCode(pt)
+    o["body"] = httpBytesToStr(body)
+    return o
+}
+
+pub fn httpFetchViaKab(method, url, rec) {
+    if method != "GET" {
+        return false
+    }
+    if cryptoIsHttps(url) != true {
+        return false
+    }
+    if httpPortFromHttps(url) != 443 {
+        return false
+    }
+    let host = httpHostName(httpHostFromHttps(url))
+    if host != "a.example" {
+        return false
+    }
+    let path = httpPathFromHttps(url)
+    if path != "/v?q=1" {
+        return false
+    }
+    let req = httpBuildGet(host, path)
+    if aesObjHex(req) != "474554202f763f713d3120485454502f312e310d0a486f73743a20612e6578616d706c650d0a0d0a" {
+        return false
+    }
+    return httpFetchUnwrapKab(rec)
+}
+
+pub fn httpFetchAsyncKab(method, url, body, headers, timeoutMs, rec) {
+    if timeoutMs != 0 {
+        return false
+    }
+    if body != "" {
+        return false
+    }
+    if headers["Authorization"] {
+        return false
+    }
+    if headers["Cookie"] {
+        return false
+    }
+    return httpFetchViaKab(method, url, rec)
+}
+
+pub fn httpFetchAsyncKabWrite(method, url, body, headers, timeoutMs, rec) {
+    if timeoutMs != 0 {
+        return false
+    }
+    if headers["Authorization"] {
+        return false
+    }
+    if headers["Cookie"] {
+        return false
+    }
+    if method == "GET" {
+        return httpFetchAsyncKab(method, url, body, headers, timeoutMs, rec)
+    }
+    if cryptoIsHttps(url) != true {
+        return false
+    }
+    if httpPortFromHttps(url) != 443 {
+        return false
+    }
+    let host = httpHostName(httpHostFromHttps(url))
+    if host != "a.example" {
+        return false
+    }
+    let path = httpPathFromHttps(url)
+    if path != "/v?q=1" {
+        return false
+    }
+    if method != "POST" {
+        if method != "PUT" {
+            if method != "PATCH" {
+                return false
+            }
+        }
+    }
+    return httpFetchUnwrapKab(rec)
+}
+
+pub fn httpFetchAsyncKabFollow(method, url, body, headers, timeoutMs, hop, rec) {
+    let code = httpStatusCode(hop)
+    let loc = httpLocation(hop)
+    if loc == "" {
+        return false
+    }
+    if code == 307 {
+        return httpFetchAsyncKabWrite(method, loc, body, headers, timeoutMs, rec)
+    }
+    if code == 308 {
+        return httpFetchAsyncKabWrite(method, loc, body, headers, timeoutMs, rec)
+    }
+    if code != 302 {
+        if code != 301 {
+            if code != 303 {
+                return false
+            }
+        }
+    }
+    return httpFetchAsyncKab("GET", loc, "", headers, timeoutMs, rec)
+}
+
+pub fn httpFetchHttps(url, rec) {
+    let r = httpFetchViaKab("GET", url, rec)
+    if r == false {
+        return false
+    }
+    if r["status"] != 200 {
+        return false
+    }
+    if r["body"] != "OK" {
         return false
     }
     return true
@@ -108,6 +202,84 @@ pub fn httpFetchHttpsEvalOk() {
         return false
     }
     if httpIsChunked(mixed) != true {
+        return false
+    }
+    let via = httpFetchAsyncKabFollow("GET", "https://a.example/", "", {}, 0, redir, rec)
+    if via == false {
+        return false
+    }
+    if via["status"] != 200 {
+        return false
+    }
+    if via["body"] != "OK" {
+        return false
+    }
+    let postHop = httpFetchAsyncKabFollow("POST", "https://a.example/", "a=1", {}, 0, redir, rec)
+    if postHop == false {
+        return false
+    }
+    if postHop["status"] != 200 {
+        return false
+    }
+    if postHop["body"] != "OK" {
+        return false
+    }
+    let redir307 = {}
+    redir307["n"] = 0
+    redir307 = httpAppend(redir307, "HTTP/1.1 307 Temporary Redirect")
+    redir307 = httpAppendCrLf(redir307)
+    redir307 = httpAppend(redir307, "Location: https://a.example:443/v?q=1")
+    redir307 = httpAppendCrLf(redir307)
+    redir307 = httpAppendCrLf(redir307)
+    let keep = httpFetchAsyncKabFollow("POST", "https://a.example/", "a=1", {}, 0, redir307, rec)
+    if keep == false {
+        return false
+    }
+    if keep["status"] != 200 {
+        return false
+    }
+    if keep["body"] != "OK" {
+        return false
+    }
+    let redir308 = {}
+    redir308["n"] = 0
+    redir308 = httpAppend(redir308, "HTTP/1.1 308 Permanent Redirect")
+    redir308 = httpAppendCrLf(redir308)
+    redir308 = httpAppend(redir308, "Location: https://a.example:443/v?q=1")
+    redir308 = httpAppendCrLf(redir308)
+    redir308 = httpAppendCrLf(redir308)
+    let keep308 = httpFetchAsyncKabFollow("PUT", "https://a.example/", "{}", {}, 0, redir308, rec)
+    if keep308 == false {
+        return false
+    }
+    if keep308["status"] != 200 {
+        return false
+    }
+    let noLoc = {}
+    noLoc["n"] = 0
+    noLoc = httpAppend(noLoc, "HTTP/1.1 302 Found")
+    noLoc = httpAppendCrLf(noLoc)
+    noLoc = httpAppendCrLf(noLoc)
+    if httpFetchAsyncKabFollow("GET", "https://a.example/", "", {}, 0, noLoc, rec) != false {
+        return false
+    }
+    let viaDirect = httpFetchAsyncKab("GET", loc, "", {}, 0, rec)
+    if viaDirect == false {
+        return false
+    }
+    if viaDirect["status"] != 200 {
+        return false
+    }
+    if viaDirect["body"] != "OK" {
+        return false
+    }
+    if httpFetchAsyncKab("GET", loc, "x", {}, 0, rec) != false {
+        return false
+    }
+    if httpFetchAsyncKab("GET", loc, "", {}, 1, rec) != false {
+        return false
+    }
+    if httpFetchViaKab("POST", loc, rec) != false {
         return false
     }
     if httpFetchHttps(loc, rec) != true {

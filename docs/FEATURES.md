@@ -38,7 +38,7 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Klassisk `for` | **`for let i = 0; i < n; i = i + 1`** (host + self-host + Kab-VM) |
 | `try`/`catch` | **`try { } catch (e) { }`** på `Result` (`Ok`/`Err`); **`raise`/`throw`** (host + self-host + Kab-VM) |
 | Pilfunktioner | **`(a, b) => a + b`**, **`(a, b = 3) =>`**, **`(a, ...xs) =>`**, block-kropp `{ return ... }`, objekt-metod **`{ foo() {} }`** / **`{ add(a, b = 3) {} }`** / **`{ rest(a, ...xs) {} }`** (self-host + Kab-VM `make_arrow_fn`) |
-| `async`/`await` | **`async fn`** (self-host `fn_async`; Kab-VM kör kroppen sync och wrappar med **`promise_resolve`** — `sh6_self_host_async_fn_ok`), **`for await x of xs`** i `async fn` (array via `async_iterator_begin` + `async_iterator_step_in_place` — `sh6_self_host_for_await_array_ok`), **`async (n) => ...`** (host), **`await`** (Kab-VM via `await_all`) |
+| `async`/`await` | **`async fn`** (self-host `fn_async`; Kab-VM kör kroppen sync och wrappar med **`promise_resolve`** — `sh6_self_host_async_fn_ok`), **`async (n) =>`** (self-host `arrow_async` + Kab-VM — `sh6_self_host_async_arrow_ok`), **`for await x of xs`** i `async fn` (array via `async_iterator_begin` + `async_iterator_step_in_place` — `sh6_self_host_for_await_array_ok`), **`await`** (Kab-VM via `await_all`) |
 | Typer | `null`, `undefined`, `NaN`, `true`/`false`, heltal, flyttal |
 
 ### ✅ JS-paritet (stdlib våg 1–4)

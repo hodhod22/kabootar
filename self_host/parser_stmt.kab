@@ -1677,14 +1677,38 @@ pub fn parseStmt(sess) {
         sess["pIsPub"] = 1
     }
     if sess["pCur"].type == TOKEN_ASYNC {
-        bump(sess)
-        sess["pIsAsync"] = 1
-        if sess["pCur"].type == TOKEN_PUB {
-            bump(sess)
-            sess["pIsPub"] = 1
+        let pos = sess["pPos"]
+        let n = sess["pToksLen"]
+        let nxt = sess["pEofTok"]
+        if pos + 1 < n {
+            nxt = sess["pToks"][pos + 1]
         }
-        if sess["pCur"].type != TOKEN_FN {
-            throw "`async` must be followed by `fn`"
+        let nt = nxt.type
+        if nt == TOKEN_FN {
+            bump(sess)
+            sess["pIsAsync"] = 1
+            if sess["pCur"].type == TOKEN_PUB {
+                bump(sess)
+                sess["pIsPub"] = 1
+            }
+        } else {
+            if nt == TOKEN_PUB {
+                bump(sess)
+                sess["pIsAsync"] = 1
+                if sess["pCur"].type == TOKEN_PUB {
+                    bump(sess)
+                    sess["pIsPub"] = 1
+                }
+                if sess["pCur"].type != TOKEN_FN {
+                    throw "`async` must be followed by `fn`"
+                }
+            } else {
+                if nt != "(" {
+                    if nt != TOKEN_IDENT {
+                        throw "`async` must be followed by `fn`"
+                    }
+                }
+            }
         }
     }
     let r = parseStmt_dispatch_decl(sess)
