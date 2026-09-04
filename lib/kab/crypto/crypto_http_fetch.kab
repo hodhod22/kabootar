@@ -1,4 +1,4 @@
-// SH23: http_fetch_async-shaped GET + 302/307 follow + TLS record -> status/body in Kab.
+// SH23: http_fetch_async-shaped GET + redirect follow/cap + TLS record -> status/body in Kab.
 // Live rustls remains in http_fetch_async. Do not delete rustls until Kab is stable.
 // import "kab/crypto/crypto_http_fetch"
 // Live rustls remains in http_fetch_async. cryptoHostDeleteOk stays false.
@@ -95,6 +95,16 @@ pub fn httpFetchAsyncKab(method, url, body, headers, timeoutMs, rec) {
     return httpFetchViaKab(method, url, rec)
 }
 
+pub fn httpFetchAsyncKabHop(method, url, body, headers, timeoutMs, rec) {
+    if timeoutMs != 0 {
+        return false
+    }
+    if body != "" {
+        return false
+    }
+    return httpFetchViaKab(method, url, rec)
+}
+
 pub fn httpFetchAsyncKabWrite(method, url, body, headers, timeoutMs, rec) {
     if timeoutMs != 0 {
         return false
@@ -132,17 +142,66 @@ pub fn httpFetchAsyncKabWrite(method, url, body, headers, timeoutMs, rec) {
     return httpFetchUnwrapKab(rec)
 }
 
-pub fn httpFetchAsyncKabFollow(method, url, body, headers, timeoutMs, hop, rec) {
-    let code = httpStatusCode(hop)
-    let loc = httpLocation(hop)
+pub fn httpSameOrigin(a, b) {
+    if cryptoIsHttps(a) != true {
+        return false
+    }
+    if cryptoIsHttps(b) != true {
+        return false
+    }
+    if httpHostName(httpHostFromHttps(a)) != httpHostName(httpHostFromHttps(b)) {
+        return false
+    }
+    if httpPortFromHttps(a) != httpPortFromHttps(b) {
+        return false
+    }
+    return true
+}
+
+pub fn httpRedirectHeaders(from, to, headers) {
+    if httpSameOrigin(from, to) == true {
+        return headers
+    }
+    let o = {}
+    return o
+}
+
+pub fn httpResolveRedirect(base, loc) {
     if loc == "" {
         return false
     }
+    if cryptoIsHttps(loc) == true {
+        return loc
+    }
+    if char_code_at(loc, 0) != 47 {
+        return false
+    }
+    if len(loc) > 1 {
+        if char_code_at(loc, 1) == 47 {
+            if cryptoIsHttps(base) != true {
+                return false
+            }
+            return "https:" + loc
+        }
+    }
+    if cryptoIsHttps(base) != true {
+        return false
+    }
+    return "https://" + httpHostFromHttps(base) + loc
+}
+
+pub fn httpFetchAsyncKabFollow(method, url, body, headers, timeoutMs, hop, rec) {
+    let code = httpStatusCode(hop)
+    let loc = httpResolveRedirect(url, httpLocation(hop))
+    if loc == false {
+        return false
+    }
+    let hdr = httpRedirectHeaders(url, loc, headers)
     if code == 307 {
-        return httpFetchAsyncKabWrite(method, loc, body, headers, timeoutMs, rec)
+        return httpFetchAsyncKabWrite(method, loc, body, hdr, timeoutMs, rec)
     }
     if code == 308 {
-        return httpFetchAsyncKabWrite(method, loc, body, headers, timeoutMs, rec)
+        return httpFetchAsyncKabWrite(method, loc, body, hdr, timeoutMs, rec)
     }
     if code != 302 {
         if code != 301 {
@@ -151,7 +210,18 @@ pub fn httpFetchAsyncKabFollow(method, url, body, headers, timeoutMs, hop, rec) 
             }
         }
     }
-    return httpFetchAsyncKab("GET", loc, "", headers, timeoutMs, rec)
+    return httpFetchAsyncKabHop("GET", loc, "", hdr, timeoutMs, rec)
+}
+
+pub fn httpFetchRedirectCap() {
+    return 10
+}
+
+pub fn httpFetchAsyncKabFollowAt(method, url, body, headers, timeoutMs, hop, rec, hopIndex) {
+    if hopIndex > httpFetchRedirectCap() {
+        return false
+    }
+    return httpFetchAsyncKabFollow(method, url, body, headers, timeoutMs, hop, rec)
 }
 
 pub fn httpFetchHttps(url, rec) {
@@ -202,6 +272,74 @@ pub fn httpFetchHttpsEvalOk() {
         return false
     }
     if httpIsChunked(mixed) != true {
+        return false
+    }
+    if httpFetchRedirectCap() != 10 {
+        return false
+    }
+    if httpFetchAsyncKabFollowAt("GET", "https://a.example/", "", {}, 0, redir, rec, 10) == false {
+        return false
+    }
+    if httpFetchAsyncKabFollowAt("GET", "https://a.example/", "", {}, 0, redir, rec, 11) != false {
+        return false
+    }
+    if httpResolveRedirect("https://a.example/", "/v?q=1") != "https://a.example/v?q=1" {
+        return false
+    }
+    if httpResolveRedirect("https://a.example/", "//a.example/v?q=1") != "https://a.example/v?q=1" {
+        return false
+    }
+    let protoHop = {}
+    protoHop["n"] = 0
+    protoHop = httpAppend(protoHop, "HTTP/1.1 302 Found")
+    protoHop = httpAppendCrLf(protoHop)
+    protoHop = httpAppend(protoHop, "Location: //a.example/v?q=1")
+    protoHop = httpAppendCrLf(protoHop)
+    protoHop = httpAppendCrLf(protoHop)
+    let protoVia = httpFetchAsyncKabFollow("GET", "https://a.example/", "", {}, 0, protoHop, rec)
+    if protoVia == false {
+        return false
+    }
+    if protoVia["status"] != 200 {
+        return false
+    }
+    let relHop = {}
+    relHop["n"] = 0
+    relHop = httpAppend(relHop, "HTTP/1.1 302 Found")
+    relHop = httpAppendCrLf(relHop)
+    relHop = httpAppend(relHop, "Location: /v?q=1")
+    relHop = httpAppendCrLf(relHop)
+    relHop = httpAppendCrLf(relHop)
+    let relVia = httpFetchAsyncKabFollow("GET", "https://a.example/", "", {}, 0, relHop, rec)
+    if relVia == false {
+        return false
+    }
+    if relVia["status"] != 200 {
+        return false
+    }
+    if httpSameOrigin("https://a.example/", "https://a.example:443/v?q=1") != true {
+        return false
+    }
+    if httpSameOrigin("https://b.example/", "https://a.example:443/v?q=1") != false {
+        return false
+    }
+    let cred = {}
+    cred["Authorization"] = "Bearer t"
+    let cross = httpFetchAsyncKabFollow("GET", "https://b.example/", "", cred, 0, redir, rec)
+    if cross == false {
+        return false
+    }
+    if cross["status"] != 200 {
+        return false
+    }
+    let keepAuth = httpFetchAsyncKabFollow("GET", "https://a.example/", "", cred, 0, redir, rec)
+    if keepAuth == false {
+        return false
+    }
+    if keepAuth["status"] != 200 {
+        return false
+    }
+    if httpFetchAsyncKab("GET", loc, "", cred, 0, rec) != false {
         return false
     }
     let via = httpFetchAsyncKabFollow("GET", "https://a.example/", "", {}, 0, redir, rec)
