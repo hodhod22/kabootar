@@ -1,0 +1,255 @@
+// SH23: AES-128-GCM + TLS 1.2 record (RFC 5288). import "kab/crypto/crypto_gcm_eval"
+// Do not grow crypto_gcm.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_aes_eval"
+
+pub fn gcmInc32(cb) {
+    let n = {}
+    let i = 0
+    while i < 16 {
+        n["" + i] = cb["" + i] & 255
+        i = i + 1
+    }
+    n["n"] = 16
+    let c = ((n["12"] << 24) | (n["13"] << 16) | (n["14"] << 8) | n["15"]) | 0
+    c = (c + 1) | 0
+    n["12"] = (c >>> 24) & 255
+    n["13"] = (c >>> 16) & 255
+    n["14"] = (c >>> 8) & 255
+    n["15"] = c & 255
+    return n
+}
+
+pub fn gcmGfMul(x, y) {
+    let z = {}
+    let v = {}
+    let i = 0
+    while i < 16 {
+        z["" + i] = 0
+        v["" + i] = y["" + i] & 255
+        i = i + 1
+    }
+    z["n"] = 16
+    v["n"] = 16
+    i = 0
+    while i < 128 {
+        let bi = (i / 8) | 0
+        let sh = 7 - (i - bi * 8)
+        if ((x["" + bi] >>> sh) & 1) != 0 {
+            z = aesXor16(z, v)
+        }
+        let lsb = v["15"] & 1
+        let j = 15
+        while j > 0 {
+            let prev = v["" + (j - 1)] & 1
+            v["" + j] = ((v["" + j] >>> 1) | (prev << 7)) & 255
+            j = j - 1
+        }
+        v["0"] = (v["0"] >>> 1) & 255
+        if lsb != 0 {
+            v["0"] = aesXor(v["0"], 225)
+        }
+        i = i + 1
+    }
+    return z
+}
+
+pub fn gcmPad16(buf) {
+    let o = {}
+    let n = buf["n"]
+    let i = 0
+    while i < n {
+        o["" + i] = buf["" + i] & 255
+        i = i + 1
+    }
+    while (i - ((i / 16) | 0) * 16) != 0 {
+        o["" + i] = 0
+        i = i + 1
+    }
+    o["n"] = i
+    return o
+}
+
+pub fn gcmFeed(y, h, buf) {
+    let pad = gcmPad16(buf)
+    let off = 0
+    let n = pad["n"]
+    while off < n {
+        let blk = {}
+        let i = 0
+        while i < 16 {
+            blk["" + i] = aesXor(pad["" + (off + i)], y["" + i]) & 255
+            i = i + 1
+        }
+        blk["n"] = 16
+        y = gcmGfMul(blk, h)
+        off = off + 16
+    }
+    return y
+}
+
+pub fn gcmLenBlk(aadn, ctn) {
+    let o = {}
+    let i = 0
+    while i < 16 {
+        o["" + i] = 0
+        i = i + 1
+    }
+    let al = aadn * 8
+    let cl = ctn * 8
+    o["4"] = (al >>> 24) & 255
+    o["5"] = (al >>> 16) & 255
+    o["6"] = (al >>> 8) & 255
+    o["7"] = al & 255
+    o["12"] = (cl >>> 24) & 255
+    o["13"] = (cl >>> 16) & 255
+    o["14"] = (cl >>> 8) & 255
+    o["15"] = cl & 255
+    o["n"] = 16
+    return o
+}
+
+pub fn gcmHash(h, aad, ct) {
+    let y = {}
+    let i = 0
+    while i < 16 {
+        y["" + i] = 0
+        i = i + 1
+    }
+    y["n"] = 16
+    y = gcmFeed(y, h, aad)
+    y = gcmFeed(y, h, ct)
+    return gcmGfMul(aesXor16(y, gcmLenBlk(aad["n"], ct["n"])), h)
+}
+
+pub fn gcmZero16() {
+    let o = {}
+    let i = 0
+    while i < 16 {
+        o["" + i] = 0
+        i = i + 1
+    }
+    o["n"] = 16
+    return o
+}
+
+pub fn gcmCtrXor(rk, j0, pt) {
+    let y = j0
+    let ct = {}
+    let n = pt["n"]
+    let off = 0
+    while off < n {
+        y = gcmInc32(y)
+        let ks = aesEncryptBlock(rk, y)
+        let take = n - off
+        if take > 16 {
+            take = 16
+        }
+        let i = 0
+        while i < take {
+            ct["" + (off + i)] = aesXor(pt["" + (off + i)], ks["" + i]) & 255
+            i = i + 1
+        }
+        off = off + take
+    }
+    ct["n"] = n
+    return ct
+}
+
+pub fn gcmJ0(iv) {
+    let o = {}
+    let i = 0
+    while i < 12 {
+        o["" + i] = iv["" + i] & 255
+        i = i + 1
+    }
+    o["12"] = 0
+    o["13"] = 0
+    o["14"] = 0
+    o["15"] = 1
+    o["n"] = 16
+    return o
+}
+
+pub fn gcmEncrypt(key, iv, pt, aad) {
+    let rk = aesExpand(key)
+    let h = aesEncryptBlock(rk, gcmZero16())
+    let j0 = gcmJ0(iv)
+    let ct = gcmCtrXor(rk, j0, pt)
+    let s = gcmHash(h, aad, ct)
+    let t = aesEncryptBlock(rk, j0)
+    let tag = aesXor16(s, t)
+    let out = {}
+    out["ct"] = ct
+    out["tag"] = tag
+    return out
+}
+
+pub fn gcmDecrypt(key, iv, ct, tag, aad) {
+    let rk = aesExpand(key)
+    let h = aesEncryptBlock(rk, gcmZero16())
+    let s = gcmHash(h, aad, ct)
+    let t = aesEncryptBlock(rk, gcmJ0(iv))
+    if aesObjHex(aesXor16(s, t)) != aesObjHex(tag) {
+        return false
+    }
+    let pt = gcmCtrXor(rk, gcmJ0(iv), ct)
+    return aesObjHex(pt)
+}
+
+/// NIST SP 800-38D: AES-128-GCM all-zero key/IV, 16-byte zero PT.
+pub fn gcmNistEvalOk() {
+    let z = gcmZero16()
+    let iv = {}
+    let i = 0
+    while i < 12 {
+        iv["" + i] = 0
+        i = i + 1
+    }
+    iv["n"] = 12
+    let aad = {}
+    aad["n"] = 0
+    let e = gcmEncrypt(z, iv, z, aad)
+    if aesObjHex(e["ct"]) != "0388dace60b6a392f328c2b971b2fe78" {
+        return false
+    }
+    if aesObjHex(e["tag"]) != "ab6e47d42cec13bdf53a67b21257bddf" {
+        return false
+    }
+    if gcmDecrypt(z, iv, e["ct"], e["tag"], aad) != "00000000000000000000000000000000" {
+        return false
+    }
+    return true
+}
+
+/// TLS 1.2 AES-128-GCM (RFC 5288): AAD=seq||type||ver||len, 12-byte nonce.
+pub fn tlsGcmRecordEvalOk() {
+    let key = gcmZero16()
+    let iv = aesParseHex("000000000000000000000001")
+    let pt = aesParseHex("6869")
+    let aad = aesParseHex("00000000000000001703030002")
+    let e = gcmEncrypt(key, iv, pt, aad)
+    if aesObjHex(e["ct"]) != "0668" {
+        return false
+    }
+    if aesObjHex(e["tag"]) != "7c1eed7eb92508975bfa2c9a3d4c678c" {
+        return false
+    }
+    if gcmDecrypt(key, iv, e["ct"], e["tag"], aad) != "6869" {
+        return false
+    }
+    return true
+}
+
+pub fn tlsGcmEvalOk() {
+    if aes128FipsEvalOk() != true {
+        return false
+    }
+    if gcmNistEvalOk() != true {
+        return false
+    }
+    if tlsGcmRecordEvalOk() != true {
+        return false
+    }
+    return true
+}

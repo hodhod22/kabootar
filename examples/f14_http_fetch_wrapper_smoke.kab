@@ -1,0 +1,4 @@
+// Compile-only: validates the Kab wrapper shape without opening a network socket.
+import "kab/http/http_fetch"
+
+return true

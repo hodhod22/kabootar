@@ -25,6 +25,7 @@ export 0 parse
 memory_mode=gc
 interfaces=0
 classes=0
+enums=0
 code
 halt
 

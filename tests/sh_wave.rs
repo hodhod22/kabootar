@@ -56494,11 +56494,283 @@ fn f14_http_to_in_kab() {
 #[test]
 fn f14_http_fetch_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/http_fetch.kab")).expect("http_fetch.kab");
+    let f = std::fs::read_to_string(root.join("lib/kab/http/http_fetch.kab"))
+        .expect("http/http_fetch.kab");
     assert!(
-        f.contains("pub fn httpFetch") && f.contains("http_fetch_async"),
-        "F14 Kab httpFetch"
+        f.contains("pub fn httpFetch")
+            && f.contains("http_fetch_async")
+            && f.contains("headers = {}")
+            && f.contains("timeoutMs = 0"),
+        "F14 Kab httpFetch forwards headers and timeout"
     );
+}
+
+/// F14: compile the Kab fetch wrapper without issuing a network request.
+#[test]
+fn f14_http_fetch_wrapper_compile_smoke() {
+    let path = format!(
+        "{}/examples/f14_http_fetch_wrapper_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f14-http-fetch-wrapper".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile Kab httpFetch wrapper");
+            let value =
+                eval_program(&program, &mut env).expect("run Kab httpFetch wrapper smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH6: Kab-VM await drains the scheduler that owns an imported I/O promise.
+#[test]
+fn sh6_http_fetch_wrapper_local_await_smoke() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback HTTP server");
+    let port = listener.local_addr().expect("loopback HTTP server address").port();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept loopback HTTP request");
+        let mut buf = [0u8; 4096];
+        let n = stream.read(&mut buf).expect("read loopback HTTP request");
+        let request = String::from_utf8_lossy(&buf[..n]);
+        assert!(request.starts_with("POST /probe HTTP/1.1\r\n"));
+        assert!(request.contains("\r\nX-Kab: yes\r\n"));
+        assert!(request.ends_with("\r\n\r\npayload"));
+        stream
+            .write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK",
+            )
+            .expect("write loopback HTTP response");
+    });
+    let path = std::env::temp_dir()
+        .join(format!("kab-sh6-http-fetch-{port}.kab"))
+        .to_string_lossy()
+        .into_owned();
+    std::fs::write(
+        &path,
+        format!(
+            r#"import "kab/http/http_fetch"
+async fn load() {{
+    let response = await httpFetch("POST", "http://127.0.0.1:{port}/probe", "payload", {{ "X-Kab": "yes" }}, 2000)
+    return http_body(response)
+}}
+await load()"#
+        ),
+    )
+    .expect("write Kab HTTP fetch smoke");
+    std::thread::Builder::new()
+        .name("sh6-http-fetch-await".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile Kab HTTP fetch smoke");
+            let value = eval_program(&program, &mut env).expect("run Kab HTTP fetch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::String(s) if s == "OK"));
+            std::fs::remove_file(path).expect("remove Kab HTTP fetch smoke");
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    server.join().expect("loopback HTTP server");
+}
+
+/// SH6: Kab-VM await_all drains each imported I/O promise's owning scheduler.
+#[test]
+fn sh6_http_fetch_wrapper_local_await_all_smoke() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback HTTP server");
+    let port = listener.local_addr().expect("loopback HTTP server address").port();
+    let server = std::thread::spawn(move || {
+        for body in ["A", "B"] {
+            let (mut stream, _) = listener.accept().expect("accept loopback HTTP request");
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).expect("read loopback HTTP request");
+            let request = String::from_utf8_lossy(&buf[..n]);
+            assert!(request.starts_with("GET /probe HTTP/1.1\r\n"));
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: 1\r\nConnection: close\r\n\r\n{body}"
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("write loopback HTTP response");
+        }
+    });
+    let path = std::env::temp_dir()
+        .join(format!("kab-sh6-http-fetch-all-{port}.kab"))
+        .to_string_lossy()
+        .into_owned();
+    std::fs::write(
+        &path,
+        format!(
+            r#"import "kab/http/http_fetch"
+async fn load() {{
+    let all = await_all([
+        httpFetch("GET", "http://127.0.0.1:{port}/probe"),
+        httpFetch("GET", "http://127.0.0.1:{port}/probe")
+    ])
+    return http_body(all[0]) + http_body(all[1])
+}}
+await load()"#
+        ),
+    )
+    .expect("write Kab HTTP fetch await_all smoke");
+    std::thread::Builder::new()
+        .name("sh6-http-fetch-await-all".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile Kab HTTP fetch await_all smoke");
+            let value = eval_program(&program, &mut env).expect("run Kab HTTP fetch await_all smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::String(s) if s == "AB"));
+            std::fs::remove_file(path).expect("remove Kab HTTP fetch await_all smoke");
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    server.join().expect("loopback HTTP server");
+}
+
+/// SH6: Kab-VM await surfaces an imported I/O timeout instead of deadlocking.
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn sh6_http_fetch_wrapper_local_timeout_smoke() {
+    use std::io::Read;
+    use std::net::TcpListener;
+    use std::time::Duration;
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback HTTP server");
+    let port = listener.local_addr().expect("loopback HTTP server address").port();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept loopback HTTP request");
+        let mut buf = [0u8; 4096];
+        let _ = stream.read(&mut buf).expect("read loopback HTTP request");
+        std::thread::sleep(Duration::from_millis(200));
+    });
+    let path = std::env::temp_dir()
+        .join(format!("kab-sh6-http-timeout-{port}.kab"))
+        .to_string_lossy()
+        .into_owned();
+    std::fs::write(
+        &path,
+        format!(
+            r#"import "kab/http/http_fetch"
+async fn load() {{
+    return await httpFetch("GET", "http://127.0.0.1:{port}/slow", "", {{}}, 25)
+}}
+await load()"#
+        ),
+    )
+    .expect("write Kab HTTP timeout smoke");
+    std::thread::Builder::new()
+        .name("sh6-http-fetch-timeout".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile Kab HTTP timeout smoke");
+            let error = eval_program(&program, &mut env).expect_err("Kab HTTP fetch must time out");
+            assert!(error.contains("timed out"), "{error}");
+            std::fs::remove_file(path).expect("remove Kab HTTP timeout smoke");
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    server.join().expect("loopback HTTP server");
+}
+
+/// SH6: Kab-VM await uses the owner scheduler for non-HTTP I/O too.
+#[test]
+fn sh6_os_read_async_owner_scheduler_smoke() {
+    let path = std::env::temp_dir()
+        .join("kab-sh6-os-read-owner-scheduler.kab")
+        .to_string_lossy()
+        .into_owned();
+    std::fs::write(
+        &path,
+        r#"async fn load() {
+    return await os_read_async("/sh6-owner.txt")
+}
+os_write("/sh6-owner.txt", "owner")
+await load()"#,
+    )
+    .expect("write Kab OS await smoke");
+    std::thread::Builder::new()
+        .name("sh6-os-read-owner-scheduler".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile Kab OS await smoke");
+            let value = eval_program(&program, &mut env).expect("run Kab OS await smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::String(s) if s == "owner"));
+            std::fs::remove_file(path).expect("remove Kab OS await smoke");
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH6: Kab-VM await_all resolves mixed module and global I/O promises.
+#[test]
+fn sh6_mixed_io_owner_scheduler_smoke() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback HTTP server");
+    let port = listener.local_addr().expect("loopback HTTP server address").port();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("accept loopback HTTP request");
+        let mut buf = [0u8; 4096];
+        let _ = stream.read(&mut buf).expect("read loopback HTTP request");
+        stream
+            .write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\nConnection: close\r\n\r\nH",
+            )
+            .expect("write loopback HTTP response");
+    });
+    let path = std::env::temp_dir()
+        .join(format!("kab-sh6-mixed-io-{port}.kab"))
+        .to_string_lossy()
+        .into_owned();
+    std::fs::write(
+        &path,
+        format!(
+            r#"import "kab/http/http_fetch"
+async fn load() {{
+    os_write("/sh6-mixed-io.txt", "O")
+    let all = await_all([
+        httpFetch("GET", "http://127.0.0.1:{port}/probe"),
+        os_read_async("/sh6-mixed-io.txt")
+    ])
+    return http_body(all[0]) + all[1]
+}}
+await load()"#
+        ),
+    )
+    .expect("write Kab mixed I/O smoke");
+    std::thread::Builder::new()
+        .name("sh6-mixed-io-owner-scheduler".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile Kab mixed I/O smoke");
+            let value = eval_program(&program, &mut env).expect("run Kab mixed I/O smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::String(s) if s == "HO"));
+            std::fs::remove_file(path).expect("remove Kab mixed I/O smoke");
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    server.join().expect("loopback HTTP server");
 }
 
 /// F14: HTTP timeout reset (no TCP).
@@ -61960,6 +62232,204 @@ fn sh23_crypto_tls_prf_eval_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile tls prf eval smoke");
             let value = eval_program(&program, &mut env).expect("run tls prf eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: TLS 1.2 handshake records + transcript Finished + CertificateVerify MAC.
+#[test]
+fn sh23_crypto_tls_hs_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_tls_hs_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-tls-hs".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile tls hs eval smoke");
+            let value = eval_program(&program, &mut env).expect("run tls hs eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: AES-128-GCM NIST + TLS 1.2 record encrypt/decrypt via Kab eval.
+#[test]
+fn sh23_crypto_tls_gcm_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_tls_gcm_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-tls-gcm".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile tls gcm eval smoke");
+            let value = eval_program(&program, &mut env).expect("run tls gcm eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: RFC 7748 X25519 + ECDHE shared secret via Kab eval (not a string-gate).
+#[test]
+fn sh23_crypto_x25519_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_x25519_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-x25519".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile x25519 eval smoke");
+            let value = eval_program(&program, &mut env).expect("run x25519 eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: TLS 1.2 ECDHE premaster key schedule + HTTPS GET GCM record (not rustls-delete).
+#[test]
+fn sh23_crypto_tls_https_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_tls_https_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-tls-https".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile tls https eval smoke");
+            let value = eval_program(&program, &mut env).expect("run tls https eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: TLS CertificateVerify RSA PKCS#1 v1.5 SHA-256 via Kab eval.
+#[test]
+fn sh23_crypto_tls_cert_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_tls_cert_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-tls-cert".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile tls cert eval smoke");
+            let value = eval_program(&program, &mut env).expect("run tls cert eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: TLS CertificateVerify ECDSA P-256 (u1*G+u2*Q) via Kab eval.
+#[test]
+fn sh23_crypto_tls_ecdsa_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_tls_ecdsa_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-tls-ecdsa".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile tls ecdsa eval smoke");
+            let value = eval_program(&program, &mut env).expect("run tls ecdsa eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: HTTP/1.1 GET+Host over TLS 1.2 GCM (http_fetch-shaped, not rustls-delete).
+#[test]
+fn sh23_crypto_http_get_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_http_get_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-http-get".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile http get eval smoke");
+            let value = eval_program(&program, &mut env).expect("run http get eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: HTTP/1.1 200 unwrap from TLS 1.2 app-data (http_fetch read path).
+#[test]
+fn sh23_crypto_http_resp_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_http_resp_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-http-resp".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile http resp eval smoke");
+            let value = eval_program(&program, &mut env).expect("run http resp eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: http_fetch-shaped https URL + TLS record -> 200/OK (not rustls-delete).
+#[test]
+fn sh23_crypto_http_fetch_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_http_fetch_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-http-fetch".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile http fetch eval smoke");
+            let value = eval_program(&program, &mut env).expect("run http fetch eval smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")

@@ -13,6 +13,27 @@ use std::rc::Rc;
 
 const IO_LATENCY_TICKS: u64 = 1;
 
+thread_local! {
+    // A Kab-VM builtin may await a promise from a different closure
+    // environment. Keep the owner scheduler with the pending I/O promise so
+    // `await_all` can drain the queue that actually contains its task.
+    static IO_PROMISE_OWNERS: RefCell<HashMap<usize, Environment>> = RefCell::new(HashMap::new());
+}
+
+fn promise_key(promise: &SharedPromise) -> usize {
+    Rc::as_ptr(promise) as usize
+}
+
+pub fn io_promise_owner(promise: &SharedPromise) -> Option<Environment> {
+    IO_PROMISE_OWNERS.with(|owners| owners.borrow().get(&promise_key(promise)).cloned())
+}
+
+fn forget_io_promise_owner(promise: &SharedPromise) {
+    IO_PROMISE_OWNERS.with(|owners| {
+        owners.borrow_mut().remove(&promise_key(promise));
+    });
+}
+
 pub fn schedule_io_promise(op: IoOp, env: &Environment, abort_id: Option<u64>) -> Value {
     if let Some(id) = abort_id {
         if is_aborted(id) {
@@ -20,6 +41,9 @@ pub fn schedule_io_promise(op: IoOp, env: &Environment, abort_id: Option<u64>) -
         }
     }
     let promise: SharedPromise = Rc::new(RefCell::new(PromiseValue::Pending));
+    IO_PROMISE_OWNERS.with(|owners| {
+        owners.borrow_mut().insert(promise_key(&promise), env.clone());
+    });
     env.schedule_io(IoTask {
         promise: promise.clone(),
         wake_at: env.current_tick() + IO_LATENCY_TICKS,
@@ -40,11 +64,16 @@ pub fn drain_one_ready_io(env: &mut Environment) -> Result<bool, String> {
             *task.promise.borrow_mut() = PromiseValue::Resolved(Value::Result(Err(Box::new(
                 abort_reason(id),
             ))));
+            forget_io_promise_owner(&task.promise);
             return Ok(true);
         }
     }
-    let result = execute_io_op(&task.op, env)?;
+    let result = match execute_io_op(&task.op, env) {
+        Ok(value) => value,
+        Err(error) => Value::Result(Err(Box::new(Value::String(error)))),
+    };
     *task.promise.borrow_mut() = PromiseValue::Resolved(result);
+    forget_io_promise_owner(&task.promise);
     Ok(true)
 }
 

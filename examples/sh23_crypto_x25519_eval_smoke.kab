@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_x25519_eval"
+
+return x25519EvalOk()

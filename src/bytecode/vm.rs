@@ -2450,7 +2450,10 @@ fn call_bytecode_sync(
 ) -> Result<(Value, Vec<(usize, Value)>), String> {
     crate::runtime::closure_sync::pull_bytecode_globals(&mut func, env);
     crate::runtime::closure_sync::pull_root_into_closure(&mut func.closure, env);
-    let mut call_env = Environment::child_from(&func.closure);
+    // Retain the imported function's lexical closure, but run its native
+    // capabilities on the caller's scheduler. This keeps TLS trust, I/O, and
+    // microtasks owned by the outer program across Kab-VM host fast paths.
+    let mut call_env = Environment::child_from_with_scheduler(&func.closure, env);
     let needs_obj_writeback = args.iter().any(|a| matches!(a, Value::Object(_)));
     let orig_args = if needs_obj_writeback {
         args.clone()
