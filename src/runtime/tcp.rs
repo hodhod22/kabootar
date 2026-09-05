@@ -143,7 +143,7 @@ pub fn tcp_start_tls(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn tcp_read(sock_id: u64, max: usize) -> Result<String, String> {
+pub fn tcp_read_bytes(sock_id: u64, max: usize) -> Result<Vec<u8>, String> {
     let max = max.clamp(1, 65536);
     TCP_CONNS.with(|m| {
         let mut map = m.borrow_mut();
@@ -160,8 +160,18 @@ pub fn tcp_read(sock_id: u64, max: usize) -> Result<String, String> {
             }
         };
         buf.truncate(n);
-        Ok(String::from_utf8_lossy(&buf).into_owned())
+        Ok(buf)
     })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn tcp_read_bytes(_sock_id: u64, _max: usize) -> Result<Vec<u8>, String> {
+    Err("tcp_read() is not available on wasm32".into())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn tcp_read(sock_id: u64, max: usize) -> Result<String, String> {
+    Ok(String::from_utf8_lossy(&tcp_read_bytes(sock_id, max)?).into_owned())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -171,6 +181,11 @@ pub fn tcp_read(_sock_id: u64, _max: usize) -> Result<String, String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn tcp_write(sock_id: u64, data: &str) -> Result<(), String> {
+    tcp_write_bytes(sock_id, data.as_bytes())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn tcp_write_bytes(sock_id: u64, data: &[u8]) -> Result<(), String> {
     TCP_CONNS.with(|m| {
         let mut map = m.borrow_mut();
         let conn = map
@@ -179,14 +194,14 @@ pub fn tcp_write(sock_id: u64, data: &str) -> Result<(), String> {
         match &mut conn.transport {
             TcpTransport::Plain(stream) => {
                 stream
-                    .write_all(data.as_bytes())
+                    .write_all(data)
                     .map_err(|e| format!("tcp_write failed: {e}"))?;
                 stream
                     .flush()
                     .map_err(|e| format!("tcp_write flush failed: {e}"))?;
             }
             TcpTransport::Tls { conn: tls, tcp } => {
-                crate::runtime::tls_client::tls_write_all(tls, tcp, data.as_bytes())?;
+                crate::runtime::tls_client::tls_write_all(tls, tcp, data)?;
             }
         }
         Ok(())
@@ -196,6 +211,11 @@ pub fn tcp_write(sock_id: u64, data: &str) -> Result<(), String> {
 #[cfg(target_arch = "wasm32")]
 pub fn tcp_write(_sock_id: u64, _data: &str) -> Result<(), String> {
     Err("tcp_write() is not available on wasm32".into())
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn tcp_write_bytes(_sock_id: u64, _data: &[u8]) -> Result<(), String> {
+    Err("tcp_write_bytes() is not available on wasm32".into())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

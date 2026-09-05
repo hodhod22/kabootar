@@ -22,7 +22,7 @@ Kabootar är **inte** Deno/TypeScript, men flera **Deno runtime-API:er** har mot
 | `WebSocket` (TCP) | `ws_connect(url)` | `ws://` och `wss://` (våg 3) |
 | `Deno.connect` | `tcp_connect(host, port)` / `Deno_connect` | Rå TCP |
 | `Deno.listen` | `tcp_listen(host, port)` / `Deno_listen` | Rå TCP |
-| TCP I/O | `tcp_accept`, `tcp_read`, `tcp_write`, `tcp_close` | |
+| TCP I/O | `tcp_accept`, `tcp_read`, `tcp_write`, `tcp_read_bytes`, `tcp_write_bytes`, `tcp_close` | Byte-varianterna överför råa `0..255`-värden |
 | `Deno.startTls` | `tcp_start_tls(socket, hostname)` / `Deno_startTls` | Uppgraderar TCP → TLS våg 13 |
 | `Deno.run` | `deno_run(name)` / `Deno_run` | Sandbox-process |
 | Streams `tee`/`pipeTo` | `stream_tee`, `stream_pipe_to` | Förenklad v3 |
