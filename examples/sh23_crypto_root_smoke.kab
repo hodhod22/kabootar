@@ -4,6 +4,32 @@ let pem = "-----BEGIN CERTIFICATE-----\nAQ==\n-----END CERTIFICATE-----"
 if cryptoRootPem(pem) != true {
     return false
 }
+let one = cryptoRootPemBytes(pem)
+if one == false {
+    return false
+}
+if one["n"] != 1 {
+    return false
+}
+if one["0"] != 1 {
+    return false
+}
+let man = cryptoRootPemBytes("-----BEGIN CERTIFICATE-----\nTWFu\n-----END CERTIFICATE-----")
+if man == false {
+    return false
+}
+if man["n"] != 3 {
+    return false
+}
+if man["0"] != 77 {
+    return false
+}
+if man["1"] != 97 {
+    return false
+}
+if man["2"] != 110 {
+    return false
+}
 if cryptoRootPem("BEGIN CERT") != false {
     return false
 }
