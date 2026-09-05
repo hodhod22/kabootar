@@ -8,7 +8,7 @@ Språkparitet: [docs/LANGUAGE.md](../docs/LANGUAGE.md) (inte den här filen). **
 
 **Nolltolerans:** [docs/ROADMAP.md — strikt arbetsregel](../docs/ROADMAP.md#nolltolerans--strikt-arbetsregel). **Just nu:** [docs/ROADMAP.md — Just nu](../docs/ROADMAP.md#just-nu). Bekräfta SH-/F-/GP-/SC-steg innan kod. Ingen ny `src/**/*.rs`. Hoppa inte över SH5 → SH16 → SH6 → SH17 → … → SH28. Radera inte Rust förrän Kab är stabil; när Kab-yta finns, använd den.
 
-**SH6 = KLAR.** **SH17** i64-loop-subset stängt. **SH18** nursery på `new_instance`. **SH19** packed `.kbcb`. **SH20** JSON codec. **SH21** OS write/read. **SH22:** `sqlExecOk` (`sh22_sql_exec_smoke`). **SH23:** 🟡 Kab TLS application-data/AES-GCM unwrap över loopback hex-TCP + query Location (`sh23_crypto_http_fetch_eval_smoke`). rustls-host kvar. **Nästa:** byt `http_fetch_async` från rustls till Kab-TLS när `tcp_read` kan bära råa TLS-bytes. Inte fler crypto-flag-kloner eller sqlIs*-kloner.
+**SH6 = KLAR.** **SH17** i64-loop-subset stängt. **SH18** nursery på `new_instance`. **SH19** packed `.kbcb`. **SH20** JSON codec. **SH21** OS write/read. **SH22:** `sqlExecOk` (`sh22_sql_exec_smoke`). **SH23:** 🟡 Kab TLS application-data/AES-GCM unwrap med recordsäker hex-TCP-loopback + query Location (`sh23_crypto_http_fetch_eval_smoke`). rustls-host kvar. **Nästa:** byt `http_fetch_async` från rustls till Kab-TLS när `tcp_read` kan bära råa TLS-bytes. Inte fler crypto-flag-kloner eller sqlIs*-kloner.
 
 ## Kedja
 
