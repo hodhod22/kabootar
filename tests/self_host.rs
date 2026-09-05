@@ -1461,25 +1461,33 @@ fn self_host_bootstrap_compile_and_run() {
     use kabootar_lib::evaluator::create_global_env;
     use kabootar_lib::value::{Value, format_value};
 
-    let compile_path = self_host_path("compile.kab");
-    let (_, bytecode) = kabootar_lib::cli::compile_file_report(&compile_path)
-        .expect("kabootar compile self_host/compile.kab should succeed");
-    assert!(bytecode, "compile.kab should produce bytecode cache");
+    std::thread::Builder::new()
+        .name("s3-bootstrap".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(|| {
+            let compile_path = self_host_path("compile.kab");
+            let (_, bytecode) = kabootar_lib::cli::compile_file_report(&compile_path)
+                .expect("kabootar compile self_host/compile.kab should succeed");
+            assert!(bytecode, "compile.kab should produce bytecode cache");
 
-    let v = kabootar_lib::cli::run_file(&self_host_path("bootstrap_probe.kab"))
-        .expect("bootstrap_probe.kab should run");
-    let Value::String(text) = v else {
-        panic!("bootstrap_probe should return .kbc text from self-hosted compile");
-    };
-    let module = deserialize(&text).expect("deserialize bootstrap .kbc");
-    let mut env = create_global_env();
-    let result = run_module(&module, &mut env).expect("run self-hosted compiled sample.kab");
-    assert_eq!(
-        format_value(&result),
-        "42",
-        "sample.kab (n=10; return n+32) should return 42, got {}",
-        format_value(&result)
-    );
+            let v = kabootar_lib::cli::run_file(&self_host_path("bootstrap_probe.kab"))
+                .expect("bootstrap_probe.kab should run");
+            let Value::String(text) = v else {
+                panic!("bootstrap_probe should return .kbc text from self-hosted compile");
+            };
+            let module = deserialize(&text).expect("deserialize bootstrap .kbc");
+            let mut env = create_global_env();
+            let result = run_module(&module, &mut env).expect("run self-hosted compiled sample.kab");
+            assert_eq!(
+                format_value(&result),
+                "42",
+                "sample.kab (n=10; return n+32) should return 42, got {}",
+                format_value(&result)
+            );
+        })
+        .expect("spawn S3 bootstrap")
+        .join()
+        .expect("S3 bootstrap thread");
 }
 
 /// S3 gate alias — same bootstrap path as `self_host_bootstrap_compile_and_run`.
