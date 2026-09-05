@@ -62134,6 +62134,28 @@ fn sh23_crypto_root_in_kab() {
     );
 }
 
+/// SH23: trust-root PEM envelope validation executes in Kab.
+#[test]
+fn sh23_crypto_root_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_root_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-root".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile root eval smoke");
+            let value = eval_program(&program, &mut env).expect("run root eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH23 deepen: host rustls delete gate stays false.
 #[test]
 fn sh23_crypto_host_in_kab() {

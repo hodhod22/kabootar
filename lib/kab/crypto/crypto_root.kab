@@ -1,6 +1,48 @@
-// SH23: trust-root PEM marker off crypto.kab. import "kab/crypto/crypto_root"
+// SH23: trust-root PEM envelope validation off crypto.kab. import "kab/crypto/crypto_root"
 // Do not grow crypto.kab. Host rustls remains skuld.
 
 pub fn cryptoRootPem(s) {
-    return str_includes(s, "BEGIN")
+    let begin = "-----BEGIN CERTIFICATE-----"
+    let end = "-----END CERTIFICATE-----"
+    let start = str_index_of(s, begin)
+    let finish = str_index_of(s, end)
+    if start < 0 {
+        return false
+    }
+    if finish <= start + len(begin) {
+        return false
+    }
+    let i = start + len(begin)
+    let hasPayload = false
+    while i < finish {
+        let c = char_code_at(s, i)
+        if c != 10 {
+            if c != 13 {
+                if c != 32 {
+                    let valid = c >= 48 && c <= 57
+                    if c >= 65 && c <= 90 {
+                        valid = true
+                    }
+                    if c >= 97 && c <= 122 {
+                        valid = true
+                    }
+                    if c == 43 {
+                        valid = true
+                    }
+                    if c == 47 {
+                        valid = true
+                    }
+                    if c == 61 {
+                        valid = true
+                    }
+                    if valid != true {
+                        return false
+                    }
+                    hasPayload = true
+                }
+            }
+        }
+        i = i + 1
+    }
+    return hasPayload
 }

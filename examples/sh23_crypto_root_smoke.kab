@@ -1,3 +1,16 @@
 import "kab/crypto/crypto_root"
 
-return cryptoRootPem("BEGIN CERT")
+let pem = "-----BEGIN CERTIFICATE-----\nAQ==\n-----END CERTIFICATE-----"
+if cryptoRootPem(pem) != true {
+    return false
+}
+if cryptoRootPem("BEGIN CERT") != false {
+    return false
+}
+if cryptoRootPem("-----BEGIN CERTIFICATE-----AQ==") != false {
+    return false
+}
+if cryptoRootPem("-----BEGIN CERTIFICATE-----\n----\n-----END CERTIFICATE-----") != false {
+    return false
+}
+return cryptoRootPem("-----END CERTIFICATE-----\nAQ==\n-----BEGIN CERTIFICATE-----") == false

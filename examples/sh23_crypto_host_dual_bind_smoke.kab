@@ -18,7 +18,7 @@ if cryptoTrustOk(1) == false {
 if cryptoTls12Ok("1.2") == false {
     return false
 }
-if cryptoRootPem("-----BEGIN CERT-----") == false {
+if cryptoRootPem("-----BEGIN CERTIFICATE-----\nAQ==\n-----END CERTIFICATE-----") == false {
     return false
 }
 return cryptoHostDeleteOk() == false
