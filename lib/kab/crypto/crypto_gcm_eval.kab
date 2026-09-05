@@ -36,7 +36,11 @@ pub fn gcmGfMul(x, y) {
         let bi = (i / 8) | 0
         let sh = 7 - (i - bi * 8)
         if ((x["" + bi] >>> sh) & 1) != 0 {
-            z = aesXor16(z, v)
+            let k = 0
+            while k < 16 {
+                z["" + k] = (z["" + k] ^ v["" + k]) & 255
+                k = k + 1
+            }
         }
         let lsb = v["15"] & 1
         let j = 15
@@ -71,14 +75,18 @@ pub fn gcmPad16(buf) {
 }
 
 pub fn gcmFeed(y, h, buf) {
-    let pad = gcmPad16(buf)
     let off = 0
-    let n = pad["n"]
+    let n = buf["n"]
     while off < n {
         let blk = {}
         let i = 0
         while i < 16 {
-            blk["" + i] = aesXor(pad["" + (off + i)], y["" + i]) & 255
+            let p = off + i
+            if p < n {
+                blk["" + i] = aesXor(buf["" + p], y["" + i]) & 255
+            } else {
+                blk["" + i] = y["" + i] & 255
+            }
             i = i + 1
         }
         blk["n"] = 16
@@ -134,12 +142,23 @@ pub fn gcmZero16() {
 }
 
 pub fn gcmCtrXor(rk, j0, pt) {
-    let y = j0
+    let y = {}
     let ct = {}
     let n = pt["n"]
     let off = 0
+    let yi = 0
+    while yi < 16 {
+        y["" + yi] = j0["" + yi] & 255
+        yi = yi + 1
+    }
+    y["n"] = 16
     while off < n {
-        y = gcmInc32(y)
+        let c = ((y["12"] << 24) | (y["13"] << 16) | (y["14"] << 8) | y["15"]) | 0
+        c = (c + 1) | 0
+        y["12"] = (c >>> 24) & 255
+        y["13"] = (c >>> 16) & 255
+        y["14"] = (c >>> 8) & 255
+        y["15"] = c & 255
         let ks = aesEncryptBlock(rk, y)
         let take = n - off
         if take > 16 {
@@ -189,11 +208,12 @@ pub fn gcmDecrypt(key, iv, ct, tag, aad) {
     let rk = aesExpand(key)
     let h = aesEncryptBlock(rk, gcmZero16())
     let s = gcmHash(h, aad, ct)
-    let t = aesEncryptBlock(rk, gcmJ0(iv))
+    let j0 = gcmJ0(iv)
+    let t = aesEncryptBlock(rk, j0)
     if aesObjHex(aesXor16(s, t)) != aesObjHex(tag) {
         return false
     }
-    let pt = gcmCtrXor(rk, gcmJ0(iv), ct)
+    let pt = gcmCtrXor(rk, j0, ct)
     return aesObjHex(pt)
 }
 
