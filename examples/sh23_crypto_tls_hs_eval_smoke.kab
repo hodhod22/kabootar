@@ -1,3 +1,6 @@
 import "kab/crypto/crypto_tls_hs"
 
-return tlsHsRecordEvalOk()
+if tlsHsRecordEvalOk() != true {
+    return false
+}
+return tlsHsTcpFixtureEvalOk()

@@ -5,6 +5,7 @@
 import "kab/crypto/crypto_tls_prf"
 import "kab/crypto/crypto_hmac_eval"
 import "kab/crypto/crypto_sha_eval"
+import "kab/crypto/crypto_gcm_eval"
 
 pub fn tlsObjToArr(o) {
     let out = []
@@ -72,6 +73,178 @@ pub fn tlsRecordHs(payload) {
     h["4"] = n & 255
     h["n"] = 5
     return tlsConcatObj(h, payload)
+}
+
+/// Read exactly want raw bytes from a TCP socket.
+pub fn tlsHsReadBytesExact(sock, want) {
+    let out = {}
+    let n = 0
+    while n < want {
+        let got = tcp_read_bytes(sock, want - n)
+        let gotn = len(got)
+        if gotn == 0 {
+            return false
+        }
+        let i = 0
+        while i < gotn {
+            out["" + (n + i)] = got[i] & 255
+            i = i + 1
+        }
+        n = n + gotn
+    }
+    out["n"] = n
+    return out
+}
+
+/// Read one TLS 1.2 handshake record containing exactly one expected message.
+pub fn tlsHsReadRecord(sock, expectedType) {
+    let head = tlsHsReadBytesExact(sock, 5)
+    if head == false {
+        return false
+    }
+    if (head["0"] & 255) != 22 {
+        return false
+    }
+    if (head["1"] & 255) != 3 || (head["2"] & 255) != 3 {
+        return false
+    }
+    let size = ((head["3"] << 8) | head["4"]) & 65535
+    if size < 4 || size > 16384 {
+        return false
+    }
+    let message = tlsHsReadBytesExact(sock, size)
+    if message == false {
+        return false
+    }
+    if tlsHsParseOne(message, expectedType) == false {
+        return false
+    }
+    return message
+}
+
+/// Read the TLS 1.2 ChangeCipherSpec record which enables encrypted handshake records.
+pub fn tlsHsReadChangeCipherSpec(sock) {
+    let record = tlsHsReadBytesExact(sock, 6)
+    if record == false {
+        return false
+    }
+    if (record["0"] & 255) != 20 {
+        return false
+    }
+    if (record["1"] & 255) != 3 || (record["2"] & 255) != 3 {
+        return false
+    }
+    if (record["3"] & 255) != 0 || (record["4"] & 255) != 1 {
+        return false
+    }
+    return (record["5"] & 255) == 1
+}
+
+/// Decode the first server AES-GCM protected TLS 1.2 Finished record.
+pub fn tlsHsReadEncryptedFinished(sock, key, fixedIv) {
+    let head = tlsHsReadBytesExact(sock, 5)
+    if head == false {
+        return false
+    }
+    if (head["0"] & 255) != 22 || (head["1"] & 255) != 3 || (head["2"] & 255) != 3 {
+        return false
+    }
+    let size = ((head["3"] << 8) | head["4"]) & 65535
+    if size != 40 {
+        return false
+    }
+    let tail = tlsHsReadBytesExact(sock, size)
+    if tail == false {
+        return false
+    }
+    let explicitIv = {}
+    let ct = {}
+    let tag = {}
+    let i = 0
+    while i < 8 {
+        explicitIv["" + i] = tail["" + i] & 255
+        i = i + 1
+    }
+    i = 0
+    while i < 16 {
+        ct["" + i] = tail["" + (8 + i)] & 255
+        tag["" + i] = tail["" + (24 + i)] & 255
+        i = i + 1
+    }
+    explicitIv["n"] = 8
+    ct["n"] = 16
+    tag["n"] = 16
+    let nonce = tlsConcatObj(fixedIv, explicitIv)
+    let aad = tlsHexToObj("00000000000000001603030010")
+    let plainHex = gcmDecrypt(key, nonce, ct, tag, aad)
+    if plainHex == false {
+        return false
+    }
+    let plain = tlsHexToObj(plainHex)
+    if tlsHsParseOne(plain, 20) == false {
+        return false
+    }
+    return plain
+}
+
+pub fn tlsHsHexSlice(hx, off, n) {
+    return tlsHexToObj(str_slice(hx, off + off, off + off + n + n))
+}
+
+/// Parse a TLS 1.2 Certificate message and extract exactly one DER certificate.
+pub fn tlsHsParseCertificate(message) {
+    let body = tlsHsParseOne(message, 11)
+    if body == false || body["n"] < 6 {
+        return false
+    }
+    let listLen = ((body["0"] << 16) | (body["1"] << 8) | body["2"]) & 16777215
+    if listLen != body["n"] - 3 {
+        return false
+    }
+    let certLen = ((body["3"] << 16) | (body["4"] << 8) | body["5"]) & 16777215
+    if certLen < 1 || certLen != body["n"] - 6 {
+        return false
+    }
+    let cert = {}
+    let i = 0
+    while i < certLen {
+        cert["" + i] = body["" + (6 + i)] & 255
+        i = i + 1
+    }
+    cert["n"] = certLen
+    return cert
+}
+
+/// Parse the ECDHE/X25519 framing of a TLS 1.2 ServerKeyExchange message.
+pub fn tlsHsParseServerKeyExchange(message) {
+    let body = tlsHsParseOne(message, 12)
+    if body == false || body["n"] < 41 {
+        return false
+    }
+    if (body["0"] & 255) != 3 {
+        return false
+    }
+    if (body["1"] & 255) != 0 || (body["2"] & 255) != 29 {
+        return false
+    }
+    if (body["3"] & 255) != 32 {
+        return false
+    }
+    if (body["36"] & 255) != 4 || (body["37"] & 255) != 3 {
+        return false
+    }
+    let sigLen = ((body["38"] << 8) | body["39"]) & 65535
+    if sigLen < 1 || sigLen != body["n"] - 40 {
+        return false
+    }
+    let publicKey = {}
+    let i = 0
+    while i < 32 {
+        publicKey["" + i] = body["" + (4 + i)] & 255
+        i = i + 1
+    }
+    publicKey["n"] = 32
+    return { publicKey: publicKey, signatureLength: sigLen }
 }
 
 pub fn tlsTranscriptHashObj(tr) {
@@ -217,4 +390,109 @@ pub fn tlsHsFixtureEvalOk() {
         return false
     }
     return true
+}
+
+/// Loopback transport fixture: type-22 ClientHello and ServerHello records.
+pub fn tlsHsTcpFixtureEvalOk() {
+    let clientHello = tlsHsWrap(1, hmacStrBytes("CH"))
+    let serverHello = tlsHsWrap(2, hmacStrBytes("SH"))
+    let certDer = tlsHexToObj("30153000300d06092a864886f70d01010b050003020000")
+    let certBody = tlsConcatObj(tlsHexToObj("00001a000017"), certDer)
+    let certificate = tlsHsWrap(11, certBody)
+    let serverKeyBody = tlsConcatObj(
+        tlsHexToObj("03001d20"),
+        tlsConcatObj(
+            tlsHexToObj("de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f"),
+            tlsHexToObj("04030002aabb")
+        )
+    )
+    let serverKeyExchange = tlsHsWrap(12, serverKeyBody)
+    let changeCipherSpec = tlsHexToObj("140303000101")
+    let port = 28192
+    let listener = tcp_listen("127.0.0.1", port)
+    let client = tcp_connect("127.0.0.1", port)
+    let server = tcp_accept(listener)
+    tcp_write_bytes(client, tlsRecordHs(clientHello))
+    let receivedClient = tlsHsReadRecord(server, 1)
+    if receivedClient == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    tcp_write_bytes(server, tlsRecordHs(serverHello))
+    let receivedServer = tlsHsReadRecord(client, 2)
+    tcp_write_bytes(server, tlsRecordHs(certificate))
+    let receivedCertificate = tlsHsReadRecord(client, 11)
+    tcp_write_bytes(server, tlsRecordHs(serverKeyExchange))
+    let receivedKeyExchange = tlsHsReadRecord(client, 12)
+    tcp_write_bytes(server, changeCipherSpec)
+    let receivedChangeCipherSpec = tlsHsReadChangeCipherSpec(client)
+    let preFinishedTranscript = tlsConcatObj(
+        tlsConcatObj(tlsConcatObj(receivedClient, receivedServer), receivedCertificate),
+        receivedKeyExchange
+    )
+    let pms = tlsHexToObj("4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742")
+    let cr = hmacStrBytes("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    let sr = hmacStrBytes("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")
+    let ms = tlsPrfHexKeySeed(pms, "master secret", tlsConcatObj(cr, sr), 48)
+    let keyBlock = tlsPrfHexKeySeed(tlsHexToObj(ms), "key expansion", tlsConcatObj(sr, cr), 40)
+    let serverKey = tlsHsHexSlice(keyBlock, 16, 16)
+    let serverIv = tlsHsHexSlice(keyBlock, 36, 4)
+    let verify = tlsPrfHexKeySeed(tlsHexToObj(ms), "server finished", tlsTranscriptHashObj(preFinishedTranscript), 12)
+    let finished = tlsHsWrap(20, tlsHexToObj(verify))
+    let explicitIv = tlsHexToObj("0000000000000001")
+    let aad = tlsHexToObj("00000000000000001603030010")
+    let encrypted = gcmEncrypt(serverKey, tlsConcatObj(serverIv, explicitIv), finished, aad)
+    let finishedRecord = tlsConcatObj(
+        tlsHexToObj("1603030028"),
+        tlsConcatObj(explicitIv, tlsConcatObj(encrypted["ct"], encrypted["tag"]))
+    )
+    tcp_write_bytes(server, finishedRecord)
+    let receivedFinished = tlsHsReadEncryptedFinished(client, serverKey, serverIv)
+    tcp_close(client)
+    tcp_close(server)
+    tcp_close(listener)
+    if receivedServer == false {
+        return false
+    }
+    if receivedCertificate == false {
+        return false
+    }
+    if receivedKeyExchange == false {
+        return false
+    }
+    if receivedChangeCipherSpec != true {
+        return false
+    }
+    if receivedFinished == false {
+        return false
+    }
+    let parsedCert = tlsHsParseCertificate(receivedCertificate)
+    if parsedCert == false {
+        return false
+    }
+    if tlsObjHex(parsedCert) != tlsObjHex(certDer) {
+        return false
+    }
+    let parsedKeyExchange = tlsHsParseServerKeyExchange(receivedKeyExchange)
+    if parsedKeyExchange == false {
+        return false
+    }
+    if parsedKeyExchange["signatureLength"] != 2 {
+        return false
+    }
+    if tlsObjHex(parsedKeyExchange["publicKey"]) != "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f" {
+        return false
+    }
+    if tlsObjHex(receivedClient) != tlsObjHex(clientHello) {
+        return false
+    }
+    if tlsObjHex(receivedServer) != tlsObjHex(serverHello) {
+        return false
+    }
+    if tlsObjHex(receivedFinished) != tlsObjHex(finished) {
+        return false
+    }
+    return tlsTranscriptHashObj(preFinishedTranscript)["n"] == 32
 }
