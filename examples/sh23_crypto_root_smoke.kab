@@ -55,6 +55,21 @@ if outer["len"] != 8 {
 if cryptoRootDerCert(der) != true {
     return false
 }
+let badSig = {}
+badSig["0"] = 48
+badSig["1"] = 8
+badSig["2"] = 48
+badSig["3"] = 0
+badSig["4"] = 48
+badSig["5"] = 0
+badSig["6"] = 4
+badSig["7"] = 2
+badSig["8"] = 0
+badSig["9"] = 0
+badSig["n"] = 10
+if cryptoRootDerCert(badSig) != false {
+    return false
+}
 let truncated = {}
 truncated["0"] = 48
 truncated["1"] = 8

@@ -217,5 +217,28 @@ pub fn cryptoRootDerCert(bytes) {
     if tbs["tag"] != 48 {
         return false
     }
+    let alg = cryptoDerTlv(bytes, tbs["end"])
+    if alg == false {
+        return false
+    }
+    if alg["tag"] != 48 {
+        return false
+    }
+    let sig = cryptoDerTlv(bytes, alg["end"])
+    if sig == false {
+        return false
+    }
+    if sig["tag"] != 3 {
+        return false
+    }
+    if sig["len"] < 1 {
+        return false
+    }
+    if (bytes["" + sig["body"]] & 255) != 0 {
+        return false
+    }
+    if sig["end"] != outer["end"] {
+        return false
+    }
     return true
 }
