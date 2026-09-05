@@ -30,6 +30,45 @@ if man["1"] != 97 {
 if man["2"] != 110 {
     return false
 }
+let der = {}
+der["0"] = 48
+der["1"] = 8
+der["2"] = 48
+der["3"] = 0
+der["4"] = 48
+der["5"] = 0
+der["6"] = 3
+der["7"] = 2
+der["8"] = 0
+der["9"] = 0
+der["n"] = 10
+let outer = cryptoDerTlv(der, 0)
+if outer == false {
+    return false
+}
+if outer["tag"] != 48 {
+    return false
+}
+if outer["len"] != 8 {
+    return false
+}
+if cryptoRootDerCert(der) != true {
+    return false
+}
+let truncated = {}
+truncated["0"] = 48
+truncated["1"] = 8
+truncated["n"] = 2
+if cryptoDerTlv(truncated, 0) != false {
+    return false
+}
+let indefinite = {}
+indefinite["0"] = 48
+indefinite["1"] = 128
+indefinite["n"] = 2
+if cryptoDerTlv(indefinite, 0) != false {
+    return false
+}
 if cryptoRootPem("BEGIN CERT") != false {
     return false
 }

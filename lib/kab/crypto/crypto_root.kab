@@ -144,3 +144,78 @@ pub fn cryptoRootPemBytes(s) {
     out["n"] = oi
     return out
 }
+
+/// Read a definite DER length at off. Indefinite and oversized forms are invalid.
+pub fn cryptoDerLen(bytes, off) {
+    if off >= bytes["n"] {
+        return false
+    }
+    let first = bytes["" + off] & 255
+    if first < 128 {
+        return { len: first, next: off + 1 }
+    }
+    let count = first & 127
+    if count == 0 {
+        return false
+    }
+    if count > 4 {
+        return false
+    }
+    if off + 1 + count > bytes["n"] {
+        return false
+    }
+    if count > 1 {
+        if (bytes["" + (off + 1)] & 255) == 0 {
+            return false
+        }
+    }
+    let n = 0
+    let i = 0
+    while i < count {
+        n = n * 256 + (bytes["" + (off + 1 + i)] & 255)
+        i = i + 1
+    }
+    return { len: n, next: off + 1 + count }
+}
+
+/// Read one complete DER TLV from a Kab byte object.
+pub fn cryptoDerTlv(bytes, off) {
+    if off >= bytes["n"] {
+        return false
+    }
+    let info = cryptoDerLen(bytes, off + 1)
+    if info == false {
+        return false
+    }
+    if info["len"] > bytes["n"] - info["next"] {
+        return false
+    }
+    return {
+        tag: bytes["" + off] & 255,
+        len: info["len"],
+        body: info["next"],
+        end: info["next"] + info["len"],
+    }
+}
+
+/// Structural X.509 certificate gate: complete outer and TBSCertificate sequences.
+pub fn cryptoRootDerCert(bytes) {
+    let outer = cryptoDerTlv(bytes, 0)
+    if outer == false {
+        return false
+    }
+    if outer["tag"] != 48 {
+        return false
+    }
+    if outer["end"] != bytes["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(bytes, outer["body"])
+    if tbs == false {
+        return false
+    }
+    if tbs["tag"] != 48 {
+        return false
+    }
+    return true
+}
