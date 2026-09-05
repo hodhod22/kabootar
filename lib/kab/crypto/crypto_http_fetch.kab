@@ -257,6 +257,20 @@ pub fn httpFetchAsyncKabFromSock(method, url, body, headers, timeoutMs, sock) {
     return httpFetchAsyncKab(method, url, body, headers, timeoutMs, aesParseHex(hx))
 }
 
+pub fn httpFetchTcpHexReadEvalOk() {
+    let recHex = httpFetchTlsAppHex()
+    let port = 28190
+    let ln = tcp_listen("127.0.0.1", port)
+    let cli = tcp_connect("127.0.0.1", port)
+    let srv = tcp_accept(ln)
+    tcp_write(srv, recHex)
+    tcp_close(srv)
+    let got = tcp_read(cli, len(recHex))
+    tcp_close(cli)
+    tcp_close(ln)
+    return got == recHex
+}
+
 pub fn httpFetchAsyncKabTcpEvalOk() {
     let recHex = httpFetchTlsAppHex()
     let port = 28191
