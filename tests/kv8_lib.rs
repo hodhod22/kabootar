@@ -134,9 +134,18 @@ fn k1c_kabootar_eval_path() {
 import "kv8/eval"
 evalSourceKab("let n = 0; while (n < 3) { n = n + 1; } n") == 3 && evalSourceKab("1 + 2") == 3
 "#;
-    let mut env = kabootar_lib::evaluator::create_global_env();
-    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
-    assert!(matches!(v, Value::Bool(true)));
+    let ok = std::thread::Builder::new()
+        .name("k1c-eval".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let mut env = kabootar_lib::evaluator::create_global_env();
+            let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+            matches!(v, Value::Bool(true))
+        })
+        .expect("spawn k1c thread")
+        .join()
+        .expect("k1c thread join");
+    assert!(ok);
 }
 
 #[test]
@@ -146,7 +155,7 @@ fn k1d_class_new_kab_eval() {
     let path = format!("{}/examples/kv8_k1d_class_new.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1d-class-new".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
         .expect("spawn k1d thread")
         .join()
@@ -159,7 +168,7 @@ fn k1d_static_kab_eval() {
     let path = format!("{}/examples/kv8_k1d_static.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1d-static".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
         .expect("spawn k1d-static thread")
         .join()
@@ -172,7 +181,7 @@ fn k1d_super_kab_eval() {
     let path = format!("{}/examples/kv8_k1d_super.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1d-super".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
         .expect("spawn k1d-super thread")
         .join()
@@ -185,7 +194,7 @@ fn k1d_super_method_kab_eval() {
     let path = format!("{}/examples/kv8_k1d_super_method.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1d-super-method".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
         .expect("spawn k1d-super-method thread")
         .join()
@@ -198,7 +207,7 @@ fn k1d_promise_all_kab_eval() {
     let path = format!("{}/examples/kv8_k1d_promise_all.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1d-promise-all".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
         .expect("spawn k1d-promise-all thread")
         .join()
@@ -211,7 +220,7 @@ fn k1e_extends_kab_eval() {
     let path = format!("{}/examples/kv8_k1e_extends.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1e-extends".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || matches!(run_file_host(&path), Value::Bool(true)))
         .expect("spawn k1e thread")
         .join()
@@ -227,7 +236,7 @@ evalSource("1 + 2") == 3 && evalSource("class A { a() { return 1 } } class B ext
 "#;
     let ok = std::thread::Builder::new()
         .name("k1e-eval-source".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             let mut env = kabootar_lib::evaluator::create_global_env();
             let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
@@ -244,7 +253,7 @@ fn k1f_async_promise_kab_eval() {
     let path = format!("{}/examples/kv8_k1f_async.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1f-async".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
                 cli::run_file(&path).expect("examples/kv8_k1f_async.kab should run"),
@@ -262,7 +271,7 @@ fn k1g_promise_then_microtask() {
     let path = format!("{}/examples/kv8_k1g_promise_then.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1g-promise-then".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
                 cli::run_file(&path).expect("examples/kv8_k1g_promise_then.kab should run"),
@@ -280,7 +289,7 @@ fn h4_prefer_kab_eval() {
     let path = format!("{}/examples/kv8_h4_prefer_kab.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h4-prefer-kab".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
                 cli::run_file(&path).expect("examples/kv8_h4_prefer_kab.kab should run"),
@@ -298,7 +307,7 @@ fn h6_arrow_kab_eval() {
     let path = format!("{}/examples/kv8_h6_arrow.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h6-arrow".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
                 cli::run_file(&path).expect("examples/kv8_h6_arrow.kab should run"),
@@ -316,7 +325,7 @@ fn h6_builtins_kab_eval() {
     let path = format!("{}/examples/kv8_h6_builtins.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h6-builtins".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
                 cli::run_file(&path).expect("examples/kv8_h6_builtins.kab should run"),
@@ -334,7 +343,7 @@ fn h6_events_timers_kab_eval() {
     let path = format!("{}/examples/kv8_h6_events_timers.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h6-events".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
                 cli::run_file(&path).expect("examples/kv8_h6_events_timers.kab should run"),
@@ -352,7 +361,7 @@ fn h6a_parity_kab_eval() {
     let path = format!("{}/examples/kv8_h6a_parity.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h6a-parity".into())
-        .stack_size(16 * 1024 * 1024)
+        .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
                 cli::run_file(&path).expect("examples/kv8_h6a_parity.kab should run"),

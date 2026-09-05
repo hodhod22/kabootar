@@ -24,6 +24,9 @@ on:
       - "lib/kdom/**"
       - "lib/kstyle/**"
 
+env:
+  RUST_MIN_STACK: "67108864"
+
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
