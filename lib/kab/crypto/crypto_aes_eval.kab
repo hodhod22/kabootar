@@ -54,8 +54,35 @@ pub fn aesParseHex(hx) {
     return o
 }
 
+let aesSboxCached = false
+
 pub fn aesSbox() {
-    return aesParseHex("637c777bf26b6fc53001672bfed7ab76ca82c97dfa5947f0add4a2af9ca472c0b7fd9326363ff7cc34a5e5f171d8311504c723c31896059a071280e2eb27b27509832c1a1b6e5aa0523bd6b329e32f8453d100ed20fcb15b6acbbe394a4c58cfd0efaafb434d338545f9027f503c9fa851a3408f929d38f5bcb6da2110fff3d2cd0c13ec5f974417c4a77e3d645d197360814fdc222a908846eeb814de5e0bdbe0323a0a4906245cc2d3ac629195e479e7c8376d8dd54ea96c56f4ea657aae08ba78252e1ca6b4c6e8dd741f4bbd8b8a703eb5664803f60e613557b986c11d9ee1f8981169d98e949b1e87e9ce5528df8ca1890dbfe6426841992d0fb054bb16")
+    if aesSboxCached != false {
+        return aesSboxCached
+    }
+    aesSboxCached = aesParseHex("637c777bf26b6fc53001672bfed7ab76ca82c97dfa5947f0add4a2af9ca472c0b7fd9326363ff7cc34a5e5f171d8311504c723c31896059a071280e2eb27b27509832c1a1b6e5aa0523bd6b329e32f8453d100ed20fcb15b6acbbe394a4c58cfd0efaafb434d338545f9027f503c9fa851a3408f929d38f5bcb6da2110fff3d2cd0c13ec5f974417c4a77e3d645d197360814fdc222a908846eeb814de5e0bdbe0323a0a4906245cc2d3ac629195e479e7c8376d8dd54ea96c56f4ea657aae08ba78252e1ca6b4c6e8dd741f4bbd8b8a703eb5664803f60e613557b986c11d9ee1f8981169d98e949b1e87e9ce5528df8ca1890dbfe6426841992d0fb054bb16")
+    return aesSboxCached
+}
+
+let aesRconCached = false
+
+pub fn aesRcon() {
+    if aesRconCached != false {
+        return aesRconCached
+    }
+    let rcon = {}
+    rcon["0"] = 1
+    rcon["1"] = 2
+    rcon["2"] = 4
+    rcon["3"] = 8
+    rcon["4"] = 16
+    rcon["5"] = 32
+    rcon["6"] = 64
+    rcon["7"] = 128
+    rcon["8"] = 27
+    rcon["9"] = 54
+    aesRconCached = rcon
+    return aesRconCached
 }
 
 pub fn aesXtime(a) {
@@ -78,40 +105,23 @@ pub fn aesXor16(a, b) {
 }
 
 pub fn aesSubShift(sb, s) {
-    let t = {}
-    t["0"] = sb["" + s["0"]]
-    t["1"] = sb["" + s["1"]]
-    t["2"] = sb["" + s["2"]]
-    t["3"] = sb["" + s["3"]]
-    t["4"] = sb["" + s["4"]]
-    t["5"] = sb["" + s["5"]]
-    t["6"] = sb["" + s["6"]]
-    t["7"] = sb["" + s["7"]]
-    t["8"] = sb["" + s["8"]]
-    t["9"] = sb["" + s["9"]]
-    t["10"] = sb["" + s["10"]]
-    t["11"] = sb["" + s["11"]]
-    t["12"] = sb["" + s["12"]]
-    t["13"] = sb["" + s["13"]]
-    t["14"] = sb["" + s["14"]]
-    t["15"] = sb["" + s["15"]]
     let o = {}
-    o["0"] = t["0"]
-    o["1"] = t["5"]
-    o["2"] = t["10"]
-    o["3"] = t["15"]
-    o["4"] = t["4"]
-    o["5"] = t["9"]
-    o["6"] = t["14"]
-    o["7"] = t["3"]
-    o["8"] = t["8"]
-    o["9"] = t["13"]
-    o["10"] = t["2"]
-    o["11"] = t["7"]
-    o["12"] = t["12"]
-    o["13"] = t["1"]
-    o["14"] = t["6"]
-    o["15"] = t["11"]
+    o["0"] = sb["" + s["0"]]
+    o["1"] = sb["" + s["5"]]
+    o["2"] = sb["" + s["10"]]
+    o["3"] = sb["" + s["15"]]
+    o["4"] = sb["" + s["4"]]
+    o["5"] = sb["" + s["9"]]
+    o["6"] = sb["" + s["14"]]
+    o["7"] = sb["" + s["3"]]
+    o["8"] = sb["" + s["8"]]
+    o["9"] = sb["" + s["13"]]
+    o["10"] = sb["" + s["2"]]
+    o["11"] = sb["" + s["7"]]
+    o["12"] = sb["" + s["12"]]
+    o["13"] = sb["" + s["1"]]
+    o["14"] = sb["" + s["6"]]
+    o["15"] = sb["" + s["11"]]
     o["n"] = 16
     return o
 }
@@ -136,6 +146,7 @@ pub fn aesMix(s) {
 
 pub fn aesExpand(key) {
     let sb = aesSbox()
+    let rcon = aesRcon()
     let w = {}
     let i = 0
     while i < 4 {
@@ -143,17 +154,6 @@ pub fn aesExpand(key) {
         w["" + i] = ((key["" + p] << 24) | (key["" + (p + 1)] << 16) | (key["" + (p + 2)] << 8) | key["" + (p + 3)]) | 0
         i = i + 1
     }
-    let rcon = {}
-    rcon["0"] = 1
-    rcon["1"] = 2
-    rcon["2"] = 4
-    rcon["3"] = 8
-    rcon["4"] = 16
-    rcon["5"] = 32
-    rcon["6"] = 64
-    rcon["7"] = 128
-    rcon["8"] = 27
-    rcon["9"] = 54
     i = 4
     while i < 44 {
         let t = w["" + (i - 1)]
@@ -201,17 +201,29 @@ pub fn aesRk16(rk, r) {
     return o
 }
 
+pub fn aesAddRoundKey(rk, r, s) {
+    let o = {}
+    let i = 0
+    let b = r * 16
+    while i < 16 {
+        o["" + i] = aesXor(s["" + i], rk["" + (b + i)]) & 255
+        i = i + 1
+    }
+    o["n"] = 16
+    return o
+}
+
 pub fn aesEncryptBlock(rk, pt) {
     let sb = aesSbox()
-    let s = aesXor16(pt, aesRk16(rk, 0))
+    let s = aesAddRoundKey(rk, 0, pt)
     let r = 1
     while r < 10 {
         s = aesMix(aesSubShift(sb, s))
-        s = aesXor16(s, aesRk16(rk, r))
+        s = aesAddRoundKey(rk, r, s)
         r = r + 1
     }
     s = aesSubShift(sb, s)
-    return aesXor16(s, aesRk16(rk, 10))
+    return aesAddRoundKey(rk, 10, s)
 }
 
 pub fn aes128FipsEvalOk() {
