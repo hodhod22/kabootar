@@ -13,4 +13,13 @@ if cryptoRootPem("-----BEGIN CERTIFICATE-----AQ==") != false {
 if cryptoRootPem("-----BEGIN CERTIFICATE-----\n----\n-----END CERTIFICATE-----") != false {
     return false
 }
+if cryptoRootPem("-----BEGIN CERTIFICATE-----\nAAA\n-----END CERTIFICATE-----") != false {
+    return false
+}
+if cryptoRootPem("-----BEGIN CERTIFICATE-----\nA=BC\n-----END CERTIFICATE-----") != false {
+    return false
+}
+if cryptoRootPem("-----BEGIN CERTIFICATE-----\nA===\n-----END CERTIFICATE-----") != false {
+    return false
+}
 return cryptoRootPem("-----END CERTIFICATE-----\nAQ==\n-----BEGIN CERTIFICATE-----") == false
