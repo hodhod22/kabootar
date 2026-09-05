@@ -10,7 +10,7 @@ Språkparitet: [docs/LANGUAGE.md](../docs/LANGUAGE.md) (inte den här filen). **
 
 **Akutundantag:** Bara för en dokumenterad blockerare för säkerhet, korrekthet eller körbarhet; kräv minsta ändring, riktat test och ett uttalat steg tillbaka till Kab-spåret. Det ersätter inte den normala arbetsordningen. Se [ROADMAP.md — Akutundantag](../docs/ROADMAP.md#akutundantag-snävsäkerhetsventil).
 
-**SH6 = KLAR.** **SH17** i64-loop-subset stängt. **SH18** nursery på `new_instance`. **SH19** packed `.kbcb`. **SH20** JSON codec. **SH21** OS write/read. **SH22:** `sqlExecOk` (`sh22_sql_exec_smoke`). **SH23:** 🟡 Kab TLS application-data/AES-GCM unwrap med recordsäker raw-byte TCP-loopback + query Location (`sh23_crypto_http_fetch_eval_smoke`), deterministisk TLS 1.2 fixture-handshake (`sh23_crypto_tls_fixture_eval_smoke`) och PEM-envelope-gate (`sh23_crypto_root_eval_smoke`). rustls-host kvar. **Nästa:** live handshake och trust-chain i Kab före byte av `http_fetch_async` från rustls. Inte fler crypto-flag-kloner eller sqlIs*-kloner.
+**SH6 = KLAR.** **SH17** i64-loop-subset stängt. **SH18** nursery på `new_instance`. **SH19** packed `.kbcb`. **SH20** JSON codec. **SH21** OS write/read. **SH22:** `sqlExecOk` (`sh22_sql_exec_smoke`). **SH23:** 🟡 Kab TLS application-data/AES-GCM unwrap med recordsäker raw-byte TCP-loopback + query Location (`sh23_crypto_http_fetch_eval_smoke`), deterministisk TLS 1.2 fixture-handshake (`sh23_crypto_tls_fixture_eval_smoke`) och strikt PEM/Base64-gate (`sh23_crypto_root_eval_smoke`). rustls-host kvar. **Nästa:** DER/X.509 trust-chain och live handshake i Kab före byte av `http_fetch_async` från rustls. Inte fler crypto-flag-kloner eller sqlIs*-kloner.
 
 ## Kedja
 
