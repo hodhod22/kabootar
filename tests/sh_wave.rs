@@ -62303,6 +62303,28 @@ fn sh23_crypto_tls_hs_eval_smoke() {
         .expect("join");
 }
 
+/// SH23: deterministic TLS 1.2 fixture handshake parsed and verified in Kab.
+#[test]
+fn sh23_crypto_tls_fixture_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_tls_fixture_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-tls-fixture".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile tls fixture eval smoke");
+            let value = eval_program(&program, &mut env).expect("run tls fixture eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH23: AES-128-GCM NIST + TLS 1.2 record encrypt/decrypt via Kab eval.
 #[test]
 fn sh23_crypto_tls_gcm_eval_smoke() {

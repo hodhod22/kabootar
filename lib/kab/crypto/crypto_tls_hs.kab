@@ -40,6 +40,28 @@ pub fn tlsHsWrap(typ, body) {
     return tlsConcatObj(h, body)
 }
 
+/// Parse exactly one TLS handshake message, rejecting truncated or trailing bytes.
+pub fn tlsHsParseOne(msg, expectedType) {
+    if msg["n"] < 4 {
+        return false
+    }
+    if (msg["0"] & 255) != expectedType {
+        return false
+    }
+    let bodyLen = ((msg["1"] << 16) | (msg["2"] << 8) | msg["3"]) & 16777215
+    if bodyLen != msg["n"] - 4 {
+        return false
+    }
+    let body = {}
+    let i = 0
+    while i < bodyLen {
+        body["" + i] = msg["" + (4 + i)] & 255
+        i = i + 1
+    }
+    body["n"] = bodyLen
+    return body
+}
+
 pub fn tlsRecordHs(payload) {
     let n = payload["n"]
     let h = {}
@@ -138,6 +160,60 @@ pub fn tlsHsRecordEvalOk() {
         return false
     }
     if tlsCertVerifyRecordEvalOk() != true {
+        return false
+    }
+    return true
+}
+
+/// Deterministic TLS 1.2 fixture: parse transcript, ECDHE fixture secret, PRF and server Finished.
+pub fn tlsHsFixtureEvalOk() {
+    let clientHello = tlsHsWrap(1, hmacStrBytes("CLIENT-HELLO"))
+    let serverHello = tlsHsWrap(2, hmacStrBytes("SERVER-HELLO"))
+    let serverPub = tlsHexToObj("de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f")
+    let serverKey = tlsHsWrap(12, serverPub)
+    let parsedClient = tlsHsParseOne(clientHello, 1)
+    let parsedServer = tlsHsParseOne(serverHello, 2)
+    let parsedKey = tlsHsParseOne(serverKey, 12)
+    if parsedClient == false {
+        return false
+    }
+    if parsedServer == false {
+        return false
+    }
+    if parsedKey == false {
+        return false
+    }
+    if tlsObjHex(parsedKey) != "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f" {
+        return false
+    }
+    let badLen = tlsHsWrap(2, hmacStrBytes("SERVER-HELLO"))
+    badLen["3"] = badLen["3"] + 1
+    if tlsHsParseOne(badLen, 2) != false {
+        return false
+    }
+    if tlsHsParseOne(serverHello, 12) != false {
+        return false
+    }
+    // RFC 7748 ECDHE shared secret for the parsed server key. x25519EvalOk
+    // independently validates this expensive primitive on the Kab-VM.
+    let pms = tlsHexToObj("4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742")
+    if tlsObjHex(pms) != "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742" {
+        return false
+    }
+    let cr = hmacStrBytes("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    let sr = hmacStrBytes("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")
+    let ms = tlsPrfHexKeySeed(pms, "master secret", tlsConcatObj(cr, sr), 48)
+    if ms != "7b039bf9221e769d15d5439481d2c77a2360e8a39b581569028c3e406853b8df7ab6bdc3b440dfa583ab170e98cf4c14" {
+        return false
+    }
+    let transcript = tlsConcatObj(tlsConcatObj(clientHello, serverHello), serverKey)
+    let verify = tlsPrfHexKeySeed(tlsHexToObj(ms), "server finished", tlsTranscriptHashObj(transcript), 12)
+    let finished = tlsHsWrap(20, tlsHexToObj(verify))
+    let parsedFinished = tlsHsParseOne(finished, 20)
+    if parsedFinished == false {
+        return false
+    }
+    if tlsObjHex(parsedFinished) != verify {
         return false
     }
     return true

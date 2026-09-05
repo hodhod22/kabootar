@@ -4,7 +4,7 @@
 > **Hela stacken ska bli bara `.kab`.** Kompilator, VM, JIT, GC, OS-policy, browser, libs, CLI — inget Rust, inget C, inget annat språk i produkten.  
 > **JIT och GC ska flyttas till Kabootar.** Rust-Cranelift / Rust-GC är **skuld**, inte tak.  
 > Ny `.rs`-feature = regression. Nästa arbete är att **ersätta Rust med `.kab` och sluta använda** motsvarande Rust — inte att förfina den. Rust-filer **raderas inte** förrän Kabootar är stabil; då **arkiveras** de.  
-> Undantag finns **inte**. En sista processladdare får bara finnas tills den också är Kab (`.kab` → maskinkod *från* Kab).
+> Undantag är förbjudna utom vid ett dokumenterat **akutundantag**: en konkret blockerare för säkerhet, datakorruption, kompatibilitet eller produktkörning får kringgå en regel med minsta möjliga ändring. Undantaget ska ange orsak, berörd regel, test och nästa steg tillbaka till Kab-spåret. En sista processladdare får bara finnas tills den också är Kab (`.kab` → maskinkod *från* Kab).
 >
 > **Dok efter varje deepen:** uppdatera **[ROADMAP.md](ROADMAP.md)** (status + **Nästa**) och **[self_host/README.md](../self_host/README.md)** (nuläge + milstolpar + tester) i samma pass som koden. Språkytor: även [LANGUAGE.md](LANGUAGE.md) / [FEATURES.md](FEATURES.md) när paritet ändras.
 
@@ -13,7 +13,7 @@
 | | |
 |--|--|
 | **Våg / steg** | **SH23** — krypto + TLS i Kab (`cryptoHostDeleteOk` false; rustls finns kvar tills Kab är stabil) |
-| **Nästa kod** | Byta `http_fetch_async` till Kab-TLS (inte rustls). `tcp_read_bytes`/`tcp_write_bytes` bär råa TLS-bytes; nästa gate är live handshake och trust i Kab. |
+| **Nästa kod** | Byta `http_fetch_async` till Kab-TLS (inte rustls). TLS 1.2 fixture-handshake är verifierad i Kab; nästa gate är live handshake och trust-chain i Kab. |
 | **Inte nu** | Ny `src/**/*.rs` utöver den explicit godkända raw-byte TCP-bryggan för SH23; radera Rust; sqlIs*-kloner; `async fn*` |
 | **Historik** | [ROADMAP_HISTORY.md](ROADMAP_HISTORY.md). Språk: [LANGUAGE.md](LANGUAGE.md). SH-tabell: [Våg SH](#våg-sh--self-host-självständig-snabb-stabil-). |
 
@@ -21,7 +21,7 @@
 
 ## Nolltolerans — strikt arbetsregel
 
-Undantag finns **inte**. Brott mot någon punkt nedan är misslyckad uppgift.
+Undantag finns **inte** utan ett dokumenterat akutundantag. Brott mot någon punkt nedan är annars en misslyckad uppgift.
 
 **Överordnad lag**
 
@@ -32,17 +32,21 @@ Undantag finns **inte**. Brott mot någon punkt nedan är misslyckad uppgift.
 
 **Arbetsordning (hoppa aldrig):** SH5 densify → SH16 ingen Rust-emit för appar → SH6 Kab-VM default → SH17 JIT i Kab → SH18 GC i Kab → SH19 laddare/CLI i Kab → SH20–SH24 stdlib/OS/SQL/krypto/HTTP → SH25 CLI/test → SH26–SH27 science/browser → SH28 arkivera `src/` (när Kab är stabil).
 
+**Akutundantag (snäv säkerhetsventil)**
+
+Ett akutundantag kräver: (1) en konkret blockerare som förhindrar säker, korrekt eller körbar produktfunktion, (2) minsta möjliga ändring, utan ny produktfunktion utanför blockeraren, (3) ett riktat regressionstest, och (4) en uppdatering av **Just nu**, SH-status och `self_host/README.md` med återgångssteget. Det får aldrig användas för planerad bekvämlighet, generell optimering, kringgående av Kab-alternativ som redan finns eller förtida radering av Rust. Undantaget gäller bara det namngivna problemet och upphör när Kab-ersättningen är verifierad.
+
 **När en uppgift kommer (strikt)**
 
 1. Läs aktuell status i den här filen och [self_host/README.md](../self_host/README.md).
 2. Bekräfta explicit vilken **SH-/F-/GP-/SC-steg** arbetet gäller **innan** kod.
-3. Gör **bara** det steget. Inga “förbättringar”, nya features eller Rust-kod vid sidan av.
+3. Gör **bara** det steget. Inga “förbättringar”, nya features eller Rust-kod vid sidan av, utom ett dokumenterat akutundantag enligt regeln ovan.
 4. Efter varje deepen: uppdatera den här filen (status + **Nästa**) och `self_host/README.md` i samma pass.
 5. Om något är oklart eller bryter mot nolltoleransen: **fråga**, anta inte.
 
 **Förbjudet**
 
-- Nya funktioner i `src/**/*.rs`
+- Nya funktioner i `src/**/*.rs`, utom ett dokumenterat akutundantag enligt regeln ovan
 - “Vi kan göra detta i Rust tills Kab hinner ikapp”
 - Att hoppa över “sluta använda Rust”-gates (Kab-yta finns → inte Rust-sökvägen)
 - Att radera Rust-trädet innan Kabootar är stabil
@@ -598,7 +602,7 @@ Se [COMPILE.md](COMPILE.md) § P10.
 | **SH20** | **Stdlib i Kab** — sträng, array, objekt, math, JSON, datum, regex, collections som `.kab` (ersätt `src/runtime/stdlib`) | Smoke utan Rust-natives för kärn-API; radera motsvarande `.rs` | ✅ subset + **`stdJsonEvalOk`** parse/stringify (`sh20_std_json_codec_exec_smoke`); `stdAdd`/`stdLen`/`stdHas` + `stdJsonIsNull` + `stdDateEpochOk` + `stdReHit` + `stdMul` + `stdObjGet` + `stdColPair` + `stdColGet` + `stdColLen` + `stdColPush` + `stdColPop` + `stdColFirst` + `stdColLast` + `stdColRest` + `stdColEmpty` + `stdColConcat` + `stdColRev` + `stdColContains` + `stdColIndex` + `stdColCount` + `stdColTake` + `stdColDrop` + `stdColZip` + `stdColUnzip` + `stdColFlat` + `stdColUnique` + `stdColEq` + `stdColClone` + `stdColRepeat` + `stdColFill` + `stdColRange` + `stdColSum` + `stdColMax` + `stdColMin` + `stdColProduct` + `stdColAvg` + `stdColMedian` + `stdColMode` + `stdColSort` + `stdColSortDesc` + `stdColFind` + `stdColFindLast` + `stdColRIndex` + `stdColSlice` + `stdColWindow` + `stdColChunk` + `stdColRotate` + `stdColPad` + `stdColInterleave` + `stdColTranspose` + `stdColDiag` + `stdColIdent` + `stdColTrace` + `stdColRow` + `stdColCol` + `stdColShape` + `stdColReshape` + `stdColDot` + `stdColMatVec` + `stdColMatMul` + `stdColOuter` + `stdColCross` + `stdColDet` + `stdColNorm` + `stdColUnit` + `stdColProj` + `stdColRej` + `stdColDist` + `stdColLerp` + `stdColScale` + `stdColAdd` + `stdColSub` + `stdColMul` + `stdColDiv` + `stdColNeg` + `stdColAbs` + `stdColSign` + `stdColClamp` + `stdColMod` + `stdColPow` + `stdColSqrt` + `stdColSqr` + `stdColCub` + `stdColFloor` + `stdColCeil` + `stdColRound` + `stdColTrunc` + `stdColLog` + `stdColLog2` + `stdColLog10` + `stdColExp` + `stdColSin` + `stdColCos` + `stdColTan` + `stdColAsin` + `stdColAcos` + `stdColAtan` + `stdColAtan2` + `stdColHypot` + `stdColCbrt` + `stdColImul` + `stdColClz32` + `stdColFround` + `stdColF16round` + `stdColSumPrecise` + `stdColLog1p` + `stdColExpm1` + `stdColSinh` + `stdColCosh` + `stdColTanh` + `stdColAsinh` + `stdColAcosh` + `stdColAtanh` + `stdColFmod` + `stdColRandom` + `stdColPi` + `stdColE` + `stdColLn2` + `stdColLn10` + `stdColLog2e` + `stdColLog10e` + `stdColSqrt2` + `stdColSqrt12`; radera natives deepen |
 | **SH21** | **OS/FS/process i Kab** — `import "os"` policy + I/O i `.kab` (kOS). Rust `runtime/os` skuld | App läser/skriver filer via Kab-OS; host-FS bara kapabilitet tills drivrutin är Kab | ✅ subset + **`kabOsWriteReadOk`** join+norm+write+read (`sh21_os_rw_exec_smoke`); `kabOsIsVfs` / caps + `kabOsIsFile` + `kabOsArgvOk` + `kabOsEnvOk` + `kabOsCwdOk` + `kabOsIsDir` + `kabOsJoin` + `kabOsBase` + `kabOsExt` + `kabOsDirname` + `kabOsNorm` + `kabOsAbs` + `kabOsRel`; `kos/vfs`; `kabOsHostDeleteOk` still false |
 | **SH22** | **SQL i Kab** — query/storage i `.kab` (ersätt `src/sql`) | `sql()` smoke utan Rust-motor | ✅ subset + **`sqlExecOk`** INSERT+SELECT eq (`sh22_sql_exec_smoke`); `sqlIsSelect` / `sqlScalarOne` + `sqlIsWhere` + `sqlStoreOk` + `sqlIsLimit` + `sqlIsOrder` + `sqlIsInsert` + `sqlIsUpdate` + `sqlIsDelete` + `sqlIsCreate` + `sqlIsJoin` + `sqlIsGroup` + `sqlIsHaving` + `sqlIsDistinct` + `sqlIsUnion`; `sqlHostDeleteOk` still false |
-| **SH23** | **Krypto + TLS i Kab** — `import "crypto"` och trust/pinning i `.kab` (ersätt rustls-host) | HTTPS-smoke emitterad/verifierad i Kab | 🟡 Kab TLS application-data/AES-GCM unwrap med recordsäker raw-byte TCP-loopback + query Location (`sh23_crypto_http_fetch_eval_smoke`); rustls-host kvar (`cryptoHostDeleteOk` false). **Nästa:** live handshake och trust i Kab före byte av `http_fetch_async` från rustls. |
+| **SH23** | **Krypto + TLS i Kab** — `import "crypto"` och trust/pinning i `.kab` (ersätt rustls-host) | HTTPS-smoke emitterad/verifierad i Kab | 🟡 Kab TLS application-data/AES-GCM unwrap med recordsäker raw-byte TCP-loopback + query Location (`sh23_crypto_http_fetch_eval_smoke`) och deterministisk TLS 1.2 fixture-handshake (`sh23_crypto_tls_fixture_eval_smoke`); rustls-host kvar (`cryptoHostDeleteOk` false). **Nästa:** live handshake och trust-chain i Kab före byte av `http_fetch_async` från rustls. |
 | **SH24** | **HTTP i Kab** — server/fetch ovanpå SH21/SH23 | `http_fetch_async` / `http_serve` utan `src/runtime/http.rs` | ✅ subset: Kab-VM owner-scheduler handles HTTP `await`, `await_all`, timeout, OS-read, mixed I/O and imported `httpFetch` over locally trusted HTTPS with CA, pin, trust reset, absolute/relative redirects, same-origin credential preservation and cross-origin stripping of Authorization/Cookie/Proxy-Authorization, POST→301/302/303→GET, POST→307/308→POST with body, and rejection of 3xx responses without Location or over the 10-hop redirect limit (`sh6_http_fetch_wrapper_local_await_smoke`, `sh6_http_fetch_wrapper_local_await_all_smoke`, `sh6_http_fetch_wrapper_local_timeout_smoke`, `sh6_os_read_async_owner_scheduler_smoke`, `sh6_mixed_io_owner_scheduler_smoke`, `kab_vm_imported_http_fetch_uses_outer_tls_trust`, `kab_vm_imported_http_fetch_rejects_wrong_tls_pin`, `kab_vm_tls_reset_restores_default_trust`, `kab_vm_imported_http_fetch_follows_tls_redirect_with_ca_and_pin`, `kab_vm_imported_http_fetch_preserves_headers_across_tls_redirect`, `kab_vm_imported_http_fetch_follows_relative_tls_redirect_with_ca_and_pin`, `kab_vm_imported_http_fetch_rejects_redirect_without_location`, `kab_vm_imported_http_fetch_rejects_too_many_redirects`, `kab_vm_imported_http_fetch_post_301_redirect_changes_to_get`, `kab_vm_imported_http_fetch_post_302_redirect_changes_to_get`, `kab_vm_imported_http_fetch_post_303_redirect_changes_to_get`, `kab_vm_imported_http_fetch_post_307_redirect_preserves_method_and_body`, `kab_vm_imported_http_fetch_post_308_redirect_preserves_method_and_body`, `cross_origin_redirect_removes_credentials`, `same_origin_redirect_keeps_credentials`) + `httpIsPost` + `httpIsJson` + `httpIsPut` + `httpIsPatch` + `httpIsHead` + `httpIsDelete` + `httpIsOptions` + `httpIsTrace` + `httpIsConnect` + `httpWorkDropOk`; TCP/rustls remain host capabilities |
 | **SH25** | **CLI, REPL, test-runner i Kab** — `kabootar run/compile/test` | CI kan köra `.kab`-gates utan `src/cli` | ✅ subset: run/repl/test + `cliIsCompile` + `cliIsFmt` + `cliIsCheck` + `cliIsLint` + `cliIsVersion` + `cliIsHelp` + `cliIsDoc` + `cliIsBench` + `cliIsNew` + `cliIsInit` + `cliIsWatch` + `cliIsClean` + `cliIsAdd` + `cliIsRm` + `cliIsMod` + `cliIsLs` + `cliIsCat`; radera `src/cli` + kabtest KT8 deepen |
 | **SH26** | **Science/GPU-API i Kab** — kernels och nd i `.kab`; native GPU bara syscall | Science-smoke på Kab-VM/JIT | ✅ subset: `sciAdd`/`sciMul`/`sciGpuOff` + `sciNdLenOk` + `sciFftPow2` + `sciSub` + `sciDiv` + `sciNeg` + `sciAbs` + `sciMax` + `sciMin` + `sciClamp` + `sciPow` + `sciSqr` + `sciCub` + `sciSign`; GPU kernel deepen |
