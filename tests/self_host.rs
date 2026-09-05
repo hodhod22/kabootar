@@ -1473,7 +1473,10 @@ fn self_host_bootstrap_compile_and_run() {
             let v = kabootar_lib::cli::run_file(&self_host_path("bootstrap_probe.kab"))
                 .expect("bootstrap_probe.kab should run");
             let Value::String(text) = v else {
-                panic!("bootstrap_probe should return .kbc text from self-hosted compile");
+                panic!(
+                    "bootstrap_probe should return .kbc text from self-hosted compile, got {}",
+                    format_value(&v)
+                );
             };
             let module = deserialize(&text).expect("deserialize bootstrap .kbc");
             let mut env = create_global_env();
