@@ -249,24 +249,31 @@ pub fn httpFetchTlsAppHex() {
     return "170303004000000000000000012cca34babb104d8f8118d6f7769e8b1cde9e6c320da0636ddbe97845e241b336be9aed04913f2c857b40d37292f27258bf9ea854ac9fce4e"
 }
 
-pub fn httpFetchReadHexExact(sock, want) {
-    let out = ""
-    while len(out) < want {
-        let got = tcp_read(sock, want - len(out))
-        if len(got) == 0 {
+pub fn httpFetchReadBytesExact(sock, want) {
+    let out = {}
+    let n = 0
+    while n < want {
+        let got = tcp_read_bytes(sock, want - n)
+        let gotn = len(got)
+        if gotn == 0 {
             return false
         }
-        out = out + got
+        let i = 0
+        while i < gotn {
+            out["" + (n + i)] = got[i] & 255
+            i = i + 1
+        }
+        n = n + gotn
     }
+    out["n"] = n
     return out
 }
 
 pub fn httpFetchAsyncKabFromSock(method, url, body, headers, timeoutMs, sock) {
-    let headHex = httpFetchReadHexExact(sock, 10)
-    if headHex == false {
+    let head = httpFetchReadBytesExact(sock, 5)
+    if head == false {
         return false
     }
-    let head = aesParseHex(headHex)
     if (head["0"] & 255) != 23 {
         return false
     }
@@ -283,11 +290,23 @@ pub fn httpFetchAsyncKabFromSock(method, url, body, headers, timeoutMs, sock) {
     if ctLen > 16640 {
         return false
     }
-    let tailHex = httpFetchReadHexExact(sock, ctLen * 2)
-    if tailHex == false {
+    let tail = httpFetchReadBytesExact(sock, ctLen)
+    if tail == false {
         return false
     }
-    return httpFetchAsyncKab(method, url, body, headers, timeoutMs, aesParseHex(headHex + tailHex))
+    let rec = {}
+    let i = 0
+    while i < 5 {
+        rec["" + i] = head["" + i] & 255
+        i = i + 1
+    }
+    i = 0
+    while i < ctLen {
+        rec["" + (5 + i)] = tail["" + i] & 255
+        i = i + 1
+    }
+    rec["n"] = 5 + ctLen
+    return httpFetchAsyncKab(method, url, body, headers, timeoutMs, rec)
 }
 
 pub fn httpFetchTcpHexReadEvalOk() {
@@ -306,11 +325,12 @@ pub fn httpFetchTcpHexReadEvalOk() {
 
 pub fn httpFetchAsyncKabTcpEvalOk() {
     let recHex = httpFetchTlsAppHex()
+    let rec = aesParseHex(recHex)
     let port = 28191
     let ln = tcp_listen("127.0.0.1", port)
     let cli = tcp_connect("127.0.0.1", port)
     let srv = tcp_accept(ln)
-    tcp_write(srv, recHex)
+    tcp_write_bytes(srv, rec)
     tcp_close(srv)
     let url = "https://a.example:443/v?q=1"
     let via = httpFetchAsyncKabFromSock("GET", url, "", {}, 0, cli)

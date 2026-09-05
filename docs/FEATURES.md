@@ -215,7 +215,7 @@ Se även [JAVASCRIPT.md](JAVASCRIPT.md) (skillnader för JS-utvecklare) och [LAN
 | Deno | Kabootar |
 |------|----------|
 | `wss://` WebSocket | **`ws_connect("wss://...")`** med `tls_ca_only` / `tls_add_ca` |
-| `Deno.listen` / `Deno.connect` | **`tcp_listen`**, **`tcp_connect`**, **`tcp_accept`**, **`tcp_read`**, **`tcp_write`**, **`tcp_close`** |
+| `Deno.listen` / `Deno.connect` | **`tcp_listen`**, **`tcp_connect`**, **`tcp_accept`**, **`tcp_read`**, **`tcp_write`**, **`tcp_read_bytes`**, **`tcp_write_bytes`**, **`tcp_close`** |
 | `Deno.run` | **`deno_run`**, **`Deno_run`** |
 | `stream.tee` / `pipeTo` | **`stream_tee`**, **`stream_pipe_to`** |
 

@@ -402,6 +402,21 @@ fn tcp_read_native(args: &[Value], _env: &mut Environment) -> Result<Value, Stri
     Ok(Value::String(crate::runtime::tcp::tcp_read(sock, max)?))
 }
 
+fn tcp_read_bytes_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let sock = match args.first() {
+        Some(Value::Number(n)) if *n > 0 => *n as u64,
+        _ => return Err("tcp_read_bytes(socket, max?)".into()),
+    };
+    let max = match args.get(1) {
+        Some(Value::Number(n)) if *n > 0 => *n as usize,
+        _ => 4096,
+    };
+    let bytes = crate::runtime::tcp::tcp_read_bytes(sock, max)?;
+    Ok(Value::from_array(
+        bytes.into_iter().map(|b| Value::Number(b as i64)).collect(),
+    ))
+}
+
 fn tcp_write_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let sock = match args.first() {
         Some(Value::Number(n)) if *n > 0 => *n as u64,
@@ -413,6 +428,41 @@ fn tcp_write_native(args: &[Value], _env: &mut Environment) -> Result<Value, Str
         None => String::new(),
     };
     crate::runtime::tcp::tcp_write(sock, &data)?;
+    Ok(Value::Undefined)
+}
+
+fn tcp_write_bytes_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let sock = match args.first() {
+        Some(Value::Number(n)) if *n > 0 => *n as u64,
+        _ => return Err("tcp_write_bytes(socket, bytes)".into()),
+    };
+    let items = match args.get(1) {
+        Some(Value::Array(items)) => items.as_ref().clone(),
+        Some(Value::Object(map)) => {
+            let n = match map.get("n") {
+                Some(Value::Number(n)) if *n >= 0 => *n as usize,
+                _ => return Err("tcp_write_bytes(socket, bytes) expects byte values".into()),
+            };
+            let mut values = Vec::with_capacity(n);
+            for i in 0..n {
+                values.push(
+                    map.get(&i.to_string())
+                        .cloned()
+                        .ok_or("tcp_write_bytes(socket, bytes) expects byte values")?,
+                );
+            }
+            values
+        }
+        _ => return Err("tcp_write_bytes(socket, bytes)".into()),
+    };
+    let mut bytes = Vec::with_capacity(items.len());
+    for item in items.iter() {
+        match item {
+            Value::Number(n) if (0..=255).contains(n) => bytes.push(*n as u8),
+            _ => return Err("tcp_write_bytes(socket, bytes) expects byte values".into()),
+        }
+    }
+    crate::runtime::tcp::tcp_write_bytes(sock, &bytes)?;
     Ok(Value::Undefined)
 }
 
@@ -1550,7 +1600,9 @@ pub fn register_deno(env: &mut Environment) {
         ("Deno_listen", tcp_listen_native),
         ("tcp_accept", tcp_accept_native),
         ("tcp_read", tcp_read_native),
+        ("tcp_read_bytes", tcp_read_bytes_native),
         ("tcp_write", tcp_write_native),
+        ("tcp_write_bytes", tcp_write_bytes_native),
         ("tcp_close", tcp_close_native),
         ("tcp_start_tls", tcp_start_tls_native),
         ("Deno_startTls", tcp_start_tls_native),
