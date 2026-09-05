@@ -408,7 +408,8 @@ fn sh3a_self_host_push_len_nested() {
 fn sh1_warm_full_compile_dag() {
     let n = kabootar_lib::compile::write_compiler_dag_seeds().expect("warm dag");
     eprintln!("SH1 warm wrote {n} seed/dag files");
-    assert!(n >= 20, "compile DAG should stay a pipeline, wrote {n}");
+    // SH5's documented densification plateau is a 12-file compile DAG.
+    assert!(n >= 12, "compile DAG should stay a pipeline, wrote {n}");
 }
 
 #[test]

@@ -1,5 +1,5 @@
 kabootar-bytecode/1
-constants=237
+constants=238
 const 0 string "
 const 1 string `
 const 2 string \t
@@ -105,138 +105,139 @@ const 101 string ForOfStmt
 const 102 string ForInStmt
 const 103 string ForStmt
 const 104 string Arrow
-const 105 string Object
-const 106 string Array
-const 107 string Member
-const 108 string Index
-const 109 string OptionalMember
-const 110 string OptionalIndex
-const 111 string OptionalCall
-const 112 string Ternary
-const 113 string ResultQuestion
-const 114 string SwitchStmt
-const 115 string FallthroughStmt
-const 116 string Super
-const 117 string number
-const 118 string string
-const 119 string bool
-const 120 string pop
-const 121 string dup
-const 122 string swap
-const 123 string concat_array
-const 124 string merge_object
-const 125 string call_from_array
-const 126 string load_global
-const 127 string store_global
-const 128 string load_local
-const 129 string store_local
-const 130 string take_local
-const 131 string take_global
-const 132 string array_push_local
-const 133 string array_push_global
-const 134 string array_pop_local
-const 135 string array_pop_global
-const 136 string acc_add_local
-const 137 string acc_add_global
-const 138 string len_local
-const 139 string len_global
-const 140 string index_get_local
-const 141 string index_get_global
-const 142 string add
-const 143 string sub
-const 144 string mul
-const 145 string div
-const 146 string mod
-const 147 string pow
-const 148 string neg
-const 149 string bit_and
-const 150 string bit_or
-const 151 string bit_xor
-const 152 string shl
-const 153 string shr
-const 154 string ushr
-const 155 string bit_not
-const 156 string and
-const 157 string or
-const 158 string eq
-const 159 string ne
-const 160 string lt
-const 161 string gt
-const 162 string le
-const 163 string ge
-const 164 string make_object
-const 165 string make_array
-const 166 string index_get
-const 167 string index_set
-const 168 string get_member
-const 169 string get_super_method
-const 170 string member_set
-const 171 string jump
-const 172 string jump_if_false
-const 173 string jump_if_true
-const 174 string jump_if_not_nullish
-const 175 string get_length
-const 176 string jump_unless_const_eq
-const 177 string jump_unless_option_some
-const 178 string jump_unless_option_none
-const 179 string unwrap_option_some
-const 180 string jump_unless_result_ok
-const 181 string jump_unless_result_err
-const 182 string unwrap_result_ok
-const 183 string unwrap_result_err
-const 184 string jump_unless_array
-const 185 string jump_unless_object
-const 186 string jump_unless_object_empty
-const 187 string jump_unless_has_member
-const 188 string jump_unless_enum_variant
-const 189 string unpack_enum_fields
-const 190 string index_peek_from_end
-const 191 string array_slice_from
-const 192 string array_slice_rest
-const 193 string object_rest
-const 194 string match_fail
-const 195 string call
-const 196 string new_instance
-const 197 string new_instance_from_array
-const 198 string jump_if_result_err
-const 199 string make_arrow_fn
-const 200 string iterator_step_in_place
-const 201 string async_iterator_step_in_place
-const 202 string make_ok
-const 203 string make_err
-const 204 string make_some
-const 205 string make_none
-const 206 string result_question
-const 207 string halt
-const 208 string __kab_const_undefined__
-const 209 string kab_fn_rest
-const 210 string _hook
-const 211 string tramp
-const 212 number 0
-const 213 number 1
-const 214 number 2
-const 215 number 3
-const 216 number 4
-const 217 number 5
-const 218 number 6
-const 219 number 7
-const 220 number 8
-const 221 string pCur
-const 222 string pTok
-const 223 string pPos
-const 224 string pToksLen
-const 225 null
-const 226 string pToks
-const 227 string pEofTok
-const 228 string pSymPool
-const 229 string pSymN
-const 230 string pBodyStack
-const 231 string pBody
-const 232 string pBodyDepth
-const 233 string type
-const 234 string }
-const 235 string ;
-const 236 string pLoopBody
+const 105 string AsyncArrow
+const 106 string Object
+const 107 string Array
+const 108 string Member
+const 109 string Index
+const 110 string OptionalMember
+const 111 string OptionalIndex
+const 112 string OptionalCall
+const 113 string Ternary
+const 114 string ResultQuestion
+const 115 string SwitchStmt
+const 116 string FallthroughStmt
+const 117 string Super
+const 118 string number
+const 119 string string
+const 120 string bool
+const 121 string pop
+const 122 string dup
+const 123 string swap
+const 124 string concat_array
+const 125 string merge_object
+const 126 string call_from_array
+const 127 string load_global
+const 128 string store_global
+const 129 string load_local
+const 130 string store_local
+const 131 string take_local
+const 132 string take_global
+const 133 string array_push_local
+const 134 string array_push_global
+const 135 string array_pop_local
+const 136 string array_pop_global
+const 137 string acc_add_local
+const 138 string acc_add_global
+const 139 string len_local
+const 140 string len_global
+const 141 string index_get_local
+const 142 string index_get_global
+const 143 string add
+const 144 string sub
+const 145 string mul
+const 146 string div
+const 147 string mod
+const 148 string pow
+const 149 string neg
+const 150 string bit_and
+const 151 string bit_or
+const 152 string bit_xor
+const 153 string shl
+const 154 string shr
+const 155 string ushr
+const 156 string bit_not
+const 157 string and
+const 158 string or
+const 159 string eq
+const 160 string ne
+const 161 string lt
+const 162 string gt
+const 163 string le
+const 164 string ge
+const 165 string make_object
+const 166 string make_array
+const 167 string index_get
+const 168 string index_set
+const 169 string get_member
+const 170 string get_super_method
+const 171 string member_set
+const 172 string jump
+const 173 string jump_if_false
+const 174 string jump_if_true
+const 175 string jump_if_not_nullish
+const 176 string get_length
+const 177 string jump_unless_const_eq
+const 178 string jump_unless_option_some
+const 179 string jump_unless_option_none
+const 180 string unwrap_option_some
+const 181 string jump_unless_result_ok
+const 182 string jump_unless_result_err
+const 183 string unwrap_result_ok
+const 184 string unwrap_result_err
+const 185 string jump_unless_array
+const 186 string jump_unless_object
+const 187 string jump_unless_object_empty
+const 188 string jump_unless_has_member
+const 189 string jump_unless_enum_variant
+const 190 string unpack_enum_fields
+const 191 string index_peek_from_end
+const 192 string array_slice_from
+const 193 string array_slice_rest
+const 194 string object_rest
+const 195 string match_fail
+const 196 string call
+const 197 string new_instance
+const 198 string new_instance_from_array
+const 199 string jump_if_result_err
+const 200 string make_arrow_fn
+const 201 string iterator_step_in_place
+const 202 string async_iterator_step_in_place
+const 203 string make_ok
+const 204 string make_err
+const 205 string make_some
+const 206 string make_none
+const 207 string result_question
+const 208 string halt
+const 209 string __kab_const_undefined__
+const 210 string kab_fn_rest
+const 211 string _hook
+const 212 string tramp
+const 213 number 0
+const 214 number 1
+const 215 number 2
+const 216 number 3
+const 217 number 4
+const 218 number 5
+const 219 number 6
+const 220 number 7
+const 221 number 8
+const 222 string pCur
+const 223 string pTok
+const 224 string pPos
+const 225 string pToksLen
+const 226 null
+const 227 string pToks
+const 228 string pEofTok
+const 229 string pSymPool
+const 230 string pSymN
+const 231 string pBodyStack
+const 232 string pBody
+const 233 string pBodyDepth
+const 234 string type
+const 235 string }
+const 236 string ;
+const 237 string pLoopBody
 global 0 pCallHook
 global 1 pCallPostfix
 global 2 pCallTypeArgs
@@ -364,131 +365,132 @@ local 102 AST_FOR_OF
 local 103 AST_FOR_IN
 local 104 AST_FOR
 local 105 AST_ARROW
-local 106 AST_OBJECT
-local 107 AST_ARRAY
-local 108 AST_MEMBER
-local 109 AST_INDEX
-local 110 AST_OPTIONAL_MEMBER
-local 111 AST_OPTIONAL_INDEX
-local 112 AST_OPTIONAL_CALL
-local 113 AST_TERNARY
-local 114 AST_RESULT_QUESTION
-local 115 AST_SWITCH
-local 116 AST_FALLTHROUGH
-local 117 AST_SUPER
-local 118 LIT_NUMBER
-local 119 LIT_STRING
-local 120 LIT_BOOL
-local 121 LIT_NULL
-local 122 LIT_UNDEF
-local 123 OP_CONST
-local 124 OP_POP
-local 125 OP_DUP
-local 126 OP_SWAP
-local 127 OP_CONCAT_ARRAY
-local 128 OP_MERGE_OBJECT
-local 129 OP_CALL_FROM_ARRAY
-local 130 OP_LOAD_GLOBAL
-local 131 OP_STORE_GLOBAL
-local 132 OP_LOAD_LOCAL
-local 133 OP_STORE_LOCAL
-local 134 OP_TAKE_LOCAL
-local 135 OP_TAKE_GLOBAL
-local 136 OP_ARRAY_PUSH_LOCAL
-local 137 OP_ARRAY_PUSH_GLOBAL
-local 138 OP_ARRAY_POP_LOCAL
-local 139 OP_ARRAY_POP_GLOBAL
-local 140 OP_ACC_ADD_LOCAL
-local 141 OP_ACC_ADD_GLOBAL
-local 142 OP_LEN_LOCAL
-local 143 OP_LEN_GLOBAL
-local 144 OP_INDEX_GET_LOCAL
-local 145 OP_INDEX_GET_GLOBAL
-local 146 OP_ADD
-local 147 OP_SUB
-local 148 OP_MUL
-local 149 OP_DIV
-local 150 OP_MOD
-local 151 OP_POW
-local 152 OP_NEG
-local 153 OP_BIT_AND
-local 154 OP_BIT_OR
-local 155 OP_BIT_XOR
-local 156 OP_SHL
-local 157 OP_SHR
-local 158 OP_USHR
-local 159 OP_BIT_NOT
-local 160 OP_NOT
-local 161 OP_AND
-local 162 OP_OR
-local 163 OP_IN
-local 164 OP_EQ
-local 165 OP_NE
-local 166 OP_LT
-local 167 OP_GT
-local 168 OP_LE
-local 169 OP_GE
-local 170 OP_MAKE_OBJECT
-local 171 OP_MAKE_ARRAY
-local 172 OP_INDEX_GET
-local 173 OP_INDEX_SET
-local 174 OP_GET_MEMBER
-local 175 OP_GET_SUPER_METHOD
-local 176 OP_SET_MEMBER
-local 177 OP_JUMP
-local 178 OP_JUMP_IF_FALSE
-local 179 OP_JUMP_IF_TRUE
-local 180 OP_JUMP_IF_NOT_NULLISH
-local 181 OP_GET_LENGTH
-local 182 OP_JUMP_UNLESS_CONST_EQ
-local 183 OP_JUMP_UNLESS_OPTION_SOME
-local 184 OP_JUMP_UNLESS_OPTION_NONE
-local 185 OP_UNWRAP_OPTION_SOME
-local 186 OP_JUMP_UNLESS_RESULT_OK
-local 187 OP_JUMP_UNLESS_RESULT_ERR
-local 188 OP_UNWRAP_RESULT_OK
-local 189 OP_UNWRAP_RESULT_ERR
-local 190 OP_JUMP_UNLESS_ARRAY
-local 191 OP_JUMP_UNLESS_OBJECT
-local 192 OP_JUMP_UNLESS_OBJECT_EMPTY
-local 193 OP_JUMP_UNLESS_HAS_MEMBER
-local 194 OP_JUMP_UNLESS_ENUM_VARIANT
-local 195 OP_UNPACK_ENUM_FIELDS
-local 196 OP_INDEX_PEEK_FROM_END
-local 197 OP_ARRAY_SLICE_FROM
-local 198 OP_ARRAY_SLICE_REST
-local 199 OP_OBJECT_REST
-local 200 OP_MATCH_FAIL
-local 201 OP_CALL
-local 202 OP_NEW_INSTANCE
-local 203 OP_NEW_INSTANCE_FROM_ARRAY
-local 204 OP_RETURN
-local 205 OP_THROW
-local 206 OP_AWAIT
-local 207 OP_YIELD
-local 208 OP_JUMP_IF_RESULT_ERR
-local 209 OP_MAKE_ARROW
-local 210 OP_ITER_STEP
-local 211 OP_ASYNC_ITER_STEP
-local 212 OP_MAKE_OK
-local 213 OP_MAKE_ERR
-local 214 OP_MAKE_SOME
-local 215 OP_MAKE_NONE
-local 216 OP_RESULT_QUESTION
-local 217 OP_HALT
-local 218 KAB_UNDEF_CONST
-local 219 KAB_FN_REST_MARK
+local 106 AST_ARROW_ASYNC
+local 107 AST_OBJECT
+local 108 AST_ARRAY
+local 109 AST_MEMBER
+local 110 AST_INDEX
+local 111 AST_OPTIONAL_MEMBER
+local 112 AST_OPTIONAL_INDEX
+local 113 AST_OPTIONAL_CALL
+local 114 AST_TERNARY
+local 115 AST_RESULT_QUESTION
+local 116 AST_SWITCH
+local 117 AST_FALLTHROUGH
+local 118 AST_SUPER
+local 119 LIT_NUMBER
+local 120 LIT_STRING
+local 121 LIT_BOOL
+local 122 LIT_NULL
+local 123 LIT_UNDEF
+local 124 OP_CONST
+local 125 OP_POP
+local 126 OP_DUP
+local 127 OP_SWAP
+local 128 OP_CONCAT_ARRAY
+local 129 OP_MERGE_OBJECT
+local 130 OP_CALL_FROM_ARRAY
+local 131 OP_LOAD_GLOBAL
+local 132 OP_STORE_GLOBAL
+local 133 OP_LOAD_LOCAL
+local 134 OP_STORE_LOCAL
+local 135 OP_TAKE_LOCAL
+local 136 OP_TAKE_GLOBAL
+local 137 OP_ARRAY_PUSH_LOCAL
+local 138 OP_ARRAY_PUSH_GLOBAL
+local 139 OP_ARRAY_POP_LOCAL
+local 140 OP_ARRAY_POP_GLOBAL
+local 141 OP_ACC_ADD_LOCAL
+local 142 OP_ACC_ADD_GLOBAL
+local 143 OP_LEN_LOCAL
+local 144 OP_LEN_GLOBAL
+local 145 OP_INDEX_GET_LOCAL
+local 146 OP_INDEX_GET_GLOBAL
+local 147 OP_ADD
+local 148 OP_SUB
+local 149 OP_MUL
+local 150 OP_DIV
+local 151 OP_MOD
+local 152 OP_POW
+local 153 OP_NEG
+local 154 OP_BIT_AND
+local 155 OP_BIT_OR
+local 156 OP_BIT_XOR
+local 157 OP_SHL
+local 158 OP_SHR
+local 159 OP_USHR
+local 160 OP_BIT_NOT
+local 161 OP_NOT
+local 162 OP_AND
+local 163 OP_OR
+local 164 OP_IN
+local 165 OP_EQ
+local 166 OP_NE
+local 167 OP_LT
+local 168 OP_GT
+local 169 OP_LE
+local 170 OP_GE
+local 171 OP_MAKE_OBJECT
+local 172 OP_MAKE_ARRAY
+local 173 OP_INDEX_GET
+local 174 OP_INDEX_SET
+local 175 OP_GET_MEMBER
+local 176 OP_GET_SUPER_METHOD
+local 177 OP_SET_MEMBER
+local 178 OP_JUMP
+local 179 OP_JUMP_IF_FALSE
+local 180 OP_JUMP_IF_TRUE
+local 181 OP_JUMP_IF_NOT_NULLISH
+local 182 OP_GET_LENGTH
+local 183 OP_JUMP_UNLESS_CONST_EQ
+local 184 OP_JUMP_UNLESS_OPTION_SOME
+local 185 OP_JUMP_UNLESS_OPTION_NONE
+local 186 OP_UNWRAP_OPTION_SOME
+local 187 OP_JUMP_UNLESS_RESULT_OK
+local 188 OP_JUMP_UNLESS_RESULT_ERR
+local 189 OP_UNWRAP_RESULT_OK
+local 190 OP_UNWRAP_RESULT_ERR
+local 191 OP_JUMP_UNLESS_ARRAY
+local 192 OP_JUMP_UNLESS_OBJECT
+local 193 OP_JUMP_UNLESS_OBJECT_EMPTY
+local 194 OP_JUMP_UNLESS_HAS_MEMBER
+local 195 OP_JUMP_UNLESS_ENUM_VARIANT
+local 196 OP_UNPACK_ENUM_FIELDS
+local 197 OP_INDEX_PEEK_FROM_END
+local 198 OP_ARRAY_SLICE_FROM
+local 199 OP_ARRAY_SLICE_REST
+local 200 OP_OBJECT_REST
+local 201 OP_MATCH_FAIL
+local 202 OP_CALL
+local 203 OP_NEW_INSTANCE
+local 204 OP_NEW_INSTANCE_FROM_ARRAY
+local 205 OP_RETURN
+local 206 OP_THROW
+local 207 OP_AWAIT
+local 208 OP_YIELD
+local 209 OP_JUMP_IF_RESULT_ERR
+local 210 OP_MAKE_ARROW
+local 211 OP_ITER_STEP
+local 212 OP_ASYNC_ITER_STEP
+local 213 OP_MAKE_OK
+local 214 OP_MAKE_ERR
+local 215 OP_MAKE_SOME
+local 216 OP_MAKE_NONE
+local 217 OP_RESULT_QUESTION
+local 218 OP_HALT
+local 219 KAB_UNDEF_CONST
+local 220 KAB_FN_REST_MARK
 functions=19
 fn 0 pCallHook
 fn_params 0 sess,n
 fn_locals 0 sess,n,prevH,__kab_a0,r,__kab_a1
 fn_op 0 load_local 0
-fn_op 0 get_member 210
+fn_op 0 get_member 211
 fn_op 0 store_local 2
 fn_op 0 load_local 1
 fn_op 0 store_local 3
 fn_op 0 load_local 0
-fn_op 0 const 210
+fn_op 0 const 211
 fn_op 0 load_local 3
 fn_op 0 index_set
 fn_op 0 swap
@@ -496,13 +498,13 @@ fn_op 0 store_local 0
 fn_op 0 pop
 fn_op 0 load_local 0
 fn_op 0 load_local 0
-fn_op 0 get_member 211
+fn_op 0 get_member 212
 fn_op 0 call 1
 fn_op 0 store_local 4
 fn_op 0 load_local 2
 fn_op 0 store_local 5
 fn_op 0 load_local 0
-fn_op 0 const 210
+fn_op 0 const 211
 fn_op 0 load_local 5
 fn_op 0 index_set
 fn_op 0 swap
@@ -515,7 +517,7 @@ fn 1 pCallPostfix
 fn_params 1 sess
 fn_locals 1 sess
 fn_op 1 load_local 0
-fn_op 1 const 212
+fn_op 1 const 213
 fn_op 1 load_global 0
 fn_op 1 call 2
 fn_op 1 return
@@ -524,7 +526,7 @@ fn 2 pCallTypeArgs
 fn_params 2 sess
 fn_locals 2 sess
 fn_op 2 load_local 0
-fn_op 2 const 213
+fn_op 2 const 214
 fn_op 2 load_global 0
 fn_op 2 call 2
 fn_op 2 return
@@ -533,7 +535,7 @@ fn 3 pCallUnary
 fn_params 3 sess
 fn_locals 3 sess
 fn_op 3 load_local 0
-fn_op 3 const 214
+fn_op 3 const 215
 fn_op 3 load_global 0
 fn_op 3 call 2
 fn_op 3 return
@@ -542,7 +544,7 @@ fn 4 pCallMul
 fn_params 4 sess
 fn_locals 4 sess
 fn_op 4 load_local 0
-fn_op 4 const 215
+fn_op 4 const 216
 fn_op 4 load_global 0
 fn_op 4 call 2
 fn_op 4 return
@@ -551,7 +553,7 @@ fn 5 pCallAddShift
 fn_params 5 sess
 fn_locals 5 sess
 fn_op 5 load_local 0
-fn_op 5 const 216
+fn_op 5 const 217
 fn_op 5 load_global 0
 fn_op 5 call 2
 fn_op 5 return
@@ -560,7 +562,7 @@ fn 6 pCallRelExpr
 fn_params 6 sess
 fn_locals 6 sess
 fn_op 6 load_local 0
-fn_op 6 const 217
+fn_op 6 const 218
 fn_op 6 load_global 0
 fn_op 6 call 2
 fn_op 6 return
@@ -569,7 +571,7 @@ fn 7 pCallCompare
 fn_params 7 sess
 fn_locals 7 sess
 fn_op 7 load_local 0
-fn_op 7 const 218
+fn_op 7 const 219
 fn_op 7 load_global 0
 fn_op 7 call 2
 fn_op 7 return
@@ -578,7 +580,7 @@ fn 8 pCallStmt
 fn_params 8 sess
 fn_locals 8 sess
 fn_op 8 load_local 0
-fn_op 8 const 219
+fn_op 8 const 220
 fn_op 8 load_global 0
 fn_op 8 call 2
 fn_op 8 return
@@ -587,7 +589,7 @@ fn 9 pCallMatchPat
 fn_params 9 sess
 fn_locals 9 sess
 fn_op 9 load_local 0
-fn_op 9 const 220
+fn_op 9 const 221
 fn_op 9 load_global 0
 fn_op 9 call 2
 fn_op 9 return
@@ -596,38 +598,38 @@ fn 10 peek
 fn_params 10 sess
 fn_locals 10 sess
 fn_op 10 load_local 0
-fn_op 10 get_member 221
+fn_op 10 get_member 222
 fn_op 10 return
 fn_arrows 10 0
 fn 11 bump
 fn_params 11 sess
 fn_locals 11 sess,__kab_a0,pos,n,__kab_a1,__kab_a2,__kab_a3
 fn_op 11 load_local 0
-fn_op 11 get_member 221
+fn_op 11 get_member 222
 fn_op 11 store_local 1
 fn_op 11 load_local 0
-fn_op 11 const 222
+fn_op 11 const 223
 fn_op 11 load_local 1
 fn_op 11 index_set
 fn_op 11 swap
 fn_op 11 store_local 0
 fn_op 11 pop
 fn_op 11 load_local 0
-fn_op 11 get_member 223
+fn_op 11 get_member 224
 fn_op 11 store_local 2
 fn_op 11 load_local 0
-fn_op 11 get_member 224
+fn_op 11 get_member 225
 fn_op 11 store_local 3
 fn_op 11 load_local 2
 fn_op 11 load_local 3
 fn_op 11 lt
 fn_op 11 jump_if_false 38
-fn_op 11 const 213
+fn_op 11 const 214
 fn_op 11 acc_add_local 2
 fn_op 11 load_local 2
 fn_op 11 store_local 4
 fn_op 11 load_local 0
-fn_op 11 const 223
+fn_op 11 const 224
 fn_op 11 load_local 4
 fn_op 11 index_set
 fn_op 11 swap
@@ -638,12 +640,12 @@ fn_op 11 load_local 3
 fn_op 11 lt
 fn_op 11 jump_if_false 13
 fn_op 11 load_local 0
-fn_op 11 get_member 226
+fn_op 11 get_member 227
 fn_op 11 load_local 2
 fn_op 11 index_get
 fn_op 11 store_local 5
 fn_op 11 load_local 0
-fn_op 11 const 221
+fn_op 11 const 222
 fn_op 11 load_local 5
 fn_op 11 index_set
 fn_op 11 swap
@@ -651,42 +653,42 @@ fn_op 11 store_local 0
 fn_op 11 pop
 fn_op 11 jump 10
 fn_op 11 load_local 0
-fn_op 11 get_member 227
+fn_op 11 get_member 228
 fn_op 11 store_local 6
 fn_op 11 load_local 0
-fn_op 11 const 221
+fn_op 11 const 222
 fn_op 11 load_local 6
 fn_op 11 index_set
 fn_op 11 swap
 fn_op 11 store_local 0
 fn_op 11 pop
 fn_op 11 load_local 0
-fn_op 11 get_member 222
+fn_op 11 get_member 223
 fn_op 11 return
 fn_arrows 11 0
 fn 12 poolPush
 fn_params 12 sess,v
 fn_locals 12 sess,v,__kab_a0,__kab_a1
 fn_op 12 load_local 0
-fn_op 12 get_member 228
+fn_op 12 get_member 229
 fn_op 12 load_local 1
 fn_op 12 load_global 12
 fn_op 12 call 2
 fn_op 12 store_local 2
 fn_op 12 load_local 0
-fn_op 12 const 228
+fn_op 12 const 229
 fn_op 12 load_local 2
 fn_op 12 index_set
 fn_op 12 swap
 fn_op 12 store_local 0
 fn_op 12 pop
 fn_op 12 load_local 0
-fn_op 12 get_member 229
-fn_op 12 const 213
+fn_op 12 get_member 230
+fn_op 12 const 214
 fn_op 12 add
 fn_op 12 store_local 3
 fn_op 12 load_local 0
-fn_op 12 const 229
+fn_op 12 const 230
 fn_op 12 load_local 3
 fn_op 12 index_set
 fn_op 12 swap
@@ -699,26 +701,26 @@ fn 13 pEnterBody
 fn_params 13 sess
 fn_locals 13 sess,__kab_a0,__kab_a1,__kab_a2
 fn_op 13 load_local 0
-fn_op 13 get_member 230
-fn_op 13 load_local 0
 fn_op 13 get_member 231
+fn_op 13 load_local 0
+fn_op 13 get_member 232
 fn_op 13 load_global 12
 fn_op 13 call 2
 fn_op 13 store_local 1
 fn_op 13 load_local 0
-fn_op 13 const 230
+fn_op 13 const 231
 fn_op 13 load_local 1
 fn_op 13 index_set
 fn_op 13 swap
 fn_op 13 store_local 0
 fn_op 13 pop
 fn_op 13 load_local 0
-fn_op 13 get_member 232
-fn_op 13 const 213
+fn_op 13 get_member 233
+fn_op 13 const 214
 fn_op 13 add
 fn_op 13 store_local 2
 fn_op 13 load_local 0
-fn_op 13 const 232
+fn_op 13 const 233
 fn_op 13 load_local 2
 fn_op 13 index_set
 fn_op 13 swap
@@ -727,60 +729,60 @@ fn_op 13 pop
 fn_op 13 make_array 0
 fn_op 13 store_local 3
 fn_op 13 load_local 0
-fn_op 13 const 231
+fn_op 13 const 232
 fn_op 13 load_local 3
 fn_op 13 index_set
 fn_op 13 swap
 fn_op 13 store_local 0
 fn_op 13 pop
-fn_op 13 const 212
+fn_op 13 const 213
 fn_op 13 return
 fn_arrows 13 0
 fn 14 pLeaveBody
 fn_params 14 sess
 fn_locals 14 sess,body,st,n,__kab_a0,__kab_a1,__kab_a2
 fn_op 14 load_local 0
-fn_op 14 get_member 231
+fn_op 14 get_member 232
 fn_op 14 store_local 1
 fn_op 14 load_local 0
-fn_op 14 get_member 230
+fn_op 14 get_member 231
 fn_op 14 store_local 2
 fn_op 14 len_local 2
 fn_op 14 store_local 3
 fn_op 14 load_local 3
-fn_op 14 const 213
+fn_op 14 const 214
 fn_op 14 sub
 fn_op 14 index_get_local 2
 fn_op 14 store_local 4
 fn_op 14 load_local 0
-fn_op 14 const 231
+fn_op 14 const 232
 fn_op 14 load_local 4
 fn_op 14 index_set
 fn_op 14 swap
 fn_op 14 store_local 0
 fn_op 14 pop
 fn_op 14 load_local 2
-fn_op 14 const 212
-fn_op 14 load_local 3
 fn_op 14 const 213
+fn_op 14 load_local 3
+fn_op 14 const 214
 fn_op 14 sub
 fn_op 14 load_global 15
 fn_op 14 call 3
 fn_op 14 store_local 5
 fn_op 14 load_local 0
-fn_op 14 const 230
+fn_op 14 const 231
 fn_op 14 load_local 5
 fn_op 14 index_set
 fn_op 14 swap
 fn_op 14 store_local 0
 fn_op 14 pop
 fn_op 14 load_local 0
-fn_op 14 get_member 232
-fn_op 14 const 213
+fn_op 14 get_member 233
+fn_op 14 const 214
 fn_op 14 sub
 fn_op 14 store_local 6
 fn_op 14 load_local 0
-fn_op 14 const 232
+fn_op 14 const 233
 fn_op 14 load_local 6
 fn_op 14 index_set
 fn_op 14 swap
@@ -793,14 +795,14 @@ fn 15 pParseBodyUntilRBrace
 fn_params 15 sess,eofMsg
 fn_locals 15 sess,eofMsg,stmt,__kab_a0
 fn_op 15 load_local 0
-fn_op 15 get_member 221
-fn_op 15 get_member 233
-fn_op 15 const 234
+fn_op 15 get_member 222
+fn_op 15 get_member 234
+fn_op 15 const 235
 fn_op 15 ne
 fn_op 15 jump_if_false 37
 fn_op 15 load_local 0
-fn_op 15 get_member 221
-fn_op 15 get_member 233
+fn_op 15 get_member 222
+fn_op 15 get_member 234
 fn_op 15 const 68
 fn_op 15 eq
 fn_op 15 jump_if_false 3
@@ -812,22 +814,22 @@ fn_op 15 load_global 8
 fn_op 15 call 1
 fn_op 15 store_local 2
 fn_op 15 load_local 0
-fn_op 15 get_member 231
+fn_op 15 get_member 232
 fn_op 15 load_local 2
 fn_op 15 load_global 12
 fn_op 15 call 2
 fn_op 15 store_local 3
 fn_op 15 load_local 0
-fn_op 15 const 231
+fn_op 15 const 232
 fn_op 15 load_local 3
 fn_op 15 index_set
 fn_op 15 swap
 fn_op 15 store_local 0
 fn_op 15 pop
 fn_op 15 load_local 0
-fn_op 15 get_member 221
-fn_op 15 get_member 233
-fn_op 15 const 235
+fn_op 15 get_member 222
+fn_op 15 get_member 234
+fn_op 15 const 236
 fn_op 15 eq
 fn_op 15 jump_if_false 4
 fn_op 15 load_local 0
@@ -839,33 +841,33 @@ fn_op 15 load_local 0
 fn_op 15 load_global 11
 fn_op 15 call 1
 fn_op 15 pop
-fn_op 15 const 212
+fn_op 15 const 213
 fn_op 15 return
 fn_arrows 15 0
 fn 16 pEnterLoopBody
 fn_params 16 sess
 fn_locals 16 sess,__kab_a0,__kab_a1,__kab_a2
 fn_op 16 load_local 0
-fn_op 16 get_member 230
+fn_op 16 get_member 231
 fn_op 16 load_local 0
-fn_op 16 get_member 236
+fn_op 16 get_member 237
 fn_op 16 load_global 12
 fn_op 16 call 2
 fn_op 16 store_local 1
 fn_op 16 load_local 0
-fn_op 16 const 230
+fn_op 16 const 231
 fn_op 16 load_local 1
 fn_op 16 index_set
 fn_op 16 swap
 fn_op 16 store_local 0
 fn_op 16 pop
 fn_op 16 load_local 0
-fn_op 16 get_member 232
-fn_op 16 const 213
+fn_op 16 get_member 233
+fn_op 16 const 214
 fn_op 16 add
 fn_op 16 store_local 2
 fn_op 16 load_local 0
-fn_op 16 const 232
+fn_op 16 const 233
 fn_op 16 load_local 2
 fn_op 16 index_set
 fn_op 16 swap
@@ -874,60 +876,60 @@ fn_op 16 pop
 fn_op 16 make_array 0
 fn_op 16 store_local 3
 fn_op 16 load_local 0
-fn_op 16 const 236
+fn_op 16 const 237
 fn_op 16 load_local 3
 fn_op 16 index_set
 fn_op 16 swap
 fn_op 16 store_local 0
 fn_op 16 pop
-fn_op 16 const 212
+fn_op 16 const 213
 fn_op 16 return
 fn_arrows 16 0
 fn 17 pLeaveLoopBody
 fn_params 17 sess
 fn_locals 17 sess,body,st,n,__kab_a0,__kab_a1,__kab_a2
 fn_op 17 load_local 0
-fn_op 17 get_member 236
+fn_op 17 get_member 237
 fn_op 17 store_local 1
 fn_op 17 load_local 0
-fn_op 17 get_member 230
+fn_op 17 get_member 231
 fn_op 17 store_local 2
 fn_op 17 len_local 2
 fn_op 17 store_local 3
 fn_op 17 load_local 3
-fn_op 17 const 213
+fn_op 17 const 214
 fn_op 17 sub
 fn_op 17 index_get_local 2
 fn_op 17 store_local 4
 fn_op 17 load_local 0
-fn_op 17 const 236
+fn_op 17 const 237
 fn_op 17 load_local 4
 fn_op 17 index_set
 fn_op 17 swap
 fn_op 17 store_local 0
 fn_op 17 pop
 fn_op 17 load_local 2
-fn_op 17 const 212
-fn_op 17 load_local 3
 fn_op 17 const 213
+fn_op 17 load_local 3
+fn_op 17 const 214
 fn_op 17 sub
 fn_op 17 load_global 15
 fn_op 17 call 3
 fn_op 17 store_local 5
 fn_op 17 load_local 0
-fn_op 17 const 230
+fn_op 17 const 231
 fn_op 17 load_local 5
 fn_op 17 index_set
 fn_op 17 swap
 fn_op 17 store_local 0
 fn_op 17 pop
 fn_op 17 load_local 0
-fn_op 17 get_member 232
-fn_op 17 const 213
+fn_op 17 get_member 233
+fn_op 17 const 214
 fn_op 17 sub
 fn_op 17 store_local 6
 fn_op 17 load_local 0
-fn_op 17 const 232
+fn_op 17 const 233
 fn_op 17 load_local 6
 fn_op 17 index_set
 fn_op 17 swap
@@ -940,9 +942,9 @@ fn 18 pParseLoopUntilRBrace
 fn_params 18 sess
 fn_locals 18 sess,stmt,__kab_a0
 fn_op 18 load_local 0
-fn_op 18 get_member 221
-fn_op 18 get_member 233
-fn_op 18 const 234
+fn_op 18 get_member 222
+fn_op 18 get_member 234
+fn_op 18 const 235
 fn_op 18 ne
 fn_op 18 jump_if_false 28
 fn_op 18 load_local 0
@@ -950,22 +952,22 @@ fn_op 18 load_global 8
 fn_op 18 call 1
 fn_op 18 store_local 1
 fn_op 18 load_local 0
-fn_op 18 get_member 236
+fn_op 18 get_member 237
 fn_op 18 load_local 1
 fn_op 18 load_global 12
 fn_op 18 call 2
 fn_op 18 store_local 2
 fn_op 18 load_local 0
-fn_op 18 const 236
+fn_op 18 const 237
 fn_op 18 load_local 2
 fn_op 18 index_set
 fn_op 18 swap
 fn_op 18 store_local 0
 fn_op 18 pop
 fn_op 18 load_local 0
-fn_op 18 get_member 221
-fn_op 18 get_member 233
-fn_op 18 const 235
+fn_op 18 get_member 222
+fn_op 18 get_member 234
+fn_op 18 const 236
 fn_op 18 eq
 fn_op 18 jump_if_false 4
 fn_op 18 load_local 0
@@ -977,13 +979,13 @@ fn_op 18 load_local 0
 fn_op 18 load_global 11
 fn_op 18 call 1
 fn_op 18 pop
-fn_op 18 const 212
+fn_op 18 const 213
 fn_op 18 return
 fn_arrows 18 0
 arrows=0
 imports=0
 pub_imports=0
-exports=239
+exports=240
 export 0 pCallHook
 export 1 pCallPostfix
 export 2 pCallTypeArgs
@@ -1109,120 +1111,121 @@ export 121 AST_FOR_OF
 export 122 AST_FOR_IN
 export 123 AST_FOR
 export 124 AST_ARROW
-export 125 AST_OBJECT
-export 126 AST_ARRAY
-export 127 AST_MEMBER
-export 128 AST_INDEX
-export 129 AST_OPTIONAL_MEMBER
-export 130 AST_OPTIONAL_INDEX
-export 131 AST_OPTIONAL_CALL
-export 132 AST_TERNARY
-export 133 AST_RESULT_QUESTION
-export 134 AST_SWITCH
-export 135 AST_FALLTHROUGH
-export 136 AST_SUPER
-export 137 LIT_NUMBER
-export 138 LIT_STRING
-export 139 LIT_BOOL
-export 140 LIT_NULL
-export 141 LIT_UNDEF
-export 142 OP_CONST
-export 143 OP_POP
-export 144 OP_DUP
-export 145 OP_SWAP
-export 146 OP_CONCAT_ARRAY
-export 147 OP_MERGE_OBJECT
-export 148 OP_CALL_FROM_ARRAY
-export 149 OP_LOAD_GLOBAL
-export 150 OP_STORE_GLOBAL
-export 151 OP_LOAD_LOCAL
-export 152 OP_STORE_LOCAL
-export 153 OP_TAKE_LOCAL
-export 154 OP_TAKE_GLOBAL
-export 155 OP_ARRAY_PUSH_LOCAL
-export 156 OP_ARRAY_PUSH_GLOBAL
-export 157 OP_ARRAY_POP_LOCAL
-export 158 OP_ARRAY_POP_GLOBAL
-export 159 OP_ACC_ADD_LOCAL
-export 160 OP_ACC_ADD_GLOBAL
-export 161 OP_LEN_LOCAL
-export 162 OP_LEN_GLOBAL
-export 163 OP_INDEX_GET_LOCAL
-export 164 OP_INDEX_GET_GLOBAL
-export 165 OP_ADD
-export 166 OP_SUB
-export 167 OP_MUL
-export 168 OP_DIV
-export 169 OP_MOD
-export 170 OP_POW
-export 171 OP_NEG
-export 172 OP_BIT_AND
-export 173 OP_BIT_OR
-export 174 OP_BIT_XOR
-export 175 OP_SHL
-export 176 OP_SHR
-export 177 OP_USHR
-export 178 OP_BIT_NOT
-export 179 OP_NOT
-export 180 OP_AND
-export 181 OP_OR
-export 182 OP_IN
-export 183 OP_EQ
-export 184 OP_NE
-export 185 OP_LT
-export 186 OP_GT
-export 187 OP_LE
-export 188 OP_GE
-export 189 OP_MAKE_OBJECT
-export 190 OP_MAKE_ARRAY
-export 191 OP_INDEX_GET
-export 192 OP_INDEX_SET
-export 193 OP_GET_MEMBER
-export 194 OP_GET_SUPER_METHOD
-export 195 OP_SET_MEMBER
-export 196 OP_JUMP
-export 197 OP_JUMP_IF_FALSE
-export 198 OP_JUMP_IF_TRUE
-export 199 OP_JUMP_IF_NOT_NULLISH
-export 200 OP_GET_LENGTH
-export 201 OP_JUMP_UNLESS_CONST_EQ
-export 202 OP_JUMP_UNLESS_OPTION_SOME
-export 203 OP_JUMP_UNLESS_OPTION_NONE
-export 204 OP_UNWRAP_OPTION_SOME
-export 205 OP_JUMP_UNLESS_RESULT_OK
-export 206 OP_JUMP_UNLESS_RESULT_ERR
-export 207 OP_UNWRAP_RESULT_OK
-export 208 OP_UNWRAP_RESULT_ERR
-export 209 OP_JUMP_UNLESS_ARRAY
-export 210 OP_JUMP_UNLESS_OBJECT
-export 211 OP_JUMP_UNLESS_OBJECT_EMPTY
-export 212 OP_JUMP_UNLESS_HAS_MEMBER
-export 213 OP_JUMP_UNLESS_ENUM_VARIANT
-export 214 OP_UNPACK_ENUM_FIELDS
-export 215 OP_INDEX_PEEK_FROM_END
-export 216 OP_ARRAY_SLICE_FROM
-export 217 OP_ARRAY_SLICE_REST
-export 218 OP_OBJECT_REST
-export 219 OP_MATCH_FAIL
-export 220 OP_CALL
-export 221 OP_NEW_INSTANCE
-export 222 OP_NEW_INSTANCE_FROM_ARRAY
-export 223 OP_RETURN
-export 224 OP_THROW
-export 225 OP_AWAIT
-export 226 OP_YIELD
-export 227 OP_JUMP_IF_RESULT_ERR
-export 228 OP_MAKE_ARROW
-export 229 OP_ITER_STEP
-export 230 OP_ASYNC_ITER_STEP
-export 231 OP_MAKE_OK
-export 232 OP_MAKE_ERR
-export 233 OP_MAKE_SOME
-export 234 OP_MAKE_NONE
-export 235 OP_RESULT_QUESTION
-export 236 OP_HALT
-export 237 KAB_UNDEF_CONST
-export 238 KAB_FN_REST_MARK
+export 125 AST_ARROW_ASYNC
+export 126 AST_OBJECT
+export 127 AST_ARRAY
+export 128 AST_MEMBER
+export 129 AST_INDEX
+export 130 AST_OPTIONAL_MEMBER
+export 131 AST_OPTIONAL_INDEX
+export 132 AST_OPTIONAL_CALL
+export 133 AST_TERNARY
+export 134 AST_RESULT_QUESTION
+export 135 AST_SWITCH
+export 136 AST_FALLTHROUGH
+export 137 AST_SUPER
+export 138 LIT_NUMBER
+export 139 LIT_STRING
+export 140 LIT_BOOL
+export 141 LIT_NULL
+export 142 LIT_UNDEF
+export 143 OP_CONST
+export 144 OP_POP
+export 145 OP_DUP
+export 146 OP_SWAP
+export 147 OP_CONCAT_ARRAY
+export 148 OP_MERGE_OBJECT
+export 149 OP_CALL_FROM_ARRAY
+export 150 OP_LOAD_GLOBAL
+export 151 OP_STORE_GLOBAL
+export 152 OP_LOAD_LOCAL
+export 153 OP_STORE_LOCAL
+export 154 OP_TAKE_LOCAL
+export 155 OP_TAKE_GLOBAL
+export 156 OP_ARRAY_PUSH_LOCAL
+export 157 OP_ARRAY_PUSH_GLOBAL
+export 158 OP_ARRAY_POP_LOCAL
+export 159 OP_ARRAY_POP_GLOBAL
+export 160 OP_ACC_ADD_LOCAL
+export 161 OP_ACC_ADD_GLOBAL
+export 162 OP_LEN_LOCAL
+export 163 OP_LEN_GLOBAL
+export 164 OP_INDEX_GET_LOCAL
+export 165 OP_INDEX_GET_GLOBAL
+export 166 OP_ADD
+export 167 OP_SUB
+export 168 OP_MUL
+export 169 OP_DIV
+export 170 OP_MOD
+export 171 OP_POW
+export 172 OP_NEG
+export 173 OP_BIT_AND
+export 174 OP_BIT_OR
+export 175 OP_BIT_XOR
+export 176 OP_SHL
+export 177 OP_SHR
+export 178 OP_USHR
+export 179 OP_BIT_NOT
+export 180 OP_NOT
+export 181 OP_AND
+export 182 OP_OR
+export 183 OP_IN
+export 184 OP_EQ
+export 185 OP_NE
+export 186 OP_LT
+export 187 OP_GT
+export 188 OP_LE
+export 189 OP_GE
+export 190 OP_MAKE_OBJECT
+export 191 OP_MAKE_ARRAY
+export 192 OP_INDEX_GET
+export 193 OP_INDEX_SET
+export 194 OP_GET_MEMBER
+export 195 OP_GET_SUPER_METHOD
+export 196 OP_SET_MEMBER
+export 197 OP_JUMP
+export 198 OP_JUMP_IF_FALSE
+export 199 OP_JUMP_IF_TRUE
+export 200 OP_JUMP_IF_NOT_NULLISH
+export 201 OP_GET_LENGTH
+export 202 OP_JUMP_UNLESS_CONST_EQ
+export 203 OP_JUMP_UNLESS_OPTION_SOME
+export 204 OP_JUMP_UNLESS_OPTION_NONE
+export 205 OP_UNWRAP_OPTION_SOME
+export 206 OP_JUMP_UNLESS_RESULT_OK
+export 207 OP_JUMP_UNLESS_RESULT_ERR
+export 208 OP_UNWRAP_RESULT_OK
+export 209 OP_UNWRAP_RESULT_ERR
+export 210 OP_JUMP_UNLESS_ARRAY
+export 211 OP_JUMP_UNLESS_OBJECT
+export 212 OP_JUMP_UNLESS_OBJECT_EMPTY
+export 213 OP_JUMP_UNLESS_HAS_MEMBER
+export 214 OP_JUMP_UNLESS_ENUM_VARIANT
+export 215 OP_UNPACK_ENUM_FIELDS
+export 216 OP_INDEX_PEEK_FROM_END
+export 217 OP_ARRAY_SLICE_FROM
+export 218 OP_ARRAY_SLICE_REST
+export 219 OP_OBJECT_REST
+export 220 OP_MATCH_FAIL
+export 221 OP_CALL
+export 222 OP_NEW_INSTANCE
+export 223 OP_NEW_INSTANCE_FROM_ARRAY
+export 224 OP_RETURN
+export 225 OP_THROW
+export 226 OP_AWAIT
+export 227 OP_YIELD
+export 228 OP_JUMP_IF_RESULT_ERR
+export 229 OP_MAKE_ARROW
+export 230 OP_ITER_STEP
+export 231 OP_ASYNC_ITER_STEP
+export 232 OP_MAKE_OK
+export 233 OP_MAKE_ERR
+export 234 OP_MAKE_SOME
+export 235 OP_MAKE_NONE
+export 236 OP_RESULT_QUESTION
+export 237 OP_HALT
+export 238 KAB_UNDEF_CONST
+export 239 KAB_FN_REST_MARK
 memory_mode=gc
 interfaces=0
 classes=0
@@ -1582,13 +1585,13 @@ const 118
 store_local 119
 const 119
 store_local 120
-const 56
-store_local 121
-const 57
-store_local 122
-const 7
-store_local 123
 const 120
+store_local 121
+const 56
+store_local 122
+const 57
+store_local 123
+const 7
 store_local 124
 const 121
 store_local 125
@@ -1660,15 +1663,15 @@ const 154
 store_local 158
 const 155
 store_local 159
-const 39
-store_local 160
 const 156
+store_local 160
+const 39
 store_local 161
 const 157
 store_local 162
-const 19
-store_local 163
 const 158
+store_local 163
+const 19
 store_local 164
 const 159
 store_local 165
@@ -1748,15 +1751,15 @@ const 196
 store_local 202
 const 197
 store_local 203
-const 8
-store_local 204
-const 31
-store_local 205
-const 28
-store_local 206
-const 29
-store_local 207
 const 198
+store_local 204
+const 8
+store_local 205
+const 31
+store_local 206
+const 28
+store_local 207
+const 29
 store_local 208
 const 199
 store_local 209
@@ -1780,8 +1783,10 @@ const 208
 store_local 218
 const 209
 store_local 219
+const 210
+store_local 220
 halt
 
 source=self_host/ast_defs.kab
-statements=239
-fingerprint=18f26e680c1bc1c3
+statements=240
+fingerprint=448f4e4fa975644d

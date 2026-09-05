@@ -1,7 +1,8 @@
 // F14/SH24: wrap host fetch. import "kab/http/http_fetch"
 // Do not call from smokes (would hit the network). Do not await here.
-// Live TCP/TLS remain host; Kab TLS unwrap is httpFetchAsyncKab (SH23).
-// httpHostDeleteOk stays false.
+// Do not import kab/crypto here (smokes must stay cheap).
+// Kab TLS unwrap + loopback TCP: httpFetchAsyncKab / httpFetchAsyncKabTcpEvalOk (SH23).
+// Live rustls remains in http_fetch_async. httpHostDeleteOk stays false.
 
 pub fn httpFetch(method, url, body = "", headers = {}, timeoutMs = 0) {
     return http_fetch_async(method, url, body, headers, timeoutMs)

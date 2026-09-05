@@ -1,5 +1,5 @@
-// SH23: http_fetch_async-shaped GET + redirect follow/cap + TLS record -> status/body in Kab.
-// Live rustls remains in http_fetch_async. Do not delete rustls until Kab is stable.
+// SH23: http_fetch_async-shaped GET + redirect follow/cap + loopback TCP hex TLS record.
+// Host tcp_read is UTF-8; hex framing, not rustls / tcp_start_tls. cryptoHostDeleteOk false.
 // import "kab/crypto/crypto_http_fetch"
 // Live rustls remains in http_fetch_async. cryptoHostDeleteOk stays false.
 
@@ -92,6 +92,9 @@ pub fn httpFetchAsyncKab(method, url, body, headers, timeoutMs, rec) {
     if headers["Cookie"] {
         return false
     }
+    if headers["Proxy-Authorization"] {
+        return false
+    }
     return httpFetchViaKab(method, url, rec)
 }
 
@@ -113,6 +116,9 @@ pub fn httpFetchAsyncKabWrite(method, url, body, headers, timeoutMs, rec) {
         return false
     }
     if headers["Cookie"] {
+        return false
+    }
+    if headers["Proxy-Authorization"] {
         return false
     }
     if method == "GET" {
@@ -173,6 +179,21 @@ pub fn httpResolveRedirect(base, loc) {
     if cryptoIsHttps(loc) == true {
         return loc
     }
+    if char_code_at(loc, 0) == 63 {
+        if cryptoIsHttps(base) != true {
+            return false
+        }
+        let path = httpPathFromHttps(base)
+        let cut = path
+        let k = 0
+        while k < len(path) {
+            if char_code_at(path, k) == 63 {
+                cut = str_slice(path, 0, k)
+            }
+            k = k + 1
+        }
+        return "https://" + httpHostFromHttps(base) + cut + loc
+    }
     if char_code_at(loc, 0) != 47 {
         return false
     }
@@ -222,6 +243,42 @@ pub fn httpFetchAsyncKabFollowAt(method, url, body, headers, timeoutMs, hop, rec
         return false
     }
     return httpFetchAsyncKabFollow(method, url, body, headers, timeoutMs, hop, rec)
+}
+
+pub fn httpFetchTlsAppHex() {
+    return "170303004000000000000000012cca34babb104d8f8118d6f7769e8b1cde9e6c320da0636ddbe97845e241b336be9aed04913f2c857b40d37292f27258bf9ea854ac9fce4e"
+}
+
+pub fn httpFetchAsyncKabFromSock(method, url, body, headers, timeoutMs, sock) {
+    let hx = tcp_read(sock, len(httpFetchTlsAppHex()))
+    if hx != httpFetchTlsAppHex() {
+        return false
+    }
+    return httpFetchAsyncKab(method, url, body, headers, timeoutMs, aesParseHex(hx))
+}
+
+pub fn httpFetchAsyncKabTcpEvalOk() {
+    let recHex = httpFetchTlsAppHex()
+    let port = 28191
+    let ln = tcp_listen("127.0.0.1", port)
+    let cli = tcp_connect("127.0.0.1", port)
+    let srv = tcp_accept(ln)
+    tcp_write(srv, recHex)
+    tcp_close(srv)
+    let url = "https://a.example:443/v?q=1"
+    let via = httpFetchAsyncKabFromSock("GET", url, "", {}, 0, cli)
+    tcp_close(cli)
+    tcp_close(ln)
+    if via == false {
+        return false
+    }
+    if via["status"] != 200 {
+        return false
+    }
+    if via["body"] != "OK" {
+        return false
+    }
+    return true
 }
 
 pub fn httpFetchHttps(url, rec) {
@@ -289,6 +346,23 @@ pub fn httpFetchHttpsEvalOk() {
     if httpResolveRedirect("https://a.example/", "//a.example/v?q=1") != "https://a.example/v?q=1" {
         return false
     }
+    if httpResolveRedirect("https://a.example/v?old=2", "?q=1") != "https://a.example/v?q=1" {
+        return false
+    }
+    let qHop = {}
+    qHop["n"] = 0
+    qHop = httpAppend(qHop, "HTTP/1.1 302 Found")
+    qHop = httpAppendCrLf(qHop)
+    qHop = httpAppend(qHop, "Location: ?q=1")
+    qHop = httpAppendCrLf(qHop)
+    qHop = httpAppendCrLf(qHop)
+    let qVia = httpFetchAsyncKabFollow("GET", "https://a.example/v?old=2", "", {}, 0, qHop, rec)
+    if qVia == false {
+        return false
+    }
+    if qVia["status"] != 200 {
+        return false
+    }
     let protoHop = {}
     protoHop["n"] = 0
     protoHop = httpAppend(protoHop, "HTTP/1.1 302 Found")
@@ -340,6 +414,14 @@ pub fn httpFetchHttpsEvalOk() {
         return false
     }
     if httpFetchAsyncKab("GET", loc, "", cred, 0, rec) != false {
+        return false
+    }
+    let proxyHdr = {}
+    proxyHdr["Proxy-Authorization"] = "Basic x"
+    if httpFetchAsyncKab("GET", loc, "", proxyHdr, 0, rec) != false {
+        return false
+    }
+    if httpFetchAsyncKabWrite("POST", loc, "a=1", proxyHdr, 0, rec) != false {
         return false
     }
     let via = httpFetchAsyncKabFollow("GET", "https://a.example/", "", {}, 0, redir, rec)
@@ -436,6 +518,9 @@ pub fn httpFetchHttpsEvalOk() {
         return false
     }
     if httpPostEvalOk() != true {
+        return false
+    }
+    if httpFetchAsyncKabTcpEvalOk() != true {
         return false
     }
     return true

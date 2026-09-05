@@ -1,5 +1,5 @@
 kabootar-bytecode/1
-constants=239
+constants=240
 const 0 string pCur
 const 1 string type
 const 2 string {
@@ -238,7 +238,8 @@ const 234 string pEnumSym
 const 235 string variants
 const 236 string Expected\sinterface/trait\sname
 const 237 string pIfaceSym
-const 238 string `async`\smust\sbe\sfollowed\sby\s`fn`
+const 238 string pEofTok
+const 239 string `async`\smust\sbe\sfollowed\sby\s`fn`
 global 0 bump
 global 1 pEnterBody
 global 2 pParseBodyUntilRBrace
@@ -6904,7 +6905,7 @@ fn_op 56 return
 fn_arrows 56 0
 fn 57 parseStmt
 fn_params 57 sess
-fn_locals 57 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,r
+fn_locals 57 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3,pos,n,nxt,nt,__kab_a4,__kab_a5,__kab_a6,__kab_a7,r
 fn_op 57 load_local 0
 fn_op 57 get_member 0
 fn_op 57 get_member 1
@@ -6964,16 +6965,47 @@ fn_op 57 get_member 0
 fn_op 57 get_member 1
 fn_op 57 load_global 152
 fn_op 57 eq
-fn_op 57 jump_if_false 41
+fn_op 57 jump_if_false 121
+fn_op 57 load_local 0
+fn_op 57 get_member 59
+fn_op 57 store_local 5
+fn_op 57 load_local 0
+fn_op 57 get_member 60
+fn_op 57 store_local 6
+fn_op 57 load_local 0
+fn_op 57 get_member 238
+fn_op 57 store_local 7
+fn_op 57 load_local 5
+fn_op 57 const 30
+fn_op 57 add
+fn_op 57 load_local 6
+fn_op 57 lt
+fn_op 57 jump_if_false 9
+fn_op 57 load_local 0
+fn_op 57 get_member 61
+fn_op 57 load_local 5
+fn_op 57 const 30
+fn_op 57 add
+fn_op 57 index_get
+fn_op 57 dup
+fn_op 57 store_local 7
+fn_op 57 pop
+fn_op 57 load_local 7
+fn_op 57 get_member 1
+fn_op 57 store_local 8
+fn_op 57 load_local 8
+fn_op 57 load_global 118
+fn_op 57 eq
+fn_op 57 jump_if_false 33
 fn_op 57 load_local 0
 fn_op 57 load_global 0
 fn_op 57 call 1
 fn_op 57 pop
 fn_op 57 const 30
-fn_op 57 store_local 5
+fn_op 57 store_local 9
 fn_op 57 load_local 0
 fn_op 57 const 117
-fn_op 57 load_local 5
+fn_op 57 load_local 9
 fn_op 57 index_set
 fn_op 57 swap
 fn_op 57 store_local 0
@@ -6989,10 +7021,47 @@ fn_op 57 load_global 0
 fn_op 57 call 1
 fn_op 57 pop
 fn_op 57 const 30
-fn_op 57 store_local 6
+fn_op 57 store_local 10
 fn_op 57 load_local 0
 fn_op 57 const 175
-fn_op 57 load_local 6
+fn_op 57 load_local 10
+fn_op 57 index_set
+fn_op 57 swap
+fn_op 57 store_local 0
+fn_op 57 pop
+fn_op 57 jump 57
+fn_op 57 load_local 8
+fn_op 57 load_global 151
+fn_op 57 eq
+fn_op 57 jump_if_false 42
+fn_op 57 load_local 0
+fn_op 57 load_global 0
+fn_op 57 call 1
+fn_op 57 pop
+fn_op 57 const 30
+fn_op 57 store_local 11
+fn_op 57 load_local 0
+fn_op 57 const 117
+fn_op 57 load_local 11
+fn_op 57 index_set
+fn_op 57 swap
+fn_op 57 store_local 0
+fn_op 57 pop
+fn_op 57 load_local 0
+fn_op 57 get_member 0
+fn_op 57 get_member 1
+fn_op 57 load_global 151
+fn_op 57 eq
+fn_op 57 jump_if_false 13
+fn_op 57 load_local 0
+fn_op 57 load_global 0
+fn_op 57 call 1
+fn_op 57 pop
+fn_op 57 const 30
+fn_op 57 store_local 12
+fn_op 57 load_local 0
+fn_op 57 const 175
+fn_op 57 load_local 12
 fn_op 57 index_set
 fn_op 57 swap
 fn_op 57 store_local 0
@@ -7003,18 +7072,30 @@ fn_op 57 get_member 1
 fn_op 57 load_global 118
 fn_op 57 ne
 fn_op 57 jump_if_false 3
-fn_op 57 const 238
+fn_op 57 const 239
+fn_op 57 throw
+fn_op 57 pop
+fn_op 57 jump 11
+fn_op 57 load_local 8
+fn_op 57 const 148
+fn_op 57 ne
+fn_op 57 jump_if_false 7
+fn_op 57 load_local 8
+fn_op 57 load_global 12
+fn_op 57 ne
+fn_op 57 jump_if_false 3
+fn_op 57 const 239
 fn_op 57 throw
 fn_op 57 pop
 fn_op 57 load_local 0
 fn_op 57 load_global 150
 fn_op 57 call 1
-fn_op 57 store_local 7
-fn_op 57 load_local 7
+fn_op 57 store_local 13
+fn_op 57 load_local 13
 fn_op 57 const 3
 fn_op 57 ne
 fn_op 57 jump_if_false 2
-fn_op 57 load_local 7
+fn_op 57 load_local 13
 fn_op 57 return
 fn_op 57 load_local 0
 fn_op 57 load_global 149
@@ -7093,4 +7174,4 @@ halt
 
 source=self_host/parser_stmt.kab
 statements=59
-fingerprint=e8a2dcec0cb13944
+fingerprint=999f96aa319fb3e7
