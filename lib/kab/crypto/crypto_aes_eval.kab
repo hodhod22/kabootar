@@ -134,10 +134,14 @@ pub fn aesMix(s) {
         let b = s["" + (c * 4 + 1)]
         let d = s["" + (c * 4 + 2)]
         let e = s["" + (c * 4 + 3)]
-        o["" + (c * 4)] = aesXor(aesXor(aesXor(aesXtime(a), aesXor(aesXtime(b), b)), d), e) & 255
-        o["" + (c * 4 + 1)] = aesXor(aesXor(aesXor(a, aesXor(aesXtime(b), aesXor(aesXtime(d), d))), e), 0) & 255
-        o["" + (c * 4 + 2)] = aesXor(aesXor(aesXor(a, b), aesXor(aesXtime(d), aesXor(aesXtime(e), e))), 0) & 255
-        o["" + (c * 4 + 3)] = aesXor(aesXor(aesXor(aesXor(aesXtime(a), a), b), d), aesXtime(e)) & 255
+        let aa = aesXtime(a)
+        let bb = aesXtime(b)
+        let dd = aesXtime(d)
+        let ee = aesXtime(e)
+        o["" + (c * 4)] = (aa ^ bb ^ b ^ d ^ e) & 255
+        o["" + (c * 4 + 1)] = (a ^ bb ^ dd ^ d ^ e) & 255
+        o["" + (c * 4 + 2)] = (a ^ b ^ dd ^ ee ^ e) & 255
+        o["" + (c * 4 + 3)] = (aa ^ a ^ b ^ d ^ ee) & 255
         c = c + 1
     }
     o["n"] = 16
