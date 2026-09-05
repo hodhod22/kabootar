@@ -1,6 +1,8 @@
 //! Unix domain sockets for Deno parity.
 
 use std::sync::atomic::AtomicU64;
+#[cfg(all(not(target_arch = "wasm32"), unix))]
+use std::sync::atomic::Ordering;
 
 static NEXT_UNIX: AtomicU64 = AtomicU64::new(1);
 
