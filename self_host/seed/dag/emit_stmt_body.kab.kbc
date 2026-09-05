@@ -6839,7 +6839,7 @@ fn_op 28 return
 fn_arrows 28 0
 fn 29 emitStmt_return
 fn_params 29 E
-fn_locals 29 E,fs,fr,jm,__kab_a0,__kab_a1,__kab_a2
+fn_locals 29 E,returnValue,fs,fr,jm,__kab_a0,__kab_a1,__kab_a2
 fn_op 29 load_local 0
 fn_op 29 get_member 30
 fn_op 29 get_member 0
@@ -6855,6 +6855,8 @@ fn_op 29 pop
 fn_op 29 load_local 0
 fn_op 29 get_member 30
 fn_op 29 get_member 54
+fn_op 29 store_local 1
+fn_op 29 load_local 1
 fn_op 29 const 2
 fn_op 29 eq
 fn_op 29 jump_if_false 11
@@ -6868,33 +6870,31 @@ fn_op 29 call 3
 fn_op 29 load_global 4
 fn_op 29 call 3
 fn_op 29 pop
-fn_op 29 jump 7
+fn_op 29 jump 5
 fn_op 29 load_local 0
-fn_op 29 load_local 0
-fn_op 29 get_member 30
-fn_op 29 get_member 54
+fn_op 29 load_local 1
 fn_op 29 load_global 5
 fn_op 29 call 2
 fn_op 29 pop
 fn_op 29 load_local 0
 fn_op 29 get_member 127
-fn_op 29 store_local 1
-fn_op 29 load_local 1
+fn_op 29 store_local 2
+fn_op 29 load_local 2
 fn_op 29 const 55
 fn_op 29 ne
 fn_op 29 jump_if_false 80
-fn_op 29 len_local 1
+fn_op 29 len_local 2
 fn_op 29 const 8
 fn_op 29 gt
 fn_op 29 jump_if_false 76
-fn_op 29 len_local 1
+fn_op 29 len_local 2
 fn_op 29 const 9
 fn_op 29 sub
-fn_op 29 index_get_local 1
-fn_op 29 store_local 2
+fn_op 29 index_get_local 2
+fn_op 29 store_local 3
 fn_op 29 load_local 0
 fn_op 29 load_global 82
-fn_op 29 load_local 2
+fn_op 29 load_local 3
 fn_op 29 get_member 174
 fn_op 29 load_global 4
 fn_op 29 call 3
@@ -6911,7 +6911,7 @@ fn_op 29 call 3
 fn_op 29 pop
 fn_op 29 load_local 0
 fn_op 29 load_global 82
-fn_op 29 load_local 2
+fn_op 29 load_local 3
 fn_op 29 get_member 175
 fn_op 29 load_global 4
 fn_op 29 call 3
@@ -6922,41 +6922,41 @@ fn_op 29 const 8
 fn_op 29 load_global 4
 fn_op 29 call 3
 fn_op 29 pop
-fn_op 29 load_local 2
+fn_op 29 load_local 3
 fn_op 29 get_member 176
-fn_op 29 store_local 3
-fn_op 29 take_local 3
+fn_op 29 store_local 4
+fn_op 29 take_local 4
 fn_op 29 load_local 0
 fn_op 29 get_member 17
 fn_op 29 const 9
 fn_op 29 sub
-fn_op 29 array_push_local 3
+fn_op 29 array_push_local 4
+fn_op 29 pop
+fn_op 29 load_local 4
+fn_op 29 store_local 5
+fn_op 29 load_local 3
+fn_op 29 const 176
+fn_op 29 load_local 5
+fn_op 29 index_set
+fn_op 29 swap
+fn_op 29 store_local 3
 fn_op 29 pop
 fn_op 29 load_local 3
-fn_op 29 store_local 4
+fn_op 29 store_local 6
 fn_op 29 load_local 2
-fn_op 29 const 176
-fn_op 29 load_local 4
+fn_op 29 len_local 2
+fn_op 29 const 9
+fn_op 29 sub
+fn_op 29 load_local 6
 fn_op 29 index_set
 fn_op 29 swap
 fn_op 29 store_local 2
 fn_op 29 pop
 fn_op 29 load_local 2
-fn_op 29 store_local 5
-fn_op 29 load_local 1
-fn_op 29 len_local 1
-fn_op 29 const 9
-fn_op 29 sub
-fn_op 29 load_local 5
-fn_op 29 index_set
-fn_op 29 swap
-fn_op 29 store_local 1
-fn_op 29 pop
-fn_op 29 load_local 1
-fn_op 29 store_local 6
+fn_op 29 store_local 7
 fn_op 29 load_local 0
 fn_op 29 const 127
-fn_op 29 load_local 6
+fn_op 29 load_local 7
 fn_op 29 index_set
 fn_op 29 swap
 fn_op 29 store_local 0
@@ -9592,4 +9592,4 @@ halt
 
 source=self_host/emit_stmt_body.kab
 statements=62
-fingerprint=eef491aeb1c37fed
+fingerprint=16f7d1cf40e638d0
