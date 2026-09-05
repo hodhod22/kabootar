@@ -8,7 +8,9 @@ Språkparitet: [docs/LANGUAGE.md](../docs/LANGUAGE.md) (inte den här filen). **
 
 **Nolltolerans:** [docs/ROADMAP.md — strikt arbetsregel](../docs/ROADMAP.md#nolltolerans--strikt-arbetsregel). **Just nu:** [docs/ROADMAP.md — Just nu](../docs/ROADMAP.md#just-nu). Bekräfta SH-/F-/GP-/SC-steg innan kod. Ingen ny `src/**/*.rs`. Hoppa inte över SH5 → SH16 → SH6 → SH17 → … → SH28. Radera inte Rust förrän Kab är stabil; när Kab-yta finns, använd den.
 
-**SH6 = KLAR.** **SH17** i64-loop-subset stängt. **SH18** nursery på `new_instance`. **SH19** packed `.kbcb`. **SH20** JSON codec. **SH21** OS write/read. **SH22:** `sqlExecOk` (`sh22_sql_exec_smoke`). **SH23:** 🟡 Kab TLS application-data/AES-GCM unwrap med recordsäker raw-byte TCP-loopback + query Location (`sh23_crypto_http_fetch_eval_smoke`). rustls-host kvar. **Nästa:** live handshake och trust i Kab före byte av `http_fetch_async` från rustls. Inte fler crypto-flag-kloner eller sqlIs*-kloner.
+**Akutundantag:** Bara för en dokumenterad blockerare för säkerhet, korrekthet eller körbarhet; kräv minsta ändring, riktat test och ett uttalat steg tillbaka till Kab-spåret. Det ersätter inte den normala arbetsordningen. Se [ROADMAP.md — Akutundantag](../docs/ROADMAP.md#akutundantag-snävsäkerhetsventil).
+
+**SH6 = KLAR.** **SH17** i64-loop-subset stängt. **SH18** nursery på `new_instance`. **SH19** packed `.kbcb`. **SH20** JSON codec. **SH21** OS write/read. **SH22:** `sqlExecOk` (`sh22_sql_exec_smoke`). **SH23:** 🟡 Kab TLS application-data/AES-GCM unwrap med recordsäker raw-byte TCP-loopback + query Location (`sh23_crypto_http_fetch_eval_smoke`) och deterministisk TLS 1.2 fixture-handshake (`sh23_crypto_tls_fixture_eval_smoke`). rustls-host kvar. **Nästa:** live handshake och trust-chain i Kab före byte av `http_fetch_async` från rustls. Inte fler crypto-flag-kloner eller sqlIs*-kloner.
 
 ## Kedja
 
