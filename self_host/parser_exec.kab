@@ -468,8 +468,11 @@ pub fn parseCompare_eq(sess) {
 pub fn parseCompare_logic_and(sess) {
     while sess["pCur"].type == "&&" {
         bump(sess)
+        let left = sess["pLeft"]
+        let right = pCallRelExpr(sess)
         if sess["pNoBit"] == 0 {
             while sess["pCur"].type == "&" || sess["pCur"].type == "^" || sess["pCur"].type == "|" {
+                let op = sess["pCur"].type
                 bump(sess)
                 right = { "kind": AST_BINARY, "op": op, "left": right, "right": pCallRelExpr(sess) }
             }
@@ -484,6 +487,7 @@ pub fn parseCompare_logic_or_bit(sess) {
         return 0
     }
     while sess["pCur"].type == "&" || sess["pCur"].type == "^" || sess["pCur"].type == "|" {
+        let op = sess["pCur"].type
         bump(sess)
         sess["pRight"] = { "kind": AST_BINARY, "op": op, "left": sess["pRight"], "right": pCallRelExpr(sess) }
     }
@@ -506,6 +510,7 @@ pub fn parseCompare_logic_or_and(sess) {
 pub fn parseCompare_logic_or(sess) {
     while sess["pCur"].type == "||" {
         bump(sess)
+        let left = sess["pLeft"]
         sess["pRight"] = pCallRelExpr(sess)
         parseCompare_logic_or_bit(sess)
         parseCompare_logic_or_and(sess)
