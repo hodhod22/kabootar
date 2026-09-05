@@ -30,18 +30,34 @@ if man["1"] != 97 {
 if man["2"] != 110 {
     return false
 }
+if cryptoRootRsaFixtureEvalOk() != true {
+    return false
+}
 let der = {}
 der["0"] = 48
-der["1"] = 8
+der["1"] = 21
 der["2"] = 48
 der["3"] = 0
 der["4"] = 48
-der["5"] = 0
-der["6"] = 3
-der["7"] = 2
-der["8"] = 0
-der["9"] = 0
-der["n"] = 10
+der["5"] = 13
+der["6"] = 6
+der["7"] = 9
+der["8"] = 42
+der["9"] = 134
+der["10"] = 72
+der["11"] = 134
+der["12"] = 247
+der["13"] = 13
+der["14"] = 1
+der["15"] = 1
+der["16"] = 11
+der["17"] = 5
+der["18"] = 0
+der["19"] = 3
+der["20"] = 2
+der["21"] = 0
+der["22"] = 0
+der["n"] = 23
 let outer = cryptoDerTlv(der, 0)
 if outer == false {
     return false
@@ -49,24 +65,105 @@ if outer == false {
 if outer["tag"] != 48 {
     return false
 }
-if outer["len"] != 8 {
+if outer["len"] != 21 {
     return false
 }
 if cryptoRootDerCert(der) != true {
     return false
 }
-let badSig = {}
-badSig["0"] = 48
-badSig["1"] = 8
-badSig["2"] = 48
-badSig["3"] = 0
-badSig["4"] = 48
-badSig["5"] = 0
-badSig["6"] = 4
-badSig["7"] = 2
-badSig["8"] = 0
-badSig["9"] = 0
-badSig["n"] = 10
+if cryptoRootTbsPrefix(der) != false {
+    return false
+}
+let prefixBytes = [
+    48, 39, 48, 18, 2, 1, 1,
+    48, 13, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 11, 5, 0,
+    48, 13, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 11, 5, 0,
+    3, 2, 0, 0,
+]
+let prefixDer = {}
+let pi = 0
+while pi < len(prefixBytes) {
+    prefixDer["" + pi] = prefixBytes[pi]
+    pi = pi + 1
+}
+prefixDer["n"] = len(prefixBytes)
+let prefix = cryptoRootTbsPrefix(prefixDer)
+if prefix == false {
+    return false
+}
+if prefix["serial"]["len"] != 1 {
+    return false
+}
+if prefix["alg"]["end"] != 22 {
+    return false
+}
+prefixDer["19"] = 10
+if cryptoRootTbsPrefix(prefixDer) != false {
+    return false
+}
+let namesBytes = [
+    48, 102, 48, 81, 160, 3, 2, 1, 2, 2, 1, 1,
+    48, 13, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 11, 5, 0,
+    48, 12, 49, 10, 48, 8, 6, 3, 85, 4, 3, 12, 1, 65,
+    48, 0,
+    48, 12, 49, 10, 48, 8, 6, 3, 85, 4, 3, 12, 1, 66,
+    48, 26, 48, 13, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 1, 5, 0,
+    3, 9, 0, 48, 6, 2, 1, 23, 2, 1, 3,
+    48, 13, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 11, 5, 0,
+    3, 2, 0, 0
+]
+let namesDer = {}
+let ni = 0
+while ni < len(namesBytes) {
+    namesDer["" + ni] = namesBytes[ni]
+    ni = ni + 1
+}
+namesDer["n"] = len(namesBytes)
+let names = cryptoRootTbsNames(namesDer)
+if names == false {
+    return false
+}
+if names["prefix"]["version"] == false {
+    return false
+}
+if names["issuer"]["len"] != 12 || names["subject"]["len"] != 12 {
+    return false
+}
+let spki = cryptoRootTbsSpki(namesDer)
+if spki == false {
+    return false
+}
+if spki["modulus"]["len"] != 1 || spki["exponent"]["len"] != 1 {
+    return false
+}
+let issuerDer = cryptoRootByteRange(namesDer, 0, namesDer["n"])
+issuerDer["56"] = 65
+if cryptoRootIssuerMatches(namesDer, issuerDer) != true {
+    return false
+}
+issuerDer["56"] = 67
+if cryptoRootIssuerMatches(namesDer, issuerDer) != false {
+    return false
+}
+if cryptoRootCertAlgorithmsMatch(namesDer) != true {
+    return false
+}
+namesDer["97"] = 10
+if cryptoRootCertAlgorithmsMatch(namesDer) != false {
+    return false
+}
+namesDer["97"] = 11
+namesDer["71"] = 2
+if cryptoRootTbsSpki(namesDer) != false {
+    return false
+}
+namesDer["71"] = 1
+namesDer["43"] = 4
+if cryptoRootTbsNames(namesDer) != false {
+    return false
+}
+let badSig = der
+badSig["19"] = 4
 if cryptoRootDerCert(badSig) != false {
     return false
 }

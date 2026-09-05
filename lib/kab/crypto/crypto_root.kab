@@ -1,6 +1,9 @@
 // SH23: trust-root PEM envelope validation off crypto.kab. import "kab/crypto/crypto_root"
 // Do not grow crypto.kab. Host rustls remains skuld.
 
+import "kab/crypto/crypto_tls_cert"
+import "kab/crypto/crypto_sha_eval"
+
 pub fn cryptoRootPem(s) {
     let begin = "-----BEGIN CERTIFICATE-----"
     let end = "-----END CERTIFICATE-----"
@@ -191,11 +194,45 @@ pub fn cryptoDerTlv(bytes, off) {
         return false
     }
     return {
+        start: off,
         tag: bytes["" + off] & 255,
         len: info["len"],
         body: info["next"],
         end: info["next"] + info["len"],
     }
+}
+
+/// TLS fixture trust gate: AlgorithmIdentifier for sha256WithRSAEncryption.
+pub fn cryptoRootSha256RsaAlg(bytes, alg) {
+    let oid = cryptoDerTlv(bytes, alg["body"])
+    if oid == false {
+        return false
+    }
+    if oid["tag"] != 6 {
+        return false
+    }
+    if oid["len"] != 9 {
+        return false
+    }
+    let expected = [42, 134, 72, 134, 247, 13, 1, 1, 11]
+    let i = 0
+    while i < 9 {
+        if (bytes["" + (oid["body"] + i)] & 255) != expected[i] {
+            return false
+        }
+        i = i + 1
+    }
+    let params = cryptoDerTlv(bytes, oid["end"])
+    if params == false {
+        return false
+    }
+    if params["tag"] != 5 {
+        return false
+    }
+    if params["len"] != 0 {
+        return false
+    }
+    return params["end"] == alg["end"]
 }
 
 /// Structural X.509 certificate gate: complete outer and TBSCertificate sequences.
@@ -224,6 +261,9 @@ pub fn cryptoRootDerCert(bytes) {
     if alg["tag"] != 48 {
         return false
     }
+    if cryptoRootSha256RsaAlg(bytes, alg) != true {
+        return false
+    }
     let sig = cryptoDerTlv(bytes, alg["end"])
     if sig == false {
         return false
@@ -241,4 +281,384 @@ pub fn cryptoRootDerCert(bytes) {
         return false
     }
     return true
+}
+
+/// Parse the mandatory leading fields of TBSCertificate before chain traversal.
+pub fn cryptoRootTbsPrefix(bytes) {
+    if cryptoRootDerCert(bytes) != true {
+        return false
+    }
+    let outer = cryptoDerTlv(bytes, 0)
+    let tbs = cryptoDerTlv(bytes, outer["body"])
+    let version = false
+    let serialOff = tbs["body"]
+    let first = cryptoDerTlv(bytes, serialOff)
+    if first == false {
+        return false
+    }
+    if first["tag"] == 160 {
+        let value = cryptoDerTlv(bytes, first["body"])
+        if value == false {
+            return false
+        }
+        if value["tag"] != 2 {
+            return false
+        }
+        if value["len"] != 1 {
+            return false
+        }
+        if (bytes["" + value["body"]] & 255) != 2 {
+            return false
+        }
+        if value["end"] != first["end"] {
+            return false
+        }
+        version = first
+        serialOff = first["end"]
+    }
+    let serial = cryptoDerTlv(bytes, serialOff)
+    if serial == false {
+        return false
+    }
+    if serial["tag"] != 2 {
+        return false
+    }
+    if serial["len"] < 1 {
+        return false
+    }
+    let alg = cryptoDerTlv(bytes, serial["end"])
+    if alg == false {
+        return false
+    }
+    if alg["tag"] != 48 {
+        return false
+    }
+    if cryptoRootSha256RsaAlg(bytes, alg) != true {
+        return false
+    }
+    return { tbs: tbs, version: version, serial: serial, alg: alg }
+}
+
+/// Parse an X.509 Name with one or more RDN attribute/value pairs.
+pub fn cryptoRootName(bytes, off) {
+    let name = cryptoDerTlv(bytes, off)
+    if name == false {
+        return false
+    }
+    if name["tag"] != 48 {
+        return false
+    }
+    if name["len"] < 1 {
+        return false
+    }
+    let i = name["body"]
+    let count = 0
+    while i < name["end"] {
+        let rdn = cryptoDerTlv(bytes, i)
+        if rdn == false {
+            return false
+        }
+        if rdn["tag"] != 49 {
+            return false
+        }
+        let j = rdn["body"]
+        let attrs = 0
+        while j < rdn["end"] {
+            let attr = cryptoDerTlv(bytes, j)
+            if attr == false {
+                return false
+            }
+            if attr["tag"] != 48 {
+                return false
+            }
+            let oid = cryptoDerTlv(bytes, attr["body"])
+            if oid == false {
+                return false
+            }
+            if oid["tag"] != 6 || oid["len"] < 1 {
+                return false
+            }
+            let value = cryptoDerTlv(bytes, oid["end"])
+            if value == false {
+                return false
+            }
+            if value["tag"] != 12 && value["tag"] != 19 && value["tag"] != 20 && value["tag"] != 22 {
+                return false
+            }
+            if value["len"] < 1 || value["end"] != attr["end"] {
+                return false
+            }
+            attrs = attrs + 1
+            j = attr["end"]
+        }
+        if attrs < 1 {
+            return false
+        }
+        count = count + 1
+        i = rdn["end"]
+    }
+    if count < 1 {
+        return false
+    }
+    return name
+}
+
+/// Locate issuer and subject Names after the mandatory TBS prefix.
+pub fn cryptoRootTbsNames(bytes) {
+    let prefix = cryptoRootTbsPrefix(bytes)
+    if prefix == false {
+        return false
+    }
+    let issuer = cryptoRootName(bytes, prefix["alg"]["end"])
+    if issuer == false {
+        return false
+    }
+    let validity = cryptoDerTlv(bytes, issuer["end"])
+    if validity == false || validity["tag"] != 48 {
+        return false
+    }
+    let subject = cryptoRootName(bytes, validity["end"])
+    if subject == false {
+        return false
+    }
+    return { prefix: prefix, issuer: issuer, validity: validity, subject: subject }
+}
+
+/// AlgorithmIdentifier for the rsaEncryption public-key algorithm.
+pub fn cryptoRootRsaKeyAlg(bytes, alg) {
+    let oid = cryptoDerTlv(bytes, alg["body"])
+    if oid == false {
+        return false
+    }
+    if oid["tag"] != 6 || oid["len"] != 9 {
+        return false
+    }
+    let expected = [42, 134, 72, 134, 247, 13, 1, 1, 1]
+    let i = 0
+    while i < 9 {
+        if (bytes["" + (oid["body"] + i)] & 255) != expected[i] {
+            return false
+        }
+        i = i + 1
+    }
+    let params = cryptoDerTlv(bytes, oid["end"])
+    if params == false {
+        return false
+    }
+    if params["tag"] != 5 || params["len"] != 0 {
+        return false
+    }
+    return params["end"] == alg["end"]
+}
+
+/// Require canonical, non-negative DER INTEGER encoding for an RSA component.
+pub fn cryptoRootPositiveInt(bytes, value) {
+    if value == false {
+        return false
+    }
+    if value["tag"] != 2 || value["len"] < 1 {
+        return false
+    }
+    let first = bytes["" + value["body"]] & 255
+    if first >= 128 {
+        return false
+    }
+    if value["len"] > 1 {
+        let second = bytes["" + (value["body"] + 1)] & 255
+        if first == 0 && second < 128 {
+            return false
+        }
+    }
+    return true
+}
+
+/// Parse RSA SubjectPublicKeyInfo after a structurally valid issuer/subject pair.
+pub fn cryptoRootTbsSpki(bytes) {
+    let names = cryptoRootTbsNames(bytes)
+    if names == false {
+        return false
+    }
+    let spki = cryptoDerTlv(bytes, names["subject"]["end"])
+    if spki == false {
+        return false
+    }
+    if spki["tag"] != 48 {
+        return false
+    }
+    let alg = cryptoDerTlv(bytes, spki["body"])
+    if alg == false {
+        return false
+    }
+    if alg["tag"] != 48 {
+        return false
+    }
+    if cryptoRootRsaKeyAlg(bytes, alg) != true {
+        return false
+    }
+    let keyBits = cryptoDerTlv(bytes, alg["end"])
+    if keyBits == false {
+        return false
+    }
+    if keyBits["tag"] != 3 || keyBits["len"] < 2 {
+        return false
+    }
+    if (bytes["" + keyBits["body"]] & 255) != 0 {
+        return false
+    }
+    let key = cryptoDerTlv(bytes, keyBits["body"] + 1)
+    if key == false {
+        return false
+    }
+    if key["tag"] != 48 || key["end"] != keyBits["end"] {
+        return false
+    }
+    let modulus = cryptoDerTlv(bytes, key["body"])
+    if cryptoRootPositiveInt(bytes, modulus) != true {
+        return false
+    }
+    let exponent = cryptoDerTlv(bytes, modulus["end"])
+    if cryptoRootPositiveInt(bytes, exponent) != true {
+        return false
+    }
+    if exponent["end"] != key["end"] || spki["end"] > names["prefix"]["tbs"]["end"] {
+        return false
+    }
+    return { names: names, spki: spki, modulus: modulus, exponent: exponent }
+}
+
+/// Compare two validated DER values byte-for-byte, including their headers.
+pub fn cryptoRootDerEqual(leftBytes, left, rightBytes, right) {
+    let leftLen = left["end"] - left["start"]
+    let rightLen = right["end"] - right["start"]
+    if leftLen != rightLen {
+        return false
+    }
+    let i = 0
+    while i < leftLen {
+        if (leftBytes["" + (left["start"] + i)] & 255) != (rightBytes["" + (right["start"] + i)] & 255) {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+/// Compare two validated X.509 Names byte-for-byte, including their DER headers.
+pub fn cryptoRootNameEqual(leftBytes, leftName, rightBytes, rightName) {
+    return cryptoRootDerEqual(leftBytes, leftName, rightBytes, rightName)
+}
+
+/// The TBS and outer signature AlgorithmIdentifiers must be identical.
+pub fn cryptoRootCertAlgorithmsMatch(bytes) {
+    let prefix = cryptoRootTbsPrefix(bytes)
+    if prefix == false {
+        return false
+    }
+    let outerAlg = cryptoDerTlv(bytes, prefix["tbs"]["end"])
+    if outerAlg == false || outerAlg["tag"] != 48 {
+        return false
+    }
+    if cryptoRootSha256RsaAlg(bytes, outerAlg) != true {
+        return false
+    }
+    return cryptoRootDerEqual(bytes, prefix["alg"], bytes, outerAlg)
+}
+
+/// Structural chain-link gate: a child issuer must equal its issuer certificate subject.
+pub fn cryptoRootIssuerMatches(childBytes, issuerBytes) {
+    let child = cryptoRootTbsNames(childBytes)
+    if child == false {
+        return false
+    }
+    let issuer = cryptoRootTbsNames(issuerBytes)
+    if issuer == false {
+        return false
+    }
+    return cryptoRootNameEqual(childBytes, child["issuer"], issuerBytes, issuer["subject"])
+}
+
+/// Copy a checked DER byte range into the RSA fixture byte-object representation.
+pub fn cryptoRootByteRange(bytes, start, finish) {
+    if start < 0 {
+        return false
+    }
+    if finish < start || finish > bytes["n"] {
+        return false
+    }
+    let out = {}
+    let i = start
+    while i < finish {
+        out["" + (i - start)] = bytes["" + i] & 255
+        i = i + 1
+    }
+    out["n"] = finish - start
+    return out
+}
+
+/// SHA-256 / PKCS#1 v1.5 verifier for the bounded 512-bit RSA e=3 fixture.
+pub fn cryptoRootRsaFixtureVerify(parts) {
+    let tbs = parts["tbs"]
+    let modulus = parts["modulus"]
+    let exponent = parts["exponent"]
+    let signature = parts["signature"]
+    if modulus == false {
+        return false
+    }
+    if exponent == false || signature == false {
+        return false
+    }
+    if modulus["n"] != 64 || signature["n"] != 64 {
+        return false
+    }
+    if exponent["n"] != 1 || (exponent["0"] & 255) != 3 {
+        return false
+    }
+    let hash = sha256HexFromBytes(rsaObjToArr(tbs))
+    let n = rsaFromBe(modulus)
+    let s = rsaFromBe(signature)
+    let em = rsaToBeHex(rsaPow3(s, n))
+    let expected = "0001ffffffffffffffffffff003031300d060960864801650304020105000420" + hash
+    return em == expected
+}
+
+/// Stable positive and tamper-negative vector for the bounded RSA verifier.
+pub fn cryptoRootRsaFixtureEvalOk() {
+    let parts = {}
+    parts["tbs"] = rsaParseHex("010000024348020000025348")
+    parts["modulus"] = rsaParseHex("aafbaaeb5cf37916087fe43f52eaa509886fec05db68c89d9d61d87e7aa0d21c038a51a47abcd2c7fe57f4ed12ea9d2e3298d45eebb57e53d39ea86e3452a833")
+    parts["exponent"] = rsaParseHex("03")
+    parts["signature"] = rsaParseHex("3403b1423d65305969c2d16857de1277b05caa2b608f1936c58e5ad8e7c8f94ab4abc355d889e8db06ac7bbf7c4fed77c187d9f19e0906cf517aaae0791f67bd")
+    if cryptoRootRsaFixtureVerify(parts) != true {
+        return false
+    }
+    parts["signature"]["63"] = 188
+    return cryptoRootRsaFixtureVerify(parts) == false
+}
+
+/// Verify a parsed certificate's signature when it uses the bounded RSA fixture key.
+pub fn cryptoRootCertRsaFixtureVerify(bytes) {
+    let parsed = cryptoRootTbsSpki(bytes)
+    if parsed == false {
+        return false
+    }
+    let outer = cryptoDerTlv(bytes, 0)
+    let tbs = parsed["names"]["prefix"]["tbs"]
+    let outerAlg = cryptoDerTlv(bytes, tbs["end"])
+    let sigBits = cryptoDerTlv(bytes, outerAlg["end"])
+    if sigBits == false || sigBits["tag"] != 3 || sigBits["len"] != 65 {
+        return false
+    }
+    if (bytes["" + sigBits["body"]] & 255) != 0 || sigBits["end"] != outer["end"] {
+        return false
+    }
+    let modulus = cryptoRootByteRange(bytes, parsed["modulus"]["body"], parsed["modulus"]["end"])
+    let exponent = cryptoRootByteRange(bytes, parsed["exponent"]["body"], parsed["exponent"]["end"])
+    let signature = cryptoRootByteRange(bytes, sigBits["body"] + 1, sigBits["end"])
+    let signedTbs = cryptoRootByteRange(bytes, tbs["start"], tbs["end"])
+    return cryptoRootRsaFixtureVerify({
+        tbs: signedTbs,
+        modulus: modulus,
+        exponent: exponent,
+        signature: signature,
+    })
 }
