@@ -113,6 +113,15 @@ pub fn jitOpOk(name) {
     if name == "take_global" {
         return true
     }
+    if name == "jump" {
+        return true
+    }
+    if name == "jump_if_false" {
+        return true
+    }
+    if name == "jump_if_true" {
+        return true
+    }
     return false
 }
 
@@ -511,6 +520,50 @@ pub fn jitEmitI64TakeGlobalRet(offset) {
     b = push(b, 137)
     b = push(b, 72)  // mov [global+offset], 0 (placeholder)
     b = push(b, 137)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// jmp rel32; ret  — unconditional jump.
+pub fn jitEmitJump(offset) {
+    let b = []
+    b = push(b, 233)  // jmp rel32 (placeholder)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// test rax, rax; jz rel32; ret  — jump if false.
+pub fn jitEmitJumpIfFalse(offset) {
+    let b = []
+    b = push(b, 72)  // test rax, rax
+    b = push(b, 133)
+    b = push(b, 192)
+    b = push(b, 15)  // jz rel32 (placeholder)
+    b = push(b, 132)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// test rax, rax; jnz rel32; ret  — jump if true.
+pub fn jitEmitJumpIfTrue(offset) {
+    let b = []
+    b = push(b, 72)  // test rax, rax
+    b = push(b, 133)
+    b = push(b, 192)
+    b = push(b, 15)  // jnz rel32 (placeholder)
+    b = push(b, 133)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
     b = push(b, 195) // ret
     return b
 }
