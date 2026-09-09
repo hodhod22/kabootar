@@ -1,0 +1,28 @@
+import "kab/http/http_fetch"
+import "kab/crypto/crypto_http_fetch_bind13"
+
+async fn load() {
+    let loopVia = await httpFetch("GET", "https://127.0.0.1:28198/w?q=2", "", {}, 0)
+    if loopVia == false {
+        return false
+    }
+    if http_status(loopVia) != 200 {
+        return false
+    }
+    if http_body(loopVia) != "OK" {
+        return false
+    }
+    let localVia = await httpFetch("GET", "https://localhost:28198/w?q=2", "", {}, 0)
+    if localVia == false {
+        return false
+    }
+    if http_status(localVia) != 200 {
+        return false
+    }
+    if http_body(localVia) != "OK" {
+        return false
+    }
+    return true
+}
+
+await load()

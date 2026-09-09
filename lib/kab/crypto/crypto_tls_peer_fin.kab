@@ -1,0 +1,158 @@
+// SH23: Kab TLS 1.2 CKE/Finished against a rustls TLS 1.2 peer (no sess["server"]).
+// Do not import crypto_tls_live. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls_peer"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_prf"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_x25519_eval"
+
+/// Connect, complete rustls TLS 1.2 ECDHE (X25519) through Finished; leave the socket open.
+pub fn tlsPeerHsClientOpen(port) {
+    let clientPub = tlsHexToObj("8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a")
+    let clientSecret = tlsHexToObj("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a")
+    let clientRandom = hmacStrBytes("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    let clientHello = tlsHsWrap(
+        1,
+        tlsConcatObj(
+            tlsHexToObj("0303"),
+            tlsConcatObj(
+                clientRandom,
+                tlsHexToObj("000004009cc02b0100001d000a00040002001d000b00020100000d0006000404010403ff01000100")
+            )
+        )
+    )
+    let sock = tcp_connect("127.0.0.1", port)
+    if sock == false {
+        return false
+    }
+    tcp_write_bytes(sock, tlsRecordHs(clientHello))
+    let buf = {}
+    buf["n"] = 0
+    let receivedServer = tlsHsReadNextHs(sock, buf)
+    if receivedServer == false {
+        tcp_close(sock)
+        return false
+    }
+    let parsed = tlsHsParseServerHello(receivedServer)
+    if parsed == false {
+        tcp_close(sock)
+        return false
+    }
+    if parsed["cipher"] != 49195 {
+        tcp_close(sock)
+        return false
+    }
+    let receivedCert = tlsHsReadNextHs(sock, buf)
+    if receivedCert == false {
+        tcp_close(sock)
+        return false
+    }
+    let cert = tlsHsParseCertificate(receivedCert)
+    if cert == false {
+        tcp_close(sock)
+        return false
+    }
+    if cert["n"] < 64 {
+        tcp_close(sock)
+        return false
+    }
+    if (cert["0"] & 255) != 48 {
+        tcp_close(sock)
+        return false
+    }
+    let receivedSke = tlsHsReadNextHs(sock, buf)
+    if receivedSke == false {
+        tcp_close(sock)
+        return false
+    }
+    let ske = tlsPeerParseSke(receivedSke)
+    if ske == false {
+        tcp_close(sock)
+        return false
+    }
+    if ske["group"] != 29 {
+        tcp_close(sock)
+        return false
+    }
+    let receivedDone = tlsHsReadNextHs(sock, buf)
+    if receivedDone == false {
+        tcp_close(sock)
+        return false
+    }
+    if (receivedDone["0"] & 255) != 14 {
+        tcp_close(sock)
+        return false
+    }
+    let doneBody = tlsHsParseOne(receivedDone, 14)
+    if doneBody == false {
+        tcp_close(sock)
+        return false
+    }
+    if doneBody["n"] != 0 {
+        tcp_close(sock)
+        return false
+    }
+    let pms = x25519(clientSecret, ske["publicKey"])
+    let clientKeyExchange = tlsHsWrap(16, tlsConcatObj(tlsHexToObj("20"), clientPub))
+    let ms = tlsPrfHexKeySeed(pms, "master secret", tlsConcatObj(clientRandom, parsed["random"]), 48)
+    let keyBlock = tlsPrfHexKeySeed(tlsHexToObj(ms), "key expansion", tlsConcatObj(parsed["random"], clientRandom), 40)
+    let clientKey = tlsHsHexSlice(keyBlock, 0, 16)
+    let serverKey = tlsHsHexSlice(keyBlock, 16, 16)
+    let clientIv = tlsHsHexSlice(keyBlock, 32, 4)
+    let serverIv = tlsHsHexSlice(keyBlock, 36, 4)
+    let preFinishedTranscript = tlsConcatObj(
+        tlsConcatObj(
+            tlsConcatObj(tlsConcatObj(clientHello, receivedServer), receivedCert),
+            tlsConcatObj(receivedSke, receivedDone)
+        ),
+        clientKeyExchange
+    )
+    let verify = tlsPrfHexKeySeed(tlsHexToObj(ms), "client finished", tlsTranscriptHashObj(preFinishedTranscript), 12)
+    let clientFinished = tlsHsWrap(20, tlsHexToObj(verify))
+    let aad = tlsHexToObj("00000000000000001603030010")
+    let clientExplicitIv = tlsHexToObj("0000000000000001")
+    let clientEncrypted = gcmEncrypt(clientKey, tlsConcatObj(clientIv, clientExplicitIv), clientFinished, aad)
+    let clientFinishedRecord = tlsConcatObj(
+        tlsHexToObj("1603030028"),
+        tlsConcatObj(clientExplicitIv, tlsConcatObj(clientEncrypted["ct"], clientEncrypted["tag"]))
+    )
+    tcp_write_bytes(sock, tlsRecordHs(clientKeyExchange))
+    tcp_write_bytes(sock, tlsHexToObj("140303000101"))
+    tcp_write_bytes(sock, clientFinishedRecord)
+    let receivedChangeCipherSpec = tlsPeerReadCcs(sock)
+    if receivedChangeCipherSpec != true {
+        tcp_close(sock)
+        return false
+    }
+    let receivedFinished = tlsHsReadEncryptedFinished(sock, serverKey, serverIv)
+    if receivedFinished == false {
+        tcp_close(sock)
+        return false
+    }
+    let serverTranscript = tlsConcatObj(preFinishedTranscript, clientFinished)
+    let serverVerify = tlsPrfHexKeySeed(tlsHexToObj(ms), "server finished", tlsTranscriptHashObj(serverTranscript), 12)
+    let serverFinished = tlsHsWrap(20, tlsHexToObj(serverVerify))
+    if tlsObjHex(receivedFinished) != tlsObjHex(serverFinished) {
+        tcp_close(sock)
+        return false
+    }
+    let sess = {}
+    sess["sock"] = sock
+    sess["clientKey"] = clientKey
+    sess["serverKey"] = serverKey
+    sess["clientIv"] = clientIv
+    sess["serverIv"] = serverIv
+    return sess
+}
+
+/// Connect, complete rustls TLS 1.2 ECDHE (X25519) through Finished.
+pub fn tlsPeerFinishedEvalOk(port) {
+    let sess = tlsPeerHsClientOpen(port)
+    if sess == false {
+        return false
+    }
+    tcp_close(sess["sock"])
+    return true
+}

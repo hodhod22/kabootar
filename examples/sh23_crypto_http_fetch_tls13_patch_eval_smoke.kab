@@ -1,0 +1,20 @@
+import "kab/http/http_fetch"
+import "kab/crypto/crypto_http_fetch_bind13"
+
+async fn load() {
+    let hdr = {}
+    hdr["Content-Type"] = "application/json"
+    let via = await httpFetch("PATCH", "https://127.0.0.1:28198/w?q=2", "{}", hdr, 0)
+    if via == false {
+        return false
+    }
+    if http_status(via) != 200 {
+        return false
+    }
+    if http_body(via) != "OK" {
+        return false
+    }
+    return true
+}
+
+await load()

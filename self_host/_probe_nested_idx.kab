@@ -1,0 +1,4 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+compile("fn t(E) { E[\"eFnOps\"][E[\"eBreakIdxs\"][E[\"eBi\"]]] = { \"op\": \"j\", \"arg\": 1 }; return E }")
+println("OK nested")

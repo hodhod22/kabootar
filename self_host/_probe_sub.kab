@@ -1,0 +1,11 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+
+compile("fn t(E, idx) { E[\"eJumpOff\"] = E[\"eFnOpsN\"] - idx - 1; return E }")
+println("OK chained sub AccAdd")
+
+compile("fn t(E, idx) { let a = E[\"eFnOpsN\"] - idx; E[\"eJumpOff\"] = a - 1; return E }")
+println("OK stepwise sub")
+
+compile("fn t(E) { E[\"eJmp\"] = E[\"eIfJmpStack\"][len(E[\"eIfJmpStack\"]) - 1]; return E }")
+println("OK len-1 index")

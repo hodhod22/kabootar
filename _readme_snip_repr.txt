@@ -1,0 +1,1 @@
+'16. ~~**F10 AOT native-image policy**~~ ✅ (… + table-apply av både rodata-hex och data-hex i samma native-image); nästa: load/persist/verify/ship av den kombinerade rodata+data-hex-imagen; `nollAotReady` still false'

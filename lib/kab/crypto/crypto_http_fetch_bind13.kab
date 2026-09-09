@@ -1,0 +1,7 @@
+// SH23: bind Kab TLS 1.3 loop :28198 into http_fetch without crypto in http_fetch.
+// Cheap smokes import only kab/http/http_fetch. cryptoHostDeleteOk stays false.
+
+import "kab/http/http_fetch"
+import "kab/crypto/crypto_http_tls13"
+
+httpBindTls13Fetch(httpsLoop13Fetch)

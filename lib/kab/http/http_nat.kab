@@ -1,0 +1,8 @@
+// SH23: capture host http_* natives before wrapper overwrite.
+// import "kab/http/http_nat"
+// Do not define pub fn http_status here (would capture the wrapper).
+
+pub let httpStatusHost = http_status
+pub let httpBodyHost = http_body
+pub let httpHeadersHost = http_headers
+pub let httpHeaderHost = http_header

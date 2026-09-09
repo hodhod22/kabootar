@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_ski"
+
+return tls13PeerSkiEvalOk(28311)

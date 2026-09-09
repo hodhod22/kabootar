@@ -1,0 +1,30 @@
+import "kab/http/http_fetch"
+import "kab/crypto/crypto_http_fetch_bind"
+
+async fn load() {
+    let hdr = {}
+    hdr["Content-Type"] = "application/json"
+    let loopVia = await httpFetch("PUT", "https://127.0.0.1:28199/w?q=2", "{}", hdr, 0)
+    if loopVia == false {
+        return false
+    }
+    if http_status(loopVia) != 200 {
+        return false
+    }
+    if http_body(loopVia) != "OK" {
+        return false
+    }
+    let peerVia = await httpFetch("PUT", "https://127.0.0.1:28291/w?q=2", "{}", hdr, 0)
+    if peerVia == false {
+        return false
+    }
+    if http_status(peerVia) != 200 {
+        return false
+    }
+    if http_body(peerVia) != "OK" {
+        return false
+    }
+    return true
+}
+
+await load()

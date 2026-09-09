@@ -1,0 +1,12 @@
+import "self_host/emit_exec"
+pub fn doEmit(E) {
+    E["eConsts"] = push(E["eConsts"], 1)
+    println("inner c="+len(E["eConsts"]))
+    E["eIdx"] = 0
+    E["eOps"] = push(E["eOps"], { "op": "const", "arg": 0 })
+    E["eOpsN"] = E["eOpsN"] + 1
+    println("inner after op c="+len(E["eConsts"])+" o="+len(E["eOps"]))
+    E["eGlobals"] = push(E["eGlobals"], "x")
+    E["eGlobalN"] = E["eGlobalN"] + 1
+    println("inner after g c="+len(E["eConsts"])+" g="+len(E["eGlobals"]))
+}

@@ -1,0 +1,44 @@
+// SH23: Kab TLS 1.3 ClientHello against a rustls TLS 1.3 peer (no sess["server"]).
+// Do not grow crypto_tls13_hs.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_hs"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_hmac_eval"
+
+pub fn tls13PeerBuildClientHello(random, pubKey) {
+    let head = tlsConcatObj(tlsHexToObj("0303"), tlsConcatObj(random, tlsHexToObj("00000213010100")))
+    let sv = tlsHexToObj("002b0003020304")
+    let sg = tlsHexToObj("000a00040002001d")
+    let sa = tlsHexToObj("000d00080006040308040401")
+    let ks = tlsConcatObj(tlsHexToObj("003300260024001d0020"), pubKey)
+    let exts = tlsConcatObj(tlsConcatObj(tlsConcatObj(sv, sg), sa), ks)
+    return tlsHsWrap(1, tlsConcatObj(head, tlsConcatObj(tls13ExtLenObj(exts["n"]), exts)))
+}
+
+pub fn tls13PeerHelloEvalOk(port) {
+    let clientPub = tlsHexToObj("8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a")
+    let clientRandom = hmacStrBytes("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    let clientHello = tls13PeerBuildClientHello(clientRandom, clientPub)
+    let sock = tcp_connect("127.0.0.1", port)
+    if sock == false {
+        return false
+    }
+    tcp_write_bytes(sock, tlsRecordHs(clientHello))
+    let receivedServer = tlsHsReadFirstHs(sock)
+    if receivedServer == false {
+        tcp_close(sock)
+        return false
+    }
+    let parsed = tls13ParseServerHello(receivedServer)
+    tcp_close(sock)
+    if parsed == false {
+        return false
+    }
+    if parsed["cipher"] != 4865 {
+        return false
+    }
+    if parsed["ver"] != 772 {
+        return false
+    }
+    return true
+}

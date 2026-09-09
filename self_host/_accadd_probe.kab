@@ -1,0 +1,34 @@
+// Repro: AccAdd on large session map — pools lost, ops kept?
+import "self_host/emit_exec"
+
+fn pushConst(E, v) {
+    E["eConsts"] = push(E["eConsts"], v)
+    let cIdx = E["eConstN"]
+    E["eConstN"] = E["eConstN"] + 1
+    return cIdx
+}
+
+fn pushOp(E, op, arg) {
+    E["eOps"] = push(E["eOps"], { "op": op, "arg": arg })
+    E["eOpsN"] = E["eOpsN"] + 1
+}
+
+fn emitLike(E) {
+    let ci = pushConst(E, 1)
+    let gi = 0
+    E["eGlobals"] = push(E["eGlobals"], "x")
+    E["eGlobalN"] = 1
+    pushOp(E, "const", ci)
+    pushOp(E, "store_global", gi)
+    pushOp(E, "halt", 0)
+    return {
+        "constants": E["eConsts"],
+        "globals": E["eGlobals"],
+        "ops": E["eOps"]
+    }
+}
+
+let E = eMakeSession()
+let ir = emitLike(E)
+println("probe globals=" + len(ir["globals"]) + " consts=" + len(ir["constants"]) + " ops=" + len(ir["ops"]))
+println("direct eConsts=" + len(E["eConsts"]) + " eOps=" + len(E["eOps"]) + " eGlobals=" + len(E["eGlobals"]))

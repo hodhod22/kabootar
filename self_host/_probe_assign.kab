@@ -1,0 +1,12 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+let src = "
+fn test(E, arg) {
+    let lIdx = 1
+    E[\"eLocalMap\"][arg] = lIdx
+    E[\"eStack\"][0] = 1
+    return E
+}
+"
+compile(src)
+println("OK nested assign")

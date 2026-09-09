@@ -21779,6 +21779,98 @@ fn sh6_self_host_triple_index_mul_compound_assign_ok() {
     assert_eq!(formatted, "3");
 }
 
+/// SH6: product self-host `n /= 2` div compound assign + Kab VM.
+#[test]
+fn sh6_self_host_div_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let n = 6\n  n /= 2\n  return n\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-div-eq".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("div") {
+                return Err(format!(
+                    "expected div, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host div compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
+/// SH6: same index-assign walk as `*=`/`-=`/`%=` — `xs[0][0][0] /= 2` is operator parity, not a new emit path.
+#[test]
+fn sh6_self_host_triple_index_div_compound_assign_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let xs = [[[6]]]\n  xs[0][0][0] /= 2\n  return xs[0][0][0]\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-tidx-div".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !kbc.contains("div") {
+                return Err(format!(
+                    "expected div, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("index_set") {
+                return Err(format!(
+                    "expected index_set, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            if !kbc.contains("iatmp") {
+                return Err(format!(
+                    "expected iatmp, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host triple index div compound assign");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "3");
+}
+
 /// SH6: index exprs in compound assign evaluate once (`xs[bump(box)][bump(box)] +=`).
 #[test]
 fn sh6_self_host_index_compound_assign_eval_once_ok() {
@@ -62391,6 +62483,28 @@ fn sh23_crypto_x25519_eval_smoke() {
         .expect("join");
 }
 
+/// SH23: live TLS 1.2 ECDHE handshake — X25519 premaster from CKE/SKE + encrypted Finished.
+#[test]
+fn sh23_crypto_tls_live_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_tls_live_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-tls-live".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile tls live eval smoke");
+            let value = eval_program(&program, &mut env).expect("run tls live eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH23: TLS 1.2 ECDHE premaster key schedule + HTTPS GET GCM record (not rustls-delete).
 #[test]
 fn sh23_crypto_tls_https_eval_smoke() {
@@ -62516,6 +62630,127 @@ fn sh23_crypto_http_fetch_eval_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile http fetch eval smoke");
             let value = eval_program(&program, &mut env).expect("run http fetch eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: http_fetch_async-shaped GET over live Kab TLS handshake (not rustls).
+#[test]
+fn sh23_crypto_http_tls_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_http_tls_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-http-tls".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile http tls eval smoke");
+            let value = eval_program(&program, &mut env).expect("run http tls eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: product httpFetch GET over live Kab TLS loopback (not rustls).
+#[test]
+fn sh23_crypto_http_fetch_loop_eval_smoke() {
+    let path = format!(
+        "{}/examples/sh23_crypto_http_fetch_loop_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-http-fetch-loop".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile httpFetch loop");
+            let value = eval_program(&program, &mut env).expect("run httpFetch loop");
+            eprintln!("sh23 httpFetch loop value = {value:?}");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: Kab ClientHello against a rustls TLS 1.2 peer through ServerHelloDone (not product rustls).
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn sh23_crypto_tls_peer_eval_smoke() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    use rcgen::generate_simple_self_signed;
+    use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+    use std::io::ErrorKind;
+    use std::net::TcpListener;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    let cert = generate_simple_self_signed(vec!["127.0.0.1".to_string()]).expect("cert");
+    let cert_der = CertificateDer::from(cert.cert.der().to_vec());
+    let key_der = PrivateKeyDer::Pkcs8(cert.key_pair.serialize_der().into());
+    let server_cfg = rustls::ServerConfig::builder_with_protocol_versions(&[&rustls::version::TLS12])
+        .with_no_client_auth()
+        .with_single_cert(vec![cert_der], key_der)
+        .expect("server config");
+    let listener = TcpListener::bind("127.0.0.1:28203").expect("bind rustls TLS 1.2 peer");
+    let server_cfg = Arc::new(server_cfg);
+    std::thread::spawn(move || {
+        let (mut tcp, _) = match listener.accept() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        let _ = tcp.set_read_timeout(Some(Duration::from_secs(30)));
+        let _ = tcp.set_write_timeout(Some(Duration::from_secs(30)));
+        let mut conn = rustls::ServerConnection::new(server_cfg).expect("server conn");
+        for _ in 0..32 {
+            if conn.wants_read() {
+                match conn.read_tls(&mut tcp) {
+                    Ok(0) => break,
+                    Ok(_) => {
+                        if conn.process_new_packets().is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) if e.kind() == ErrorKind::WouldBlock || e.kind() == ErrorKind::TimedOut => {
+                        break;
+                    }
+                    Err(_) => break,
+                }
+            }
+            let mut wrote = false;
+            while conn.wants_write() {
+                if conn.write_tls(&mut tcp).is_err() {
+                    return;
+                }
+                wrote = true;
+            }
+            if wrote {
+                break;
+            }
+        }
+    });
+
+    let path = format!(
+        "{}/examples/sh23_crypto_tls_peer_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-tls-peer".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile tls peer eval smoke");
+            let value = eval_program(&program, &mut env).expect("run tls peer eval smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")

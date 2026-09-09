@@ -1,0 +1,10 @@
+// SH23: product httpFetch GET over Kab TLS loopback (no default params).
+// Kab-VM object-method-receiver: do not add default params on this pub fn.
+// Do not grow crypto_http_tls.kab. Do not grow http_fetch with crypto imports.
+// cryptoHostDeleteOk stays false.
+
+import "kab/crypto/crypto_http_tls"
+
+pub fn httpFetch(method, url, body, headers, timeoutMs) {
+    return httpsLoopFetch(method, url, body, headers, timeoutMs)
+}

@@ -1,0 +1,14 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+
+compile("fn t(E) { let idx = 0; E[\"eFnOps\"][idx] = { \"op\": \"j\", \"arg\": 1 }; return E }")
+println("OK simple idx assign obj")
+
+compile("fn t(E) { let a = 5; let b = 2; E[\"eFnOps\"][0] = { \"op\": \"j\", \"arg\": a - b - 1 }; return E }")
+println("OK obj field sub")
+
+compile("fn t(E) { let a = 5; let b = 2; let off = a - b - 1; E[\"eFnOps\"][0] = { \"op\": \"j\", \"arg\": off }; return E }")
+println("OK precompute sub")
+
+compile("fn t(E) { E[\"eFnOps\"][E[\"eBreakIdxs\"][E[\"eBi\"]]] = { \"op\": \"j\", \"arg\": 1 }; return E }")
+println("OK nested index assign")

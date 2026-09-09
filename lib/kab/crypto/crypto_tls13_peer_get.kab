@@ -1,0 +1,179 @@
+// SH23: Kab TLS 1.3 application-data GET against a rustls TLS 1.3 peer.
+// Do not grow crypto_tls13_app.kab or crypto_tls13_peer_fin.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_tls13_app"
+import "kab/crypto/crypto_tls13_hkdf"
+import "kab/crypto/crypto_tls13_gcm"
+import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_prf"
+import "kab/crypto/crypto_http_get"
+import "kab/crypto/crypto_http_resp"
+
+pub fn tls13PeerStripApp(pt) {
+    let n = pt["n"]
+    if n < 2 {
+        return false
+    }
+    let i = n - 1
+    while i > -1 {
+        if (pt["" + i] & 255) != 0 {
+            if (pt["" + i] & 255) != 23 {
+                return false
+            }
+            let o = {}
+            let j = 0
+            while j < i {
+                o["" + j] = pt["" + j] & 255
+                j = j + 1
+            }
+            o["n"] = i
+            return o
+        }
+        i = i - 1
+    }
+    return false
+}
+
+pub fn tls13PeerReadApp(sock, key, iv, seq) {
+    let k = 0
+    while k < 8 {
+        let head = tlsHsReadBytesExact(sock, 5)
+        if head == false {
+            return false
+        }
+        let typ = head["0"] & 255
+        let size = ((head["3"] << 8) | head["4"]) & 65535
+        if size < 1 || size > 16384 {
+            return false
+        }
+        let tail = tlsHsReadBytesExact(sock, size)
+        if tail == false {
+            return false
+        }
+        if typ == 20 {
+            k = k + 1
+        } else {
+            if typ != 23 {
+                return false
+            }
+            let ctLen = size - 16
+            if ctLen < 1 {
+                return false
+            }
+            let ct = {}
+            let i = 0
+            while i < ctLen {
+                ct["" + i] = tail["" + i] & 255
+                i = i + 1
+            }
+            ct["n"] = ctLen
+            let tag = {}
+            i = 0
+            while i < 16 {
+                tag["" + i] = tail["" + (ctLen + i)] & 255
+                i = i + 1
+            }
+            tag["n"] = 16
+            let plainHex = gcmDecrypt(key, tls13Nonce(iv, seq), ct, tag, head)
+            if plainHex == false {
+                return false
+            }
+            return tls13PeerStripApp(tlsHexToObj(plainHex))
+        }
+    }
+    return false
+}
+
+pub fn tls13PeerAppAfterHs(s, req) {
+    if s == false {
+        return false
+    }
+    if req == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let sock = s["sock"]
+    let th3 = tlsTranscriptHashObj(tlsConcatObj(s["tr"], s["serverFin"]))
+    let cHs = tls13HkdfExpandLabel(s["hsSec"], "c hs traffic", s["th0"], 32)
+    let cHsKey = tls13HkdfExpandLabel(cHs, "key", tls13EmptyObj(), 16)
+    let cHsIv = tls13HkdfExpandLabel(cHs, "iv", tls13EmptyObj(), 12)
+    let cFinKey = tls13HkdfExpandLabel(cHs, "finished", tls13EmptyObj(), 32)
+    let vd = hmacDigestToObj(hmacSha256WordsObj(cFinKey, th3))
+    let cFin = tlsHsWrap(20, vd)
+    let derived2 = tls13HkdfExpandLabel(s["hsSec"], "derived", s["emptyHash"], 32)
+    let master = tls13HkdfExtract(derived2, s["zeros"])
+    let cAp = tls13HkdfExpandLabel(master, "c ap traffic", th3, 32)
+    let sAp = tls13HkdfExpandLabel(master, "s ap traffic", th3, 32)
+    let cKey = tls13HkdfExpandLabel(cAp, "key", tls13EmptyObj(), 16)
+    let cIv = tls13HkdfExpandLabel(cAp, "iv", tls13EmptyObj(), 12)
+    let sKey = tls13HkdfExpandLabel(sAp, "key", tls13EmptyObj(), 16)
+    let sIv = tls13HkdfExpandLabel(sAp, "iv", tls13EmptyObj(), 12)
+    tcp_write_bytes(sock, tlsHexToObj("140303000101"))
+    tls13WriteHsGcm(sock, cHsKey, cHsIv, 0, cFin)
+    tls13WriteAppGcm(sock, cKey, cIv, 0, req)
+    let resp = tls13PeerReadApp(sock, sKey, sIv, 0)
+    tcp_close(sock)
+    return resp
+}
+
+pub fn tls13PeerAppPlainReq(port, req) {
+    if req == false {
+        return false
+    }
+    return tls13PeerAppAfterHs(tls13PeerHsClientOpen(port), req)
+}
+
+pub fn tls13PeerGetEvalOk(port) {
+    let resp = tls13PeerAppPlainReq(port, httpBuildGet("127.0.0.1", "/v?q=1"))
+    if resp == false {
+        return false
+    }
+    if httpStatusCode(resp) != 200 {
+        return false
+    }
+    if httpBytesToStr(httpRespBody(resp)) != "OK" {
+        return false
+    }
+    return true
+}
+
+pub fn tls13AppPeerFetch(method, url, body, headers, timeoutMs) {
+    if timeoutMs != 0 {
+        return false
+    }
+    if len(url) < 8 {
+        return false
+    }
+    if str_slice(url, 0, 8) != "https://" {
+        return false
+    }
+    if httpPortFromHttps(url) != 28296 {
+        return false
+    }
+    let host = httpHostName(httpHostFromHttps(url))
+    if httpIsLoopbackHost(host) != true {
+        return false
+    }
+    let req = httpBuildFetchReq(method, host, httpFetchTarget(method, url), body, headers)
+    if req == false {
+        return false
+    }
+    let pt = tls13PeerAppPlainReq(28296, req)
+    if pt == false {
+        return false
+    }
+    if httpStatusCode(pt) != 200 {
+        return false
+    }
+    if httpBytesToStr(httpRespBody(pt)) != "OK" {
+        return false
+    }
+    let o = {}
+    o["status"] = 200
+    o["body"] = "OK"
+    o["headers"] = httpHdrObj(pt)
+    return o
+}

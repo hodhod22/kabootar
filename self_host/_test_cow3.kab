@@ -1,0 +1,13 @@
+fn mutate(E) {
+    E["pool"] = push(E["pool"], 42)
+    return 0
+}
+
+let E = { "pool": [], "slot": -1 }
+println("before pool_len=" + len(E["pool"]))
+let r = mutate(E)
+println("after_call pool_len=" + len(E["pool"]) + " r=" + r)
+E["slot"] = r
+println("after_assign pool_len=" + len(E["pool"]) + " slot=" + E["slot"])
+E["slot"] = mutate(E)
+println("combo pool_len=" + len(E["pool"]) + " slot=" + E["slot"])

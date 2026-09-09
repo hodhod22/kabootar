@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_ird"
+
+return tls13PeerIrdEvalOk(28386)

@@ -1,0 +1,26 @@
+import "self_host/emit_exec"
+fn emitOp(E, op, arg) {
+    E["eOps"] = push(E["eOps"], { "op": op, "arg": arg })
+    E["eOpsN"] = E["eOpsN"] + 1
+}
+fn bad(E) {
+    E["eConsts"] = push(E["eConsts"], 1)
+    E["eIdx"] = 0
+    println("before bad c="+len(E["eConsts"]))
+    emitOp(E, "const", E["eIdx"])
+    println("after bad c="+len(E["eConsts"])+" o="+len(E["eOps"]))
+}
+fn good(E) {
+    E["eConsts"] = []
+    E["eOps"] = []
+    E["eOpsN"] = 0
+    E["eConsts"] = push(E["eConsts"], 1)
+    E["eIdx"] = 0
+    let ci = E["eIdx"]
+    println("before good c="+len(E["eConsts"]))
+    emitOp(E, "const", ci)
+    println("after good c="+len(E["eConsts"])+" o="+len(E["eOps"]))
+}
+let E = eMakeSession()
+bad(E)
+good(E)

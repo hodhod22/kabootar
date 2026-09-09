@@ -1,0 +1,19 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+let src = "
+fn arrUtil(E, mode, stack) { return stack }
+fn test(E) {
+    let ai = 0
+    let aParams = []
+    E[\"eArrows\"] = push(E[\"eArrows\"], {
+        \"sym\": \"__arrow_\" + ai,
+        \"params\": arrUtil(E, \"snap\", aParams),
+        \"locals\": arrUtil(E, \"snap\", E[\"eFnLocals\"]),
+        \"ops\": arrUtil(E, \"snap\", E[\"eFnOps\"]),
+        \"tryRegions\": arrUtil(E, \"snap\", E[\"eFnTryRegions\"])
+    })
+    return E
+}
+"
+compile(src)
+println("OK arrow push")

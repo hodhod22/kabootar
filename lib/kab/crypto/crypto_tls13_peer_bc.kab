@@ -1,0 +1,158 @@
+// SH23: Kab TLS 1.3 leaf basicConstraints cA=FALSE vs rustls P-256 peer.
+// Do not grow crypto_tls13_peer_eku.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_root"
+
+pub fn tls13PeerBcOid(bytes, oid) {
+    if oid == false || oid["tag"] != 6 || oid["len"] != 3 {
+        return false
+    }
+    if (bytes["" + oid["body"]] & 255) != 85 {
+        return false
+    }
+    if (bytes["" + (oid["body"] + 1)] & 255) != 29 {
+        return false
+    }
+    return (bytes["" + (oid["body"] + 2)] & 255) == 19
+}
+
+pub fn tls13PeerBcSeq(bytes, seq) {
+    if seq == false || seq["tag"] != 48 {
+        return false
+    }
+    if seq["len"] == 0 {
+        return true
+    }
+    let flag = cryptoDerTlv(bytes, seq["body"])
+    if flag == false || flag["tag"] != 1 || flag["len"] != 1 {
+        return false
+    }
+    if (bytes["" + flag["body"]] & 255) != 0 {
+        return false
+    }
+    return flag["end"] == seq["end"]
+}
+
+pub fn tls13PeerBcExtn(bytes, extn) {
+    if extn == false || extn["tag"] != 48 {
+        return false
+    }
+    let oid = cryptoDerTlv(bytes, extn["body"])
+    if tls13PeerBcOid(bytes, oid) != true {
+        return false
+    }
+    let next = cryptoDerTlv(bytes, oid["end"])
+    if next == false {
+        return false
+    }
+    if next["tag"] == 1 {
+        next = cryptoDerTlv(bytes, next["end"])
+        if next == false {
+            return false
+        }
+    }
+    if next["tag"] != 4 || next["end"] != extn["end"] {
+        return false
+    }
+    let seq = cryptoDerTlv(bytes, next["body"])
+    if seq == false || seq["end"] != next["end"] {
+        return false
+    }
+    return tls13PeerBcSeq(bytes, seq)
+}
+
+pub fn tls13PeerBcExts(bytes, exts) {
+    if exts == false || exts["tag"] != 48 {
+        return false
+    }
+    let i = exts["body"]
+    while i < exts["end"] {
+        let extn = cryptoDerTlv(bytes, i)
+        if extn == false {
+            return false
+        }
+        if tls13PeerBcExtn(bytes, extn) == true {
+            return true
+        }
+        i = extn["end"]
+    }
+    return false
+}
+
+pub fn tls13PeerBcAfterSpki(bytes, tbs, spki) {
+    let i = spki["end"]
+    while i < tbs["end"] {
+        let item = cryptoDerTlv(bytes, i)
+        if item == false {
+            return false
+        }
+        if item["tag"] == 163 {
+            let inner = cryptoDerTlv(bytes, item["body"])
+            if inner == false || inner["end"] != item["end"] {
+                return false
+            }
+            return tls13PeerBcExts(bytes, inner)
+        }
+        i = item["end"]
+    }
+    return false
+}
+
+pub fn tls13PeerBcEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    if der == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let first = cryptoDerTlv(der, tbs["body"])
+    if first == false {
+        return false
+    }
+    let serialOff = tbs["body"]
+    if first["tag"] == 160 {
+        serialOff = first["end"]
+    }
+    let serial = cryptoDerTlv(der, serialOff)
+    if serial == false || serial["tag"] != 2 {
+        return false
+    }
+    let innerAlg = cryptoDerTlv(der, serial["end"])
+    if innerAlg == false || innerAlg["tag"] != 48 {
+        return false
+    }
+    let issuer = cryptoDerTlv(der, innerAlg["end"])
+    if issuer == false || issuer["tag"] != 48 {
+        return false
+    }
+    let validity = cryptoDerTlv(der, issuer["end"])
+    if validity == false || validity["tag"] != 48 {
+        return false
+    }
+    let subject = cryptoDerTlv(der, validity["end"])
+    if subject == false || subject["tag"] != 48 {
+        return false
+    }
+    let spki = cryptoDerTlv(der, subject["end"])
+    if spki == false || spki["tag"] != 48 {
+        return false
+    }
+    return tls13PeerBcAfterSpki(der, tbs, spki)
+}

@@ -1,0 +1,23 @@
+import "kab/crypto/crypto_http_fetch_route"
+
+let loopVia = httpFetch("GET", "https://127.0.0.1:28199/v?q=1", "", {}, 0)
+if loopVia == false {
+    return false
+}
+if loopVia["status"] != 200 {
+    return false
+}
+if loopVia["body"] != "OK" {
+    return false
+}
+let peerVia = httpFetch("GET", "https://127.0.0.1:28291/v?q=1", "", {}, 0)
+if peerVia == false {
+    return false
+}
+if peerVia["status"] != 200 {
+    return false
+}
+if peerVia["body"] != "OK" {
+    return false
+}
+return true

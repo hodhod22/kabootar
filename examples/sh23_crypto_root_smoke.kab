@@ -33,6 +33,9 @@ if man["2"] != 110 {
 if cryptoRootRsaFixtureEvalOk() != true {
     return false
 }
+if cryptoRootSignedChainEvalOk() != true {
+    return false
+}
 let der = {}
 der["0"] = 48
 der["1"] = 21

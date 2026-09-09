@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_time"
+
+return tls13PeerTimeEvalOk(28304)

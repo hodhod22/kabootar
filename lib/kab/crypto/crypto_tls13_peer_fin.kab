@@ -1,0 +1,295 @@
+// SH23: Kab TLS 1.3 EncryptedExtensions/Finished against a rustls TLS 1.3 peer.
+// Do not grow this file further (cert/cv capture is enough). Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer"
+import "kab/crypto/crypto_tls13_hs"
+import "kab/crypto/crypto_tls13_hkdf"
+import "kab/crypto/crypto_tls13_gcm"
+import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_x25519_eval"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_sha_eval"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_prf"
+
+pub fn tls13PeerShX25519(message) {
+    let body = tlsHsParseOne(message, 2)
+    if body == false || body["n"] < 38 {
+        return false
+    }
+    let sessionLen = body["34"] & 255
+    let afterComp = 35 + sessionLen + 3
+    if afterComp + 2 > body["n"] {
+        return false
+    }
+    let extLen = ((body["" + afterComp] << 8) | body["" + (afterComp + 1)]) & 65535
+    let start = afterComp + 2
+    let finish = start + extLen
+    if finish != body["n"] {
+        return false
+    }
+    let e = start
+    let pk = false
+    while e + 4 <= finish {
+        let typ = ((body["" + e] << 8) | body["" + (e + 1)]) & 65535
+        let ln = ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) & 65535
+        e = e + 4
+        if e + ln > finish {
+            return false
+        }
+        if typ == 51 {
+            if ln >= 36 {
+                if ((body["" + e] << 8) | body["" + (e + 1)]) == 29 {
+                    if ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) == 32 {
+                        let o = {}
+                        let i = 0
+                        while i < 32 {
+                            o["" + i] = body["" + (e + 4 + i)] & 255
+                            i = i + 1
+                        }
+                        o["n"] = 32
+                        pk = o
+                    }
+                }
+            }
+        }
+        e = e + ln
+    }
+    return pk
+}
+
+pub fn tls13PeerStripInner(pt) {
+    let n = pt["n"]
+    if n < 5 {
+        return false
+    }
+    let i = n - 1
+    while i > -1 {
+        if (pt["" + i] & 255) != 0 {
+            if (pt["" + i] & 255) != 22 {
+                return false
+            }
+            let hs = {}
+            let j = 0
+            while j < i {
+                hs["" + j] = pt["" + j] & 255
+                j = j + 1
+            }
+            hs["n"] = i
+            return hs
+        }
+        i = i - 1
+    }
+    return false
+}
+
+pub fn tls13PeerReadEncHs(sock, key, iv, seq) {
+    let head = tlsHsReadBytesExact(sock, 5)
+    if head == false {
+        return false
+    }
+    if (head["0"] & 255) != 23 || (head["1"] & 255) != 3 || (head["2"] & 255) != 3 {
+        return false
+    }
+    let size = ((head["3"] << 8) | head["4"]) & 65535
+    if size < 17 || size > 16384 {
+        return false
+    }
+    let tail = tlsHsReadBytesExact(sock, size)
+    if tail == false {
+        return false
+    }
+    let ctLen = size - 16
+    let ct = {}
+    let i = 0
+    while i < ctLen {
+        ct["" + i] = tail["" + i] & 255
+        i = i + 1
+    }
+    ct["n"] = ctLen
+    let tag = {}
+    i = 0
+    while i < 16 {
+        tag["" + i] = tail["" + (ctLen + i)] & 255
+        i = i + 1
+    }
+    tag["n"] = 16
+    let plainHex = gcmDecrypt(key, tls13Nonce(iv, seq), ct, tag, head)
+    if plainHex == false {
+        return false
+    }
+    return tls13PeerStripInner(tlsHexToObj(plainHex))
+}
+
+pub fn tls13PeerHsClientOpen(port) {
+    let clientPub = tlsHexToObj("8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a")
+    let clientSecret = tlsHexToObj("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a")
+    let clientRandom = hmacStrBytes("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    let clientHello = tls13PeerBuildClientHello(clientRandom, clientPub)
+    let sock = tcp_connect("127.0.0.1", port)
+    if sock == false {
+        return false
+    }
+    tcp_write_bytes(sock, tlsRecordHs(clientHello))
+    let sh = tlsHsReadFirstHs(sock)
+    if sh == false {
+        tcp_close(sock)
+        return false
+    }
+    if tls13ParseServerHello(sh) == false {
+        tcp_close(sock)
+        return false
+    }
+    let serverPub = tls13PeerShX25519(sh)
+    if serverPub == false {
+        tcp_close(sock)
+        return false
+    }
+    let ecdhe = x25519(clientSecret, serverPub)
+    let emptyHash = hmacDigestToObj(sha256Bytes([]))
+    let zeros = tls13HashZeros()
+    let early = tls13HkdfExtract(zeros, zeros)
+    let derived = tls13HkdfExpandLabel(early, "derived", emptyHash, 32)
+    let hsSec = tls13HkdfExtract(derived, ecdhe)
+    let tr = tlsConcatObj(clientHello, sh)
+    let th = tlsTranscriptHashObj(tr)
+    let sHs = tls13HkdfExpandLabel(hsSec, "s hs traffic", th, 32)
+    let recKey = tls13HkdfExpandLabel(sHs, "key", tls13EmptyObj(), 16)
+    let recIv = tls13HkdfExpandLabel(sHs, "iv", tls13EmptyObj(), 12)
+    let finKey = tls13HkdfExpandLabel(sHs, "finished", tls13EmptyObj(), 32)
+    let buf = {}
+    buf["n"] = 0
+    let seq = 0
+    let sawEe = 0
+    let sawFin = 0
+    let sFin = false
+    let sCert = false
+    let sCv = false
+    let rec = 0
+    while rec < 12 {
+        if sawFin != 1 {
+            let head = tlsHsReadBytesExact(sock, 5)
+            if head == false {
+                tcp_close(sock)
+                return false
+            }
+            let typ = head["0"] & 255
+            let size = ((head["3"] << 8) | head["4"]) & 65535
+            if size < 1 || size > 16384 {
+                tcp_close(sock)
+                return false
+            }
+            let tail = tlsHsReadBytesExact(sock, size)
+            if tail == false {
+                tcp_close(sock)
+                return false
+            }
+            if typ == 20 {
+                if size != 1 {
+                    tcp_close(sock)
+                    return false
+                }
+            } else {
+                if typ != 23 {
+                    tcp_close(sock)
+                    return false
+                }
+                let ctLen = size - 16
+                if ctLen < 1 {
+                    tcp_close(sock)
+                    return false
+                }
+                let ct = {}
+                let i = 0
+                while i < ctLen {
+                    ct["" + i] = tail["" + i] & 255
+                    i = i + 1
+                }
+                ct["n"] = ctLen
+                let tag = {}
+                i = 0
+                while i < 16 {
+                    tag["" + i] = tail["" + (ctLen + i)] & 255
+                    i = i + 1
+                }
+                tag["n"] = 16
+                let plainHex = gcmDecrypt(recKey, tls13Nonce(recIv, seq), ct, tag, head)
+                if plainHex == false {
+                    tcp_close(sock)
+                    return false
+                }
+                let hs = tls13PeerStripInner(tlsHexToObj(plainHex))
+                if hs == false {
+                    tcp_close(sock)
+                    return false
+                }
+                buf = tlsHsBufAppend(buf, hs)
+                seq = seq + 1
+                let more = 1
+                while more == 1 {
+                    let msg = tlsHsBufTakeHs(buf)
+                    if msg == false {
+                        more = 0
+                    } else {
+                        if (msg["0"] & 255) == 20 {
+                            let th2 = tlsTranscriptHashObj(tr)
+                            let vd = hmacDigestToObj(hmacSha256WordsObj(finKey, th2))
+                            let body = tlsHsParseOne(msg, 20)
+                            if body == false {
+                                tcp_close(sock)
+                                return false
+                            }
+                            if tlsObjHex(body) != tlsObjHex(vd) {
+                                tcp_close(sock)
+                                return false
+                            }
+                            if sawEe != 1 {
+                                tcp_close(sock)
+                                return false
+                            }
+                            sawFin = 1
+                            sFin = msg
+                            more = 0
+                        } else {
+                            if (msg["0"] & 255) == 8 {
+                                sawEe = 1
+                            }
+                            if (msg["0"] & 255) == 11 {
+                                sCert = msg
+                            }
+                            if (msg["0"] & 255) == 15 {
+                                sCv = msg
+                            }
+                            tr = tlsConcatObj(tr, msg)
+                        }
+                    }
+                }
+            }
+        }
+        rec = rec + 1
+    }
+    if sawFin != 1 {
+        tcp_close(sock)
+        return false
+    }
+    let o = {}
+    o["sock"] = sock
+    o["tr"] = tr
+    o["serverFin"] = sFin
+    o["hsSec"] = hsSec
+    o["emptyHash"] = emptyHash
+    o["zeros"] = zeros
+    o["th0"] = th
+    o["cert"] = sCert
+    o["cv"] = sCv
+    return o
+}
+
+pub fn tls13PeerFinishedEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    tcp_close(s["sock"])
+    return true
+}

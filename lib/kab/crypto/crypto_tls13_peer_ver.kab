@@ -1,0 +1,46 @@
+// SH23: Kab TLS 1.3 leaf version v3 vs rustls P-256 peer.
+// Do not grow crypto_tls13_peer_sn.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_root"
+
+pub fn tls13PeerVerOk(bytes, ver) {
+    if ver == false || ver["tag"] != 160 {
+        return false
+    }
+    let n = cryptoDerTlv(bytes, ver["body"])
+    if n == false || n["tag"] != 2 || n["len"] != 1 {
+        return false
+    }
+    if (bytes["" + n["body"]] & 255) != 2 {
+        return false
+    }
+    return n["end"] == ver["end"]
+}
+
+pub fn tls13PeerVerEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    if der == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let first = cryptoDerTlv(der, tbs["body"])
+    return tls13PeerVerOk(der, first)
+}

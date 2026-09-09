@@ -1,0 +1,140 @@
+// SH23: Kab TLS 1.3 ECDSA-SHA256 verify of leaf TBS vs rustls P-256 peer.
+// Do not grow crypto_tls13_peer_ecdsa.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_ecdsa"
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_ecdsa_verify"
+import "kab/crypto/crypto_root"
+import "kab/crypto/crypto_sha_eval"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_tls_hs"
+
+pub fn tls13PeerEcdsaSha256Alg(bytes, alg) {
+    if alg == false || alg["tag"] != 48 {
+        return false
+    }
+    let oid = cryptoDerTlv(bytes, alg["body"])
+    if oid == false || oid["tag"] != 6 || oid["len"] != 8 {
+        return false
+    }
+    let expected = [42, 134, 72, 206, 61, 4, 3, 2]
+    let i = 0
+    while i < 8 {
+        if (bytes["" + (oid["body"] + i)] & 255) != expected[i] {
+            return false
+        }
+        i = i + 1
+    }
+    if oid["end"] == alg["end"] {
+        return true
+    }
+    let params = cryptoDerTlv(bytes, oid["end"])
+    if params == false || params["tag"] != 5 || params["len"] != 0 {
+        return false
+    }
+    return params["end"] == alg["end"]
+}
+
+pub fn tls13PeerEcdsaSpkiPoint(der, innerAlg) {
+    let issuer = cryptoDerTlv(der, innerAlg["end"])
+    if issuer == false || issuer["tag"] != 48 {
+        return false
+    }
+    let validity = cryptoDerTlv(der, issuer["end"])
+    if validity == false || validity["tag"] != 48 {
+        return false
+    }
+    let subject = cryptoDerTlv(der, validity["end"])
+    if subject == false || subject["tag"] != 48 {
+        return false
+    }
+    let spki = cryptoDerTlv(der, subject["end"])
+    if spki == false || spki["tag"] != 48 {
+        return false
+    }
+    let spkiAlg = cryptoDerTlv(der, spki["body"])
+    if spkiAlg == false || spkiAlg["tag"] != 48 {
+        return false
+    }
+    let keyBits = cryptoDerTlv(der, spkiAlg["end"])
+    if keyBits == false || keyBits["tag"] != 3 || keyBits["len"] != 66 {
+        return false
+    }
+    if (der["" + keyBits["body"]] & 255) != 0 {
+        return false
+    }
+    if (der["" + (keyBits["body"] + 1)] & 255) != 4 {
+        return false
+    }
+    if keyBits["end"] != spki["end"] {
+        return false
+    }
+    let o = {}
+    o["x"] = cryptoRootByteRange(der, keyBits["body"] + 2, keyBits["body"] + 34)
+    o["y"] = cryptoRootByteRange(der, keyBits["body"] + 34, keyBits["body"] + 66)
+    return o
+}
+
+pub fn tls13PeerEcdsaTbsEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    if der == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let alg = cryptoDerTlv(der, tbs["end"])
+    if tls13PeerEcdsaSha256Alg(der, alg) != true {
+        return false
+    }
+    let first = cryptoDerTlv(der, tbs["body"])
+    if first == false {
+        return false
+    }
+    let serialOff = tbs["body"]
+    if first["tag"] == 160 {
+        serialOff = first["end"]
+    }
+    let serial = cryptoDerTlv(der, serialOff)
+    if serial == false || serial["tag"] != 2 {
+        return false
+    }
+    let innerAlg = cryptoDerTlv(der, serial["end"])
+    if tls13PeerEcdsaSha256Alg(der, innerAlg) != true {
+        return false
+    }
+    if cryptoRootDerEqual(der, innerAlg, der, alg) != true {
+        return false
+    }
+    let sigBits = cryptoDerTlv(der, alg["end"])
+    if sigBits == false || sigBits["tag"] != 3 || sigBits["len"] < 9 {
+        return false
+    }
+    if (der["" + sigBits["body"]] & 255) != 0 || sigBits["end"] != outer["end"] {
+        return false
+    }
+    let sig = cryptoRootByteRange(der, sigBits["body"] + 1, sigBits["end"])
+    let signedTbs = cryptoRootByteRange(der, tbs["start"], tbs["end"])
+    let pt = tls13PeerEcdsaSpkiPoint(der, innerAlg)
+    let rs = tls13PeerEcdsaSig(sig)
+    if sig == false || signedTbs == false || pt == false || rs == false {
+        return false
+    }
+    let hash = hmacDigestToObj(sha256Bytes(tlsObjToArr(signedTbs)))
+    return ecdsaP256Verify(hash, rs["r"], rs["s"], pt["x"], pt["y"])
+}

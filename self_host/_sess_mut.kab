@@ -1,0 +1,15 @@
+
+import "self_host/_sess_lib"
+pub fn symC(E, arg) {
+    E["eConsts"] = push(E["eConsts"], arg)
+    let cIdx = E["eConstN"]
+    E["eConstN"] = E["eConstN"] + 1
+    println("symC inner clen="+len(E["eConsts"]))
+    return cIdx
+}
+pub fn emitOp(E, op, arg) {
+    println("emitOp pre c="+len(E["eConsts"]))
+    E["eOps"] = push(E["eOps"], { "op": op, "arg": arg })
+    E["eOpsN"] = E["eOpsN"] + 1
+    println("emitOp post c="+len(E["eConsts"])+" o="+len(E["eOps"]))
+}

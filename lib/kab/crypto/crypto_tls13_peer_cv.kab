@@ -1,0 +1,111 @@
+// SH23: Kab TLS 1.3 Certificate + CertificateVerify against a rustls TLS 1.3 peer.
+// Do not grow crypto_tls13_peer_fin.kab beyond session cert/cv capture. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_tls_hs"
+
+pub fn tls13PeerCertDer(message) {
+    let body = tlsHsParseOne(message, 11)
+    if body == false || body["n"] < 8 {
+        return false
+    }
+    let ctxLen = body["0"] & 255
+    if 1 + ctxLen + 3 > body["n"] {
+        return false
+    }
+    let listOff = 1 + ctxLen
+    let listLen = ((body["" + listOff] << 16) | (body["" + (listOff + 1)] << 8) | body["" + (listOff + 2)]) & 16777215
+    if listOff + 3 + listLen != body["n"] {
+        return false
+    }
+    let certOff = listOff + 3
+    if certOff + 3 > body["n"] {
+        return false
+    }
+    let certLen = ((body["" + certOff] << 16) | (body["" + (certOff + 1)] << 8) | body["" + (certOff + 2)]) & 16777215
+    if certLen < 1 {
+        return false
+    }
+    let derOff = certOff + 3
+    if derOff + certLen + 2 > body["n"] {
+        return false
+    }
+    let extLen = ((body["" + (derOff + certLen)] << 8) | body["" + (derOff + certLen + 1)]) & 65535
+    if derOff + certLen + 2 + extLen > body["n"] {
+        return false
+    }
+    let der = {}
+    let i = 0
+    while i < certLen {
+        der["" + i] = body["" + (derOff + i)] & 255
+        i = i + 1
+    }
+    der["n"] = certLen
+    return der
+}
+
+pub fn tls13PeerCvParse(message) {
+    let body = tlsHsParseOne(message, 15)
+    if body == false || body["n"] < 4 {
+        return false
+    }
+    let scheme = ((body["0"] << 8) | body["1"]) & 65535
+    let sigLen = ((body["2"] << 8) | body["3"]) & 65535
+    if sigLen < 8 {
+        return false
+    }
+    if 4 + sigLen != body["n"] {
+        return false
+    }
+    let sig = {}
+    let i = 0
+    while i < sigLen {
+        sig["" + i] = body["" + (4 + i)] & 255
+        i = i + 1
+    }
+    sig["n"] = sigLen
+    let o = {}
+    o["scheme"] = scheme
+    o["sigLen"] = sigLen
+    o["sig"] = sig
+    return o
+}
+
+pub fn tls13PeerCvEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    if s["cv"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    if der == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    if (der["0"] & 255) != 48 {
+        tcp_close(s["sock"])
+        return false
+    }
+    if der["n"] < 64 {
+        tcp_close(s["sock"])
+        return false
+    }
+    let cv = tls13PeerCvParse(s["cv"])
+    tcp_close(s["sock"])
+    if cv == false {
+        return false
+    }
+    if cv["scheme"] != 1027 {
+        if cv["scheme"] != 2052 {
+            return false
+        }
+    }
+    return true
+}

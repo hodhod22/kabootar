@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_nul"
+
+return tls13PeerNulEvalOk(28320)

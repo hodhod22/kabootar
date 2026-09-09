@@ -1,0 +1,18 @@
+import "kab/http/http_fetch"
+import "kab/crypto/crypto_http_fetch_bind13_peer"
+
+async fn load() {
+    let via = await httpFetch("DELETE", "https://127.0.0.1:28296/w?q=2", "", {}, 0)
+    if via == false {
+        return false
+    }
+    if http_status(via) != 200 {
+        return false
+    }
+    if http_body(via) != "OK" {
+        return false
+    }
+    return true
+}
+
+await load()

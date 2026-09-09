@@ -1,0 +1,11 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+
+compile("fn t(E) { let ai = 0; E[\"a\"] = push(E[\"a\"], { \"sym\": ai }); return E }")
+println("OK id")
+
+compile("fn t(E) { let ai = 0; E[\"a\"] = push(E[\"a\"], { \"sym\": (\"a\" + ai) }); return E }")
+println("OK paren plus")
+
+compile("fn t(E) { let ai = 0; let s = \"a\" + ai; E[\"a\"] = push(E[\"a\"], { \"sym\": s }); return E }")
+println("OK precompute")
