@@ -1,0 +1,162 @@
+// SH23: TLS 1.3 AES-GCM handshake records (0x17) for EE/Finished.
+// Do not grow crypto_tls13_fin.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_hs"
+import "kab/crypto/crypto_tls13_hkdf"
+import "kab/crypto/crypto_x25519_eval"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_sha_eval"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_prf"
+import "kab/crypto/crypto_gcm_eval"
+
+pub fn tls13Nonce(iv, seq) {
+    let n = {}
+    let i = 0
+    while i < 12 {
+        n["" + i] = iv["" + i] & 255
+        i = i + 1
+    }
+    n["n"] = 12
+    n["11"] = (n["11"] ^ (seq & 255)) & 255
+    n["10"] = (n["10"] ^ ((seq / 256) | 0) & 255) & 255
+    return n
+}
+
+pub fn tls13InnerHs(hs) {
+    let t = {}
+    t["0"] = 22
+    t["n"] = 1
+    return tlsConcatObj(hs, t)
+}
+
+pub fn tls13StripInner(pt) {
+    let n = pt["n"]
+    if n < 5 {
+        return false
+    }
+    if (pt["" + (n - 1)] & 255) != 22 {
+        return false
+    }
+    let hs = {}
+    let i = 0
+    let m = n - 1
+    while i < m {
+        hs["" + i] = pt["" + i] & 255
+        i = i + 1
+    }
+    hs["n"] = m
+    return hs
+}
+
+pub fn tls13Aad(ctLen) {
+    let o = {}
+    o["0"] = 23
+    o["1"] = 3
+    o["2"] = 3
+    o["3"] = (ctLen / 256) | 0
+    o["4"] = ctLen & 255
+    o["n"] = 5
+    return o
+}
+
+pub fn tls13WriteHsGcm(sock, key, iv, seq, hs) {
+    let inner = tls13InnerHs(hs)
+    let aad = tls13Aad(inner["n"] + 16)
+    let enc = gcmEncrypt(key, tls13Nonce(iv, seq), inner, aad)
+    let body = tlsConcatObj(enc["ct"], enc["tag"])
+    tcp_write_bytes(sock, tlsConcatObj(aad, body))
+    return true
+}
+
+pub fn tls13ReadHsGcm(sock, key, iv, seq) {
+    let head = tlsHsReadBytesExact(sock, 5)
+    if head == false {
+        return false
+    }
+    if (head["0"] & 255) != 23 || (head["1"] & 255) != 3 || (head["2"] & 255) != 3 {
+        return false
+    }
+    let size = ((head["3"] << 8) | head["4"]) & 65535
+    if size < 17 || size > 16384 {
+        return false
+    }
+    let tail = tlsHsReadBytesExact(sock, size)
+    if tail == false {
+        return false
+    }
+    let ctLen = size - 16
+    let ct = {}
+    let i = 0
+    while i < ctLen {
+        ct["" + i] = tail["" + i] & 255
+        i = i + 1
+    }
+    ct["n"] = ctLen
+    let tag = {}
+    i = 0
+    while i < 16 {
+        tag["" + i] = tail["" + (ctLen + i)] & 255
+        i = i + 1
+    }
+    tag["n"] = 16
+    let plainHex = gcmDecrypt(key, tls13Nonce(iv, seq), ct, tag, head)
+    if plainHex == false {
+        return false
+    }
+    return tls13StripInner(tlsHexToObj(plainHex))
+}
+
+pub fn tls13HsGcmEvalOk() {
+    if tls13HkdfEvalOk() != true {
+        return false
+    }
+    let emptyHash = hmacDigestToObj(sha256Bytes([]))
+    let s = tls13HsLiveOpen(28196)
+    if s == false {
+        return false
+    }
+    let clientSecret = tlsHexToObj("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a")
+    let serverPub = tlsHexToObj("de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f")
+    let ecdhe = x25519(clientSecret, serverPub)
+    let zeros = tls13HashZeros()
+    let early = tls13HkdfExtract(zeros, zeros)
+    let derived = tls13HkdfExpandLabel(early, "derived", emptyHash, 32)
+    let hsSec = tls13HkdfExtract(derived, ecdhe)
+    let tr = tlsConcatObj(s["ch"], s["sh"])
+    let th = tlsTranscriptHashObj(tr)
+    let sHs = tls13HkdfExpandLabel(hsSec, "s hs traffic", th, 32)
+    let recKey = tls13HkdfExpandLabel(sHs, "key", tls13EmptyObj(), 16)
+    let recIv = tls13HkdfExpandLabel(sHs, "iv", tls13EmptyObj(), 12)
+    let finKey = tls13HkdfExpandLabel(sHs, "finished", tls13EmptyObj(), 32)
+    let ee = tlsHsWrap(8, tlsHexToObj("0000"))
+    tls13WriteHsGcm(s["server"], recKey, recIv, 0, ee)
+    let gotEe = tls13ReadHsGcm(s["client"], recKey, recIv, 0)
+    if gotEe == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    if tlsObjHex(gotEe) != tlsObjHex(ee) {
+        tls13HsLiveClose(s)
+        return false
+    }
+    let th2 = tlsTranscriptHashObj(tlsConcatObj(tr, ee))
+    let vd = hmacDigestToObj(hmacSha256WordsObj(finKey, th2))
+    let fin = tlsHsWrap(20, vd)
+    tls13WriteHsGcm(s["server"], recKey, recIv, 1, fin)
+    let gotFin = tls13ReadHsGcm(s["client"], recKey, recIv, 1)
+    if gotFin == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    if tlsObjHex(gotFin) != tlsObjHex(fin) {
+        tls13HsLiveClose(s)
+        return false
+    }
+    if (gotFin["0"] & 255) != 20 {
+        tls13HsLiveClose(s)
+        return false
+    }
+    tls13HsLiveClose(s)
+    return true
+}

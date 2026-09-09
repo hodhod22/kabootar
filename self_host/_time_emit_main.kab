@@ -1,0 +1,7 @@
+import "os"
+os_mount("/repo", ".")
+import "self_host/compile"
+let src = read("/repo/self_host/emit_exec.kab")
+let t0 = date_now_ms()
+compile(src)
+println("PROFILE compile_ms " + (date_now_ms() - t0))

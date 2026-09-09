@@ -1,0 +1,5 @@
+import "self_host/emit_exec"
+import "self_host/_real_sess_mut"
+let E = eMakeSession()
+doEmit(E)
+println("outer c="+len(E["eConsts"])+" g="+len(E["eGlobals"])+" o="+len(E["eOps"]))

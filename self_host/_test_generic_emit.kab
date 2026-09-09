@@ -1,0 +1,8 @@
+import "self_host/lexer"
+import "self_host/parser"
+import "self_host/emit"
+let ast = parseTokens(tokenize("fn id<T>(x: T) -> T { return x }; let n = id(42); let s = id(\"hi\")"))
+let bc = emit(ast)
+println("fns=" + len(bc.functions))
+println("0=" + bc.functions[0].sym)
+println("1=" + bc.functions[1].sym)

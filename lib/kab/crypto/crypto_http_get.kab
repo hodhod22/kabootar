@@ -48,6 +48,16 @@ pub fn httpHostName(auth) {
     return auth
 }
 
+pub fn httpIsLoopbackHost(host) {
+    if host == "127.0.0.1" {
+        return true
+    }
+    if host == "localhost" {
+        return true
+    }
+    return false
+}
+
 pub fn httpPortFromHttps(url) {
     let auth = httpHostFromHttps(url)
     let i = 0
@@ -82,6 +92,13 @@ pub fn httpPathFromHttps(url) {
         i = i + 1
     }
     return "/"
+}
+
+pub fn httpFetchTarget(method, url) {
+    if method == "CONNECT" {
+        return httpHostFromHttps(url)
+    }
+    return httpPathFromHttps(url)
 }
 
 pub fn httpBuildGet(host, path) {
@@ -123,6 +140,48 @@ pub fn httpBuildReadAuth(method, host, path, token) {
     return o
 }
 
+pub fn httpBuildGetAuthHdr(host, path, auth) {
+    let o = {}
+    o["n"] = 0
+    o = httpAppend(o, "GET")
+    o = httpAppend(o, " ")
+    o = httpAppend(o, path)
+    o = httpAppend(o, " HTTP/1.1")
+    o = httpAppendCrLf(o)
+    o = httpAppendHeader(o, "Host", host)
+    o = httpAppendHeader(o, "Authorization", auth)
+    o = httpAppendCrLf(o)
+    return o
+}
+
+pub fn httpBuildGetCookieHdr(host, path, cookie) {
+    let o = {}
+    o["n"] = 0
+    o = httpAppend(o, "GET")
+    o = httpAppend(o, " ")
+    o = httpAppend(o, path)
+    o = httpAppend(o, " HTTP/1.1")
+    o = httpAppendCrLf(o)
+    o = httpAppendHeader(o, "Host", host)
+    o = httpAppendHeader(o, "Cookie", cookie)
+    o = httpAppendCrLf(o)
+    return o
+}
+
+pub fn httpBuildGetProxyAuthHdr(host, path, proxyAuth) {
+    let o = {}
+    o["n"] = 0
+    o = httpAppend(o, "GET")
+    o = httpAppend(o, " ")
+    o = httpAppend(o, path)
+    o = httpAppend(o, " HTTP/1.1")
+    o = httpAppendCrLf(o)
+    o = httpAppendHeader(o, "Host", host)
+    o = httpAppendHeader(o, "Proxy-Authorization", proxyAuth)
+    o = httpAppendCrLf(o)
+    return o
+}
+
 pub fn httpDec(n) {
     if n == 0 {
         return "0"
@@ -139,6 +198,69 @@ pub fn httpDec(n) {
 
 pub fn httpBuildPost(host, path, body, ctype) {
     return httpBuildWrite("POST", host, path, body, ctype)
+}
+
+pub fn httpBuildFetchReq(method, host, path, body, headers) {
+    if method == "GET" {
+        if body != "" {
+            return false
+        }
+        let au = headers["Authorization"]
+        if au {
+            return httpBuildGetAuthHdr(host, path, au)
+        }
+        let ck = headers["Cookie"]
+        if ck {
+            return httpBuildGetCookieHdr(host, path, ck)
+        }
+        let pa = headers["Proxy-Authorization"]
+        if pa {
+            return httpBuildGetProxyAuthHdr(host, path, pa)
+        }
+        return httpBuildGet(host, path)
+    }
+    if method == "DELETE" {
+        if body != "" {
+            return false
+        }
+        return httpBuildRead("DELETE", host, path)
+    }
+    if method == "HEAD" {
+        if body != "" {
+            return false
+        }
+        return httpBuildRead("HEAD", host, path)
+    }
+    if method == "OPTIONS" {
+        if body != "" {
+            return false
+        }
+        return httpBuildRead("OPTIONS", host, path)
+    }
+    if method == "TRACE" {
+        if body != "" {
+            return false
+        }
+        return httpBuildRead("TRACE", host, path)
+    }
+    if method == "CONNECT" {
+        if body != "" {
+            return false
+        }
+        return httpBuildRead("CONNECT", host, path)
+    }
+    if method != "POST" {
+        if method != "PUT" {
+            if method != "PATCH" {
+                return false
+            }
+        }
+    }
+    let ctype = headers["Content-Type"]
+    if ctype == undefined || ctype == null {
+        ctype = "application/x-www-form-urlencoded"
+    }
+    return httpBuildWrite(method, host, path, body, ctype)
 }
 
 pub fn httpBuildWrite(method, host, path, body, ctype) {

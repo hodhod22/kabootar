@@ -1,0 +1,69 @@
+// SH23: TLS 1.3 handshake-secret + EncryptedExtensions/Finished on loopback.
+// Do not grow crypto_tls13_hs.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_hs"
+import "kab/crypto/crypto_tls13_hkdf"
+import "kab/crypto/crypto_x25519_eval"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_sha_eval"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_prf"
+
+pub fn tls13HsFinEvalOk() {
+    if tls13HkdfEvalOk() != true {
+        return false
+    }
+    let emptyHash = hmacDigestToObj(sha256Bytes([]))
+    if tlsObjHex(emptyHash) != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
+        return false
+    }
+    let s = tls13HsLiveOpen(28195)
+    if s == false {
+        return false
+    }
+    let clientSecret = tlsHexToObj("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a")
+    let serverPub = tlsHexToObj("de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f")
+    let ecdhe = x25519(clientSecret, serverPub)
+    if tlsObjHex(ecdhe) != "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742" {
+        tls13HsLiveClose(s)
+        return false
+    }
+    let zeros = tls13HashZeros()
+    let early = tls13HkdfExtract(zeros, zeros)
+    let derived = tls13HkdfExpandLabel(early, "derived", emptyHash, 32)
+    let hsSec = tls13HkdfExtract(derived, ecdhe)
+    let tr = tlsConcatObj(s["ch"], s["sh"])
+    let th = tlsTranscriptHashObj(tr)
+    let sHs = tls13HkdfExpandLabel(hsSec, "s hs traffic", th, 32)
+    let finKey = tls13HkdfExpandLabel(sHs, "finished", tls13EmptyObj(), 32)
+    let ee = tlsHsWrap(8, tlsHexToObj("0000"))
+    tcp_write_bytes(s["server"], tlsRecordHs(ee))
+    let gotEe = tlsHsReadRecord(s["client"], 8)
+    if gotEe == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    if tlsObjHex(gotEe) != tlsObjHex(ee) {
+        tls13HsLiveClose(s)
+        return false
+    }
+    let th2 = tlsTranscriptHashObj(tlsConcatObj(tr, ee))
+    let vd = hmacDigestToObj(hmacSha256WordsObj(finKey, th2))
+    let fin = tlsHsWrap(20, vd)
+    tcp_write_bytes(s["server"], tlsRecordHs(fin))
+    let gotFin = tlsHsReadRecord(s["client"], 20)
+    if gotFin == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    if tlsObjHex(gotFin) != tlsObjHex(fin) {
+        tls13HsLiveClose(s)
+        return false
+    }
+    if (gotFin["0"] & 255) != 20 {
+        tls13HsLiveClose(s)
+        return false
+    }
+    tls13HsLiveClose(s)
+    return true
+}

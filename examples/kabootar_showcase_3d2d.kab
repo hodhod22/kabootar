@@ -1,0 +1,53 @@
+// Kabootar launch-page visual core: WebGL 3D + Canvas 2D in one .kab program.
+// Run: cargo run -- examples/kabootar_showcase_3d2d.kab
+// The production web build can use platform_use("host") to present through WASM.
+
+import "game/render"
+
+platform_use("kabootar")
+
+// 3D hero: a bright, rotating-style low-poly Kabootar mark.
+let hero = game_surface_create_3d(1280, 720)
+let gl = hero["gl"]
+gl.lookAt(0, 0, 3.0, 0, 0, 0, 0, 1, 0)
+gl.rotateModelY(28)
+setColor(gl, 0.20, 0.82, 1.00, 1.00)
+let wing = createMesh(gl, [
+    -0.82, -0.45, 0.05,
+     0.72, -0.32, 0.18,
+     0.00,  0.72, 0.42,
+    -0.58, -0.12, 0.10,
+     0.64, -0.20, 0.25,
+     0.00,  0.22, 0.62
+])
+drawMesh(wing)
+hero.present()
+
+// 2D HUD: same program draws a canvas overlay for the launch page.
+let hud = canvas_create(1280, 720)
+hud.fillStyle = "#09111f"
+hud.fillRect(0, 0, 1280, 720)
+hud.fillStyle = "#f2ba4c"
+hud.fillRect(76, 78, 8, 430)
+hud.fillStyle = "#f3f7ff"
+hud.font = "bold 64px Arial"
+hud.fillText("KABOOTAR", 112, 150)
+hud.font = "28px Arial"
+hud.fillStyle = "#b8c4d8"
+hud.fillText("One language. Whole stack.", 116, 204)
+hud.fillStyle = "#5bd6e8"
+hud.fillRect(112, 276, 390, 3)
+hud.font = "22px Arial"
+hud.fillStyle = "#f3f7ff"
+hud.fillText("3D WebGL hero", 116, 340)
+hud.fillText("2D Canvas motion graphics", 116, 384)
+hud.fillText("Frontend + backend + database", 116, 428)
+hud.fillStyle = "#6ed19c"
+hud.fillRect(116, 468, 242, 56)
+hud.fillStyle = "#09111f"
+hud.font = "bold 19px Arial"
+hud.fillText("EXPLORE THE STACK", 136, 504)
+
+// The canvas can be used as pixels or uploaded as a WebGL texture.
+let hud_pixels = canvas_to_pixels(hud)
+return hero["mode"] == "3d" && hud_pixels.length > 0

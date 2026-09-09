@@ -1,0 +1,18 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+
+let src1 = "fn t(E) { E[\"a\"] = push(E[\"a\"], { \"x\": 1 }); return E }"
+compile(src1)
+println("OK simple")
+
+let src2 = "fn t(E) { let ai = 0; E[\"a\"] = push(E[\"a\"], { \"sym\": \"a\" + ai }); return E }"
+compile(src2)
+println("OK plus")
+
+let src3 = "fn u(E,m,s){return s}\nfn t(E) { let p = []; E[\"a\"] = push(E[\"a\"], { \"params\": u(E, \"snap\", p) }); return E }"
+compile(src3)
+println("OK call")
+
+let src4 = "fn u(E,m,s){return s}\nfn t(E) { E[\"a\"] = push(E[\"a\"], { \"locals\": u(E, \"snap\", E[\"b\"]) }); return E }"
+compile(src4)
+println("OK callE")

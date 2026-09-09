@@ -6,6 +6,7 @@ import "kab/crypto/crypto_tls_prf"
 import "kab/crypto/crypto_hmac_eval"
 import "kab/crypto/crypto_sha_eval"
 import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_root"
 
 pub fn tlsObjToArr(o) {
     let out = []
@@ -116,10 +117,144 @@ pub fn tlsHsReadRecord(sock, expectedType) {
     if message == false {
         return false
     }
-    if tlsHsParseOne(message, expectedType) == false {
+    if (message["0"] & 255) != expectedType {
+        return false
+    }
+    let bodyLen = ((message["1"] << 16) | (message["2"] << 8) | message["3"]) & 16777215
+    if bodyLen != message["n"] - 4 {
         return false
     }
     return message
+}
+
+/// First handshake message in a TLS record (rustls may pack more than one).
+pub fn tlsHsReadFirstHs(sock) {
+    let head = tlsHsReadBytesExact(sock, 5)
+    if head == false {
+        return false
+    }
+    if (head["0"] & 255) != 22 {
+        return false
+    }
+    if (head["1"] & 255) != 3 {
+        return false
+    }
+    let minor = head["2"] & 255
+    if minor != 1 {
+        if minor != 3 {
+            return false
+        }
+    }
+    let size = ((head["3"] << 8) | head["4"]) & 65535
+    if size < 4 || size > 16384 {
+        return false
+    }
+    let payload = tlsHsReadBytesExact(sock, size)
+    if payload == false {
+        return false
+    }
+    if payload["n"] < 4 {
+        return false
+    }
+    let bodyLen = ((payload["1"] << 16) | (payload["2"] << 8) | payload["3"]) & 16777215
+    if 4 + bodyLen > payload["n"] {
+        return false
+    }
+    let message = {}
+    let i = 0
+    while i < 4 + bodyLen {
+        message["" + i] = payload["" + i] & 255
+        i = i + 1
+    }
+    message["n"] = 4 + bodyLen
+    return message
+}
+
+/// Append src bytes onto a handshake leftover buffer.
+pub fn tlsHsBufAppend(buf, src) {
+    let n = buf["n"]
+    let m = src["n"]
+    let i = 0
+    while i < m {
+        buf["" + (n + i)] = src["" + i] & 255
+        i = i + 1
+    }
+    buf["n"] = n + m
+    return buf
+}
+
+/// Take one complete handshake message from leftover, or false if truncated.
+pub fn tlsHsBufTakeHs(buf) {
+    if buf["n"] < 4 {
+        return false
+    }
+    let bodyLen = ((buf["1"] << 16) | (buf["2"] << 8) | buf["3"]) & 16777215
+    let total = 4 + bodyLen
+    if total > buf["n"] {
+        return false
+    }
+    if total > 16777216 {
+        return false
+    }
+    let message = {}
+    let i = 0
+    while i < total {
+        message["" + i] = buf["" + i] & 255
+        i = i + 1
+    }
+    message["n"] = total
+    let rest = buf["n"] - total
+    let j = 0
+    while j < rest {
+        buf["" + j] = buf["" + (total + j)] & 255
+        j = j + 1
+    }
+    buf["n"] = rest
+    return message
+}
+
+/// One TLS handshake record payload (may contain several messages).
+pub fn tlsHsReadHsPayload(sock) {
+    let head = tlsHsReadBytesExact(sock, 5)
+    if head == false {
+        return false
+    }
+    if (head["0"] & 255) != 22 {
+        return false
+    }
+    if (head["1"] & 255) != 3 {
+        return false
+    }
+    let minor = head["2"] & 255
+    if minor != 1 {
+        if minor != 3 {
+            return false
+        }
+    }
+    let size = ((head["3"] << 8) | head["4"]) & 65535
+    if size < 1 || size > 16384 {
+        return false
+    }
+    return tlsHsReadBytesExact(sock, size)
+}
+
+/// Next handshake message, spanning rustls-coalesced records.
+pub fn tlsHsReadNextHs(sock, buf) {
+    let k = 0
+    while k < 24 {
+        let msg = tlsHsBufTakeHs(buf)
+        if msg == false {
+            let rec = tlsHsReadHsPayload(sock)
+            if rec == false {
+                return false
+            }
+            tlsHsBufAppend(buf, rec)
+        } else {
+            return msg
+        }
+        k = k + 1
+    }
+    return false
 }
 
 /// Read the TLS 1.2 ChangeCipherSpec record which enables encrypted handshake records.
@@ -215,6 +350,78 @@ pub fn tlsHsParseCertificate(message) {
     return cert
 }
 
+/// Parse a complete TLS 1.2 Certificate list into individual DER certificate objects.
+pub fn tlsHsParseCertificateChain(message) {
+    let body = tlsHsParseOne(message, 11)
+    if body == false || body["n"] < 6 {
+        return false
+    }
+    let listLen = ((body["0"] << 16) | (body["1"] << 8) | body["2"]) & 16777215
+    if listLen != body["n"] - 3 {
+        return false
+    }
+    let certs = {}
+    let at = 3
+    let count = 0
+    while at < body["n"] {
+        if at + 3 > body["n"] {
+            return false
+        }
+        let certLen = ((body["" + at] << 16) | (body["" + (at + 1)] << 8) | body["" + (at + 2)]) & 16777215
+        if certLen < 1 || at + 3 + certLen > body["n"] {
+            return false
+        }
+        let cert = {}
+        let i = 0
+        while i < certLen {
+            cert["" + i] = body["" + (at + 3 + i)] & 255
+            i = i + 1
+        }
+        cert["n"] = certLen
+        certs["" + count] = cert
+        count = count + 1
+        at = at + 3 + certLen
+    }
+    if count < 1 || at != body["n"] {
+        return false
+    }
+    certs["n"] = count
+    return certs
+}
+
+pub fn tlsHsU24(n) {
+    let o = {}
+    o["0"] = (n / 65536) | 0
+    o["1"] = ((n / 256) | 0) & 255
+    o["2"] = n & 255
+    o["n"] = 3
+    return o
+}
+
+/// Wrap DER certificates as a TLS 1.2 Certificate handshake body.
+pub fn tlsHsCertificateList(leaf, issuer) {
+    let inner = tlsConcatObj(tlsHsU24(leaf["n"]), tlsConcatObj(leaf, tlsConcatObj(tlsHsU24(issuer["n"]), issuer)))
+    return tlsConcatObj(tlsHsU24(inner["n"]), inner)
+}
+
+/// Validate a leaf/issuer fixture chain received in a TLS Certificate message.
+pub fn tlsHsValidateCertificateChain(certs) {
+    if certs == false || certs["n"] != 2 {
+        return false
+    }
+    let i = 0
+    while i < certs["n"] {
+        if cryptoRootDerCert(certs["" + i]) != true {
+            return false
+        }
+        if cryptoRootCertAlgorithmsMatch(certs["" + i]) != true {
+            return false
+        }
+        i = i + 1
+    }
+    return cryptoRootIssuedRsaFixtureVerify(certs["0"], certs["1"])
+}
+
 /// Parse the ECDHE/X25519 framing of a TLS 1.2 ServerKeyExchange message.
 pub fn tlsHsParseServerKeyExchange(message) {
     let body = tlsHsParseOne(message, 12)
@@ -245,6 +452,178 @@ pub fn tlsHsParseServerKeyExchange(message) {
     }
     publicKey["n"] = 32
     return { publicKey: publicKey, signatureLength: sigLen }
+}
+
+/// Parse a TLS 1.2 ECDHE ClientKeyExchange (1-byte length + X25519 public).
+pub fn tlsHsParseClientKeyExchange(message) {
+    let body = tlsHsParseOne(message, 16)
+    if body == false || body["n"] != 33 {
+        return false
+    }
+    if (body["0"] & 255) != 32 {
+        return false
+    }
+    let publicKey = {}
+    let i = 0
+    while i < 32 {
+        publicKey["" + i] = body["" + (1 + i)] & 255
+        i = i + 1
+    }
+    publicKey["n"] = 32
+    return publicKey
+}
+
+/// Parse the TLS 1.2 ServerHello fields required by the AES-128-GCM fixture.
+pub fn tlsHsParseServerHello(message) {
+    let body = tlsHsParseOne(message, 2)
+    if body == false || body["n"] < 38 {
+        return false
+    }
+    if (body["0"] & 255) != 3 || (body["1"] & 255) != 3 {
+        return false
+    }
+    let sessionLen = body["34"] & 255
+    if sessionLen > 32 {
+        return false
+    }
+    let cipherOff = 35 + sessionLen
+    if cipherOff + 3 > body["n"] {
+        return false
+    }
+    let cipher = ((body["" + cipherOff] << 8) | body["" + (cipherOff + 1)]) & 65535
+    if cipher != 156 {
+        if cipher != 49195 {
+            return false
+        }
+    }
+    if (body["" + (cipherOff + 2)] & 255) != 0 {
+        return false
+    }
+    let shTail = cipherOff + 3
+    if shTail < body["n"] {
+        if shTail + 2 > body["n"] {
+            return false
+        }
+        let shExt = ((body["" + shTail] << 8) | body["" + (shTail + 1)]) & 65535
+        if shTail + 2 + shExt != body["n"] {
+            return false
+        }
+    }
+    let random = {}
+    let i = 0
+    while i < 32 {
+        random["" + i] = body["" + (2 + i)] & 255
+        i = i + 1
+    }
+    random["n"] = 32
+    return { random: random, cipher: cipher }
+}
+
+/// Scan ClientHello extensions for named group 0x001d (X25519). -1 = bad vector.
+pub fn tlsHsExtGroupX(body, start, finish) {
+    let e = start
+    let found = 0
+    while e + 4 <= finish {
+        let typ = ((body["" + e] << 8) | body["" + (e + 1)]) & 65535
+        let ln = ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) & 65535
+        e = e + 4
+        if e + ln > finish {
+            return -1
+        }
+        if typ == 10 {
+            if ln >= 4 {
+                let gl = ((body["" + e] << 8) | body["" + (e + 1)]) & 65535
+                if gl >= 2 {
+                    if gl + 2 <= ln {
+                        if ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) == 29 {
+                            found = 1
+                        }
+                    }
+                }
+            }
+        }
+        e = e + ln
+    }
+    if e != finish {
+        return -1
+    }
+    return found
+}
+
+/// Parse the TLS 1.2 ClientHello fields required by the AES-128-GCM fixture.
+pub fn tlsHsParseClientHello(message) {
+    let body = tlsHsParseOne(message, 1)
+    if body == false || body["n"] < 41 {
+        return false
+    }
+    if (body["0"] & 255) != 3 || (body["1"] & 255) != 3 {
+        return false
+    }
+    let sessionLen = body["34"] & 255
+    if sessionLen > 32 {
+        return false
+    }
+    let suiteLenOff = 35 + sessionLen
+    if suiteLenOff + 2 > body["n"] {
+        return false
+    }
+    let suiteLen = ((body["" + suiteLenOff] << 8) | body["" + (suiteLenOff + 1)]) & 65535
+    if suiteLen < 2 || suiteLen - ((suiteLen / 2) | 0) * 2 != 0 {
+        return false
+    }
+    let suitesOff = suiteLenOff + 2
+    let suiteHit = 0
+    let suite = 0
+    let si = 0
+    while si < suiteLen {
+        let s = ((body["" + (suitesOff + si)] << 8) | body["" + (suitesOff + si + 1)]) & 65535
+        if s == 156 {
+            suiteHit = 1
+            if suite == 0 {
+                suite = s
+            }
+        }
+        if s == 49195 {
+            suiteHit = 1
+            if suite == 0 {
+                suite = s
+            }
+        }
+        si = si + 2
+    }
+    if suiteHit != 1 {
+        return false
+    }
+    let compressionOff = suitesOff + suiteLen
+    if compressionOff + 2 > body["n"] {
+        return false
+    }
+    if (body["" + compressionOff] & 255) != 1 || (body["" + (compressionOff + 1)] & 255) != 0 {
+        return false
+    }
+    let afterComp = compressionOff + 2
+    let groupX = 0
+    if afterComp < body["n"] {
+        if afterComp + 2 > body["n"] {
+            return false
+        }
+        let extLen = ((body["" + afterComp] << 8) | body["" + (afterComp + 1)]) & 65535
+        if afterComp + 2 + extLen != body["n"] {
+            return false
+        }
+        groupX = tlsHsExtGroupX(body, afterComp + 2, afterComp + 2 + extLen)
+        if groupX < 0 {
+            return false
+        }
+    }
+    let random = {}
+    let i = 0
+    while i < 32 {
+        random["" + i] = body["" + (2 + i)] & 255
+        i = i + 1
+    }
+    random["n"] = 32
+    return { random: random, cipher: suite, groupX: groupX }
 }
 
 pub fn tlsTranscriptHashObj(tr) {
@@ -394,11 +773,16 @@ pub fn tlsHsFixtureEvalOk() {
 
 /// Loopback transport fixture: type-22 ClientHello and ServerHello records.
 pub fn tlsHsTcpFixtureEvalOk() {
-    let clientHello = tlsHsWrap(1, hmacStrBytes("CH"))
-    let serverHello = tlsHsWrap(2, hmacStrBytes("SH"))
+    let clientRandom = hmacStrBytes("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    let clientHello = tlsHsWrap(1, tlsConcatObj(tlsHexToObj("0303"), tlsConcatObj(clientRandom, tlsHexToObj("000002009c0100"))))
+    let serverRandom = hmacStrBytes("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")
+    let serverHello = tlsHsWrap(2, tlsConcatObj(tlsHexToObj("0303"), tlsConcatObj(serverRandom, tlsHexToObj("00009c00"))))
     let certDer = tlsHexToObj("30153000300d06092a864886f70d01010b050003020000")
     let certBody = tlsConcatObj(tlsHexToObj("00001a000017"), certDer)
-    let certificate = tlsHsWrap(11, certBody)
+    let singleCertificate = tlsHsWrap(11, certBody)
+    let leafDer = cryptoRootFixtureLeafDer()
+    let issuerDer = cryptoRootFixtureIssuerDer()
+    let certificate = tlsHsWrap(11, tlsHsCertificateList(leafDer, issuerDer))
     let serverKeyBody = tlsConcatObj(
         tlsHexToObj("03001d20"),
         tlsConcatObj(
@@ -450,6 +834,27 @@ pub fn tlsHsTcpFixtureEvalOk() {
     )
     tcp_write_bytes(server, finishedRecord)
     let receivedFinished = tlsHsReadEncryptedFinished(client, serverKey, serverIv)
+    if receivedFinished == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    let clientKey = tlsHsHexSlice(keyBlock, 0, 16)
+    let clientIv = tlsHsHexSlice(keyBlock, 32, 4)
+    let clientTranscript = tlsConcatObj(preFinishedTranscript, receivedFinished)
+    let clientVerify = tlsPrfHexKeySeed(tlsHexToObj(ms), "client finished", tlsTranscriptHashObj(clientTranscript), 12)
+    let clientFinished = tlsHsWrap(20, tlsHexToObj(clientVerify))
+    let clientExplicitIv = tlsHexToObj("0000000000000002")
+    let clientEncrypted = gcmEncrypt(clientKey, tlsConcatObj(clientIv, clientExplicitIv), clientFinished, aad)
+    let clientFinishedRecord = tlsConcatObj(
+        tlsHexToObj("1603030028"),
+        tlsConcatObj(clientExplicitIv, tlsConcatObj(clientEncrypted["ct"], clientEncrypted["tag"]))
+    )
+    tcp_write_bytes(client, changeCipherSpec)
+    let receivedClientChangeCipherSpec = tlsHsReadChangeCipherSpec(server)
+    tcp_write_bytes(client, clientFinishedRecord)
+    let receivedClientFinished = tlsHsReadEncryptedFinished(server, clientKey, clientIv)
     tcp_close(client)
     tcp_close(server)
     tcp_close(listener)
@@ -468,11 +873,27 @@ pub fn tlsHsTcpFixtureEvalOk() {
     if receivedFinished == false {
         return false
     }
-    let parsedCert = tlsHsParseCertificate(receivedCertificate)
-    if parsedCert == false {
+    if receivedClientChangeCipherSpec != true || receivedClientFinished == false {
         return false
     }
-    if tlsObjHex(parsedCert) != tlsObjHex(certDer) {
+    let parsedSingle = tlsHsParseCertificate(singleCertificate)
+    if parsedSingle == false {
+        return false
+    }
+    if tlsObjHex(parsedSingle) != tlsObjHex(certDer) {
+        return false
+    }
+    if cryptoRootDerCert(parsedSingle) != true {
+        return false
+    }
+    let parsedChain = tlsHsParseCertificateChain(receivedCertificate)
+    if parsedChain == false || parsedChain["n"] != 2 {
+        return false
+    }
+    if tlsObjHex(parsedChain["0"]) != tlsObjHex(leafDer) || tlsObjHex(parsedChain["1"]) != tlsObjHex(issuerDer) {
+        return false
+    }
+    if tlsHsValidateCertificateChain(parsedChain) != true {
         return false
     }
     let parsedKeyExchange = tlsHsParseServerKeyExchange(receivedKeyExchange)
@@ -488,10 +909,27 @@ pub fn tlsHsTcpFixtureEvalOk() {
     if tlsObjHex(receivedClient) != tlsObjHex(clientHello) {
         return false
     }
+    let parsedClientHello = tlsHsParseClientHello(receivedClient)
+    if parsedClientHello == false {
+        return false
+    }
+    if parsedClientHello["cipher"] != 156 || tlsObjHex(parsedClientHello["random"]) != tlsObjHex(clientRandom) {
+        return false
+    }
     if tlsObjHex(receivedServer) != tlsObjHex(serverHello) {
         return false
     }
+    let parsedServerHello = tlsHsParseServerHello(receivedServer)
+    if parsedServerHello == false {
+        return false
+    }
+    if parsedServerHello["cipher"] != 156 || tlsObjHex(parsedServerHello["random"]) != tlsObjHex(serverRandom) {
+        return false
+    }
     if tlsObjHex(receivedFinished) != tlsObjHex(finished) {
+        return false
+    }
+    if tlsObjHex(receivedClientFinished) != tlsObjHex(clientFinished) {
         return false
     }
     return tlsTranscriptHashObj(preFinishedTranscript)["n"] == 32

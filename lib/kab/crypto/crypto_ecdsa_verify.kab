@@ -1,0 +1,382 @@
+// SH23: ECDSA P-256 verify (Montgomery) for TLS 1.3 CertificateVerify.
+// Do not grow crypto_ecdsa_eval.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_ecdsa_eval"
+
+pub fn p16N() {
+    return p16FromBe(p16ParseHex("ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551"))
+}
+
+pub fn p16R2P() {
+    return p16FromBe(p16ParseHex("00000004fffffffdfffffffffffffffefffffffbffffffff0000000000000003"))
+}
+
+pub fn p16R2N() {
+    return p16FromBe(p16ParseHex("66e12d94f3d956202845b2392b6bec594699799c49bd6fa683244c95be79eea2"))
+}
+
+pub fn p16IsZero(a) {
+    let i = 0
+    while i < 16 {
+        if a["" + i] != 0 {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+pub fn p16InRange(a, n) {
+    if p16IsZero(a) == true {
+        return false
+    }
+    if p16Gte(a, n) == true {
+        return false
+    }
+    return true
+}
+
+pub fn p16ReduceN(a, n) {
+    let o = p16Copy(a)
+    o["16"] = 0
+    o["n"] = 17
+    n["16"] = 0
+    if p16Gte(o, n) == true {
+        p16SubIn(o, n)
+    }
+    o["n"] = 16
+    return o
+}
+
+pub fn p16MontMul(a, b, n, np) {
+    let aa = []
+    let bb = []
+    let nn = []
+    let t = []
+    let i = 0
+    while i < 16 {
+        aa = push(aa, a["" + i])
+        bb = push(bb, b["" + i])
+        nn = push(nn, n["" + i])
+        t = push(t, 0)
+        i = i + 1
+    }
+    t = push(t, 0)
+    t = push(t, 0)
+    i = 0
+    while i < 16 {
+        let c = 0
+        let j = 0
+        while j < 16 {
+            let acc = t[j] + aa[j] * bb[i] + c
+            c = (acc / 65536) | 0
+            t[j] = acc - c * 65536
+            j = j + 1
+        }
+        let acc = t[16] + c
+        c = (acc / 65536) | 0
+        t[16] = acc - c * 65536
+        t[17] = c
+        let m = t[0] * np
+        m = m - ((m / 65536) | 0) * 65536
+        acc = t[0] + m * nn[0]
+        c = (acc / 65536) | 0
+        j = 1
+        while j < 16 {
+            acc = t[j] + m * nn[j] + c
+            c = (acc / 65536) | 0
+            t[j - 1] = acc - c * 65536
+            j = j + 1
+        }
+        acc = t[16] + c
+        c = (acc / 65536) | 0
+        t[15] = acc - c * 65536
+        acc = t[17] + c
+        c = (acc / 65536) | 0
+        t[16] = acc - c * 65536
+        t[17] = c
+        i = i + 1
+    }
+    let r = p16Zero()
+    i = 0
+    while i < 16 {
+        r["" + i] = t[i]
+        i = i + 1
+    }
+    r["16"] = 0
+    r["n"] = 17
+    n["16"] = 0
+    if p16Gte(r, n) == true {
+        p16SubIn(r, n)
+    }
+    r["n"] = 16
+    return r
+}
+
+pub fn p16ToMont(a, n, np, r2) {
+    return p16MontMul(a, r2, n, np)
+}
+
+pub fn p16FromMont(a, n, np) {
+    let one = p16Zero()
+    one["0"] = 1
+    return p16MontMul(a, one, n, np)
+}
+
+pub fn p16MontPow(a, e, n, np) {
+    let one = p16Zero()
+    one["0"] = 1
+    let r2 = p16R2P()
+    if n["0"] != 65535 {
+        r2 = p16R2N()
+    }
+    let r = p16ToMont(one, n, np, r2)
+    let i = 255
+    while i >= 0 {
+        if p16Bit(e, i) != 0 {
+            r = p16Copy(a)
+            i = i - 1
+            while i >= 0 {
+                r = p16MontMul(r, r, n, np)
+                if p16Bit(e, i) != 0 {
+                    r = p16MontMul(r, a, n, np)
+                }
+                i = i - 1
+            }
+            return r
+        }
+        i = i - 1
+    }
+    return r
+}
+
+pub fn p16InvMod(a, n, np, r2) {
+    let two = p16Zero()
+    two["0"] = 2
+    let e = p16SubMod(n, two, n)
+    let am = p16ToMont(a, n, np, r2)
+    return p16FromMont(p16MontPow(am, e, n, np), n, np)
+}
+
+pub fn jacInf() {
+    let inf = {}
+    inf["x"] = p16Zero()
+    inf["x"]["0"] = 1
+    inf["y"] = p16Zero()
+    inf["y"]["0"] = 1
+    inf["z"] = p16Zero()
+    return inf
+}
+
+pub fn jacZZero(P) {
+    return p16IsZero(P["z"])
+}
+
+pub fn montAdd(a, b, n) {
+    return p16AddMod(a, b, n)
+}
+
+pub fn montSub(a, b, n) {
+    return p16SubMod(a, b, n)
+}
+
+pub fn jacDblM(P, field, np) {
+    let x = P["x"]
+    let y = P["y"]
+    let z = P["z"]
+    let yy = p16MontMul(y, y, field, np)
+    let zz = p16MontMul(z, z, field, np)
+    let s = p16MontMul(x, yy, field, np)
+    s = montAdd(s, s, field)
+    s = montAdd(s, s, field)
+    let m = p16MontMul(x, x, field, np)
+    m = montAdd(m, montAdd(p16Copy(m), m, field), field)
+    let zz2 = p16MontMul(zz, zz, field, np)
+    let three = p16ToMont(p16FromBe(p16ParseHex("0000000000000000000000000000000000000000000000000000000000000003")), field, np, p16R2P())
+    let a = montSub(field, three, field)
+    m = montAdd(m, p16MontMul(a, zz2, field, np), field)
+    let x3 = montSub(p16MontMul(m, m, field, np), montAdd(s, s, field), field)
+    let y3 = p16MontMul(m, montSub(s, x3, field), field, np)
+    let yy2 = montAdd(yy, yy, field)
+    yy2 = p16MontMul(yy2, yy2, field, np)
+    yy2 = montAdd(yy2, yy2, field)
+    y3 = montSub(y3, yy2, field)
+    let z3 = p16MontMul(montAdd(y, y, field), z, field, np)
+    let o = {}
+    o["x"] = x3
+    o["y"] = y3
+    o["z"] = z3
+    return o
+}
+
+pub fn jacAddM(P, Q, field, np) {
+    let x1 = P["x"]
+    let y1 = P["y"]
+    let z1 = P["z"]
+    let x2 = Q["x"]
+    let y2 = Q["y"]
+    let z2 = Q["z"]
+    let z1z1 = p16MontMul(z1, z1, field, np)
+    let z2z2 = p16MontMul(z2, z2, field, np)
+    let u1 = p16MontMul(x1, z2z2, field, np)
+    let u2 = p16MontMul(x2, z1z1, field, np)
+    let z1c = p16MontMul(z1, z1z1, field, np)
+    let z2c = p16MontMul(z2, z2z2, field, np)
+    let s1 = p16MontMul(y1, z2c, field, np)
+    let s2 = p16MontMul(y2, z1c, field, np)
+    if p16Eq(u1, u2) == true {
+        if p16Eq(s1, s2) == true {
+            return jacDblM(P, field, np)
+        }
+        return jacInf()
+    }
+    let h = montSub(u2, u1, field)
+    let r = montSub(s2, s1, field)
+    let hh = p16MontMul(h, h, field, np)
+    let hhh = p16MontMul(h, hh, field, np)
+    let v = p16MontMul(u1, hh, field, np)
+    let x3 = p16MontMul(r, r, field, np)
+    x3 = montSub(x3, hhh, field)
+    x3 = montSub(x3, montAdd(v, v, field), field)
+    let y3 = p16MontMul(r, montSub(v, x3, field), field, np)
+    y3 = montSub(y3, p16MontMul(s1, hhh, field, np), field)
+    let z3 = p16MontMul(montSub(montAdd(z1, z2, field), montAdd(z1z1, z2z2, field), field), h, field, np)
+    let o = {}
+    o["x"] = x3
+    o["y"] = y3
+    o["z"] = z3
+    return o
+}
+
+pub fn jacToMont(P, field, np, r2) {
+    let o = {}
+    o["x"] = p16ToMont(P["x"], field, np, r2)
+    o["y"] = p16ToMont(P["y"], field, np, r2)
+    o["z"] = p16ToMont(P["z"], field, np, r2)
+    return o
+}
+
+pub fn jacMulM(k, P, field, np) {
+    if p16IsZero(k) == true {
+        return jacInf()
+    }
+    let hi = 255
+    while hi > 0 {
+        if p16Bit(k, hi) != 0 {
+            let R = P
+            let bit = hi - 1
+            while bit >= 0 {
+                R = jacDblM(R, field, np)
+                if p16Bit(k, bit) != 0 {
+                    R = jacAddM(R, P, field, np)
+                }
+                bit = bit - 1
+            }
+            return R
+        }
+        hi = hi - 1
+    }
+    return P
+}
+
+pub fn jacMul2M(u1, u2, G, Q, field, np) {
+    let PQ = jacAddM(G, Q, field, np)
+    let R = jacInf()
+    let started = 0
+    let i = 255
+    while i >= 0 {
+        if started == 1 {
+            R = jacDblM(R, field, np)
+        }
+        let b1 = p16Bit(u1, i)
+        let b2 = p16Bit(u2, i)
+        if b1 != 0 {
+            if started == 0 {
+                if b2 != 0 {
+                    R = PQ
+                } else {
+                    R = G
+                }
+                started = 1
+            } else {
+                if b2 != 0 {
+                    R = jacAddM(R, PQ, field, np)
+                } else {
+                    R = jacAddM(R, G, field, np)
+                }
+            }
+        } else {
+            if b2 != 0 {
+                if started == 0 {
+                    R = Q
+                    started = 1
+                } else {
+                    R = jacAddM(R, Q, field, np)
+                }
+            }
+        }
+        i = i - 1
+    }
+    return R
+}
+
+pub fn jacAffineX(P, field, np, r2) {
+    if jacZZero(P) == true {
+        return false
+    }
+    let zz = p16MontMul(P["z"], P["z"], field, np)
+    let two = p16Zero()
+    two["0"] = 2
+    let e = p16SubMod(field, two, field)
+    let inv = p16FromMont(p16MontPow(zz, e, field, np), field, np)
+    let x = p16FromMont(P["x"], field, np)
+    return p16FromMont(p16MontMul(P["x"], p16ToMont(inv, field, np, r2), field, np), field, np)
+}
+
+/// ECDSA P-256: hash/r/s/Qx/Qy are byte objects. Returns true on match.
+pub fn ecdsaP256Verify(hash, rBe, sBe, qx, qy) {
+    let n = p16N()
+    let field = p16P()
+    let np = 1
+    let nnp = 48207
+    let r2p = p16R2P()
+    let r2n = p16R2N()
+    let r = p16FromBe(rBe)
+    let s = p16FromBe(sBe)
+    if p16InRange(r, n) != true {
+        return false
+    }
+    if p16InRange(s, n) != true {
+        return false
+    }
+    let e = p16ReduceN(p16FromBe(hash), n)
+    let w = p16InvMod(s, n, nnp, r2n)
+    let u1 = p16FromMont(p16MontMul(p16ToMont(e, n, nnp, r2n), p16ToMont(w, n, nnp, r2n), n, nnp), n, nnp)
+    let u2 = p16FromMont(p16MontMul(p16ToMont(r, n, nnp, r2n), p16ToMont(w, n, nnp, r2n), n, nnp), n, nnp)
+    let G = jacToMont(p256G(), field, np, r2p)
+    let Q = {}
+    Q["x"] = p16FromBe(qx)
+    Q["y"] = p16FromBe(qy)
+    Q["z"] = p16Zero()
+    Q["z"]["0"] = 1
+    Q = jacToMont(Q, field, np, r2p)
+    let R = false
+    if p16IsZero(u1) == true {
+        if p16IsZero(u2) == true {
+            return false
+        }
+        R = jacMulM(u2, Q, field, np)
+    } else {
+        if p16IsZero(u2) == true {
+            R = jacMulM(u1, G, field, np)
+        } else {
+        R = jacMul2M(u1, u2, G, Q, field, np)
+        }
+    }
+    let x = jacAffineX(R, field, np, r2p)
+    if x == false {
+        return false
+    }
+    x = p16ReduceN(x, n)
+    return p16Eq(x, r)
+}

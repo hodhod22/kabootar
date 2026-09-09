@@ -1,0 +1,11 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+
+compile("fn t(E) { eLetPub = E[\"eStmtNode\"][\"isPub\"]; return E }")
+println("OK eLetPub")
+
+compile("fn t(E) { E[\"eExports\"] = push(E[\"eExports\"], (\"\" + E[\"eAssignSym\"]) + \"\"); return E }")
+println("OK exports push concat")
+
+compile("fn t(E) { let s = (\"\" + E[\"eAssignSym\"]) + \"\"; E[\"eExports\"] = push(E[\"eExports\"], s); return E }")
+println("OK exports precompute")

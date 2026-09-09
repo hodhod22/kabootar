@@ -1,0 +1,4 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+compile("fn t() { let x = 1 - 2 + 3; return x }")
+println("OK mixed addsub")

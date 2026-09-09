@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_wrd"
+
+return tls13PeerWrdEvalOk(28330)

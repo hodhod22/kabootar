@@ -1,0 +1,13 @@
+import "kab/crypto/crypto_http_fetch_loop"
+
+let via = httpFetch("GET", "https://127.0.0.1:28199/v?q=1", "", {}, 0)
+if via == false {
+    return false
+}
+if via["status"] != 200 {
+    return false
+}
+if via["body"] != "OK" {
+    return false
+}
+return true

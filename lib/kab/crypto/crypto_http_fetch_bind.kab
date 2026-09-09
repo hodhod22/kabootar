@@ -1,0 +1,10 @@
+// SH23: bind Kab TLS loop/peer into http_fetch without importing crypto there.
+// Cheap smokes import only kab/http/http_fetch. Apps that need :28199/:28291 (any path) import this shard.
+// Do not add default params. cryptoHostDeleteOk stays false.
+
+import "kab/http/http_fetch"
+import "kab/crypto/crypto_http_tls"
+import "kab/crypto/crypto_tls_peer_get"
+
+httpBindLoopFetch(httpsLoopFetch)
+httpBindPeerFetch(tlsAppPeerFetch)

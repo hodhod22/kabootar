@@ -1,0 +1,179 @@
+// SH23: TLS 1.3 application-data GET after GCM EncryptedExtensions/Finished.
+// Do not grow crypto_tls13_gcm.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_gcm"
+import "kab/crypto/crypto_tls13_hs"
+import "kab/crypto/crypto_tls13_hkdf"
+import "kab/crypto/crypto_x25519_eval"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_sha_eval"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_prf"
+import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_http_get"
+
+pub fn tls13InnerApp(pt) {
+    let t = {}
+    t["0"] = 23
+    t["n"] = 1
+    return tlsConcatObj(pt, t)
+}
+
+pub fn tls13StripApp(pt) {
+    let n = pt["n"]
+    if n < 2 {
+        return false
+    }
+    if (pt["" + (n - 1)] & 255) != 23 {
+        return false
+    }
+    let o = {}
+    let i = 0
+    let m = n - 1
+    while i < m {
+        o["" + i] = pt["" + i] & 255
+        i = i + 1
+    }
+    o["n"] = m
+    return o
+}
+
+pub fn tls13WriteAppGcm(sock, key, iv, seq, pt) {
+    let inner = tls13InnerApp(pt)
+    let aad = tls13Aad(inner["n"] + 16)
+    let enc = gcmEncrypt(key, tls13Nonce(iv, seq), inner, aad)
+    let body = tlsConcatObj(enc["ct"], enc["tag"])
+    tcp_write_bytes(sock, tlsConcatObj(aad, body))
+    return true
+}
+
+pub fn tls13ReadAppGcm(sock, key, iv, seq) {
+    let head = tlsHsReadBytesExact(sock, 5)
+    if head == false {
+        return false
+    }
+    if (head["0"] & 255) != 23 || (head["1"] & 255) != 3 || (head["2"] & 255) != 3 {
+        return false
+    }
+    let size = ((head["3"] << 8) | head["4"]) & 65535
+    if size < 17 || size > 16384 {
+        return false
+    }
+    let tail = tlsHsReadBytesExact(sock, size)
+    if tail == false {
+        return false
+    }
+    let ctLen = size - 16
+    let ct = {}
+    let i = 0
+    while i < ctLen {
+        ct["" + i] = tail["" + i] & 255
+        i = i + 1
+    }
+    ct["n"] = ctLen
+    let tag = {}
+    i = 0
+    while i < 16 {
+        tag["" + i] = tail["" + (ctLen + i)] & 255
+        i = i + 1
+    }
+    tag["n"] = 16
+    let plainHex = gcmDecrypt(key, tls13Nonce(iv, seq), ct, tag, head)
+    if plainHex == false {
+        return false
+    }
+    return tls13StripApp(tlsHexToObj(plainHex))
+}
+
+pub fn tls13Http200Ok() {
+    let resp = {}
+    resp["n"] = 0
+    resp = httpAppend(resp, "HTTP/1.1 200 OK")
+    resp = httpAppendCrLf(resp)
+    resp = httpAppend(resp, "Content-Length: 2")
+    resp = httpAppendCrLf(resp)
+    resp = httpAppendCrLf(resp)
+    resp = httpAppend(resp, "OK")
+    return resp
+}
+
+pub fn tls13HsAppReady(port) {
+    let emptyHash = hmacDigestToObj(sha256Bytes([]))
+    let s = tls13HsLiveOpen(port)
+    if s == false {
+        return false
+    }
+    let clientSecret = tlsHexToObj("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a")
+    let serverPub = tlsHexToObj("de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f")
+    let ecdhe = x25519(clientSecret, serverPub)
+    let zeros = tls13HashZeros()
+    let early = tls13HkdfExtract(zeros, zeros)
+    let derived = tls13HkdfExpandLabel(early, "derived", emptyHash, 32)
+    let hsSec = tls13HkdfExtract(derived, ecdhe)
+    let tr = tlsConcatObj(s["ch"], s["sh"])
+    let th = tlsTranscriptHashObj(tr)
+    let sHs = tls13HkdfExpandLabel(hsSec, "s hs traffic", th, 32)
+    let recKey = tls13HkdfExpandLabel(sHs, "key", tls13EmptyObj(), 16)
+    let recIv = tls13HkdfExpandLabel(sHs, "iv", tls13EmptyObj(), 12)
+    let finKey = tls13HkdfExpandLabel(sHs, "finished", tls13EmptyObj(), 32)
+    let ee = tlsHsWrap(8, tlsHexToObj("0000"))
+    tls13WriteHsGcm(s["server"], recKey, recIv, 0, ee)
+    let gotEe = tls13ReadHsGcm(s["client"], recKey, recIv, 0)
+    if gotEe == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    let th2 = tlsTranscriptHashObj(tlsConcatObj(tr, ee))
+    let vd = hmacDigestToObj(hmacSha256WordsObj(finKey, th2))
+    let fin = tlsHsWrap(20, vd)
+    tls13WriteHsGcm(s["server"], recKey, recIv, 1, fin)
+    let gotFin = tls13ReadHsGcm(s["client"], recKey, recIv, 1)
+    if gotFin == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    let derived2 = tls13HkdfExpandLabel(hsSec, "derived", emptyHash, 32)
+    let master = tls13HkdfExtract(derived2, zeros)
+    let th3 = tlsTranscriptHashObj(tlsConcatObj(tlsConcatObj(tr, ee), fin))
+    let cAp = tls13HkdfExpandLabel(master, "c ap traffic", th3, 32)
+    let sAp = tls13HkdfExpandLabel(master, "s ap traffic", th3, 32)
+    s["cKey"] = tls13HkdfExpandLabel(cAp, "key", tls13EmptyObj(), 16)
+    s["cIv"] = tls13HkdfExpandLabel(cAp, "iv", tls13EmptyObj(), 12)
+    s["sKey"] = tls13HkdfExpandLabel(sAp, "key", tls13EmptyObj(), 16)
+    s["sIv"] = tls13HkdfExpandLabel(sAp, "iv", tls13EmptyObj(), 12)
+    return s
+}
+
+pub fn tls13HsAppEvalOk() {
+    if tls13HkdfEvalOk() != true {
+        return false
+    }
+    let s = tls13HsAppReady(28197)
+    if s == false {
+        return false
+    }
+    let req = httpBuildGet("127.0.0.1", "/v?q=1")
+    tls13WriteAppGcm(s["client"], s["cKey"], s["cIv"], 0, req)
+    let gotReq = tls13ReadAppGcm(s["server"], s["cKey"], s["cIv"], 0)
+    if gotReq == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    if tlsObjHex(gotReq) != tlsObjHex(req) {
+        tls13HsLiveClose(s)
+        return false
+    }
+    let resp = tls13Http200Ok()
+    tls13WriteAppGcm(s["server"], s["sKey"], s["sIv"], 0, resp)
+    let gotResp = tls13ReadAppGcm(s["client"], s["sKey"], s["sIv"], 0)
+    if gotResp == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    if tlsObjHex(gotResp) != tlsObjHex(resp) {
+        tls13HsLiveClose(s)
+        return false
+    }
+    tls13HsLiveClose(s)
+    return true
+}

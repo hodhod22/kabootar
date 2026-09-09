@@ -1,0 +1,8 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+compile("fn t() { let ai = 0; let o = { \"sym\": \"a\" + ai }; return o }")
+println("OK bare obj field plus")
+compile("fn t(E) { let ai = 0; E[\"a\"] = { \"sym\": \"a\" + ai }; return E }")
+println("OK AccAdd obj field plus")
+compile("fn t(E) { let ai = 0; E[\"a\"] = push(E[\"a\"], { \"sym\": \"a\" + ai }); return E }")
+println("OK push obj field plus")

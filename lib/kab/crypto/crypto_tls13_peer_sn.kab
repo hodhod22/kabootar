@@ -1,0 +1,57 @@
+// SH23: Kab TLS 1.3 leaf serial INTEGER vs rustls P-256 peer.
+// Do not grow crypto_tls13_peer_iss.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_root"
+
+pub fn tls13PeerSerialOk(bytes, serial) {
+    if cryptoRootPositiveInt(bytes, serial) != true {
+        return false
+    }
+    if serial["len"] > 20 {
+        return false
+    }
+    let i = 0
+    while i < serial["len"] {
+        if (bytes["" + (serial["body"] + i)] & 255) != 0 {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn tls13PeerSnEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    if der == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let first = cryptoDerTlv(der, tbs["body"])
+    if first == false {
+        return false
+    }
+    let serialOff = tbs["body"]
+    if first["tag"] == 160 {
+        serialOff = first["end"]
+    }
+    let serial = cryptoDerTlv(der, serialOff)
+    return tls13PeerSerialOk(der, serial)
+}

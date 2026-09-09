@@ -1,0 +1,4 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+compile("fn t(E) { let s = \"a\" + 1; E[\"a\"] = push(E[\"a\"], { \"sym\": s }); return E }")
+println("OK precompute obj")

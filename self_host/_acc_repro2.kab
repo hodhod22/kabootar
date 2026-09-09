@@ -1,0 +1,527 @@
+
+fn makeE() {
+    return {
+        "eConsts": [],
+        "eOps": [],
+        "eOpsN": 0,
+        "eGlobals": [],
+        "eGlobalN": 0,
+        "eConstN": 0,
+        "eIdx": 0,
+        "eInFn": 0,
+        "k0": null,
+        "k1": null,
+        "k2": null,
+        "k3": null,
+        "k4": null,
+        "k5": null,
+        "k6": null,
+        "k7": null,
+        "k8": null,
+        "k9": null,
+        "k10": null,
+        "k11": null,
+        "k12": null,
+        "k13": null,
+        "k14": null,
+        "k15": null,
+        "k16": null,
+        "k17": null,
+        "k18": null,
+        "k19": null,
+        "k20": null,
+        "k21": null,
+        "k22": null,
+        "k23": null,
+        "k24": null,
+        "k25": null,
+        "k26": null,
+        "k27": null,
+        "k28": null,
+        "k29": null,
+        "k30": null,
+        "k31": null,
+        "k32": null,
+        "k33": null,
+        "k34": null,
+        "k35": null,
+        "k36": null,
+        "k37": null,
+        "k38": null,
+        "k39": null,
+        "k40": null,
+        "k41": null,
+        "k42": null,
+        "k43": null,
+        "k44": null,
+        "k45": null,
+        "k46": null,
+        "k47": null,
+        "k48": null,
+        "k49": null,
+        "k50": null,
+        "k51": null,
+        "k52": null,
+        "k53": null,
+        "k54": null,
+        "k55": null,
+        "k56": null,
+        "k57": null,
+        "k58": null,
+        "k59": null,
+        "k60": null,
+        "k61": null,
+        "k62": null,
+        "k63": null,
+        "k64": null,
+        "k65": null,
+        "k66": null,
+        "k67": null,
+        "k68": null,
+        "k69": null,
+        "k70": null,
+        "k71": null,
+        "k72": null,
+        "k73": null,
+        "k74": null,
+        "k75": null,
+        "k76": null,
+        "k77": null,
+        "k78": null,
+        "k79": null,
+        "k80": null,
+        "k81": null,
+        "k82": null,
+        "k83": null,
+        "k84": null,
+        "k85": null,
+        "k86": null,
+        "k87": null,
+        "k88": null,
+        "k89": null,
+        "k90": null,
+        "k91": null,
+        "k92": null,
+        "k93": null,
+        "k94": null,
+        "k95": null,
+        "k96": null,
+        "k97": null,
+        "k98": null,
+        "k99": null,
+        "k100": null,
+        "k101": null,
+        "k102": null,
+        "k103": null,
+        "k104": null,
+        "k105": null,
+        "k106": null,
+        "k107": null,
+        "k108": null,
+        "k109": null,
+        "k110": null,
+        "k111": null,
+        "k112": null,
+        "k113": null,
+        "k114": null,
+        "k115": null,
+        "k116": null,
+        "k117": null,
+        "k118": null,
+        "k119": null,
+        "k120": null,
+        "k121": null,
+        "k122": null,
+        "k123": null,
+        "k124": null,
+        "k125": null,
+        "k126": null,
+        "k127": null,
+        "k128": null,
+        "k129": null,
+        "k130": null,
+        "k131": null,
+        "k132": null,
+        "k133": null,
+        "k134": null,
+        "k135": null,
+        "k136": null,
+        "k137": null,
+        "k138": null,
+        "k139": null,
+        "k140": null,
+        "k141": null,
+        "k142": null,
+        "k143": null,
+        "k144": null,
+        "k145": null,
+        "k146": null,
+        "k147": null,
+        "k148": null,
+        "k149": null,
+        "k150": null,
+        "k151": null,
+        "k152": null,
+        "k153": null,
+        "k154": null,
+        "k155": null,
+        "k156": null,
+        "k157": null,
+        "k158": null,
+        "k159": null,
+        "k160": null,
+        "k161": null,
+        "k162": null,
+        "k163": null,
+        "k164": null,
+        "k165": null,
+        "k166": null,
+        "k167": null,
+        "k168": null,
+        "k169": null,
+        "k170": null,
+        "k171": null,
+        "k172": null,
+        "k173": null,
+        "k174": null,
+        "k175": null,
+        "k176": null,
+        "k177": null,
+        "k178": null,
+        "k179": null,
+        "k180": null,
+        "k181": null,
+        "k182": null,
+        "k183": null,
+        "k184": null,
+        "k185": null,
+        "k186": null,
+        "k187": null,
+        "k188": null,
+        "k189": null,
+        "k190": null,
+        "k191": null,
+        "k192": null,
+        "k193": null,
+        "k194": null,
+        "k195": null,
+        "k196": null,
+        "k197": null,
+        "k198": null,
+        "k199": null,
+    }
+}
+fn touchAll(E) {
+    E["eConsts"] = E["eConsts"]
+    E["eOps"] = E["eOps"]
+    E["eOpsN"] = E["eOpsN"]
+    E["eGlobals"] = E["eGlobals"]
+    E["eGlobalN"] = E["eGlobalN"]
+    E["eConstN"] = E["eConstN"]
+    E["eIdx"] = E["eIdx"]
+    E["eInFn"] = E["eInFn"]
+    E["k0"] = E["k0"]
+    E["k1"] = E["k1"]
+    E["k2"] = E["k2"]
+    E["k3"] = E["k3"]
+    E["k4"] = E["k4"]
+    E["k5"] = E["k5"]
+    E["k6"] = E["k6"]
+    E["k7"] = E["k7"]
+    E["k8"] = E["k8"]
+    E["k9"] = E["k9"]
+    E["k10"] = E["k10"]
+    E["k11"] = E["k11"]
+    E["k12"] = E["k12"]
+    E["k13"] = E["k13"]
+    E["k14"] = E["k14"]
+    E["k15"] = E["k15"]
+    E["k16"] = E["k16"]
+    E["k17"] = E["k17"]
+    E["k18"] = E["k18"]
+    E["k19"] = E["k19"]
+    E["k20"] = E["k20"]
+    E["k21"] = E["k21"]
+    E["k22"] = E["k22"]
+    E["k23"] = E["k23"]
+    E["k24"] = E["k24"]
+    E["k25"] = E["k25"]
+    E["k26"] = E["k26"]
+    E["k27"] = E["k27"]
+    E["k28"] = E["k28"]
+    E["k29"] = E["k29"]
+    E["k30"] = E["k30"]
+    E["k31"] = E["k31"]
+    E["k32"] = E["k32"]
+    E["k33"] = E["k33"]
+    E["k34"] = E["k34"]
+    E["k35"] = E["k35"]
+    E["k36"] = E["k36"]
+    E["k37"] = E["k37"]
+    E["k38"] = E["k38"]
+    E["k39"] = E["k39"]
+    E["k40"] = E["k40"]
+    E["k41"] = E["k41"]
+    E["k42"] = E["k42"]
+    E["k43"] = E["k43"]
+    E["k44"] = E["k44"]
+    E["k45"] = E["k45"]
+    E["k46"] = E["k46"]
+    E["k47"] = E["k47"]
+    E["k48"] = E["k48"]
+    E["k49"] = E["k49"]
+    E["k50"] = E["k50"]
+    E["k51"] = E["k51"]
+    E["k52"] = E["k52"]
+    E["k53"] = E["k53"]
+    E["k54"] = E["k54"]
+    E["k55"] = E["k55"]
+    E["k56"] = E["k56"]
+    E["k57"] = E["k57"]
+    E["k58"] = E["k58"]
+    E["k59"] = E["k59"]
+    E["k60"] = E["k60"]
+    E["k61"] = E["k61"]
+    E["k62"] = E["k62"]
+    E["k63"] = E["k63"]
+    E["k64"] = E["k64"]
+    E["k65"] = E["k65"]
+    E["k66"] = E["k66"]
+    E["k67"] = E["k67"]
+    E["k68"] = E["k68"]
+    E["k69"] = E["k69"]
+    E["k70"] = E["k70"]
+    E["k71"] = E["k71"]
+    E["k72"] = E["k72"]
+    E["k73"] = E["k73"]
+    E["k74"] = E["k74"]
+    E["k75"] = E["k75"]
+    E["k76"] = E["k76"]
+    E["k77"] = E["k77"]
+    E["k78"] = E["k78"]
+    E["k79"] = E["k79"]
+    E["k80"] = E["k80"]
+    E["k81"] = E["k81"]
+    E["k82"] = E["k82"]
+    E["k83"] = E["k83"]
+    E["k84"] = E["k84"]
+    E["k85"] = E["k85"]
+    E["k86"] = E["k86"]
+    E["k87"] = E["k87"]
+    E["k88"] = E["k88"]
+    E["k89"] = E["k89"]
+    E["k90"] = E["k90"]
+    E["k91"] = E["k91"]
+    E["k92"] = E["k92"]
+    E["k93"] = E["k93"]
+    E["k94"] = E["k94"]
+    E["k95"] = E["k95"]
+    E["k96"] = E["k96"]
+    E["k97"] = E["k97"]
+    E["k98"] = E["k98"]
+    E["k99"] = E["k99"]
+    E["k100"] = E["k100"]
+    E["k101"] = E["k101"]
+    E["k102"] = E["k102"]
+    E["k103"] = E["k103"]
+    E["k104"] = E["k104"]
+    E["k105"] = E["k105"]
+    E["k106"] = E["k106"]
+    E["k107"] = E["k107"]
+    E["k108"] = E["k108"]
+    E["k109"] = E["k109"]
+    E["k110"] = E["k110"]
+    E["k111"] = E["k111"]
+    E["k112"] = E["k112"]
+    E["k113"] = E["k113"]
+    E["k114"] = E["k114"]
+    E["k115"] = E["k115"]
+    E["k116"] = E["k116"]
+    E["k117"] = E["k117"]
+    E["k118"] = E["k118"]
+    E["k119"] = E["k119"]
+    E["k120"] = E["k120"]
+    E["k121"] = E["k121"]
+    E["k122"] = E["k122"]
+    E["k123"] = E["k123"]
+    E["k124"] = E["k124"]
+    E["k125"] = E["k125"]
+    E["k126"] = E["k126"]
+    E["k127"] = E["k127"]
+    E["k128"] = E["k128"]
+    E["k129"] = E["k129"]
+    E["k130"] = E["k130"]
+    E["k131"] = E["k131"]
+    E["k132"] = E["k132"]
+    E["k133"] = E["k133"]
+    E["k134"] = E["k134"]
+    E["k135"] = E["k135"]
+    E["k136"] = E["k136"]
+    E["k137"] = E["k137"]
+    E["k138"] = E["k138"]
+    E["k139"] = E["k139"]
+    E["k140"] = E["k140"]
+    E["k141"] = E["k141"]
+    E["k142"] = E["k142"]
+    E["k143"] = E["k143"]
+    E["k144"] = E["k144"]
+    E["k145"] = E["k145"]
+    E["k146"] = E["k146"]
+    E["k147"] = E["k147"]
+    E["k148"] = E["k148"]
+    E["k149"] = E["k149"]
+    E["k150"] = E["k150"]
+    E["k151"] = E["k151"]
+    E["k152"] = E["k152"]
+    E["k153"] = E["k153"]
+    E["k154"] = E["k154"]
+    E["k155"] = E["k155"]
+    E["k156"] = E["k156"]
+    E["k157"] = E["k157"]
+    E["k158"] = E["k158"]
+    E["k159"] = E["k159"]
+    E["k160"] = E["k160"]
+    E["k161"] = E["k161"]
+    E["k162"] = E["k162"]
+    E["k163"] = E["k163"]
+    E["k164"] = E["k164"]
+    E["k165"] = E["k165"]
+    E["k166"] = E["k166"]
+    E["k167"] = E["k167"]
+    E["k168"] = E["k168"]
+    E["k169"] = E["k169"]
+    E["k170"] = E["k170"]
+    E["k171"] = E["k171"]
+    E["k172"] = E["k172"]
+    E["k173"] = E["k173"]
+    E["k174"] = E["k174"]
+    E["k175"] = E["k175"]
+    E["k176"] = E["k176"]
+    E["k177"] = E["k177"]
+    E["k178"] = E["k178"]
+    E["k179"] = E["k179"]
+    E["k180"] = E["k180"]
+    E["k181"] = E["k181"]
+    E["k182"] = E["k182"]
+    E["k183"] = E["k183"]
+    E["k184"] = E["k184"]
+    E["k185"] = E["k185"]
+    E["k186"] = E["k186"]
+    E["k187"] = E["k187"]
+    E["k188"] = E["k188"]
+    E["k189"] = E["k189"]
+    E["k190"] = E["k190"]
+    E["k191"] = E["k191"]
+    E["k192"] = E["k192"]
+    E["k193"] = E["k193"]
+    E["k194"] = E["k194"]
+    E["k195"] = E["k195"]
+    E["k196"] = E["k196"]
+    E["k197"] = E["k197"]
+    E["k198"] = E["k198"]
+    E["k199"] = E["k199"]
+}
+fn nameProbe(name) {
+    if name == "eConsts" { return 1 }
+    if name == "eOps" { return 1 }
+    if name == "eOpsN" { return 1 }
+    if name == "eGlobals" { return 1 }
+    if name == "eGlobalN" { return 1 }
+    if name == "eConstN" { return 1 }
+    if name == "eIdx" { return 1 }
+    if name == "eInFn" { return 1 }
+    if name == "k0" { return 1 }
+    if name == "k1" { return 1 }
+    if name == "k2" { return 1 }
+    if name == "k3" { return 1 }
+    if name == "k4" { return 1 }
+    if name == "k5" { return 1 }
+    if name == "k6" { return 1 }
+    if name == "k7" { return 1 }
+    if name == "k8" { return 1 }
+    if name == "k9" { return 1 }
+    if name == "k10" { return 1 }
+    if name == "k11" { return 1 }
+    if name == "k12" { return 1 }
+    if name == "k13" { return 1 }
+    if name == "k14" { return 1 }
+    if name == "k15" { return 1 }
+    if name == "k16" { return 1 }
+    if name == "k17" { return 1 }
+    if name == "k18" { return 1 }
+    if name == "k19" { return 1 }
+    if name == "k20" { return 1 }
+    if name == "k21" { return 1 }
+    if name == "k22" { return 1 }
+    if name == "k23" { return 1 }
+    if name == "k24" { return 1 }
+    if name == "k25" { return 1 }
+    if name == "k26" { return 1 }
+    if name == "k27" { return 1 }
+    if name == "k28" { return 1 }
+    if name == "k29" { return 1 }
+    if name == "k30" { return 1 }
+    if name == "k31" { return 1 }
+    if name == "k32" { return 1 }
+    if name == "k33" { return 1 }
+    if name == "k34" { return 1 }
+    if name == "k35" { return 1 }
+    if name == "k36" { return 1 }
+    if name == "k37" { return 1 }
+    if name == "k38" { return 1 }
+    if name == "k39" { return 1 }
+    if name == "k40" { return 1 }
+    if name == "k41" { return 1 }
+    if name == "k42" { return 1 }
+    if name == "k43" { return 1 }
+    if name == "k44" { return 1 }
+    if name == "k45" { return 1 }
+    if name == "k46" { return 1 }
+    if name == "k47" { return 1 }
+    if name == "k48" { return 1 }
+    if name == "k49" { return 1 }
+    if name == "k50" { return 1 }
+    if name == "k51" { return 1 }
+    if name == "k52" { return 1 }
+    if name == "k53" { return 1 }
+    if name == "k54" { return 1 }
+    if name == "k55" { return 1 }
+    if name == "k56" { return 1 }
+    if name == "k57" { return 1 }
+    if name == "k58" { return 1 }
+    if name == "k59" { return 1 }
+    if name == "k60" { return 1 }
+    if name == "k61" { return 1 }
+    if name == "k62" { return 1 }
+    if name == "k63" { return 1 }
+    if name == "k64" { return 1 }
+    if name == "k65" { return 1 }
+    if name == "k66" { return 1 }
+    if name == "k67" { return 1 }
+    if name == "k68" { return 1 }
+    if name == "k69" { return 1 }
+    if name == "k70" { return 1 }
+    if name == "k71" { return 1 }
+    return 0
+}
+fn emitOp(E, op, arg) {
+    E["eOps"] = push(E["eOps"], { "op": op, "arg": arg })
+    E["eOpsN"] = E["eOpsN"] + 1
+}
+fn run(E) {
+    touchAll(E)
+    let _ = nameProbe("k0")
+    E["eConsts"] = push(E["eConsts"], 1)
+    println("after push c="+len(E["eConsts"]))
+    E["eIdx"] = 0
+    println("after eIdx c="+len(E["eConsts"]))
+    emitOp(E, "const", E["eIdx"])
+    println("after op c="+len(E["eConsts"])+" o="+len(E["eOps"]))
+    E["eGlobals"] = push(E["eGlobals"], "x")
+    println("after g g="+len(E["eGlobals"]))
+    E["eIdx"] = 0
+    emitOp(E, "store_global", E["eIdx"])
+    println("end c="+len(E["eConsts"])+" g="+len(E["eGlobals"])+" o="+len(E["eOps"]))
+}
+let E = makeE()
+run(E)

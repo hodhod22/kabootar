@@ -1,0 +1,105 @@
+// SH23: product httpFetch methods + GET Authorization/Cookie/Proxy-Authorization over Kab TLS 1.3 :28198 (not rustls).
+// Do not grow crypto_tls13_app.kab. cryptoHostDeleteOk stays false.
+
+import "kab/crypto/crypto_tls13_app"
+import "kab/crypto/crypto_http_get"
+import "kab/crypto/crypto_http_resp"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto"
+
+pub fn httpsLoop13Fetch(method, url, body, headers, timeoutMs) {
+    if timeoutMs != 0 {
+        return false
+    }
+    if method == "GET" {
+        if body != "" {
+            return false
+        }
+    } else {
+        if method == "DELETE" {
+            if body != "" {
+                return false
+            }
+        } else {
+            if method == "HEAD" {
+                if body != "" {
+                    return false
+                }
+            } else {
+                if method == "OPTIONS" {
+                    if body != "" {
+                        return false
+                    }
+                } else {
+                    if method == "TRACE" {
+                        if body != "" {
+                            return false
+                        }
+                    } else {
+                        if method == "CONNECT" {
+                            if body != "" {
+                                return false
+                            }
+                        } else {
+                            if method != "POST" {
+                                if method != "PUT" {
+                                    if method != "PATCH" {
+                                        return false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if cryptoIsHttps(url) != true {
+        return false
+    }
+    if httpPortFromHttps(url) != 28198 {
+        return false
+    }
+    let host = httpHostName(httpHostFromHttps(url))
+    if httpIsLoopbackHost(host) != true {
+        return false
+    }
+    let s = tls13HsAppReady(28198)
+    if s == false {
+        return false
+    }
+    let req = httpBuildFetchReq(method, host, httpFetchTarget(method, url), body, headers)
+    if req == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    tls13WriteAppGcm(s["client"], s["cKey"], s["cIv"], 0, req)
+    let gotReq = tls13ReadAppGcm(s["server"], s["cKey"], s["cIv"], 0)
+    if gotReq == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    if tlsObjHex(gotReq) != tlsObjHex(req) {
+        tls13HsLiveClose(s)
+        return false
+    }
+    let resp = tls13Http200Ok()
+    tls13WriteAppGcm(s["server"], s["sKey"], s["sIv"], 0, resp)
+    let gotResp = tls13ReadAppGcm(s["client"], s["sKey"], s["sIv"], 0)
+    if gotResp == false {
+        tls13HsLiveClose(s)
+        return false
+    }
+    tls13HsLiveClose(s)
+    let o = {}
+    o["status"] = httpStatusCode(gotResp)
+    o["body"] = httpBytesToStr(httpRespBody(gotResp))
+    o["headers"] = httpHdrObj(gotResp)
+    if o["status"] != 200 {
+        return false
+    }
+    if o["body"] != "OK" {
+        return false
+    }
+    return o
+}

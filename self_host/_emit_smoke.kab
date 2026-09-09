@@ -1,0 +1,18 @@
+// Quick smoke: emit densify session E
+import "self_host/parse"
+import "self_host/emit"
+
+let ast = parse("let x = 1")
+let ir = emit(ast)
+println("globals=" + len(ir["globals"]))
+println("consts=" + len(ir["constants"]))
+println("ops=" + len(ir["ops"]))
+let i = 0
+while i < len(ir["ops"]) {
+    let o = ir["ops"][i]
+    println("" + i + ":" + o["op"] + " arg:" + o["arg"])
+    i = i + 1
+}
+if len(ir["constants"]) > 0 {
+    println("c0=" + ir["constants"][0])
+}

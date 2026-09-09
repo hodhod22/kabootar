@@ -1,0 +1,64 @@
+// Kabootar cinematic demo — WebGL light field + Canvas 2D HUD.
+// Run: cargo run -- examples/kabootar_cinematic_demo.kab
+
+import "game/render"
+
+platform_use("kabootar")
+
+let width = 1920
+let height = 1080
+
+// WebGL creates the luminous, low-poly Kabootar mark.
+let scene = game_surface_create_3d(width, height)
+let gl = scene["gl"]
+gl.lookAt(0, 0, 4.2, 0, 0, 0, 0, 1, 0)
+gl.rotateModelY(24)
+
+let leftWing = createMesh(gl, [
+    -1.45, -0.34, 0.00,
+    -0.10,  0.72, 0.34,
+    -0.28, -0.18, 0.72,
+    -1.12, -0.06, 0.08,
+    -0.18,  0.44, 0.52,
+    -0.54, -0.48, 0.30
+])
+
+let rightWing = createMesh(gl, [
+     1.45, -0.34, 0.00,
+     0.10,  0.72, 0.34,
+     0.28, -0.18, 0.72,
+     1.12, -0.06, 0.08,
+     0.18,  0.44, 0.52,
+     0.54, -0.48, 0.30
+])
+
+setColor(gl, 0.10, 0.88, 1.00, 1.00)
+drawMesh(leftWing)
+setColor(gl, 0.82, 0.24, 1.00, 1.00)
+drawMesh(rightWing)
+scene.present()
+
+// Canvas 2D supplies typography and interface overlays.
+let hud = canvas_create(width, height)
+let cyan = canvas_create_linear_gradient(hud, 0, 0, width, 0)
+canvas_gradient_add_color_stop(cyan, 0.0, "#55f7ff")
+canvas_gradient_add_color_stop(cyan, 0.5, "#9067ff")
+canvas_gradient_add_color_stop(cyan, 1.0, "#ff4fc8")
+
+hud.fillStyle = "#050713"
+hud.fillRect(0, 0, width, height)
+hud.fillStyle = cyan
+hud.fillRect(96, 104, 12, 610)
+hud.font = "bold 88px Arial"
+hud.fillText("KABOOTAR", 154, 218)
+hud.fillStyle = "#eaf7ff"
+hud.font = "34px Arial"
+hud.fillText("Code. Graphics. Motion.", 158, 286)
+hud.fillStyle = "#73fbd3"
+hud.fillRect(158, 342, 420, 4)
+hud.font = "26px Arial"
+hud.fillStyle = "#aebed4"
+hud.fillText("WebGL • Canvas 2D • GPU", 158, 406)
+
+let pixels = canvas_to_pixels(hud)
+return scene["mode"] == "3d" && pixels.length > 0

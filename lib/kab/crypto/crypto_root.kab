@@ -662,3 +662,71 @@ pub fn cryptoRootCertRsaFixtureVerify(bytes) {
         signature: signature,
     })
 }
+
+/// Verify a child certificate signature with the issuer SPKI in the bounded RSA fixture.
+pub fn cryptoRootIssuedRsaFixtureVerify(childBytes, issuerBytes) {
+    if cryptoRootIssuerMatches(childBytes, issuerBytes) != true {
+        return false
+    }
+    if cryptoRootCertAlgorithmsMatch(childBytes) != true {
+        return false
+    }
+    let child = cryptoRootTbsSpki(childBytes)
+    let issuer = cryptoRootTbsSpki(issuerBytes)
+    if child == false || issuer == false {
+        return false
+    }
+    let outer = cryptoDerTlv(childBytes, 0)
+    let outerAlg = cryptoDerTlv(childBytes, child["names"]["prefix"]["tbs"]["end"])
+    let sigBits = cryptoDerTlv(childBytes, outerAlg["end"])
+    if sigBits == false || sigBits["tag"] != 3 || sigBits["len"] != 65 {
+        return false
+    }
+    if (childBytes["" + sigBits["body"]] & 255) != 0 || sigBits["end"] != outer["end"] {
+        return false
+    }
+    let signedTbs = cryptoRootByteRange(
+        childBytes,
+        child["names"]["prefix"]["tbs"]["start"],
+        child["names"]["prefix"]["tbs"]["end"]
+    )
+    let modulus = cryptoRootByteRange(issuerBytes, issuer["modulus"]["body"], issuer["modulus"]["end"])
+    let exponent = cryptoRootByteRange(issuerBytes, issuer["exponent"]["body"], issuer["exponent"]["end"])
+    let signature = cryptoRootByteRange(childBytes, sigBits["body"] + 1, sigBits["end"])
+    return cryptoRootRsaFixtureVerify({
+        tbs: signedTbs,
+        modulus: modulus,
+        exponent: exponent,
+        signature: signature,
+    })
+}
+
+/// Bounded RSA e=3 self-signed issuer used by the TLS 1.2 trust-chain fixture.
+pub fn cryptoRootFixtureIssuerDer() {
+    return rsaParseHex("308201033081aea003020102020101300d06092a864886f70d01010b0500300c310a300806035504030c0149301e170d3235303130313030303030305a170d3335303130313030303030305a300c310a300806035504030c01493059300d06092a864886f70d01010105000348003045024065b1b39995424aecf3b32b4ccb30091186c3363b8134040ff5ba79ebebc69e2cf30185053fee3056a7734a0aacd5ce8921339ff9df6bbce042cc872995b8eae5020103300d06092a864886f70d01010b0500034100006f5a62b15201fe0f7cdbfbba9920ba671ec28ba604b5be163e3f8ceae39a3b195c8c12c8c0be34b08658ade8e9d4beb3abddd28392747a70e2dbc2252910d7")
+}
+
+/// Bounded RSA e=3 leaf signed by cryptoRootFixtureIssuerDer.
+pub fn cryptoRootFixtureLeafDer() {
+    return rsaParseHex("308201033081aea003020102020102300d06092a864886f70d01010b0500300c310a300806035504030c0149301e170d3235303130313030303030305a170d3335303130313030303030305a300c310a300806035504030c014c3059300d06092a864886f70d01010105000348003045024065b1b39995424aecf3b32b4ccb30091186c3363b8134040ff5ba79ebebc69e2cf30185053fee3056a7734a0aacd5ce8921339ff9df6bbce042cc872995b8eae5020103300d06092a864886f70d01010b05000341001cae0c5d11b56926a543a3e9c7a0f8deab9514e13e359a8587d7c7d5eb9a5d806d36a5ffa9985b779d9988fe15e4bc8953a7b0ae6fe4db469aa09772888138e5")
+}
+
+/// SHA-256/PKCS#1-v1.5 leaf←issuer plus self-signed issuer, with a tamper reject.
+pub fn cryptoRootSignedChainEvalOk() {
+    let leaf = cryptoRootFixtureLeafDer()
+    let issuer = cryptoRootFixtureIssuerDer()
+    if cryptoRootIssuedRsaFixtureVerify(leaf, issuer) != true {
+        return false
+    }
+    if cryptoRootCertRsaFixtureVerify(issuer) != true {
+        return false
+    }
+    if cryptoRootIssuerMatches(leaf, issuer) != true {
+        return false
+    }
+    if cryptoRootCertAlgorithmsMatch(leaf) != true {
+        return false
+    }
+    leaf["20"] = (leaf["20"] + 1) & 255
+    return cryptoRootIssuedRsaFixtureVerify(leaf, issuer) == false
+}

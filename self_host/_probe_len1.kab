@@ -1,0 +1,8 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+
+compile("fn t(E) { E[\"eJmp\"] = E[\"eIfJmpStack\"][len(E[\"eIfJmpStack\"]) - 1]; return E }")
+println("OK len-1 get")
+
+compile("fn t(E) { let n = len(E[\"eIfJmpStack\"]) - 1; E[\"eJmp\"] = E[\"eIfJmpStack\"][n]; return E }")
+println("OK precompute len-1")

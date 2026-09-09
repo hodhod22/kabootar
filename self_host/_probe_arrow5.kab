@@ -1,0 +1,6 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+compile("fn u(E,m,s){return s}\nfn t(E) { let p = []; E[\"a\"] = push(E[\"a\"], { \"params\": u(E, \"snap\", p) }); return E }")
+println("OK call in obj")
+compile("fn u(E,m,s){return s}\nfn t(E) { let p = []; let q = u(E, \"snap\", p); E[\"a\"] = push(E[\"a\"], { \"params\": q }); return E }")
+println("OK call precompute")

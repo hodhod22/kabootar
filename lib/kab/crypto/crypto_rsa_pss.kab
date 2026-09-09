@@ -1,0 +1,326 @@
+// SH23: RSA-PSS SHA-256 (MGF1, sLen=32) for TLS 1.3 CertificateVerify.
+// Do not grow crypto_tls_cert.kab (512-bit PKCS#1 fixture). Host rustls remains skuld.
+
+import "kab/crypto/crypto_sha_eval"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_tls_hs"
+
+pub fn rsaVZero(nl) {
+    let o = {}
+    let i = 0
+    while i < nl + 1 {
+        o["" + i] = 0
+        i = i + 1
+    }
+    o["n"] = nl
+    return o
+}
+
+pub fn rsaVFromBe(b, nl) {
+    let o = rsaVZero(nl)
+    let k = b["n"]
+    let i = 0
+    while i < nl {
+        let off = k - 2 - i - i
+        if off >= 0 {
+            o["" + i] = (b["" + (off + 1)] & 255) + ((b["" + off] & 255) * 256)
+        } else {
+            if off == 0 - 1 {
+                o["" + i] = b["" + (off + 1)] & 255
+            }
+        }
+        i = i + 1
+    }
+    return o
+}
+
+pub fn rsaVToBe(a, k) {
+    let o = {}
+    let i = 0
+    while i < k {
+        o["" + i] = 0
+        i = i + 1
+    }
+    o["n"] = k
+    let nl = a["n"]
+    i = 0
+    while i < nl {
+        let v = a["" + i]
+        let hi = (v / 256) | 0
+        let lo = v - hi * 256
+        let p = k - 2 - i - i
+        if p >= 0 {
+            o["" + p] = hi
+            o["" + (p + 1)] = lo
+        } else {
+            if p == 0 - 1 {
+                o["0"] = lo
+            }
+        }
+        i = i + 1
+    }
+    return o
+}
+
+pub fn rsaVGte(a, b, nl) {
+    let i = nl
+    while i >= 0 {
+        let av = a["" + i]
+        let bv = b["" + i]
+        if av > bv {
+            return true
+        }
+        if av < bv {
+            return false
+        }
+        i = i - 1
+    }
+    return true
+}
+
+pub fn rsaVSubIn(a, b, nl) {
+    let br = 0
+    let i = 0
+    while i < nl + 1 {
+        let v = a["" + i] - b["" + i] - br
+        if v < 0 {
+            v = v + 65536
+            br = 1
+        } else {
+            br = 0
+        }
+        a["" + i] = v
+        i = i + 1
+    }
+}
+
+pub fn rsaVShl1(a, nl) {
+    let c = 0
+    let i = 0
+    while i < nl + 1 {
+        let nv = a["" + i] + a["" + i] + c
+        c = (nv / 65536) | 0
+        a["" + i] = nv - c * 65536
+        i = i + 1
+    }
+}
+
+pub fn rsaVInv16(a) {
+    let t = 0
+    let newt = 1
+    let r = 65536
+    let newr = a
+    while newr != 0 {
+        let q = (r / newr) | 0
+        let tmp = newt
+        newt = t - q * newt
+        t = tmp
+        tmp = newr
+        newr = r - q * newr
+        r = tmp
+    }
+    if t < 0 {
+        t = t + 65536
+    }
+    return t
+}
+
+pub fn rsaVMontMul(a, b, n, np, nl) {
+    let aa = []
+    let bb = []
+    let nn = []
+    let t = []
+    let i = 0
+    while i < nl {
+        aa = push(aa, a["" + i])
+        bb = push(bb, b["" + i])
+        nn = push(nn, n["" + i])
+        t = push(t, 0)
+        i = i + 1
+    }
+    t = push(t, 0)
+    t = push(t, 0)
+    i = 0
+    while i < nl {
+        let c = 0
+        let j = 0
+        while j < nl {
+            let acc = t[j] + aa[j] * bb[i] + c
+            c = (acc / 65536) | 0
+            t[j] = acc - c * 65536
+            j = j + 1
+        }
+        let acc = t[nl] + c
+        c = (acc / 65536) | 0
+        t[nl] = acc - c * 65536
+        t[nl + 1] = c
+        let m = t[0] * np
+        m = m - ((m / 65536) | 0) * 65536
+        acc = t[0] + m * nn[0]
+        c = (acc / 65536) | 0
+        j = 1
+        while j < nl {
+            acc = t[j] + m * nn[j] + c
+            c = (acc / 65536) | 0
+            t[j - 1] = acc - c * 65536
+            j = j + 1
+        }
+        acc = t[nl] + c
+        c = (acc / 65536) | 0
+        t[nl - 1] = acc - c * 65536
+        acc = t[nl + 1] + c
+        c = (acc / 65536) | 0
+        t[nl] = acc - c * 65536
+        t[nl + 1] = c
+        i = i + 1
+    }
+    let r = rsaVZero(nl)
+    i = 0
+    while i < nl {
+        r["" + i] = t[i]
+        i = i + 1
+    }
+    r["" + nl] = 0
+    n["" + nl] = 0
+    if rsaVGte(r, n, nl) == true {
+        rsaVSubIn(r, n, nl)
+    }
+    return r
+}
+
+pub fn rsaVR2(n, nl) {
+    let r = rsaVZero(nl)
+    r["0"] = 1
+    let bits = nl * 32
+    let i = 0
+    while i < bits {
+        rsaVShl1(r, nl)
+        if rsaVGte(r, n, nl) == true {
+            rsaVSubIn(r, n, nl)
+        }
+        i = i + 1
+    }
+    return r
+}
+
+pub fn rsaVPow65537(base, n, nl) {
+    let np = 65536 - rsaVInv16(n["0"])
+    np = np - ((np / 65536) | 0) * 65536
+    let r2 = rsaVR2(n, nl)
+    let one = rsaVZero(nl)
+    one["0"] = 1
+    let x = rsaVMontMul(base, r2, n, np, nl)
+    let i = 0
+    while i < 16 {
+        x = rsaVMontMul(x, x, n, np, nl)
+        i = i + 1
+    }
+    x = rsaVMontMul(x, rsaVMontMul(base, r2, n, np, nl), n, np, nl)
+    return rsaVMontMul(x, one, n, np, nl)
+}
+
+pub fn pssMgf1(seed, maskLen) {
+    let out = {}
+    let n = 0
+    let c = 0
+    while n < maskLen {
+        let block = {}
+        let i = 0
+        while i < seed["n"] {
+            block["" + i] = seed["" + i] & 255
+            i = i + 1
+        }
+        block["" + i] = (c / 16777216) | 0
+        block["" + (i + 1)] = ((c / 65536) | 0) & 255
+        block["" + (i + 2)] = ((c / 256) | 0) & 255
+        block["" + (i + 3)] = c & 255
+        block["n"] = seed["n"] + 4
+        let h = hmacDigestToObj(sha256Bytes(tlsObjToArr(block)))
+        let j = 0
+        while j < 32 {
+            if n < maskLen {
+                out["" + n] = h["" + j] & 255
+                n = n + 1
+            }
+            j = j + 1
+        }
+        c = c + 1
+    }
+    out["n"] = maskLen
+    return out
+}
+
+pub fn rsaPssVerifySha256(em, mHash) {
+    let emLen = em["n"]
+    if emLen < 66 {
+        return false
+    }
+    if (em["" + (emLen - 1)] & 255) != 188 {
+        return false
+    }
+    let hLen = 32
+    let sLen = 32
+    let dbLen = emLen - hLen - 1
+    if dbLen < sLen + 1 {
+        return false
+    }
+    let h = {}
+    let i = 0
+    while i < hLen {
+        h["" + i] = em["" + (dbLen + i)] & 255
+        i = i + 1
+    }
+    h["n"] = hLen
+    let dbMask = pssMgf1(h, dbLen)
+    let db = {}
+    i = 0
+    while i < dbLen {
+        db["" + i] = (em["" + i] & 255) ^ (dbMask["" + i] & 255)
+        i = i + 1
+    }
+    db["n"] = dbLen
+    db["0"] = db["0"] & 127
+    i = 0
+    while i < dbLen - sLen - 1 {
+        if (db["" + i] & 255) != 0 {
+            return false
+        }
+        i = i + 1
+    }
+    if (db["" + (dbLen - sLen - 1)] & 255) != 1 {
+        return false
+    }
+    let salt = {}
+    i = 0
+    while i < sLen {
+        salt["" + i] = db["" + (dbLen - sLen + i)] & 255
+        i = i + 1
+    }
+    salt["n"] = sLen
+    let mPrime = {}
+    i = 0
+    while i < 8 {
+        mPrime["" + i] = 0
+        i = i + 1
+    }
+    let j = 0
+    while j < 32 {
+        mPrime["" + (8 + j)] = mHash["" + j] & 255
+        j = j + 1
+    }
+    j = 0
+    while j < 32 {
+        mPrime["" + (40 + j)] = salt["" + j] & 255
+        j = j + 1
+    }
+    mPrime["n"] = 72
+    let h2 = hmacDigestToObj(sha256Bytes(tlsObjToArr(mPrime)))
+    i = 0
+    while i < 32 {
+        if (h["" + i] & 255) != (h2["" + i] & 255) {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}

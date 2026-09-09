@@ -1,0 +1,9 @@
+import "kab/crypto/crypto_tls_prf"
+import "kab/crypto/crypto_tls_hs"
+
+return tlsPrfHexKeySeed(
+    tlsHexToObj("9bbe436ba940f017b17652849a71db35"),
+    "test label",
+    tlsHexToObj("a0ba9f936cda311827a6f796ffd5198c"),
+    48
+)

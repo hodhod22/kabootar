@@ -1,0 +1,160 @@
+// SH23: Kab TLS 1.3 ECDSA-SHA256 verify of CertificateVerify vs rustls peer.
+// Do not grow crypto_tls13_peer_cv.kab with Jacobian math. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_ecdsa_verify"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_sha_eval"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_tls_prf"
+
+pub fn tls13PeerSlice(bytes, start, n) {
+    let o = {}
+    let i = 0
+    while i < n {
+        o["" + i] = bytes["" + (start + i)] & 255
+        i = i + 1
+    }
+    o["n"] = n
+    return o
+}
+
+pub fn tls13PeerTrBeforeCv(tr, cv) {
+    if tr == false || cv == false {
+        return false
+    }
+    if tr["n"] < cv["n"] {
+        return false
+    }
+    let n = tr["n"] - cv["n"]
+    let i = 0
+    while i < cv["n"] {
+        if (tr["" + (n + i)] & 255) != (cv["" + i] & 255) {
+            return false
+        }
+        i = i + 1
+    }
+    return tls13PeerSlice(tr, 0, n)
+}
+
+pub fn tls13PeerP256Point(der) {
+    let i = 0
+    while i + 68 <= der["n"] {
+        if (der["" + i] & 255) == 3 {
+            if (der["" + (i + 1)] & 255) == 66 {
+                if (der["" + (i + 2)] & 255) == 0 {
+                    if (der["" + (i + 3)] & 255) == 4 {
+                        let o = {}
+                        o["x"] = tls13PeerSlice(der, i + 4, 32)
+                        o["y"] = tls13PeerSlice(der, i + 36, 32)
+                        return o
+                    }
+                }
+            }
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn tls13PeerDerInt(bytes, off) {
+    if off >= bytes["n"] {
+        return false
+    }
+    if (bytes["" + off] & 255) != 2 {
+        return false
+    }
+    let ln = bytes["" + (off + 1)] & 255
+    if ln < 1 || ln > 33 {
+        return false
+    }
+    if off + 2 + ln > bytes["n"] {
+        return false
+    }
+    let start = off + 2
+    if ln > 1 {
+        if (bytes["" + start] & 255) == 0 {
+            start = start + 1
+            ln = ln - 1
+        }
+    }
+    if ln < 1 {
+        return false
+    }
+    return { val: tls13PeerSlice(bytes, start, ln), end: off + 2 + (bytes["" + (off + 1)] & 255) }
+}
+
+pub fn tls13PeerEcdsaSig(sig) {
+    if sig == false || sig["n"] < 8 {
+        return false
+    }
+    if (sig["0"] & 255) != 48 {
+        return false
+    }
+    let seqLn = sig["1"] & 255
+    if 2 + seqLn != sig["n"] {
+        return false
+    }
+    let r = tls13PeerDerInt(sig, 2)
+    if r == false {
+        return false
+    }
+    let s = tls13PeerDerInt(sig, r["end"])
+    if s == false {
+        return false
+    }
+    if s["end"] != sig["n"] {
+        return false
+    }
+    return { r: r["val"], s: s["val"] }
+}
+
+pub fn tls13PeerCvSignedHash(tr) {
+    let pad = {}
+    let i = 0
+    while i < 64 {
+        pad["" + i] = 32
+        i = i + 1
+    }
+    pad["n"] = 64
+    let ctx = hmacStrBytes("TLS 1.3, server CertificateVerify")
+    let z = {}
+    z["0"] = 0
+    z["n"] = 1
+    let th = tlsTranscriptHashObj(tr)
+    let content = tlsConcatObj(tlsConcatObj(tlsConcatObj(pad, ctx), z), th)
+    return hmacDigestToObj(sha256Bytes(tlsObjToArr(content)))
+}
+
+pub fn tls13PeerEcdsaEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false || s["cv"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    if der == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let pt = tls13PeerP256Point(der)
+    let cv = tls13PeerCvParse(s["cv"])
+    let tr = tls13PeerTrBeforeCv(s["tr"], s["cv"])
+    tcp_close(s["sock"])
+    if pt == false || cv == false || tr == false {
+        return false
+    }
+    if cv["scheme"] != 1027 {
+        return false
+    }
+    let rs = tls13PeerEcdsaSig(cv["sig"])
+    if rs == false {
+        return false
+    }
+    let hash = tls13PeerCvSignedHash(tr)
+    return ecdsaP256Verify(hash, rs["r"], rs["s"], pt["x"], pt["y"])
+}

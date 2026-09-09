@@ -1,0 +1,14 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+
+compile("fn t(E) { let ai = 0; E[\"a\"] = push(E[\"a\"], { \"sym\": \"a\" + ai }); return E }")
+println("OK obj field plus")
+
+compile("fn t(E) { E[\"x\"] = E[\"x\"] + \"$\" + E[\"y\"]; return E }")
+println("OK chained plus AccAdd")
+
+compile("fn t(E, idx) { E[\"off\"] = E[\"n\"] - idx - 1; return E }")
+println("OK chained sub AccAdd")
+
+compile("fn t(E) { E[\"j\"] = E[\"st\"][len(E[\"st\"]) - 1]; return E }")
+println("OK len-1 peek")

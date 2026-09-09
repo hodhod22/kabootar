@@ -1,0 +1,298 @@
+// SH23: live TLS 1.2 ECDHE handshake — ClientKeyExchange + ServerHelloDone + Finished.
+// Premaster is X25519(client_secret, SKE.publicKey) on the wire (RFC 7748 K). Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_prf"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_x25519_eval"
+
+pub fn tlsHsEmpty() {
+    let o = {}
+    o["n"] = 0
+    return o
+}
+
+pub fn tlsHsAadObj(seq, typ, ptLen) {
+    let o = {}
+    o["0"] = 0
+    o["1"] = 0
+    o["2"] = 0
+    o["3"] = 0
+    o["4"] = 0
+    o["5"] = 0
+    o["6"] = 0
+    o["7"] = seq & 255
+    o["8"] = typ & 255
+    o["9"] = 3
+    o["10"] = 3
+    o["11"] = (ptLen / 256) | 0
+    o["12"] = ptLen & 255
+    o["n"] = 13
+    return o
+}
+
+pub fn tlsHsU16(n) {
+    let o = {}
+    o["0"] = (n / 256) | 0
+    o["1"] = n & 255
+    o["n"] = 2
+    return o
+}
+
+pub fn tlsHsWriteAppRec(sock, key, fixedIv, explicitIv, seq, pt) {
+    let aad = tlsHsAadObj(seq, 23, pt["n"])
+    let enc = gcmEncrypt(key, tlsConcatObj(fixedIv, explicitIv), pt, aad)
+    let inner = tlsConcatObj(tlsConcatObj(explicitIv, enc["ct"]), enc["tag"])
+    let rec = tlsConcatObj(tlsConcatObj(tlsHexToObj("170303"), tlsHsU16(inner["n"])), inner)
+    tcp_write_bytes(sock, rec)
+    return true
+}
+
+pub fn tlsHsReadApp(sock, key, fixedIv, seq) {
+    let head = tlsHsReadBytesExact(sock, 5)
+    if head == false {
+        return false
+    }
+    if (head["0"] & 255) != 23 || (head["1"] & 255) != 3 || (head["2"] & 255) != 3 {
+        return false
+    }
+    let size = ((head["3"] << 8) | head["4"]) & 65535
+    if size < 24 {
+        return false
+    }
+    let tail = tlsHsReadBytesExact(sock, size)
+    if tail == false {
+        return false
+    }
+    let explicitIv = {}
+    let i = 0
+    while i < 8 {
+        explicitIv["" + i] = tail["" + i] & 255
+        i = i + 1
+    }
+    explicitIv["n"] = 8
+    let ctLen = size - 24
+    let ct = {}
+    i = 0
+    while i < ctLen {
+        ct["" + i] = tail["" + (8 + i)] & 255
+        i = i + 1
+    }
+    ct["n"] = ctLen
+    let tag = {}
+    i = 0
+    while i < 16 {
+        tag["" + i] = tail["" + (8 + ctLen + i)] & 255
+        i = i + 1
+    }
+    tag["n"] = 16
+    let aad = tlsHsAadObj(seq, 23, ctLen)
+    let plainHex = gcmDecrypt(key, tlsConcatObj(fixedIv, explicitIv), ct, tag, aad)
+    if plainHex == false {
+        return false
+    }
+    return tlsHexToObj(plainHex)
+}
+
+pub fn tlsHsLiveClose(s) {
+    tcp_close(s["client"])
+    tcp_close(s["server"])
+    tcp_close(s["listener"])
+    return true
+}
+
+/// Open loopback sockets, complete ECDHE handshake, leave keys on the session.
+pub fn tlsHsLiveOpen(port) {
+    let clientPub = tlsHexToObj("8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a")
+    let clientSecret = tlsHexToObj("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a")
+    let serverPub = tlsHexToObj("de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f")
+    let clientRandom = hmacStrBytes("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    let clientHello = tlsHsWrap(1, tlsConcatObj(tlsHexToObj("0303"), tlsConcatObj(clientRandom, tlsHexToObj("000002009c01000016000a00040002001d000b00020100000d000400020401"))))
+    let serverRandom = hmacStrBytes("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")
+    let serverHello = tlsHsWrap(2, tlsConcatObj(tlsHexToObj("0303"), tlsConcatObj(serverRandom, tlsHexToObj("00009c00"))))
+    let certDer = tlsHexToObj("30153000300d06092a864886f70d01010b050003020000")
+    let certificate = tlsHsWrap(11, tlsConcatObj(tlsHexToObj("00001a000017"), certDer))
+    let serverKeyBody = tlsConcatObj(
+        tlsHexToObj("03001d20"),
+        tlsConcatObj(serverPub, tlsHexToObj("04030002aabb"))
+    )
+    let serverKeyExchange = tlsHsWrap(12, serverKeyBody)
+    let serverHelloDone = tlsHsWrap(14, tlsHsEmpty())
+    let clientKeyExchange = tlsHsWrap(16, tlsConcatObj(tlsHexToObj("20"), clientPub))
+    let changeCipherSpec = tlsHexToObj("140303000101")
+    let listener = tcp_listen("127.0.0.1", port)
+    let client = tcp_connect("127.0.0.1", port)
+    let server = tcp_accept(listener)
+    tcp_write_bytes(client, tlsRecordHs(clientHello))
+    let receivedClient = tlsHsReadRecord(server, 1)
+    if receivedClient == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    let parsedCh = tlsHsParseClientHello(receivedClient)
+    if parsedCh == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    if parsedCh["groupX"] != 1 {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    tcp_write_bytes(server, tlsRecordHs(serverHello))
+    let receivedServer = tlsHsReadRecord(client, 2)
+    tcp_write_bytes(server, tlsRecordHs(certificate))
+    let receivedCertificate = tlsHsReadRecord(client, 11)
+    tcp_write_bytes(server, tlsRecordHs(serverKeyExchange))
+    let receivedKeyExchange = tlsHsReadRecord(client, 12)
+    tcp_write_bytes(server, tlsRecordHs(serverHelloDone))
+    let receivedHelloDone = tlsHsReadRecord(client, 14)
+    if receivedHelloDone == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    let parsedKeyExchange = tlsHsParseServerKeyExchange(receivedKeyExchange)
+    if parsedKeyExchange == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    if tlsObjHex(parsedKeyExchange["publicKey"]) != tlsObjHex(serverPub) {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    let liveClientPms = x25519(clientSecret, parsedKeyExchange["publicKey"])
+    if tlsObjHex(liveClientPms) != "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742" {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    tcp_write_bytes(client, tlsRecordHs(clientKeyExchange))
+    let receivedClientKey = tlsHsReadRecord(server, 16)
+    let parsedClientKey = tlsHsParseClientKeyExchange(receivedClientKey)
+    if parsedClientKey == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    if tlsObjHex(parsedClientKey) != tlsObjHex(clientPub) {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    let preFinishedTranscript = tlsConcatObj(
+        tlsConcatObj(
+            tlsConcatObj(tlsConcatObj(receivedClient, receivedServer), receivedCertificate),
+            tlsConcatObj(receivedKeyExchange, receivedHelloDone)
+        ),
+        receivedClientKey
+    )
+    let cr = hmacStrBytes("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    let sr = hmacStrBytes("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")
+    let ms = tlsPrfHexKeySeed(liveClientPms, "master secret", tlsConcatObj(cr, sr), 48)
+    let keyBlock = tlsPrfHexKeySeed(tlsHexToObj(ms), "key expansion", tlsConcatObj(sr, cr), 40)
+    let serverKey = tlsHsHexSlice(keyBlock, 16, 16)
+    let serverIv = tlsHsHexSlice(keyBlock, 36, 4)
+    let clientKey = tlsHsHexSlice(keyBlock, 0, 16)
+    let clientIv = tlsHsHexSlice(keyBlock, 32, 4)
+    let verify = tlsPrfHexKeySeed(tlsHexToObj(ms), "client finished", tlsTranscriptHashObj(preFinishedTranscript), 12)
+    let clientFinished = tlsHsWrap(20, tlsHexToObj(verify))
+    let aad = tlsHexToObj("00000000000000001603030010")
+    let clientExplicitIv = tlsHexToObj("0000000000000001")
+    let clientEncrypted = gcmEncrypt(clientKey, tlsConcatObj(clientIv, clientExplicitIv), clientFinished, aad)
+    let clientFinishedRecord = tlsConcatObj(
+        tlsHexToObj("1603030028"),
+        tlsConcatObj(clientExplicitIv, tlsConcatObj(clientEncrypted["ct"], clientEncrypted["tag"]))
+    )
+    tcp_write_bytes(client, changeCipherSpec)
+    let receivedClientChangeCipherSpec = tlsHsReadChangeCipherSpec(server)
+    tcp_write_bytes(client, clientFinishedRecord)
+    let receivedClientFinished = tlsHsReadEncryptedFinished(server, clientKey, clientIv)
+    if receivedClientFinished == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    let serverTranscript = tlsConcatObj(preFinishedTranscript, receivedClientFinished)
+    let serverVerify = tlsPrfHexKeySeed(tlsHexToObj(ms), "server finished", tlsTranscriptHashObj(serverTranscript), 12)
+    let serverFinished = tlsHsWrap(20, tlsHexToObj(serverVerify))
+    let serverExplicitIv = tlsHexToObj("0000000000000002")
+    let serverEncrypted = gcmEncrypt(serverKey, tlsConcatObj(serverIv, serverExplicitIv), serverFinished, aad)
+    let serverFinishedRecord = tlsConcatObj(
+        tlsHexToObj("1603030028"),
+        tlsConcatObj(serverExplicitIv, tlsConcatObj(serverEncrypted["ct"], serverEncrypted["tag"]))
+    )
+    tcp_write_bytes(server, changeCipherSpec)
+    let receivedChangeCipherSpec = tlsHsReadChangeCipherSpec(client)
+    tcp_write_bytes(server, serverFinishedRecord)
+    let receivedFinished = tlsHsReadEncryptedFinished(client, serverKey, serverIv)
+    if receivedServer == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    if receivedCertificate == false || receivedKeyExchange == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    if receivedClientKey == false || receivedClientChangeCipherSpec != true {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    if receivedChangeCipherSpec != true || receivedFinished == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    if tlsObjHex(receivedClientFinished) != tlsObjHex(clientFinished) {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    if tlsObjHex(receivedFinished) != tlsObjHex(serverFinished) {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    return {
+        client: client,
+        server: server,
+        listener: listener,
+        clientKey: clientKey,
+        clientIv: clientIv,
+        serverKey: serverKey,
+        serverIv: serverIv,
+    }
+}
+
+pub fn tlsHsLiveEvalOk() {
+    let s = tlsHsLiveOpen(28193)
+    if s == false {
+        return false
+    }
+    tlsHsLiveClose(s)
+    return true
+}

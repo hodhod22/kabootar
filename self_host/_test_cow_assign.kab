@@ -1,0 +1,19 @@
+fn mutate(E) {
+    E["pool"] = push(E["pool"], 42)
+    E["n"] = E["n"] + 1
+    return 0
+}
+
+let E = { "pool": [], "n": 0, "slot": -1 }
+E["slot"] = mutate(E)
+println("pool_len=" + len(E["pool"]) + " n=" + E["n"] + " slot=" + E["slot"])
+if len(E["pool"]) != 1 {
+    throw "pool lost"
+}
+if E["n"] != 1 {
+    throw "n lost"
+}
+if E["slot"] != 0 {
+    throw "slot wrong"
+}
+println("OK cow_assign")

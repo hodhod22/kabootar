@@ -1,0 +1,12 @@
+import "self_host/lexer"
+import "self_host/parser"
+let src = "fn t(E) { E[\"a\"] = { \"x\": 1 + 2 }; return E }"
+let toks = tokenize(src)
+println("toks=" + len(toks))
+let i = 0
+while i < len(toks) {
+    println("" + i + ":" + toks[i].type + ":" + toks[i].value)
+    i = i + 1
+}
+let ast = parseTokens(toks)
+println("OK parsed")

@@ -1,0 +1,11 @@
+import "self_host/parse"
+import "self_host/emit_exec"
+import "self_host/ast_defs"
+
+let ast = parse("let x = foo()")
+println("body0 kind=" + ast["body"][0].kind)
+let init = ast["body"][0]["init"]
+println("init kind=[" + init.kind + "]")
+println("callee kind=[" + init["callee"].kind + "] sym=" + init["callee"]["sym"])
+let ir = emitMainExec(ast)
+println("ok ops=" + len(ir["ops"]))

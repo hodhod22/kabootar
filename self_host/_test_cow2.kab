@@ -1,0 +1,8 @@
+fn bump(E) {
+    E["n"] = E["n"] + 1
+}
+let E = { "n": 0 }
+bump(E)
+println("n=" + E["n"])
+E["n"] = E["n"] + 1
+println("n2=" + E["n"])

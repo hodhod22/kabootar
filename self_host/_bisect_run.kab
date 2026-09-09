@@ -1,0 +1,4 @@
+import "self_host/compile"
+os_mount("/proj","C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+compile(read_text_file("/proj/self_host/_bisect_emit_main.kab"))
+println("OK m@1733")

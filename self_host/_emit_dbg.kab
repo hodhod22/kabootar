@@ -1,0 +1,14 @@
+import "self_host/parse"
+import "self_host/emit"
+
+fn tryEmit(src) {
+    println("SRC " + src)
+    let ast = parse(src)
+    let ir = emit(ast)
+    println("ops=" + len(ir["ops"]))
+}
+
+tryEmit("let x = 1")
+tryEmit("let x = foo()")
+tryEmit("let x = a + b")
+tryEmit("fn f() { return 1 }")

@@ -1,0 +1,16 @@
+fn symIndex(E, v) {
+    E["pool"] = push(E["pool"], v)
+    let n = E["n"]
+    E["n"] = n + 1
+    return n
+}
+
+fn emitMain(E) {
+    E["slot"] = symIndex(E, 42)
+    return E
+}
+
+let E = { "pool": [], "n": 0, "slot": -1 }
+let out = emitMain(E)
+println("pool_len=" + len(out["pool"]) + " n=" + out["n"] + " slot=" + out["slot"])
+println("orig_pool_len=" + len(E["pool"]))

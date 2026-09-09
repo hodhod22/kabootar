@@ -1,0 +1,38 @@
+// SH23: product httpFetch routes Kab TLS loop and rustls-peer URLs (no default params).
+// Kab-VM object-method-receiver: do not add default params on this pub fn.
+// Do not grow crypto_http_tls / crypto_tls_peer_get. Do not grow http_fetch with crypto imports.
+// Other URLs return false (not rustls-host http_fetch_async). cryptoHostDeleteOk stays false.
+
+import "kab/crypto/crypto_http_tls"
+import "kab/crypto/crypto_tls_peer_get"
+
+pub fn urlHasPrefix(url, p) {
+    if len(url) < len(p) {
+        return false
+    }
+    return str_slice(url, 0, len(p)) == p
+}
+
+pub fn loopUrlMatch(url) {
+    if urlHasPrefix(url, "https://127.0.0.1:28199/") {
+        return true
+    }
+    return urlHasPrefix(url, "https://localhost:28199/")
+}
+
+pub fn rustlsUrlMatch(url) {
+    if urlHasPrefix(url, "https://127.0.0.1:28291/") {
+        return true
+    }
+    return urlHasPrefix(url, "https://localhost:28291/")
+}
+
+pub fn httpFetch(method, url, body, headers, timeoutMs) {
+    if loopUrlMatch(url) == true {
+        return httpsLoopFetch(method, url, body, headers, timeoutMs)
+    }
+    if rustlsUrlMatch(url) == true {
+        return tlsAppPeerFetch(method, url, body, headers, timeoutMs)
+    }
+    return false
+}

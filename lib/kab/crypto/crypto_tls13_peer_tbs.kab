@@ -1,0 +1,116 @@
+// SH23: Kab TLS 1.3 PKCS#1 v1.5 SHA-256 verify of leaf TBS vs rustls RSA peer.
+// Cert signature is sha256WithRSAEncryption; CV remains RSA-PSS. Do not grow crypto_tls13_peer_pss.kab.
+// Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_pss"
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_rsa_pss"
+import "kab/crypto/crypto_root"
+import "kab/crypto/crypto_sha_eval"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_cert"
+
+pub fn tls13PeerPkcs1Sha256Ok(em, hash) {
+    let n = em["n"]
+    if n < 62 {
+        return false
+    }
+    if (em["0"] & 255) != 0 {
+        return false
+    }
+    if (em["1"] & 255) != 1 {
+        return false
+    }
+    let i = 2
+    while i < n - 52 {
+        if (em["" + i] & 255) != 255 {
+            return false
+        }
+        i = i + 1
+    }
+    if i - 2 < 8 {
+        return false
+    }
+    if (em["" + (n - 52)] & 255) != 0 {
+        return false
+    }
+    let hdr = [48, 49, 48, 13, 6, 9, 96, 134, 72, 1, 101, 3, 4, 2, 1, 5, 0, 4, 32]
+    i = 0
+    while i < 19 {
+        if (em["" + (n - 51 + i)] & 255) != hdr[i] {
+            return false
+        }
+        i = i + 1
+    }
+    i = 0
+    while i < 32 {
+        if (em["" + (n - 32 + i)] & 255) != (hash["" + i] & 255) {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+pub fn tls13PeerTbsEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    if der == false {
+        return false
+    }
+    if cryptoRootDerCert(der) != true {
+        return false
+    }
+    if cryptoRootCertAlgorithmsMatch(der) != true {
+        return false
+    }
+    let parsed = cryptoRootTbsSpki(der)
+    if parsed == false {
+        return false
+    }
+    let mod = tls13PeerDerIntBytes(der, parsed["modulus"])
+    if mod == false {
+        return false
+    }
+    let exp = tls13PeerDerIntBytes(der, parsed["exponent"])
+    if exp == false || exp["n"] != 3 {
+        return false
+    }
+    if (exp["0"] & 255) != 1 || (exp["1"] & 255) != 0 || (exp["2"] & 255) != 1 {
+        return false
+    }
+    let tbs = parsed["names"]["prefix"]["tbs"]
+    let outerAlg = cryptoDerTlv(der, tbs["end"])
+    let sigBits = cryptoDerTlv(der, outerAlg["end"])
+    if sigBits == false || sigBits["tag"] != 3 {
+        return false
+    }
+    if (der["" + sigBits["body"]] & 255) != 0 {
+        return false
+    }
+    let sig = cryptoRootByteRange(der, sigBits["body"] + 1, sigBits["end"])
+    let signedTbs = cryptoRootByteRange(der, tbs["start"], tbs["end"])
+    if sig == false || signedTbs == false {
+        return false
+    }
+    if sig["n"] != mod["n"] {
+        return false
+    }
+    let hash = hmacDigestToObj(sha256Bytes(rsaObjToArr(signedTbs)))
+    let nl = ((mod["n"] + 1) / 2) | 0
+    let n = rsaVFromBe(mod, nl)
+    let sInt = rsaVFromBe(sig, nl)
+    let emInt = rsaVPow65537(sInt, n, nl)
+    let em = rsaVToBe(emInt, mod["n"])
+    return tls13PeerPkcs1Sha256Ok(em, hash)
+}

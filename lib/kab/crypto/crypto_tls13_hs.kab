@@ -1,0 +1,307 @@
+// SH23: live TLS 1.3 ClientHello/ServerHello on loopback TCP (AES-128-GCM, X25519).
+// Do not grow crypto_tls13.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_prf"
+import "kab/crypto/crypto_hmac_eval"
+
+pub fn tls13ExtLenObj(n) {
+    let o = {}
+    o["0"] = (n / 256) | 0
+    o["1"] = n & 255
+    o["n"] = 2
+    return o
+}
+
+pub fn tls13BuildClientHello(random, pubKey) {
+    let head = tlsConcatObj(tlsHexToObj("0303"), tlsConcatObj(random, tlsHexToObj("00000213010100")))
+    let sv = tlsHexToObj("002b0003020304")
+    let sg = tlsHexToObj("000a00040002001d")
+    let ks = tlsConcatObj(tlsHexToObj("003300260024001d0020"), pubKey)
+    let exts = tlsConcatObj(tlsConcatObj(sv, sg), ks)
+    return tlsHsWrap(1, tlsConcatObj(head, tlsConcatObj(tls13ExtLenObj(exts["n"]), exts)))
+}
+
+pub fn tls13BuildServerHello(random, pubKey) {
+    let head = tlsConcatObj(tlsHexToObj("0303"), tlsConcatObj(random, tlsHexToObj("00130100")))
+    let sv = tlsHexToObj("002b00020304")
+    let ks = tlsConcatObj(tlsHexToObj("00330024001d0020"), pubKey)
+    let exts = tlsConcatObj(sv, ks)
+    return tlsHsWrap(2, tlsConcatObj(head, tlsConcatObj(tls13ExtLenObj(exts["n"]), exts)))
+}
+
+pub fn tls13ScanChExt(body, start, finish) {
+    let e = start
+    let ver13 = 0
+    let shareX = 0
+    let groupX = 0
+    while e + 4 <= finish {
+        let typ = ((body["" + e] << 8) | body["" + (e + 1)]) & 65535
+        let ln = ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) & 65535
+        e = e + 4
+        if e + ln > finish {
+            return false
+        }
+        if typ == 43 {
+            if ln >= 3 {
+                let vl = body["" + e] & 255
+                if vl >= 2 {
+                    if vl + 1 <= ln {
+                        if ((body["" + (e + 1)] << 8) | body["" + (e + 2)]) == 772 {
+                            ver13 = 1
+                        }
+                    }
+                }
+            }
+        }
+        if typ == 51 {
+            if ln >= 6 {
+                let sl = ((body["" + e] << 8) | body["" + (e + 1)]) & 65535
+                if sl >= 4 {
+                    if sl + 2 <= ln {
+                        if ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) == 29 {
+                            shareX = 1
+                        }
+                    }
+                }
+            }
+        }
+        if typ == 10 {
+            if ln >= 4 {
+                let gl = ((body["" + e] << 8) | body["" + (e + 1)]) & 65535
+                if gl >= 2 {
+                    if gl + 2 <= ln {
+                        if ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) == 29 {
+                            groupX = 1
+                        }
+                    }
+                }
+            }
+        }
+        e = e + ln
+    }
+    if e != finish {
+        return false
+    }
+    let o = {}
+    o["ver13"] = ver13
+    o["shareX"] = shareX
+    o["groupX"] = groupX
+    return o
+}
+
+pub fn tls13ParseClientHello(message) {
+    let body = tlsHsParseOne(message, 1)
+    if body == false || body["n"] < 41 {
+        return false
+    }
+    if (body["0"] & 255) != 3 || (body["1"] & 255) != 3 {
+        return false
+    }
+    let sessionLen = body["34"] & 255
+    if sessionLen > 32 {
+        return false
+    }
+    let suiteLenOff = 35 + sessionLen
+    if suiteLenOff + 2 > body["n"] {
+        return false
+    }
+    let suiteLen = ((body["" + suiteLenOff] << 8) | body["" + (suiteLenOff + 1)]) & 65535
+    if suiteLen < 2 || suiteLen - ((suiteLen / 2) | 0) * 2 != 0 {
+        return false
+    }
+    let suitesOff = suiteLenOff + 2
+    let suiteHit = 0
+    let si = 0
+    while si < suiteLen {
+        let s = ((body["" + (suitesOff + si)] << 8) | body["" + (suitesOff + si + 1)]) & 65535
+        if s == 4865 {
+            suiteHit = 1
+        }
+        si = si + 2
+    }
+    if suiteHit != 1 {
+        return false
+    }
+    let compressionOff = suitesOff + suiteLen
+    if compressionOff + 2 > body["n"] {
+        return false
+    }
+    if (body["" + compressionOff] & 255) != 1 || (body["" + (compressionOff + 1)] & 255) != 0 {
+        return false
+    }
+    let afterComp = compressionOff + 2
+    if afterComp + 2 > body["n"] {
+        return false
+    }
+    let extLen = ((body["" + afterComp] << 8) | body["" + (afterComp + 1)]) & 65535
+    if afterComp + 2 + extLen != body["n"] {
+        return false
+    }
+    let ext = tls13ScanChExt(body, afterComp + 2, afterComp + 2 + extLen)
+    if ext == false {
+        return false
+    }
+    if ext["ver13"] != 1 || ext["shareX"] != 1 || ext["groupX"] != 1 {
+        return false
+    }
+    let o = {}
+    o["cipher"] = 4865
+    o["ver"] = 772
+    return o
+}
+
+pub fn tls13ScanShExt(body, start, finish) {
+    let e = start
+    let ver13 = 0
+    let shareX = 0
+    while e + 4 <= finish {
+        let typ = ((body["" + e] << 8) | body["" + (e + 1)]) & 65535
+        let ln = ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) & 65535
+        e = e + 4
+        if e + ln > finish {
+            return false
+        }
+        if typ == 43 {
+            if ln == 2 {
+                if ((body["" + e] << 8) | body["" + (e + 1)]) == 772 {
+                    ver13 = 1
+                }
+            }
+        }
+        if typ == 51 {
+            if ln >= 4 {
+                if ((body["" + e] << 8) | body["" + (e + 1)]) == 29 {
+                    shareX = 1
+                }
+            }
+        }
+        e = e + ln
+    }
+    if e != finish {
+        return false
+    }
+    let o = {}
+    o["ver13"] = ver13
+    o["shareX"] = shareX
+    return o
+}
+
+pub fn tls13ParseServerHello(message) {
+    let body = tlsHsParseOne(message, 2)
+    if body == false || body["n"] < 38 {
+        return false
+    }
+    if (body["0"] & 255) != 3 || (body["1"] & 255) != 3 {
+        return false
+    }
+    let sessionLen = body["34"] & 255
+    if sessionLen > 32 {
+        return false
+    }
+    let cipherOff = 35 + sessionLen
+    if cipherOff + 3 > body["n"] {
+        return false
+    }
+    let cipher = ((body["" + cipherOff] << 8) | body["" + (cipherOff + 1)]) & 65535
+    if cipher != 4865 {
+        return false
+    }
+    if (body["" + (cipherOff + 2)] & 255) != 0 {
+        return false
+    }
+    let afterComp = cipherOff + 3
+    if afterComp + 2 > body["n"] {
+        return false
+    }
+    let extLen = ((body["" + afterComp] << 8) | body["" + (afterComp + 1)]) & 65535
+    if afterComp + 2 + extLen != body["n"] {
+        return false
+    }
+    let ext = tls13ScanShExt(body, afterComp + 2, afterComp + 2 + extLen)
+    if ext == false {
+        return false
+    }
+    if ext["ver13"] != 1 || ext["shareX"] != 1 {
+        return false
+    }
+    let o = {}
+    o["cipher"] = 4865
+    o["ver"] = 772
+    return o
+}
+
+pub fn tls13HsLiveClose(s) {
+    tcp_close(s["client"])
+    tcp_close(s["server"])
+    tcp_close(s["listener"])
+    return true
+}
+
+pub fn tls13HsLiveOpen(port) {
+    let clientPub = tlsHexToObj("8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a")
+    let serverPub = tlsHexToObj("de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f")
+    let clientRandom = hmacStrBytes("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+    let serverRandom = hmacStrBytes("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")
+    let clientHello = tls13BuildClientHello(clientRandom, clientPub)
+    let serverHello = tls13BuildServerHello(serverRandom, serverPub)
+    let listener = tcp_listen("127.0.0.1", port)
+    let client = tcp_connect("127.0.0.1", port)
+    let server = tcp_accept(listener)
+    tcp_write_bytes(client, tlsRecordHs(clientHello))
+    let receivedClient = tlsHsReadRecord(server, 1)
+    if receivedClient == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    let parsedCh = tls13ParseClientHello(receivedClient)
+    if parsedCh == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    tcp_write_bytes(server, tlsRecordHs(serverHello))
+    let receivedServer = tlsHsReadRecord(client, 2)
+    if receivedServer == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    let parsedSh = tls13ParseServerHello(receivedServer)
+    if parsedSh == false {
+        tcp_close(client)
+        tcp_close(server)
+        tcp_close(listener)
+        return false
+    }
+    let s = {}
+    s["client"] = client
+    s["server"] = server
+    s["listener"] = listener
+    s["cipher"] = parsedSh["cipher"]
+    s["ver"] = parsedSh["ver"]
+    s["ch"] = receivedClient
+    s["sh"] = receivedServer
+    return s
+}
+
+pub fn tls13HsLiveEvalOk() {
+    let s = tls13HsLiveOpen(28194)
+    if s == false {
+        return false
+    }
+    if s["cipher"] != 4865 {
+        tls13HsLiveClose(s)
+        return false
+    }
+    if s["ver"] != 772 {
+        tls13HsLiveClose(s)
+        return false
+    }
+    tls13HsLiveClose(s)
+    return true
+}

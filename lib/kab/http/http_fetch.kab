@@ -1,9 +1,179 @@
 // F14/SH24: wrap host fetch. import "kab/http/http_fetch"
-// Do not call from smokes (would hit the network). Do not await here.
+// Do not await here. Cheap smokes must not import crypto.
 // Do not import kab/crypto here (smokes must stay cheap).
-// Kab TLS unwrap + loopback TCP: httpFetchAsyncKab / httpFetchAsyncKabTcpEvalOk (SH23).
-// Live rustls remains in http_fetch_async. httpHostDeleteOk stays false.
+// Do not use default params on this pub fn (Kab-VM object-method-receiver).
+// Missing args are filled like defaults: body "", headers = {}, timeoutMs = 0.
+// HTTPS loop/peer URLs (127.0.0.1 or localhost, any path on :28199/:28291) use bound Kab TLS after import "kab/crypto/crypto_http_fetch_bind".
+// TLS 1.3 loop :28198 after import "kab/crypto/crypto_http_fetch_bind13".
+// TLS 1.3 rustls-peer :28296 after import "kab/crypto/crypto_http_fetch_bind13_peer".
+// Those paths return promise_resolve(dict with status/body/headers) so http_status/http_body/http_header/http_headers match rustls httpFetch.
+// Host http_response drops headers, so Kab-TLS stays a dict; wrappers try dict fields then saved natives.
+// Other URLs still http_fetch_async. httpHostDeleteOk stays false.
 
-pub fn httpFetch(method, url, body = "", headers = {}, timeoutMs = 0) {
+import "kab/http/http_nat"
+
+let gLoopFetch = false
+let gPeerFetch = false
+let gTls13Fetch = false
+let gTls13PeerFetch = false
+
+pub fn urlHasPrefix(url, p) {
+    if len(url) < len(p) {
+        return false
+    }
+    return str_slice(url, 0, len(p)) == p
+}
+
+pub fn loopUrlMatch(url) {
+    if urlHasPrefix(url, "https://127.0.0.1:28199/") {
+        return true
+    }
+    return urlHasPrefix(url, "https://localhost:28199/")
+}
+
+pub fn rustlsUrlMatch(url) {
+    if urlHasPrefix(url, "https://127.0.0.1:28291/") {
+        return true
+    }
+    return urlHasPrefix(url, "https://localhost:28291/")
+}
+
+pub fn tls13UrlMatch(url) {
+    if urlHasPrefix(url, "https://127.0.0.1:28198/") {
+        return true
+    }
+    return urlHasPrefix(url, "https://localhost:28198/")
+}
+
+pub fn tls13PeerUrlMatch(url) {
+    if urlHasPrefix(url, "https://127.0.0.1:28296/") {
+        return true
+    }
+    return urlHasPrefix(url, "https://localhost:28296/")
+}
+
+pub fn httpBindLoopFetch(bound) {
+    gLoopFetch = bound
+    return true
+}
+
+pub fn httpBindPeerFetch(bound) {
+    gPeerFetch = bound
+    return true
+}
+
+pub fn httpBindTls13Fetch(bound) {
+    gTls13Fetch = bound
+    return true
+}
+
+pub fn httpBindTls13PeerFetch(bound) {
+    gTls13PeerFetch = bound
+    return true
+}
+
+pub fn httpHdrKey(name) {
+    let out = ""
+    let i = 0
+    while i < len(name) {
+        let b = char_code_at(name, i)
+        if b >= 65 {
+            if b <= 90 {
+                b = b + 32
+            }
+        }
+        out = out + from_char_code(b)
+        i = i + 1
+    }
+    return out
+}
+
+pub fn httpKabToHost(via) {
+    if via == false {
+        return false
+    }
+    return via
+}
+
+pub fn http_status(res) {
+    try {
+        return res["status"]
+    } catch (e) {
+        return httpStatusHost(res)
+    }
+}
+
+pub fn http_body(res) {
+    try {
+        return res["body"]
+    } catch (e) {
+        return httpBodyHost(res)
+    }
+}
+
+pub fn http_headers(res) {
+    try {
+        let h = res["headers"]
+        if h == undefined {
+            return {}
+        }
+        if h == null {
+            return {}
+        }
+        return h
+    } catch (e) {
+        return httpHeadersHost(res)
+    }
+}
+
+pub fn http_header(res, name) {
+    try {
+        let h = res["headers"]
+        if h == undefined {
+            return undefined
+        }
+        if h == null {
+            return undefined
+        }
+        return h[httpHdrKey(name)]
+    } catch (e) {
+        return httpHeaderHost(res, name)
+    }
+}
+
+pub fn httpFetch(method, url, body, headers, timeoutMs) {
+    if body == undefined || body == null {
+        body = ""
+    }
+    if headers == undefined || headers == null {
+        headers = {}
+    }
+    if timeoutMs == undefined || timeoutMs == null {
+        timeoutMs = 0
+    }
+    if loopUrlMatch(url) == true {
+        if gLoopFetch == false {
+            return promise_resolve(false)
+        }
+        return promise_resolve(httpKabToHost(gLoopFetch(method, url, body, headers, timeoutMs)))
+    }
+    if rustlsUrlMatch(url) == true {
+        if gPeerFetch == false {
+            return promise_resolve(false)
+        }
+        return promise_resolve(httpKabToHost(gPeerFetch(method, url, body, headers, timeoutMs)))
+    }
+    if tls13UrlMatch(url) == true {
+        if gTls13Fetch == false {
+            return promise_resolve(false)
+        }
+        return promise_resolve(httpKabToHost(gTls13Fetch(method, url, body, headers, timeoutMs)))
+    }
+    if tls13PeerUrlMatch(url) == true {
+        if gTls13PeerFetch == false {
+            return promise_resolve(false)
+        }
+        return promise_resolve(httpKabToHost(gTls13PeerFetch(method, url, body, headers, timeoutMs)))
+    }
     return http_fetch_async(method, url, body, headers, timeoutMs)
 }

@@ -1,0 +1,8 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+compile("fn t(E) {\n E[\"eMangled\"] = E[\"eMangled\"] + \"$\" + E[\"eTypeArgs\"][0]\n return E\n}")
+println("OK concat assign")
+compile("fn t(E) {\n E[\"eEnums\"] = push(E[\"eEnums\"], {\n  \"sym\": E[\"eMangled\"],\n  \"variants\": 1\n })\n return E\n}")
+println("OK enum obj")
+compile("fn u(E,m,s){return s}\nfn t(E) {\n E[\"eEnums\"] = push(E[\"eEnums\"], {\n  \"sym\": E[\"eMangled\"],\n  \"variants\": u(E, \"snap\", E[\"eGenTmpl\"][\"variants\"])\n })\n return E\n}")
+println("OK enum arrUtil")

@@ -1,0 +1,231 @@
+// SH23: Kab TLS 1.2 application-data GET against a rustls TLS 1.2 peer.
+// Do not import crypto_tls_live. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls_peer_fin"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_prf"
+import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_gcm_eval"
+import "kab/crypto/crypto_http_resp"
+import "kab/crypto/crypto_http_get"
+
+pub fn tlsPeerAadObj(seq, typ, ptLen) {
+    let o = {}
+    o["0"] = 0
+    o["1"] = 0
+    o["2"] = 0
+    o["3"] = 0
+    o["4"] = 0
+    o["5"] = 0
+    o["6"] = 0
+    o["7"] = seq & 255
+    o["8"] = typ & 255
+    o["9"] = 3
+    o["10"] = 3
+    o["11"] = (ptLen / 256) | 0
+    o["12"] = ptLen & 255
+    o["n"] = 13
+    return o
+}
+
+pub fn tlsPeerU16(n) {
+    let o = {}
+    o["0"] = (n / 256) | 0
+    o["1"] = n & 255
+    o["n"] = 2
+    return o
+}
+
+pub fn tlsPeerWriteApp(sock, key, fixedIv, explicitIv, seq, pt) {
+    let aad = tlsPeerAadObj(seq, 23, pt["n"])
+    let enc = gcmEncrypt(key, tlsConcatObj(fixedIv, explicitIv), pt, aad)
+    let inner = tlsConcatObj(tlsConcatObj(explicitIv, enc["ct"]), enc["tag"])
+    let rec = tlsConcatObj(tlsConcatObj(tlsHexToObj("170303"), tlsPeerU16(inner["n"])), inner)
+    tcp_write_bytes(sock, rec)
+    return true
+}
+
+pub fn tlsPeerReadApp(sock, key, fixedIv, seq) {
+    let k = 0
+    while k < 8 {
+        let head = tlsHsReadBytesExact(sock, 5)
+        if head == false {
+            return false
+        }
+        let typ = head["0"] & 255
+        let size = ((head["3"] << 8) | head["4"]) & 65535
+        if size < 1 || size > 16384 {
+            return false
+        }
+        let tail = tlsHsReadBytesExact(sock, size)
+        if tail == false {
+            return false
+        }
+        if typ == 21 {
+            return false
+        }
+        if typ == 23 {
+            if (head["1"] & 255) != 3 || (head["2"] & 255) != 3 {
+                return false
+            }
+            if size < 24 {
+                return false
+            }
+            let explicitIv = {}
+            let i = 0
+            while i < 8 {
+                explicitIv["" + i] = tail["" + i] & 255
+                i = i + 1
+            }
+            explicitIv["n"] = 8
+            let ctLen = size - 24
+            let ct = {}
+            i = 0
+            while i < ctLen {
+                ct["" + i] = tail["" + (8 + i)] & 255
+                i = i + 1
+            }
+            ct["n"] = ctLen
+            let tag = {}
+            i = 0
+            while i < 16 {
+                tag["" + i] = tail["" + (8 + ctLen + i)] & 255
+                i = i + 1
+            }
+            tag["n"] = 16
+            let aad = tlsPeerAadObj(seq, 23, ctLen)
+            let plainHex = gcmDecrypt(key, tlsConcatObj(fixedIv, explicitIv), ct, tag, aad)
+            if plainHex == false {
+                return false
+            }
+            return tlsHexToObj(plainHex)
+        }
+        k = k + 1
+    }
+    return false
+}
+
+pub fn tlsPeerStatus200Ok(pt) {
+    let n = pt["n"]
+    if n < 8 {
+        return false
+    }
+    let i = 0
+    let saw200 = 0
+    while i + 2 < n {
+        if (pt["" + i] & 255) == 50 {
+            if (pt["" + (i + 1)] & 255) == 48 {
+                if (pt["" + (i + 2)] & 255) == 48 {
+                    saw200 = 1
+                }
+            }
+        }
+        i = i + 1
+    }
+    if saw200 != 1 {
+        return false
+    }
+    i = 0
+    while i + 1 < n {
+        if (pt["" + i] & 255) == 79 {
+            if (pt["" + (i + 1)] & 255) == 75 {
+                return true
+            }
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn tlsPeerRespBodyStr(pt) {
+    let n = pt["n"]
+    let i = 0
+    while i + 3 < n {
+        if (pt["" + i] & 255) == 13 {
+            if (pt["" + (i + 1)] & 255) == 10 {
+                if (pt["" + (i + 2)] & 255) == 13 {
+                    if (pt["" + (i + 3)] & 255) == 10 {
+                        let s = ""
+                        let j = i + 4
+                        while j < n {
+                            s = s + from_char_code(pt["" + j] & 255)
+                            j = j + 1
+                        }
+                        return s
+                    }
+                }
+            }
+        }
+        i = i + 1
+    }
+    return false
+}
+
+pub fn tlsPeerAppPlain(port) {
+    return tlsPeerAppPlainPath(port, "127.0.0.1", "/v?q=1")
+}
+
+pub fn tlsPeerAppPlainPath(port, host, path) {
+    return tlsPeerAppPlainReq(port, httpBuildGet(host, path))
+}
+
+pub fn tlsPeerAppPlainReq(port, req) {
+    let sess = tlsPeerHsClientOpen(port)
+    if sess == false {
+        return false
+    }
+    let clientExp = tlsHexToObj("0000000000000002")
+    tlsPeerWriteApp(sess["sock"], sess["clientKey"], sess["clientIv"], clientExp, 1, req)
+    let pt = tlsPeerReadApp(sess["sock"], sess["serverKey"], sess["serverIv"], 1)
+    tcp_close(sess["sock"])
+    return pt
+}
+
+/// Handshake with rustls, GET /v?q=1, expect HTTP 200 OK.
+pub fn tlsPeerGetEvalOk(port) {
+    let pt = tlsPeerAppPlain(port)
+    if pt == false {
+        return false
+    }
+    return tlsPeerStatus200Ok(pt)
+}
+
+/// httpFetch-shaped GET/POST against a rustls TLS 1.2 peer (no sess["server"]).
+pub fn tlsAppPeerFetch(method, url, body, headers, timeoutMs) {
+    if timeoutMs != 0 {
+        return false
+    }
+    if len(url) < 8 {
+        return false
+    }
+    if str_slice(url, 0, 8) != "https://" {
+        return false
+    }
+    if httpPortFromHttps(url) != 28291 {
+        return false
+    }
+    let host = httpHostName(httpHostFromHttps(url))
+    if httpIsLoopbackHost(host) != true {
+        return false
+    }
+    let req = httpBuildFetchReq(method, host, httpFetchTarget(method, url), body, headers)
+    if req == false {
+        return false
+    }
+    let pt = tlsPeerAppPlainReq(28291, req)
+    if pt == false {
+        return false
+    }
+    if tlsPeerStatus200Ok(pt) != true {
+        return false
+    }
+    let bodyStr = tlsPeerRespBodyStr(pt)
+    if bodyStr == false {
+        return false
+    }
+    let o = {}
+    o["status"] = 200
+    o["body"] = bodyStr
+    o["headers"] = httpHdrObj(pt)
+    return o
+}

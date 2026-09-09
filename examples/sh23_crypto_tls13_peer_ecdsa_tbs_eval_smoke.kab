@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_ecdsa_tbs"
+
+return tls13PeerEcdsaTbsEvalOk(28302)

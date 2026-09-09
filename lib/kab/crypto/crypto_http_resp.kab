@@ -100,6 +100,76 @@ pub fn httpHeaderValue(pt, name) {
     return ""
 }
 
+pub fn httpHdrLower(s) {
+    let out = ""
+    let i = 0
+    while i < len(s) {
+        out = out + from_char_code(httpAsciiFold(char_code_at(s, i)))
+        i = i + 1
+    }
+    return out
+}
+
+pub fn httpHdrObj(pt) {
+    let raw = httpBytesToStr(pt)
+    let out = {}
+    let i = 0
+    let n = pt["n"]
+    let first = true
+    while i < n {
+        let line = i
+        while i < n {
+            if (pt["" + i] & 255) == 10 {
+                break
+            }
+            i = i + 1
+        }
+        let end = i
+        let lineEnd = end
+        if lineEnd > line {
+            if (pt["" + (lineEnd - 1)] & 255) == 13 {
+                lineEnd = lineEnd - 1
+            }
+        }
+        if lineEnd == line {
+            break
+        }
+        if first == true {
+            first = false
+            if i < n {
+                i = i + 1
+            }
+            continue
+        }
+        let colon = line
+        while colon < lineEnd {
+            if (pt["" + colon] & 255) == 58 {
+                break
+            }
+            colon = colon + 1
+        }
+        if colon < lineEnd {
+            let name = httpHdrLower(str_slice(raw, line, colon))
+            let value = colon + 1
+            while value < lineEnd {
+                let c = pt["" + value] & 255
+                if c != 32 {
+                    if c != 9 {
+                        break
+                    }
+                }
+                value = value + 1
+            }
+            out[name] = str_slice(raw, value, lineEnd)
+        }
+        if i >= n {
+            break
+        }
+        i = i + 1
+    }
+    return out
+}
+
 pub fn httpStatusCode(pt) {
     let i = 0
     let n = pt["n"]

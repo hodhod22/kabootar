@@ -1,0 +1,95 @@
+// GET/POST over Kab TLS; URL host/port must be loopback:28199 (not rustls).
+// import "kab/crypto/crypto_http_tls"
+// Do not use default params on pub fn here (Kab-VM object-method-receiver).
+// cryptoHostDeleteOk stays false.
+
+import "kab/crypto/crypto_tls_live"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_http_get"
+import "kab/crypto/crypto_http_resp"
+import "kab/crypto"
+
+pub fn tlsPeerHttpOk(sess, req) {
+    let gotReq = tlsHsReadApp(sess["server"], sess["clientKey"], sess["clientIv"], 1)
+    if gotReq == false {
+        return false
+    }
+    if tlsObjHex(gotReq) != tlsObjHex(req) {
+        return false
+    }
+    let resp = {}
+    resp["n"] = 0
+    resp = httpAppend(resp, "HTTP/1.1 200 OK")
+    resp = httpAppendCrLf(resp)
+    resp = httpAppend(resp, "Content-Length: 2")
+    resp = httpAppendCrLf(resp)
+    resp = httpAppendCrLf(resp)
+    resp = httpAppend(resp, "OK")
+    let serverExp = tlsHexToObj("0000000000000004")
+    tlsHsWriteAppRec(sess["server"], sess["serverKey"], sess["serverIv"], serverExp, 1, resp)
+    return true
+}
+
+pub fn tlsAppGetOverHs(method, url, body, headers, timeoutMs, sess) {
+    if timeoutMs != 0 {
+        return false
+    }
+    if cryptoIsHttps(url) != true {
+        return false
+    }
+    if httpPortFromHttps(url) != 28199 {
+        return false
+    }
+    let host = httpHostName(httpHostFromHttps(url))
+    if httpIsLoopbackHost(host) != true {
+        return false
+    }
+    let path = httpFetchTarget(method, url)
+    let req = httpBuildFetchReq(method, host, path, body, headers)
+    if req == false {
+        return false
+    }
+    let clientExp = tlsHexToObj("0000000000000003")
+    tlsHsWriteAppRec(sess["client"], sess["clientKey"], sess["clientIv"], clientExp, 1, req)
+    if tlsPeerHttpOk(sess, req) != true {
+        return false
+    }
+    let pt = tlsHsReadApp(sess["client"], sess["serverKey"], sess["serverIv"], 1)
+    if pt == false {
+        return false
+    }
+    let bodyBytes = httpRespBody(pt)
+    let o = {}
+    o["status"] = httpStatusCode(pt)
+    o["body"] = httpBytesToStr(bodyBytes)
+    o["headers"] = httpHdrObj(pt)
+    return o
+}
+
+pub fn httpsLoopFetch(method, url, body, headers, timeoutMs) {
+    let port = httpPortFromHttps(url)
+    if port != 28199 {
+        return false
+    }
+    let sess = tlsHsLiveOpen(port)
+    if sess == false {
+        return false
+    }
+    let via = tlsAppGetOverHs(method, url, body, headers, timeoutMs, sess)
+    tlsHsLiveClose(sess)
+    return via
+}
+
+pub fn tlsLiveGetEvalOk() {
+    let via = httpsLoopFetch("GET", "https://127.0.0.1:28199/v?q=1", "", {}, 0)
+    if via == false {
+        return false
+    }
+    if via["status"] != 200 {
+        return false
+    }
+    if via["body"] != "OK" {
+        return false
+    }
+    return true
+}

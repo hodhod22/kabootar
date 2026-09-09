@@ -1,0 +1,17 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+
+compile("fn t(E) { E[\"x\"] = E[\"x\"] + \"a\"; return E }")
+println("OK member plus str")
+
+compile("fn t(E) { E[\"x\"] = E[\"x\"] + E[\"y\"]; return E }")
+println("OK member plus member")
+
+compile("fn t(E) { E[\"x\"] = E[\"x\"] + E[\"y\"][0]; return E }")
+println("OK member plus index")
+
+compile("fn t(E) { let p = E[\"y\"][0]; E[\"x\"] = E[\"x\"] + \"$\" + p; return E }")
+println("OK precompute index")
+
+compile("fn t(E) { E[\"x\"] = E[\"x\"] + \"$\" + E[\"y\"]; return E }")
+println("OK double plus member")

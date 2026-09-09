@@ -1,0 +1,9 @@
+
+import "self_host/_sess_lib"
+import "self_host/_sess_mut"
+let E = eMakeSession()
+let ci = symC(E, 1)
+println("main after symC c="+len(E["eConsts"]))
+E["eIdx"] = ci
+emitOp(E, "const", E["eIdx"])
+println("main end c="+len(E["eConsts"])+" o="+len(E["eOps"]))

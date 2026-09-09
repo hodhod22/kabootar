@@ -1,0 +1,11 @@
+import "self_host/compile"
+os_mount("/proj", ".")
+
+compile("fn t(E) { let p = \"z\"; E[\"x\"] = E[\"x\"] + \"$\" + p; return E }")
+println("OK chain two plus")
+
+compile("fn t(E) { let p = \"z\"; E[\"x\"] = (E[\"x\"] + \"$\") + p; return E }")
+println("OK nested paren plus")
+
+compile("fn t(E) { let p = E[\"y\"][0]; let s = E[\"x\"] + \"$\"; E[\"x\"] = s + p; return E }")
+println("OK stepwise")

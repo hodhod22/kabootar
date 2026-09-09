@@ -4,6 +4,7 @@
 /target-alt/
 /target-alt2/
 /target-alt3/
+/target-*/
 **/*.wal
 tmp_*.log
 deno_kv_*.json
@@ -42,6 +43,27 @@ self_host/_lexer_defs_t*.kab
 self_host/_lexer_defs_head.kab
 self_host/*.bak
 scripts/__pycache__/
+**/__pycache__/
+
+# Local compiler spill artifacts
+/*.kbc
+/*.kbcb
+/__*.kbc
+/__*.kbcb
+
+# Cinematic production dependencies and generated intermediates
+productions/**/node_modules/
+productions/**/frames*/
+productions/**/*-frames/
+productions/**/*-frame/
+productions/**/review-*.png
+productions/**/preview-*.png
+productions/**/narration*.wav
+productions/**/narration*.mp3
+productions/**/*.webm
+
+# High-resolution video masters are local deliverables
+productions/**/*.mp4
 
 # Editor extension build output
 editor/vscode-kabootar/node_modules/

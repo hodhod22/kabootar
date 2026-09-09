@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_crt"
+
+return tls13PeerCrtEvalOk(28382)

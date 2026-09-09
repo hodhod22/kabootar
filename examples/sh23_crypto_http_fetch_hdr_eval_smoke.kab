@@ -1,0 +1,51 @@
+import "kab/http/http_fetch"
+import "kab/crypto/crypto_http_fetch_bind"
+
+async fn load() {
+    let loopVia = await httpFetch("GET", "https://127.0.0.1:28199/v?q=1", "", {}, 0)
+    if loopVia == false {
+        return false
+    }
+    if http_status(loopVia) != 200 {
+        return false
+    }
+    if http_body(loopVia) != "OK" {
+        return false
+    }
+    if http_header(loopVia, "Content-Length") != "2" {
+        return false
+    }
+    let loopHs = http_headers(loopVia)
+    if loopHs["content-length"] != "2" {
+        return false
+    }
+    if http_header(loopVia, "connection") != undefined {
+        return false
+    }
+    let peerVia = await httpFetch("GET", "https://127.0.0.1:28291/v?q=1", "", {}, 0)
+    if peerVia == false {
+        return false
+    }
+    if http_status(peerVia) != 200 {
+        return false
+    }
+    if http_body(peerVia) != "OK" {
+        return false
+    }
+    if http_header(peerVia, "Content-Length") != "2" {
+        return false
+    }
+    if http_header(peerVia, "connection") != "close" {
+        return false
+    }
+    let peerHs = http_headers(peerVia)
+    if peerHs["content-length"] != "2" {
+        return false
+    }
+    if peerHs["connection"] != "close" {
+        return false
+    }
+    return true
+}
+
+await load()

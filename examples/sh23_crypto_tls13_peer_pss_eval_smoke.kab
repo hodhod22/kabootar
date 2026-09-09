@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_pss"
+
+return tls13PeerPssEvalOk(28300)

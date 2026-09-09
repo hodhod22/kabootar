@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_prn"
+
+return tls13PeerPrnEvalOk(28321)
