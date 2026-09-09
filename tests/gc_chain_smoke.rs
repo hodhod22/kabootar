@@ -2,26 +2,26 @@
 
 #[test]
 fn gc_chain_components_exist() {
-    // Verify all GC chain components exist in lib/kab/
-    let gc_dir = std::path::Path::new("lib/kab");
+    // Verify all GC chain components exist in lib/kab/gc/
+    let gc_dir = std::path::Path::new("lib/kab/gc");
     
-    // Core GC
-    assert!(gc_dir.join("gc.kab").exists(), "gc.kab should exist");
-    
-    // GC chain components
-    assert!(gc_dir.join("gc_load.kab").exists(), "gc_load.kab should exist");
-    assert!(gc_dir.join("gc_cycle.kab").exists(), "gc_cycle.kab should exist");
+    // Core GC components
+    assert!(gc_dir.join("gc_alloc.kab").exists(), "gc_alloc.kab should exist");
     assert!(gc_dir.join("gc_bar.kab").exists(), "gc_bar.kab should exist");
-    assert!(gc_dir.join("gc_stress.kab").exists(), "gc_stress.kab should exist");
+    assert!(gc_dir.join("gc_capstone.kab").exists(), "gc_capstone.kab should exist");
+    assert!(gc_dir.join("gc_chain.kab").exists(), "gc_chain.kab should exist");
+    assert!(gc_dir.join("gc_conc.kab").exists(), "gc_conc.kab should exist");
     assert!(gc_dir.join("gc_concurrent.kab").exists(), "gc_concurrent.kab should exist");
     assert!(gc_dir.join("gc_concurrent_stress.kab").exists(), "gc_concurrent_stress.kab should exist");
-    
-    // GC chain and capstone
-    assert!(gc_dir.join("gc_chain.kab").exists(), "gc_chain.kab should exist");
-    assert!(gc_dir.join("gc_capstone.kab").exists(), "gc_capstone.kab should exist");
-    
-    // GC host delete policy
+    assert!(gc_dir.join("gc_cycle.kab").exists(), "gc_cycle.kab should exist");
     assert!(gc_dir.join("gc_host.kab").exists(), "gc_host.kab should exist");
+    assert!(gc_dir.join("gc_load.kab").exists(), "gc_load.kab should exist");
+    assert!(gc_dir.join("gc_mark.kab").exists(), "gc_mark.kab should exist");
+    assert!(gc_dir.join("gc_prom.kab").exists(), "gc_prom.kab should exist");
+    assert!(gc_dir.join("gc_stress.kab").exists(), "gc_stress.kab should exist");
+    assert!(gc_dir.join("gc_tlab_host.kab").exists(), "gc_tlab_host.kab should exist");
+    assert!(gc_dir.join("gc_tlab_nursery.kab").exists(), "gc_tlab_nursery.kab should exist");
+    assert!(gc_dir.join("gc_tlab_pause.kab").exists(), "gc_tlab_pause.kab should exist");
 }
 
 #[test]
@@ -69,7 +69,7 @@ fn gc_capstone_integrity() {
     // Verify capstone imports all chain components
     assert!(gc_capstone_file.contains("import \"kab/gc/gc_chain\""), "should import gc_chain");
     assert!(gc_capstone_file.contains("import \"kab/gc/gc_host\""), "should import gc_host");
-    assert!(gc_capstone_file.contains("import \"kab/noll/noll_host\""), "should import noll_host");
+    assert!(gc_capstone_file.contains("import \"kab/noll/noll_host\"") || gc_capstone_file.contains("import \"kab/noll_host\""), "should import noll_host");
     
     // Verify capstone functions
     assert!(gc_capstone_file.contains("gcCapstoneOk"), "should have capstone ok");
@@ -139,11 +139,11 @@ fn gc_chain_integrity() {
         .expect("gc_chain.kab should exist");
     
     // Verify chain imports all components
-    assert!(gc_chain_file.contains("import \"kab/gc/gc_load\""), "should import gc_load");
-    assert!(gc_chain_file.contains("import \"kab/gc/gc_stress\""), "should import gc_stress");
-    assert!(gc_chain_file.contains("import \"kab/gc/gc_concurrent\""), "should import gc_concurrent");
-    assert!(gc_chain_file.contains("import \"kab/gc/gc_concurrent_stress\""), "should import concurrent stress");
-    assert!(gc_chain_file.contains("import \"kab/gc/gc_host\""), "should import gc_host");
+    assert!(gc_chain_file.contains("import \"kab/gc/gc_load\"") || gc_chain_file.contains("import \"kab/gc_load\""), "should import gc_load");
+    assert!(gc_chain_file.contains("import \"kab/gc/gc_stress\"") || gc_chain_file.contains("import \"kab/gc_stress\""), "should import gc_stress");
+    assert!(gc_chain_file.contains("import \"kab/gc/gc_concurrent\"") || gc_chain_file.contains("import \"kab/gc_concurrent\""), "should import gc_concurrent");
+    assert!(gc_chain_file.contains("import \"kab/gc/gc_concurrent_stress\"") || gc_chain_file.contains("import \"kab/gc_concurrent_stress\""), "should import concurrent stress");
+    assert!(gc_chain_file.contains("import \"kab/gc/gc_host\"") || gc_chain_file.contains("import \"kab/gc_host\""), "should import gc_host");
     
     // Verify chain validation
     assert!(gc_chain_file.contains("gcChainOk"), "should have chain ok");

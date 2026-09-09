@@ -39,6 +39,9 @@ fn jit_op_expansion_add_sub_mul_div() {
     assert!(jit_file.contains("pow"), "jit.kab should contain pow opcode");
     assert!(jit_file.contains("take_local"), "jit.kab should contain take_local opcode");
     assert!(jit_file.contains("take_global"), "jit.kab should contain take_global opcode");
+    assert!(jit_file.contains("jump"), "jit.kab should contain jump opcode");
+    assert!(jit_file.contains("jump_if_false"), "jit.kab should contain jump_if_false opcode");
+    assert!(jit_file.contains("jump_if_true"), "jit.kab should contain jump_if_true opcode");
     
     // Verify new emit functions exist
     assert!(jit_file.contains("jitEmitI64AddRet"), "should have Add template");
@@ -72,6 +75,9 @@ fn jit_op_expansion_add_sub_mul_div() {
     assert!(jit_file.contains("jitEmitI64PowRet"), "should have Pow template");
     assert!(jit_file.contains("jitEmitI64TakeLocalRet"), "should have TakeLocal template");
     assert!(jit_file.contains("jitEmitI64TakeGlobalRet"), "should have TakeGlobal template");
+    assert!(jit_file.contains("jitEmitJump"), "should have Jump template");
+    assert!(jit_file.contains("jitEmitJumpIfFalse"), "should have JumpIfFalse template");
+    assert!(jit_file.contains("jitEmitJumpIfTrue"), "should have JumpIfTrue template");
     
     // Verify jitOpLen function is expanded
     assert!(jit_file.contains("jitOpLen"), "should have jitOpLen function");
