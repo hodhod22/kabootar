@@ -42,6 +42,10 @@ fn jit_op_expansion_add_sub_mul_div() {
     assert!(jit_file.contains("jump"), "jit.kab should contain jump opcode");
     assert!(jit_file.contains("jump_if_false"), "jit.kab should contain jump_if_false opcode");
     assert!(jit_file.contains("jump_if_true"), "jit.kab should contain jump_if_true opcode");
+    assert!(jit_file.contains("array_push_local"), "jit.kab should contain array_push_local opcode");
+    assert!(jit_file.contains("array_push_global"), "jit.kab should contain array_push_global opcode");
+    assert!(jit_file.contains("array_pop_local"), "jit.kab should contain array_pop_local opcode");
+    assert!(jit_file.contains("array_pop_global"), "jit.kab should contain array_pop_global opcode");
     
     // Verify new emit functions exist
     assert!(jit_file.contains("jitEmitI64AddRet"), "should have Add template");
@@ -78,6 +82,10 @@ fn jit_op_expansion_add_sub_mul_div() {
     assert!(jit_file.contains("jitEmitJump"), "should have Jump template");
     assert!(jit_file.contains("jitEmitJumpIfFalse"), "should have JumpIfFalse template");
     assert!(jit_file.contains("jitEmitJumpIfTrue"), "should have JumpIfTrue template");
+    assert!(jit_file.contains("jitEmitArrayPushLocal"), "should have ArrayPushLocal template");
+    assert!(jit_file.contains("jitEmitArrayPushGlobal"), "should have ArrayPushGlobal template");
+    assert!(jit_file.contains("jitEmitArrayPopLocal"), "should have ArrayPopLocal template");
+    assert!(jit_file.contains("jitEmitArrayPopGlobal"), "should have ArrayPopGlobal template");
     
     // Verify jitOpLen function is expanded
     assert!(jit_file.contains("jitOpLen"), "should have jitOpLen function");

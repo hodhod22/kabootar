@@ -122,6 +122,18 @@ pub fn jitOpOk(name) {
     if name == "jump_if_true" {
         return true
     }
+    if name == "array_push_local" {
+        return true
+    }
+    if name == "array_push_global" {
+        return true
+    }
+    if name == "array_pop_local" {
+        return true
+    }
+    if name == "array_pop_global" {
+        return true
+    }
     return false
 }
 
@@ -568,6 +580,86 @@ pub fn jitEmitJumpIfTrue(offset) {
     return b
 }
 
+/// push rax; mov rcx, [rsp+offset]; call array_push; ret  — array push local.
+pub fn jitEmitArrayPushLocal(offset) {
+    let b = []
+    b = push(b, 72)  // push rax
+    b = push(b, 80)
+    b = push(b, 72)  // mov rcx, [rsp+offset] (placeholder)
+    b = push(b, 139)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// push rax; mov rcx, [global+offset]; call array_push; ret  — array push global.
+pub fn jitEmitArrayPushGlobal(offset) {
+    let b = []
+    b = push(b, 72)  // push rax
+    b = push(b, 80)
+    b = push(b, 72)  // mov rcx, [global+offset] (placeholder)
+    b = push(b, 137)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// mov rcx, [rsp+offset]; call array_pop; ret  — array pop local.
+pub fn jitEmitArrayPopLocal(offset) {
+    let b = []
+    b = push(b, 72)  // mov rcx, [rsp+offset] (placeholder)
+    b = push(b, 139)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195) // ret
+    return b
+}
+
+/// mov rcx, [global+offset]; call array_pop; ret  — array pop global.
+pub fn jitEmitArrayPopGlobal(offset) {
+    let b = []
+    b = push(b, 72)  // mov rcx, [global+offset] (placeholder)
+    b = push(b, 137)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195) // ret
+    return b
+}
+
 /// rwx map kind; guest mmap args live in kab/jit/jit_mm (os_mm_mmap deepen).
 pub fn jitMapKind() {
     return "rwx"
@@ -677,6 +769,27 @@ pub fn jitOpLen(name) {
     if name == "take_global" {
         return 10
     }
+    if name == "jump" {
+        return 5
+    }
+    if name == "jump_if_false" {
+        return 6
+    }
+    if name == "jump_if_true" {
+        return 6
+    }
+    if name == "array_push_local" {
+        return 12
+    }
+    if name == "array_push_global" {
+        return 12
+    }
+    if name == "array_pop_local" {
+        return 12
+    }
+    if name == "array_pop_global" {
+        return 12
+    }
     return 0
 }
 
@@ -779,6 +892,27 @@ pub fn jitEmitOp(name) {
     }
     if name == "take_global" {
         return jitEmitI64TakeGlobalRet(0)
+    }
+    if name == "jump" {
+        return jitEmitJump(0)
+    }
+    if name == "jump_if_false" {
+        return jitEmitJumpIfFalse(0)
+    }
+    if name == "jump_if_true" {
+        return jitEmitJumpIfTrue(0)
+    }
+    if name == "array_push_local" {
+        return jitEmitArrayPushLocal(0)
+    }
+    if name == "array_push_global" {
+        return jitEmitArrayPushGlobal(0)
+    }
+    if name == "array_pop_local" {
+        return jitEmitArrayPopLocal(0)
+    }
+    if name == "array_pop_global" {
+        return jitEmitArrayPopGlobal(0)
     }
     return []
 }
