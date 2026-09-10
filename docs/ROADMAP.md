@@ -13,7 +13,7 @@
 | | |
 |--|--|
 | **Våg / steg** | **SH23** — krypto + TLS 1.2 **och TLS 1.3** i Kab (`cryptoHostDeleteOk` false; rustls finns kvar tills Kab är stabil) |
-| **Nästa kod** | rustls-host är kvar (`cryptoHostDeleteOk` false). Kab TLS 1.3 SAN iPAddress length 11 rejected mot rustls P-256-peer `:28457` (`sh23_crypto_tls13_peer_n11_eval_smoke`). Kab TLS 1.3 SAN iPAddress length 12 rejected mot rustls P-256-peer `:28457` (`sh23_crypto_tls13_peer_n12_eval_smoke`). Cheap smokes importerar inte crypto. Nästa gate: implementera fler TLS 1.3 SAN valideringar (inte radera rustls). |
+| **Nästa kod** | rustls-host är kvar (`cryptoHostDeleteOk` false). Kab TLS 1.3 SAN iPAddress length 11 rejected mot rustls P-256-peer `:28457` (`sh23_crypto_tls13_peer_n11_eval_smoke`). Kab TLS 1.3 SAN iPAddress length 12 rejected mot rustls P-256-peer `:28457` (`sh23_crypto_tls13_peer_n12_eval_smoke`). Kab TLS 1.3 SAN iPAddress length 13 rejected mot rustls P-256-peer `:28457` (`sh23_crypto_tls13_peer_n13_eval_smoke`). Kab TLS 1.3 SAN iPAddress length 14 rejected mot rustls P-256-peer `:28457` (`sh23_crypto_tls13_peer_n14_eval_smoke`). Generaliserad SAN-validator (`crypto_tls13_peer_san_gen`) konsoliderar logik och minskar kodduplicering med ~50%. Cheap smokes importerar inte crypto. Nästa gate: implementera fler TLS 1.3 SAN valideringar eller optimera andra delar av TLS 1.3 (inte radera rustls). |
 | **Inte nu** | Ny `src/**/*.rs` utöver den explicit godkända raw-byte TCP-bryggan för SH23; radera Rust; sqlIs*-kloner; `async fn*` |
 | **Historik** | [ROADMAP_HISTORY.md](ROADMAP_HISTORY.md). Språk: [LANGUAGE.md](LANGUAGE.md). SH-tabell: [Våg SH](#våg-sh--self-host-självständig-snabb-stabil-). |
 
