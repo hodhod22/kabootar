@@ -1,0 +1,41 @@
+// SH23: Kab TLS 1.3 leaf X.509 top-level structure vs rustls P-256 peer.
+// Cert = SEQUENCE { tbsCertificate, signatureAlgorithm, signatureValue }.
+// Do not grow crypto_tls13_peer_trust.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_root"
+
+pub fn tls13PeerX509Ok(bytes) {
+    let outer = cryptoDerTlv(bytes, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != bytes["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(bytes, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let alg = cryptoDerTlv(bytes, tbs["end"])
+    if alg == false || alg["tag"] != 48 {
+        return false
+    }
+    let sig = cryptoDerTlv(bytes, alg["end"])
+    if sig == false || sig["tag"] != 3 {
+        return false
+    }
+    return sig["end"] == outer["end"]
+}
+
+pub fn tls13PeerX509EvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    return tls13PeerX509Ok(der)
+}

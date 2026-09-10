@@ -122,6 +122,33 @@ fn sh23_crypto_tls13_peer_appdata_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_x509_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_x509.kab");
+    assert!(file.exists(), "crypto_tls13_peer_x509.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read x509 file");
+    
+    assert!(content.contains("tls13PeerX509EvalOk"), "should have x509 eval");
+    assert!(content.contains("tls13PeerX509Ok"), "should have x509 validator");
+    assert!(content.contains("signatureAlgorithm"), "should validate signature alg");
+    assert!(content.contains("signatureValue"), "should validate signature value");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_x509_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_x509_eval_smoke.kab");
+    assert!(smoke.exists(), "x509 smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_x509\""), "should import x509");
+    assert!(content.contains("tls13PeerX509EvalOk"), "should call x509 eval");
+    assert!(content.contains("28457"), "should use rustls port");
+}
+
+#[test]
 fn sh23_crypto_tls13_peer_appdata_smoke_exists() {
     let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_appdata_eval_smoke.kab");
     assert!(smoke.exists(), "appdata smoke should exist");
