@@ -1,0 +1,11 @@
+import "kab/http/http_fetch"
+import "kab/crypto/crypto_tls13_client_fetch"
+
+let res = httpFetch("GET", "https://127.0.0.1:28296/v?q=1", "", {}, 0)
+if res == false {
+    return false
+}
+if http_status(res) != 200 {
+    return false
+}
+return http_body(res) == "OK"
