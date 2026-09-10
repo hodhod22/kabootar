@@ -178,6 +178,33 @@ fn sh23_crypto_tls13_client_fetch_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_client_post_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_client_post.kab");
+    assert!(file.exists(), "crypto_tls13_client_post.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read client post file");
+    
+    assert!(content.contains("tls13ClientPost"), "should have post");
+    assert!(content.contains("httpBuildPost"), "should build POST request");
+    assert!(content.contains("tls13PeerAppAfterHs"), "should send over TLS");
+}
+
+#[test]
+fn sh23_crypto_tls13_client_post_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_post_eval_smoke.kab");
+    assert!(smoke.exists(), "client post smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_client_post\""), "should import client post");
+    assert!(content.contains("tls13ClientPost"), "should call post");
+    assert!(content.contains("127.0.0.1"), "should use loopback");
+    assert!(content.contains("28296"), "should use TLS 1.3 peer port");
+}
+
+#[test]
 fn sh23_crypto_tls13_client_config_exists() {
     let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_client_config.kab");
     assert!(file.exists(), "crypto_tls13_client_config.kab should exist");
