@@ -1,0 +1,22 @@
+import "kab/crypto/crypto_tls12_client"
+
+let s = tls12ClientConnect("127.0.0.1", 28291)
+if s == false {
+    return false
+}
+let body = tls12ClientGet(s, "/v?q=1")
+if body == false {
+    return false
+}
+let i = 0
+while i < body["n"] {
+    if (body["" + i] & 255) == 79 {
+        if i + 1 < body["n"] {
+            if (body["" + (i + 1)] & 255) == 75 {
+                return true
+            }
+        }
+    }
+    i = i + 1
+}
+return false

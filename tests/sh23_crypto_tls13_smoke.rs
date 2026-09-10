@@ -287,6 +287,34 @@ fn sh23_crypto_tls13_client_config_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls12_client_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls12_client.kab");
+    assert!(file.exists(), "crypto_tls12_client.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read tls12 client file");
+    
+    assert!(content.contains("tls12ClientConnect"), "should have tls12 connect");
+    assert!(content.contains("tls12ClientGet"), "should have tls12 get");
+    assert!(content.contains("tlsPeerStatus200Ok"), "should check HTTP 200");
+    assert!(content.contains("tlsPeerAppPlainPath"), "should call peer app path");
+}
+
+#[test]
+fn sh23_crypto_tls12_client_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls12_client_eval_smoke.kab");
+    assert!(smoke.exists(), "tls12 client smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls12_client\""), "should import tls12 client");
+    assert!(content.contains("tls12ClientConnect"), "should call connect");
+    assert!(content.contains("tls12ClientGet"), "should call get");
+    assert!(content.contains("28291"), "should use TLS 1.2 peer port");
+}
+
+#[test]
 fn sh23_crypto_tls13_client_exists() {
     let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_client.kab");
     assert!(file.exists(), "crypto_tls13_client.kab should exist");

@@ -1,0 +1,46 @@
+// SH23: Kab TLS 1.2 high-level client vs rustls peer.
+// Wraps crypto_tls_peer_get and exposes tls12ClientConnect + tls12ClientGet.
+// Do not grow crypto_tls_peer_get.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls_peer_get"
+import "kab/crypto/crypto_http_get"
+
+// Connect to a TLS 1.2 server on host:port and validate HTTP 200.
+pub fn tls12ClientConnect(host, port) {
+    if host != "127.0.0.1" {
+        return false
+    }
+    let pt = tlsPeerAppPlainPath(port, host, "/v?q=1")
+    if pt == false {
+        return false
+    }
+    if tlsPeerStatus200Ok(pt) != true {
+        return false
+    }
+    let s = {}
+    s["host"] = host
+    s["port"] = port
+    return s
+}
+
+// Perform an HTTP GET over the TLS 1.2 connection.
+pub fn tls12ClientGet(session, path) {
+    if session == false {
+        return false
+    }
+    let pt = tlsPeerAppPlainPath(session["port"], session["host"], path)
+    if pt == false {
+        return false
+    }
+    if tlsPeerStatus200Ok(pt) != true {
+        return false
+    }
+    let o = {}
+    let i = 0
+    while i < pt["n"] {
+        o["" + i] = pt["" + i] & 255
+        i = i + 1
+    }
+    o["n"] = pt["n"]
+    return o
+}
