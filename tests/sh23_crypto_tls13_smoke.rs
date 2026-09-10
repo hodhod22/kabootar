@@ -242,6 +242,39 @@ fn sh23_crypto_tls13_hs_opt_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_nlen_exists() {
+    let nlen_file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_nlen.kab");
+    assert!(nlen_file.exists(), "crypto_tls13_peer_nlen.kab should exist");
+    
+    let nlen_content = std::fs::read_to_string(nlen_file)
+        .expect("should read nlen file");
+    
+    // Verify parameterized length validator
+    assert!(nlen_content.contains("pub fn tls13PeerSanNLenLoop"), "should have nlen loop");
+    assert!(nlen_content.contains("pub fn tls13PeerNLenEvalOk"), "should have nlen eval");
+    assert!(nlen_content.contains("badLen"), "should have badLen parameter");
+    assert!(nlen_content.contains("tls13PeerSanValidateIp4"), "should use generalized ip4 validator");
+    
+    // Verify it imports existing san module
+    assert!(nlen_content.contains("import \"kab/crypto/crypto_tls13_peer_san_gen\""), "should import san_gen");
+    assert!(nlen_content.contains("import \"kab/crypto/crypto_tls13_peer_san\""), "should import san");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_nlen_smoke_exists() {
+    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_nlen_eval_smoke.kab");
+    assert!(smoke_file.exists(), "nlen smoke test should exist");
+    
+    let smoke_content = std::fs::read_to_string(smoke_file)
+        .expect("should read smoke file");
+    
+    assert!(smoke_content.contains("import \"kab/crypto/crypto_tls13_peer_nlen\""), "should import nlen");
+    assert!(smoke_content.contains("tls13PeerNLenEvalOk"), "should call nlen eval");
+    assert!(smoke_content.contains("28457"), "should use rustls port 28457");
+    assert!(smoke_content.contains("11"), "should use badLen 11");
+}
+
+#[test]
 fn sh23_crypto_tls13_host_delete_policy() {
     let crypto_host_file = std::fs::read_to_string("lib/kab/crypto/crypto_host.kab")
         .expect("crypto_host.kab should exist");
