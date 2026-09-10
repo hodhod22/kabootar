@@ -1,0 +1,29 @@
+// SH6: fast VM tag-family lookup using array instead of string slice.
+// Does not replace vm_run_ops_loop.kab; provides an optimized fast path.
+
+let VM_TAG_FAM = [
+    0, 0, 0, 0, 0, 0, 0,
+    1, 1, 1, 1, 1, 1,
+    2, 2, 2, 2, 2, 2, 2, 2, 2,
+    1, 1, 1, 1, 1, 1,
+    3, 3, 3,
+    4, 4, 4, 4,
+    3, 3, 3, 3, 3, 3,
+    0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+    4, 4,
+    5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+    3, 3, 3, 3, 3, 3,
+    6, 6,
+    7, 7, 7, 7
+]
+
+// Family dispatch.
+// 0=mem, 1=arith, 2=cmp, 3=data, 4=jump, 5=call, 6=new, 7=ctrl
+pub fn vmTagFamily(tag) {
+    if tag >= 0 && tag < 96 {
+        return VM_TAG_FAM[tag]
+    }
+    return -1
+}
