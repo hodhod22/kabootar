@@ -1,0 +1,22 @@
+import "kab/crypto/crypto_tls13_client_config"
+
+let body = tls13ClientGetCfg({
+    host: "127.0.0.1",
+    port: 28296,
+    path: "/v?q=1"
+})
+if body == false {
+    return false
+}
+let i = 0
+while i < body["n"] {
+    if (body["" + i] & 255) == 79 {
+        if i + 1 < body["n"] {
+            if (body["" + (i + 1)] & 255) == 75 {
+                return true
+            }
+        }
+    }
+    i = i + 1
+}
+return false
