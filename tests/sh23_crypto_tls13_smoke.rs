@@ -1,4 +1,4 @@
-//! Test SH23 crypto TLS 1.3 peer validation - verify SAN length 12 rejection
+//! Test SH23 crypto TLS 1.3 peer validation - verify SAN length 12 rejection and generalized validator
 
 #[test]
 fn sh23_crypto_tls13_peer_n12_exists() {
@@ -44,6 +44,43 @@ fn sh23_crypto_tls13_peer_n11_exists() {
     
     // Verify n11 rejects length 11
     assert!(n11_content.contains("if name[\"len\"] == 11"), "should reject length 11");
+}
+
+#[test]
+fn sh23_crypto_tls13_san_gen_exists() {
+    let san_gen_file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_san_gen.kab");
+    assert!(san_gen_file.exists(), "crypto_tls13_peer_san_gen.kab should exist");
+    
+    let san_gen_content = std::fs::read_to_string(san_gen_file)
+        .expect("should read san_gen file");
+    
+    // Verify generalized SAN validator
+    assert!(san_gen_content.contains("tls13PeerSanValidateIp4"), "should have ip4 validator");
+    assert!(san_gen_content.contains("tls13PeerSanValidateLoop"), "should have san validate loop");
+    assert!(san_gen_content.contains("tls13PeerSanValidateEvalOk"), "should have eval function");
+    
+    // Verify it imports existing san module
+    assert!(san_gen_content.contains("import \"kab/crypto/crypto_tls13_peer_san\""), "should import san module");
+    
+    // Verify it rejects all non-iPAddress tags
+    assert!(san_gen_content.contains("if name[\"tag\"] != 135"), "should reject non-iPAddress tags");
+    
+    // Verify it checks for 127.0.0.1
+    assert!(san_gen_content.contains("!= 127"), "should check 127 first octet");
+    assert!(san_gen_content.contains("== 1"), "should check last octet = 1");
+}
+
+#[test]
+fn sh23_crypto_tls13_san_gen_smoke_exists() {
+    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_san_gen_eval_smoke.kab");
+    assert!(smoke_file.exists(), "san_gen smoke test should exist");
+    
+    let smoke_content = std::fs::read_to_string(smoke_file)
+        .expect("should read smoke file");
+    
+    assert!(smoke_content.contains("import \"kab/crypto/crypto_tls13_peer_san_gen\""), "should import san_gen");
+    assert!(smoke_content.contains("tls13PeerSanValidateEvalOk"), "should call san_gen eval");
+    assert!(smoke_content.contains("28457"), "should use rustls port 28457");
 }
 
 #[test]
