@@ -294,6 +294,32 @@ fn sh23_crypto_tls13_peer_serial_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_pin_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_pin.kab");
+    assert!(file.exists(), "crypto_tls13_peer_pin.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read pin file");
+    
+    assert!(content.contains("tls13PeerPinEvalOk"), "should have pin eval");
+    assert!(content.contains("tls13PeerPinEqual"), "should have pin equality");
+    assert!(content.contains("tcp_close"), "should close sockets");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_pin_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_pin_eval_smoke.kab");
+    assert!(smoke.exists(), "pin smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_pin\""), "should import pin");
+    assert!(content.contains("tls13PeerPinEvalOk"), "should call pin eval");
+    assert!(content.contains("28457"), "should use rustls port");
+}
+
+#[test]
 fn sh23_crypto_tls13_peer_serial_smoke_exists() {
     let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_serial_eval_smoke.kab");
     assert!(smoke.exists(), "serial smoke should exist");
