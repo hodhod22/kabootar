@@ -1,0 +1,147 @@
+// SH23: Kab TLS 1.3 leaf AIA/OCSP structure vs rustls P-256 peer.
+// If Authority Information Access is present, it must contain OCSP method OID
+// 1.3.6.1.5.5.7.48.1 and a URI accessLocation. Absence is allowed (self-signed).
+// Do not grow crypto_tls13_peer_x509.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_tls13_peer_sigalg"
+import "kab/crypto/crypto_tls13_peer_trust"
+import "kab/crypto/crypto_root"
+
+pub fn tls13PeerOcspOid(bytes, oid) {
+    if oid == false || oid["tag"] != 6 || oid["len"] != 8 {
+        return false
+    }
+    // AIA OID: 1.3.6.1.5.5.7.1.1 -> 43, 6, 1, 5, 5, 7, 1, 1
+    let aia = [43, 6, 1, 5, 5, 7, 1, 1]
+    let i = 0
+    while i < 8 {
+        if (bytes["" + (oid["body"] + i)] & 255) != aia[i] {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+pub fn tls13PeerOcspMethodOid(bytes, oid) {
+    if oid == false || oid["tag"] != 6 || oid["len"] != 9 {
+        return false
+    }
+    // OCSP method OID: 1.3.6.1.5.5.7.48.1 -> 43, 6, 1, 5, 5, 7, 48, 1
+    let m = [43, 6, 1, 5, 5, 7, 48, 1]
+    let i = 0
+    while i < 9 {
+        if (bytes["" + (oid["body"] + i)] & 255) != m[i] {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+pub fn tls13PeerAiaOk(bytes, extn) {
+    if extn == false || extn["tag"] != 48 {
+        return false
+    }
+    let oid = cryptoDerTlv(bytes, extn["body"])
+    if tls13PeerOcspOid(bytes, oid) != true {
+        return false
+    }
+    let next = cryptoDerTlv(bytes, oid["end"])
+    if next == false {
+        return false
+    }
+    if next["tag"] == 1 {
+        next = cryptoDerTlv(bytes, next["end"])
+        if next == false {
+            return false
+        }
+    }
+    if next["tag"] != 4 || next["end"] != extn["end"] {
+        return false
+    }
+    let seq = cryptoDerTlv(bytes, next["body"])
+    if seq == false || seq["tag"] != 48 || seq["end"] != next["end"] {
+        return false
+    }
+    // AccessDescription SEQUENCE
+    let desc = cryptoDerTlv(bytes, seq["body"])
+    if desc == false || desc["tag"] != 48 {
+        return false
+    }
+    let method = cryptoDerTlv(bytes, desc["body"])
+    if tls13PeerOcspMethodOid(bytes, method) != true {
+        return false
+    }
+    let loc = cryptoDerTlv(bytes, method["end"])
+    if loc == false {
+        return false
+    }
+    // URI must be IA5String (tag 22) or printable (19)
+    if loc["tag"] != 22 && loc["tag"] != 19 {
+        return false
+    }
+    return loc["end"] == desc["end"]
+}
+
+pub fn tls13PeerOcspEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    if der == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let p = tls13PeerTbsParts(der, tbs)
+    if p == false {
+        return false
+    }
+    // Find [3] extensions and check AIA if present
+    let i = p["spki"]["end"]
+    let hasAia = false
+    while i < tbs["end"] {
+        let item = cryptoDerTlv(der, i)
+        if item == false {
+            return false
+        }
+        if item["tag"] == 163 {
+            let inner = cryptoDerTlv(der, item["body"])
+            if inner == false || inner["end"] != item["end"] {
+                return false
+            }
+            let j = inner["body"]
+            while j < inner["end"] {
+                let extn = cryptoDerTlv(der, j)
+                if extn == false {
+                    return false
+                }
+                let oid = cryptoDerTlv(der, extn["body"])
+                if tls13PeerOcspOid(der, oid) == true {
+                    if tls13PeerAiaOk(der, extn) != true {
+                        return false
+                    }
+                    hasAia = true
+                }
+                j = extn["end"]
+            }
+        }
+        i = item["end"]
+    }
+    return true
+}
