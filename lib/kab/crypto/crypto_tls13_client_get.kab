@@ -1,0 +1,29 @@
+// SH23: Kab TLS 1.3 client GET smoke using crypto_tls13_client.
+// Verifies a GET to rustls P-256 peer returns HTTP 200 OK.
+// Do not grow crypto_tls13_client.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_client"
+
+pub fn tls13ClientGetOk() {
+    let s = tls13ClientConnect("127.0.0.1", 28457)
+    if s == false {
+        return false
+    }
+    let body = tls13ClientGet(s, "/v?q=1")
+    if body == false {
+        return false
+    }
+    // body is a byte object; response should contain "OK"
+    let i = 0
+    while i < body["n"] {
+        if (body["" + i] & 255) == 79 {
+            if i + 1 < body["n"] {
+                if (body["" + (i + 1)] & 255) == 75 {
+                    return true
+                }
+            }
+        }
+        i = i + 1
+    }
+    return false
+}

@@ -1,0 +1,30 @@
+// SH23: Kab TLS 1.3 client close_notify vs rustls P-256 peer.
+// Sends a close_notify alert before socket close. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_get"
+
+// Build a close_notify alert record (0x15 = alert, level 1 = warning, 0 = close_notify).
+pub fn tls13ClientCloseNotify() {
+    let o = {}
+    o["0"] = 21   // alert content type
+    o["1"] = 3    // TLS 1.2 legacy version
+    o["2"] = 3
+    o["3"] = 0    // length hi
+    o["4"] = 2    // length lo
+    o["5"] = 1    // warning level
+    o["6"] = 0    // close_notify description
+    o["n"] = 7
+    return o
+}
+
+// Send close_notify on the peer socket, then close.
+pub fn tls13ClientCloseEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    let sock = s["sock"]
+    tcp_write_bytes(sock, tls13ClientCloseNotify())
+    tcp_close(sock)
+    return true
+}

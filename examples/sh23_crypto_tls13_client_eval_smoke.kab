@@ -1,0 +1,7 @@
+import "kab/crypto/crypto_tls13_client"
+
+let s = tls13ClientConnect("127.0.0.1", 28457)
+if s == false {
+    return false
+}
+return true
