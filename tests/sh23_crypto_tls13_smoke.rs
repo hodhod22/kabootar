@@ -301,6 +301,35 @@ fn sh23_crypto_tls12_client_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls12_client_fetch_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls12_client_fetch.kab");
+    assert!(file.exists(), "crypto_tls12_client_fetch.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read tls12 client fetch file");
+    
+    assert!(content.contains("tls12ClientFetch"), "should have tls12 client fetch");
+    assert!(content.contains("httpBindPeerFetch"), "should bind into http_fetch");
+    assert!(content.contains("tls12ClientConnect"), "should connect");
+    assert!(content.contains("tls12ClientGet"), "should get");
+    assert!(content.contains("28291"), "should use TLS 1.2 peer port");
+}
+
+#[test]
+fn sh23_crypto_tls12_client_fetch_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls12_client_fetch_eval_smoke.kab");
+    assert!(smoke.exists(), "tls12 client fetch smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/http/http_fetch\""), "should import http_fetch");
+    assert!(content.contains("import \"kab/crypto/crypto_tls12_client_fetch\""), "should import tls12 client fetch");
+    assert!(content.contains("httpFetch"), "should call httpFetch");
+    assert!(content.contains("28291"), "should use TLS 1.2 peer port");
+}
+
+#[test]
 fn sh23_crypto_tls12_client_smoke_exists() {
     let smoke = std::path::Path::new("examples/sh23_crypto_tls12_client_eval_smoke.kab");
     assert!(smoke.exists(), "tls12 client smoke should exist");
