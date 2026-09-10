@@ -1,0 +1,19 @@
+// SH23: Kab TLS 1.3 client reconnect gate vs rustls P-256 peer.
+// Two sequential TLS 1.3 connections with the same server must both succeed.
+// Do not grow crypto_tls13_client.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_client"
+
+pub fn tls13ClientReconnectEvalOk() {
+    let s1 = tls13ClientConnect("127.0.0.1", 28296)
+    if s1 == false {
+        return false
+    }
+    tcp_close(s1["sock"])
+    let s2 = tls13ClientConnect("127.0.0.1", 28296)
+    if s2 == false {
+        return false
+    }
+    tcp_close(s2["sock"])
+    return true
+}
