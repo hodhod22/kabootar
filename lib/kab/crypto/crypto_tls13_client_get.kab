@@ -5,7 +5,7 @@
 import "kab/crypto/crypto_tls13_client"
 
 pub fn tls13ClientGetOk() {
-    let s = tls13ClientConnect("127.0.0.1", 28457)
+    let s = tls13ClientConnect("127.0.0.1", 28296)
     if s == false {
         return false
     }

@@ -149,6 +149,35 @@ fn sh23_crypto_tls13_peer_x509_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_client_fetch_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_client_fetch.kab");
+    assert!(file.exists(), "crypto_tls13_client_fetch.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read client_fetch file");
+    
+    assert!(content.contains("tls13ClientFetch"), "should have client fetch");
+    assert!(content.contains("httpBindTls13PeerFetch"), "should bind into http_fetch");
+    assert!(content.contains("tls13ClientConnect"), "should connect");
+    assert!(content.contains("tls13ClientGet"), "should get");
+    assert!(content.contains("28296"), "should use TLS 1.3 peer port");
+}
+
+#[test]
+fn sh23_crypto_tls13_client_fetch_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_fetch_eval_smoke.kab");
+    assert!(smoke.exists(), "client fetch smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/http/http_fetch\""), "should import http_fetch");
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_client_fetch\""), "should import client fetch");
+    assert!(content.contains("httpFetch"), "should call httpFetch");
+    assert!(content.contains("28296"), "should use TLS 1.3 peer port");
+}
+
+#[test]
 fn sh23_crypto_tls13_client_exists() {
     let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_client.kab");
     assert!(file.exists(), "crypto_tls13_client.kab should exist");
@@ -173,7 +202,7 @@ fn sh23_crypto_tls13_client_smoke_exists() {
     assert!(content.contains("import \"kab/crypto/crypto_tls13_client\""), "should import client");
     assert!(content.contains("tls13ClientConnect"), "should call connect");
     assert!(content.contains("\"127.0.0.1\""), "should use loopback host");
-    assert!(content.contains("28457"), "should use rustls port");
+    assert!(content.contains("28296"), "should use TLS 1.3 HTTP peer port");
 }
 
 #[test]
