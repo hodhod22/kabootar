@@ -1,0 +1,96 @@
+// SH23: Kab TLS 1.3 leaf cert signatureAlgorithm strict check vs rustls P-256 peer.
+// Validates both the outer and the inner TBSCertificate AlgorithmIdentifier.
+// Do not grow crypto_tls13_peer_dates.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_root"
+
+pub fn tls13PeerSigAlgOk(bytes, alg) {
+    if alg == false || alg["tag"] != 48 {
+        return false
+    }
+    let oid = cryptoDerTlv(bytes, alg["body"])
+    if oid == false || oid["tag"] != 6 {
+        return false
+    }
+    // sha256WithRSAEncryption: 1.2.840.113549.1.1.11
+    if oid["len"] == 9 {
+        let rsa = [42, 134, 72, 134, 247, 13, 1, 1, 11]
+        let i = 0
+        while i < 9 {
+            if (bytes["" + (oid["body"] + i)] & 255) != rsa[i] {
+                return false
+            }
+            i = i + 1
+        }
+        // parameters must be NULL
+        let next = cryptoDerTlv(bytes, oid["end"])
+        if next == false || next["tag"] != 5 {
+            return false
+        }
+        return next["end"] == alg["end"]
+    }
+    // ecdsaWithSHA256: 1.2.840.10045.4.3.2
+    if oid["len"] == 8 {
+        let ecdsa = [42, 134, 72, 134, 247, 13, 3, 2, 2]
+        let i = 0
+        while i < 8 {
+            if (bytes["" + (oid["body"] + i)] & 255) != ecdsa[i] {
+                return false
+            }
+            i = i + 1
+        }
+        let next = cryptoDerTlv(bytes, oid["end"])
+        return next == false || next["end"] == alg["end"]
+    }
+    return false
+}
+
+pub fn tls13PeerSigAlgEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    if der == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let first = cryptoDerTlv(der, tbs["body"])
+    if first == false {
+        return false
+    }
+    let serialOff = tbs["body"]
+    if first["tag"] == 160 {
+        serialOff = first["end"]
+    }
+    let serial = cryptoDerTlv(der, serialOff)
+    if serial == false || serial["tag"] != 2 {
+        return false
+    }
+    let innerAlg = cryptoDerTlv(der, serial["end"])
+    if innerAlg == false || innerAlg["tag"] != 48 {
+        return false
+    }
+    if tls13PeerSigAlgOk(der, innerAlg) != true {
+        return false
+    }
+    let outerAlg = cryptoDerTlv(der, tbs["end"])
+    if outerAlg == false || outerAlg["tag"] != 48 {
+        return false
+    }
+    return tls13PeerSigAlgOk(der, outerAlg)
+}
