@@ -1,0 +1,32 @@
+// SH23: Kab TLS 1.3 client config gate vs rustls P-256 peer.
+// Allows a caller to pass {host, port, path} and get a validated session.
+// Do not grow crypto_tls13_client.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_client"
+
+// Connect using a config object {host, port}.
+// Returns session or false if config invalid or handshake fails.
+pub fn tls13ClientConnectCfg(cfg) {
+    if cfg == false || cfg == undefined || cfg == null {
+        return false
+    }
+    if cfg["host"] != "127.0.0.1" {
+        return false
+    }
+    if cfg["port"] != 28296 {
+        return false
+    }
+    return tls13ClientConnect(cfg["host"], cfg["port"])
+}
+
+// GET using a config object {host, port, path}.
+// Returns response body bytes or false.
+pub fn tls13ClientGetCfg(cfg) {
+    let s = tls13ClientConnectCfg(cfg)
+    if s == false {
+        return false
+    }
+    let body = tls13ClientGet(s, cfg["path"])
+    tcp_close(s["sock"])
+    return body
+}
