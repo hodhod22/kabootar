@@ -1,0 +1,8 @@
+// SH23: Kab TLS 1.3 application-data HTTP GET against rustls P-256 peer.
+// Wrapper around crypto_tls13_app. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_app"
+
+pub fn tls13PeerAppDataEvalOk() {
+    return tls13HsAppEvalOk()
+}

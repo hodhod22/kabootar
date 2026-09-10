@@ -109,6 +109,31 @@ fn sh23_crypto_tls13_peer_n11_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_appdata_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_appdata.kab");
+    assert!(file.exists(), "crypto_tls13_peer_appdata.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read appdata file");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_app\""), "should import app");
+    assert!(content.contains("tls13PeerAppDataEvalOk"), "should have appdata eval");
+    assert!(content.contains("tls13HsAppEvalOk"), "should call hs app eval");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_appdata_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_appdata_eval_smoke.kab");
+    assert!(smoke.exists(), "appdata smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_appdata\""), "should import appdata");
+    assert!(content.contains("tls13PeerAppDataEvalOk"), "should call appdata eval");
+}
+
+#[test]
 fn sh23_crypto_tls13_san_gen_exists() {
     let san_gen_file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_san_gen.kab");
     assert!(san_gen_file.exists(), "crypto_tls13_peer_san_gen.kab should exist");
