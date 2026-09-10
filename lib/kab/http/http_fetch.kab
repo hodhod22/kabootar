@@ -6,9 +6,10 @@
 // HTTPS loop/peer URLs (127.0.0.1 or localhost, any path on :28199/:28291) use bound Kab TLS after import "kab/crypto/crypto_http_fetch_bind".
 // TLS 1.3 loop :28198 after import "kab/crypto/crypto_http_fetch_bind13".
 // TLS 1.3 rustls-peer :28296 after import "kab/crypto/crypto_http_fetch_bind13_peer".
+// Generic loopback HTTPS after import "kab/crypto/crypto_tls13_client_generic".
 // Those paths return promise_resolve(dict with status/body/headers) so http_status/http_body/http_header/http_headers match rustls httpFetch.
 // Host http_response drops headers, so Kab-TLS stays a dict; wrappers try dict fields then saved natives.
-// Other URLs still http_fetch_async. httpHostDeleteOk stays false.
+// Non-loopback URLs still http_fetch_async. httpHostDeleteOk stays false.
 
 import "kab/http/http_nat"
 
@@ -16,6 +17,7 @@ let gLoopFetch = false
 let gPeerFetch = false
 let gTls13Fetch = false
 let gTls13PeerFetch = false
+let gTls13GenericFetch = false
 
 pub fn urlHasPrefix(url, p) {
     if len(url) < len(p) {
@@ -52,6 +54,13 @@ pub fn tls13PeerUrlMatch(url) {
     return urlHasPrefix(url, "https://localhost:28296/")
 }
 
+pub fn tls13GenericUrlMatch(url) {
+    if urlHasPrefix(url, "https://127.0.0.1:") {
+        return true
+    }
+    return urlHasPrefix(url, "https://localhost:")
+}
+
 pub fn httpBindLoopFetch(bound) {
     gLoopFetch = bound
     return true
@@ -69,6 +78,11 @@ pub fn httpBindTls13Fetch(bound) {
 
 pub fn httpBindTls13PeerFetch(bound) {
     gTls13PeerFetch = bound
+    return true
+}
+
+pub fn httpBindTls13GenericFetch(bound) {
+    gTls13GenericFetch = bound
     return true
 }
 
@@ -174,6 +188,12 @@ pub fn httpFetch(method, url, body, headers, timeoutMs) {
             return promise_resolve(false)
         }
         return promise_resolve(httpKabToHost(gTls13PeerFetch(method, url, body, headers, timeoutMs)))
+    }
+    if tls13GenericUrlMatch(url) == true {
+        if gTls13GenericFetch == false {
+            return promise_resolve(false)
+        }
+        return promise_resolve(httpKabToHost(gTls13GenericFetch(method, url, body, headers, timeoutMs)))
     }
     return http_fetch_async(method, url, body, headers, timeoutMs)
 }

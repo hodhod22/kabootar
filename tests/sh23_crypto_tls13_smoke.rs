@@ -178,6 +178,34 @@ fn sh23_crypto_tls13_client_fetch_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_client_generic_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_client_generic.kab");
+    assert!(file.exists(), "crypto_tls13_client_generic.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read client generic file");
+    
+    assert!(content.contains("tls13ClientGenericFetch"), "should have generic fetch");
+    assert!(content.contains("tls13GenericUrlPort"), "should extract port");
+    assert!(content.contains("tls13GenericHost"), "should extract host");
+    assert!(content.contains("httpBindTls13GenericFetch"), "should bind into http_fetch");
+}
+
+#[test]
+fn sh23_crypto_tls13_client_generic_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_generic_eval_smoke.kab");
+    assert!(smoke.exists(), "client generic smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/http/http_fetch\""), "should import http_fetch");
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_client_generic\""), "should import generic");
+    assert!(content.contains("httpFetch"), "should call httpFetch");
+    assert!(content.contains("28296"), "should use TLS 1.3 peer port");
+}
+
+#[test]
 fn sh23_crypto_tls13_client_timeout_exists() {
     let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_client_timeout.kab");
     assert!(file.exists(), "crypto_tls13_client_timeout.kab should exist");
