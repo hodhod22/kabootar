@@ -327,6 +327,82 @@ fn sh23_crypto_tls13_peer_appdata_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_alert_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_alert.kab");
+    assert!(file.exists(), "crypto_tls13_peer_alert.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read alert file");
+    
+    assert!(content.contains("tls13PeerAlertEvalOk"), "should have alert eval");
+    assert!(content.contains("tls13PeerHsClientOpen"), "should open handshake");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_alert_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_alert_eval_smoke.kab");
+    assert!(smoke.exists(), "alert smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_alert\""), "should import alert");
+    assert!(content.contains("tls13PeerAlertEvalOk"), "should call alert eval");
+    assert!(content.contains("28457"), "should use rustls port");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_certreq_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_certreq.kab");
+    assert!(file.exists(), "crypto_tls13_peer_certreq.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read certreq file");
+    
+    assert!(content.contains("tls13PeerCertReqEvalOk"), "should have certreq eval");
+    assert!(content.contains("s[\"cert\"]"), "should check cert");
+    assert!(content.contains("s[\"cv\"]"), "should check cv");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_certreq_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_certreq_eval_smoke.kab");
+    assert!(smoke.exists(), "certreq smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_certreq\""), "should import certreq");
+    assert!(content.contains("tls13PeerCertReqEvalOk"), "should call certreq eval");
+    assert!(content.contains("28457"), "should use rustls port");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_resume_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_resume.kab");
+    assert!(file.exists(), "crypto_tls13_peer_resume.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read resume file");
+    
+    assert!(content.contains("tls13PeerResumeEvalOk"), "should have resume eval");
+    assert!(content.contains("s[\"cert\"]"), "should check cert");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_resume_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_resume_eval_smoke.kab");
+    assert!(smoke.exists(), "resume smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_resume\""), "should import resume");
+    assert!(content.contains("tls13PeerResumeEvalOk"), "should call resume eval");
+    assert!(content.contains("28457"), "should use rustls port");
+}
+
+#[test]
 fn sh23_crypto_tls13_peer_crl_exists() {
     let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_crl.kab");
     assert!(file.exists(), "crypto_tls13_peer_crl.kab should exist");

@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_resume"
+
+return tls13PeerResumeEvalOk(28457)

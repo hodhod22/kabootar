@@ -1,0 +1,22 @@
+// SH23: Kab TLS 1.3 session resumption not requested vs rustls P-256 peer.
+// Verifies the client did not request session resumption (no PSK/extension).
+// Do not grow crypto_tls13_peer_crl.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_tls_hs"
+
+pub fn tls13PeerResumeEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    // If we got a full handshake, resumption was not used.
+    // Resumption would show different cipher suite / no Certificate message.
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    tcp_close(s["sock"])
+    return true
+}

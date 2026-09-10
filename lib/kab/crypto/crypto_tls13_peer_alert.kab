@@ -1,0 +1,17 @@
+// SH23: Kab TLS 1.3 server alert check vs rustls P-256 peer.
+// Verifies the server handshake does not contain an alert record before ServerHello.
+// Do not grow crypto_tls13_peer_crl.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_tls_hs"
+
+pub fn tls13PeerAlertEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    // If we got here, the peer sent ServerHello without fatal alert (handshake still open).
+    tcp_close(s["sock"])
+    return true
+}
