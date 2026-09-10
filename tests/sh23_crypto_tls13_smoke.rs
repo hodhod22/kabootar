@@ -261,6 +261,20 @@ fn sh23_crypto_tls13_peer_nlen_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_nlen_sweep_smoke_exists() {
+    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_nlen_sweep_smoke.kab");
+    assert!(smoke_file.exists(), "nlen sweep smoke test should exist");
+    
+    let smoke_content = std::fs::read_to_string(smoke_file)
+        .expect("should read sweep smoke file");
+    
+    assert!(smoke_content.contains("import \"kab/crypto/crypto_tls13_peer_nlen\""), "should import nlen");
+    assert!(smoke_content.contains("tls13PeerNLenEvalOk"), "should call nlen eval");
+    assert!(smoke_content.contains("allBadLengthsRejected"), "should sweep bad lengths");
+    assert!(smoke_content.contains("[0, 1, 2, 3"), "should cover multiple lengths");
+}
+
+#[test]
 fn sh23_crypto_tls13_peer_nlen_smoke_exists() {
     let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_nlen_eval_smoke.kab");
     assert!(smoke_file.exists(), "nlen smoke test should exist");
