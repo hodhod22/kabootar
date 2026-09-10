@@ -1,0 +1,3 @@
+import "kab/load/load_validate"
+
+return loadKbcbFixtureOk("self_host/seed/compiler.kbcb")

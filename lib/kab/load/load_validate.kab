@@ -1,0 +1,72 @@
+// SH19: packed .kbcb image header validation. import "kab/load/load_validate"
+// Do not grow load_kbcb.kab. Host main.rs stays skuld.
+
+import "kab/load/load_kbcb"
+
+/// Validate .kbcb v2 header and extract core fields.
+// Returns {ok: true, version: n, bodyLen: n, headerBytes: n} or {ok: false}.
+pub fn loadKbcbHeaderOk(bytes) {
+    let n = len(bytes)
+    if n < 12 {
+        return {ok: false}
+    }
+    if loadKbcbMagicOk(bytes) == false {
+        return {ok: false}
+    }
+    let version = bytes[4] & 255
+    if version != 2 {
+        return {ok: false}
+    }
+    let bodyLen = bytes[5]
+    bodyLen = bodyLen | ((bytes[6] & 255) << 8)
+    bodyLen = bodyLen | ((bytes[7] & 255) << 16)
+    bodyLen = bodyLen | ((bytes[8] & 255) << 24)
+    if bodyLen < 10 {
+        return {ok: false}
+    }
+    if 9 + bodyLen > n {
+        return {ok: false}
+    }
+    if 9 + bodyLen != n {
+        return {ok: false}
+    }
+    let o = {}
+    o["ok"] = true
+    o["version"] = version
+    o["bodyLen"] = bodyLen
+    o["headerBytes"] = 9
+    return o
+}
+
+/// Validate that a .kbcb file is the v2 packed return-42 fixture.
+pub fn loadKbcbFixtureOk(path) {
+    let body = os_read(path)
+    if body == false {
+        return false
+    }
+    let bytes = loadBodyToBytes(body)
+    let head = loadKbcbHeaderOk(bytes)
+    if head["ok"] != true {
+        return false
+    }
+    let bodyBytes = []
+    let i = head["headerBytes"]
+    while i < len(bytes) {
+        bodyBytes = push(bodyBytes, bytes[i])
+        i = i + 1
+    }
+    if len(bodyBytes) != head["bodyLen"] {
+        return false
+    }
+    // Minimal sanity: first opcode and const must match the fixture.
+    if len(bodyBytes) < 20 {
+        return false
+    }
+    if bodyBytes[0] != 0 {
+        return false
+    }
+    if bodyBytes[2] != 42 {
+        return false
+    }
+    return true
+}
