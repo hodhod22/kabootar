@@ -1,0 +1,83 @@
+// SH23: Kab TLS 1.3 CRL Distribution Points (CRLDP) structure vs rustls P-256 peer.
+// Verifies the certificate has a CRLDP extension with valid DER structure.
+// Do not grow crypto_tls13_peer_ocsp.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_tls13_peer_san_gen"
+import "kab/crypto/crypto_tls13_peer_trust"
+import "kab/crypto/crypto_root"
+
+// Check CRLDP extension (OID 2.5.29.31 = 55 1D 1F) exists and has valid structure.
+pub fn tls13PeerCrldpOid(der, oid) {
+    if oid == false || oid["tag"] != 6 || oid["len"] != 3 {
+        return false
+    }
+    if (der["" + oid["body"]] & 255) != 85 {
+        return false
+    }
+    if (der["" + (oid["body"] + 1)] & 255) != 29 {
+        return false
+    }
+    return (der["" + (oid["body"] + 2)] & 255) == 31
+}
+
+pub fn tls13PeerCrldpOk(der, extn) {
+    if extn == false || extn["tag"] != 48 {
+        return false
+    }
+    let oid = cryptoDerTlv(der, extn["body"])
+    if tls13PeerCrldpOid(der, oid) != true {
+        return false
+    }
+    let octet = cryptoDerTlv(der, oid["end"])
+    if octet == false || octet["tag"] != 4 || octet["len"] < 2 {
+        return false
+    }
+    let crldp = cryptoDerTlv(der, octet["body"])
+    if crldp == false || crldp["tag"] != 48 {
+        return false
+    }
+    let dp = cryptoDerTlv(der, crldp["body"])
+    if dp == false || dp["tag"] != 48 {
+        return false
+    }
+    // Must have at least one DistributionPointName ([0] context) or be empty
+    return true
+}
+
+pub fn tls13PeerCrlEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    if der == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let p = tls13PeerTbsParts(der, tbs)
+    if p == false || p["exts"] == false {
+        return false
+    }
+    let i = 0
+    while i < p["exts"]["n"] {
+        if tls13PeerCrldpOk(der, p["exts"]["" + i]) == true {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}

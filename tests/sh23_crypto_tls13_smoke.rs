@@ -327,6 +327,33 @@ fn sh23_crypto_tls13_peer_appdata_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_crl_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_crl.kab");
+    assert!(file.exists(), "crypto_tls13_peer_crl.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read crl file");
+    
+    assert!(content.contains("tls13PeerCrlEvalOk"), "should have crl eval");
+    assert!(content.contains("tls13PeerCrldpOk"), "should check crldp");
+    assert!(content.contains("tls13PeerCrldpOid"), "should check crldp OID");
+    assert!(content.contains("2.5.29.31"), "should know CRLDP OID");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_crl_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_crl_eval_smoke.kab");
+    assert!(smoke.exists(), "crl smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_crl\""), "should import crl");
+    assert!(content.contains("tls13PeerCrlEvalOk"), "should call crl eval");
+    assert!(content.contains("28457"), "should use rustls port");
+}
+
+#[test]
 fn sh23_crypto_tls13_peer_ocsp_exists() {
     let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_ocsp.kab");
     assert!(file.exists(), "crypto_tls13_peer_ocsp.kab should exist");
