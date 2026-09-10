@@ -1,6 +1,8 @@
 // SH23: host rustls delete policy off crypto.kab. import "kab/crypto/crypto_host"
 // Do not grow crypto.kab. Do not delete runtime/security until smoke is complete.
 
+import "kab/crypto/crypto_tls13_all"
+
 pub fn cryptoHostDeleteOk() {
-    return false
+    return cryptoTls13AllOk()
 }
