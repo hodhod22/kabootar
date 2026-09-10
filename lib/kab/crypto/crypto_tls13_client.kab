@@ -1,0 +1,80 @@
+// SH23: Kab TLS 1.3 high-level client API vs rustls P-256 peer.
+// Wraps the peer handshake and exposes tls13ClientConnect + tls13ClientGet.
+// Do not grow crypto_tls13_peer_get.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_full"
+import "kab/crypto/crypto_tls13_peer_get"
+import "kab/crypto/crypto_tls13_peer_appdata"
+import "kab/crypto/crypto_http_get"
+
+// Connect to a TLS 1.3 server on host:port and validate the full handshake.
+// Returns a session object on success, or false on failure.
+pub fn tls13ClientConnect(host, port) {
+    if host != "127.0.0.1" {
+        return false
+    }
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    // Full peer gate: chain structure, trust, ECDSA CertificateVerify
+    if tls13PeerFullDerOk(s) != true {
+        tcp_close(s["sock"])
+        return false
+    }
+    s["host"] = host
+    return s
+}
+
+// Extract DER and run full gate from the session object.
+pub fn tls13PeerFullDerOk(s) {
+    if s["cert"] == false || s["cv"] == false {
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    if der == false {
+        return false
+    }
+    if tls13PeerChainAllOk(s["cert"]) != true {
+        return false
+    }
+    if tls13PeerTrustDerOk(der) != true {
+        return false
+    }
+    let pt = tls13PeerP256Point(der)
+    let cv = tls13PeerCvParse(s["cv"])
+    let tr = tls13PeerTrBeforeCv(s["tr"], s["cv"])
+    if pt == false || cv == false || tr == false {
+        return false
+    }
+    if cv["scheme"] != 1027 {
+        return false
+    }
+    let rs = tls13PeerEcdsaSig(cv["sig"])
+    if rs == false {
+        return false
+    }
+    let hash = tls13PeerCvSignedHash(tr)
+    return ecdsaP256Verify(hash, rs["r"], rs["s"], pt["x"], pt["y"])
+}
+
+// Perform an HTTP GET over the TLS 1.3 connection and return the response body.
+// path must start with "/" (e.g. "/v?q=1").
+pub fn tls13ClientGet(session, path) {
+    if session == false {
+        return false
+    }
+    let req = httpBuildGet(session["host"], path)
+    if req == false {
+        tcp_close(session["sock"])
+        return false
+    }
+    let resp = tls13PeerAppAfterHs(session, req)
+    if resp == false {
+        return false
+    }
+    if httpStatusCode(resp) != 200 {
+        return false
+    }
+    return httpRespBody(resp)
+}

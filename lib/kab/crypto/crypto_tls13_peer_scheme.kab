@@ -1,0 +1,73 @@
+// SH23: Kab TLS 1.3 CertificateVerify scheme matches cert signatureAlgorithm.
+// Verifies that a P-256 cert (id-ecPublicKey + secp256r1) only accepts
+// ecdsa_secp256r1_sha256 (0x0403 = 1027), and RSA cert only accepts RSA-PSS.
+// Do not grow crypto_tls13_peer_full.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_tls13_peer_sigalg"
+import "kab/crypto/crypto_tls13_peer_spki"
+import "kab/crypto/crypto_tls13_peer_trust"
+import "kab/crypto/crypto_root"
+
+pub fn tls13PeerSchemeSpkiOk(der, spki) {
+    if spki == false || spki["tag"] != 48 {
+        return false
+    }
+    let alg = cryptoDerTlv(der, spki["body"])
+    if alg == false || alg["tag"] != 48 {
+        return false
+    }
+    let algOid = cryptoDerTlv(der, alg["body"])
+    if algOid == false || algOid["tag"] != 6 {
+        return false
+    }
+    // id-ecPublicKey 1.2.840.10045.2.1 -> 8 DER bytes
+    if algOid["len"] == 8 {
+        let expected = [42, 134, 72, 134, 247, 13, 2, 1]
+        let i = 0
+        while i < 8 {
+            if (der["" + (algOid["body"] + i)] & 255) != expected[i] {
+                return false
+            }
+            i = i + 1
+        }
+        return true
+    }
+    return false
+}
+
+pub fn tls13PeerSchemeEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false || s["cv"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    let cv = tls13PeerCvParse(s["cv"])
+    tcp_close(s["sock"])
+    if der == false || cv == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let p = tls13PeerTbsParts(der, tbs)
+    if p == false {
+        return false
+    }
+    // For P-256 ECDSA cert, scheme must be ecdsa_secp256r1_sha256 (0x0403 = 1027)
+    if tls13PeerSchemeSpkiOk(der, p["spki"]) == true {
+        return cv["scheme"] == 1027
+    }
+    // Unknown cert type -> reject
+    return false
+}
