@@ -216,6 +216,32 @@ fn sh23_crypto_tls13_basic_peer() {
 }
 
 #[test]
+fn sh23_crypto_tls13_hs_opt_exists() {
+    let hs_opt_file = std::path::Path::new("lib/kab/crypto/crypto_tls13_hs_opt.kab");
+    assert!(hs_opt_file.exists(), "crypto_tls13_hs_opt.kab should exist");
+    
+    let hs_opt_content = std::fs::read_to_string(hs_opt_file)
+        .expect("should read hs_opt file");
+    
+    // Verify consolidated extension scanner
+    assert!(hs_opt_content.contains("tls13ScanExtOpt"), "should have shared scanner");
+    assert!(hs_opt_content.contains("tls13ScanChExtOpt"), "should have client scanner");
+    assert!(hs_opt_content.contains("tls13ScanShExtOpt"), "should have server scanner");
+    assert!(hs_opt_content.contains("flags"), "should use parameterized flags");
+}
+
+#[test]
+fn sh23_crypto_tls13_hs_opt_smoke_exists() {
+    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_hs_opt_smoke.kab");
+    assert!(smoke_file.exists(), "hs_opt smoke test should exist");
+    
+    let smoke_content = std::fs::read_to_string(smoke_file)
+        .expect("should read smoke file");
+    
+    assert!(smoke_content.contains("import \"kab/crypto/crypto_tls13_hs_opt\""), "should import hs_opt");
+}
+
+#[test]
 fn sh23_crypto_tls13_host_delete_policy() {
     let crypto_host_file = std::fs::read_to_string("lib/kab/crypto/crypto_host.kab")
         .expect("crypto_host.kab should exist");

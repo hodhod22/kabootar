@@ -1,0 +1,104 @@
+// SH23: Optimized Kab TLS 1.3 handshake extension scanner.
+// Consolidates ClientHello/ServerHello extension parsing into one parameterized scanner.
+// Does not replace crypto_tls13_hs.kab; provides optimized path for new gates.
+// Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls_hs"
+
+// Shared extension scanner.
+// flags bitmask:
+//   1 = supported_versions (43), server form (2-byte selected version)
+//   2 = supported_versions (43), client form (version list)
+//   4 = key_share (51), server form (group + key)
+//   8 = key_share (51), client form (key_share list)
+//  16 = supported_groups (10), group list
+// Result: {ver13, shareX, groupX}
+pub fn tls13ScanExtOpt(body, start, finish, flags) {
+    let e = start
+    let ver13 = 0
+    let shareX = 0
+    let groupX = 0
+    while e + 4 <= finish {
+        let typ = ((body["" + e] << 8) | body["" + (e + 1)]) & 65535
+        let ln = ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) & 65535
+        e = e + 4
+        if e + ln > finish {
+            return false
+        }
+        if typ == 43 {
+            if (flags & 1) != 0 {
+                if ln == 2 {
+                    if ((body["" + e] << 8) | body["" + (e + 1)]) == 772 {
+                        ver13 = 1
+                    }
+                }
+            }
+            if (flags & 2) != 0 {
+                if ln >= 3 {
+                    let vl = body["" + e] & 255
+                    if vl >= 2 {
+                        if vl + 1 <= ln {
+                            if ((body["" + (e + 1)] << 8) | body["" + (e + 2)]) == 772 {
+                                ver13 = 1
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if typ == 51 {
+            if (flags & 4) != 0 {
+                if ln >= 4 {
+                    if ((body["" + e] << 8) | body["" + (e + 1)]) == 29 {
+                        shareX = 1
+                    }
+                }
+            }
+            if (flags & 8) != 0 {
+                if ln >= 6 {
+                    let sl = ((body["" + e] << 8) | body["" + (e + 1)]) & 65535
+                    if sl >= 4 {
+                        if sl + 2 <= ln {
+                            if ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) == 29 {
+                                shareX = 1
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if typ == 10 {
+            if (flags & 16) != 0 {
+                if ln >= 4 {
+                    let gl = ((body["" + e] << 8) | body["" + (e + 1)]) & 65535
+                    if gl >= 2 {
+                        if gl + 2 <= ln {
+                            if ((body["" + (e + 2)] << 8) | body["" + (e + 3)]) == 29 {
+                                groupX = 1
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        e = e + ln
+    }
+    if e != finish {
+        return false
+    }
+    let o = {}
+    o["ver13"] = ver13
+    o["shareX"] = shareX
+    o["groupX"] = groupX
+    return o
+}
+
+// ClientHello: needs ver13 (list form), shareX (list form), groupX
+pub fn tls13ScanChExtOpt(body, start, finish) {
+    return tls13ScanExtOpt(body, start, finish, 26)
+}
+
+// ServerHello: needs ver13 (selected form), shareX (selected form)
+pub fn tls13ScanShExtOpt(body, start, finish) {
+    return tls13ScanExtOpt(body, start, finish, 5)
+}
