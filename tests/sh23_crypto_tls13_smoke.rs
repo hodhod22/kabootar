@@ -421,6 +421,33 @@ fn sh23_crypto_tls13_peer_nlen_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_trust_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_trust.kab");
+    assert!(file.exists(), "crypto_tls13_peer_trust.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read trust file");
+    
+    assert!(content.contains("tls13PeerTrustEvalOk"), "should have trust eval");
+    assert!(content.contains("tls13PeerTrustDerOk"), "should have trust der check");
+    assert!(content.contains("tls13PeerTbsParts"), "should parse TBS parts");
+    assert!(content.contains("cryptoRootDerEqual"), "should check issuer==subject");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_trust_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_trust_eval_smoke.kab");
+    assert!(smoke.exists(), "trust smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_trust\""), "should import trust");
+    assert!(content.contains("tls13PeerTrustEvalOk"), "should call trust eval");
+    assert!(content.contains("28457"), "should use rustls port");
+}
+
+#[test]
 fn sh23_crypto_tls13_host_delete_policy() {
     let crypto_host_file = std::fs::read_to_string("lib/kab/crypto/crypto_host.kab")
         .expect("crypto_host.kab should exist");
