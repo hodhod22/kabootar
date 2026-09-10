@@ -161,6 +161,57 @@ fn sh23_crypto_tls13_peer_appdata_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_ocsp_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_ocsp.kab");
+    assert!(file.exists(), "crypto_tls13_peer_ocsp.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read ocsp file");
+    
+    assert!(content.contains("tls13PeerOcspEvalOk"), "should have ocsp eval");
+    assert!(content.contains("tls13PeerAiaOk"), "should validate AIA");
+    assert!(content.contains("1.3.6.1.5.5.7.48.1"), "should check OCSP method");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_ocsp_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_ocsp_eval_smoke.kab");
+    assert!(smoke.exists(), "ocsp smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_ocsp\""), "should import ocsp");
+    assert!(content.contains("tls13PeerOcspEvalOk"), "should call ocsp eval");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_chainall_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_chainall.kab");
+    assert!(file.exists(), "crypto_tls13_peer_chainall.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read chainall file");
+    
+    assert!(content.contains("tls13PeerChainAllEvalOk"), "should have chainall eval");
+    assert!(content.contains("tls13PeerChainCertOk"), "should validate each cert");
+    assert!(content.contains("tls13PeerChainDerAt"), "should walk cert list");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_chainall_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_chainall_eval_smoke.kab");
+    assert!(smoke.exists(), "chainall smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_chainall\""), "should import chainall");
+    assert!(content.contains("tls13PeerChainAllEvalOk"), "should call chainall eval");
+    assert!(content.contains("28457"), "should use rustls port");
+}
+
+#[test]
 fn sh23_crypto_tls13_san_gen_exists() {
     let san_gen_file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_san_gen.kab");
     assert!(san_gen_file.exists(), "crypto_tls13_peer_san_gen.kab should exist");
@@ -484,6 +535,34 @@ fn sh23_crypto_tls13_peer_trust_exists() {
     assert!(content.contains("tls13PeerTrustDerOk"), "should have trust der check");
     assert!(content.contains("tls13PeerTbsParts"), "should parse TBS parts");
     assert!(content.contains("cryptoRootDerEqual"), "should check issuer==subject");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_full_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_full.kab");
+    assert!(file.exists(), "crypto_tls13_peer_full.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read full file");
+    
+    assert!(content.contains("tls13PeerFullEvalOk"), "should have full eval");
+    assert!(content.contains("tls13PeerChainAllOk"), "should check chain structure");
+    assert!(content.contains("tls13PeerTrustDerOk"), "should check leaf trust");
+    assert!(content.contains("ecdsaP256Verify"), "should verify ECDSA signature");
+    assert!(content.contains("tls13PeerCvSignedHash"), "should compute CV signed hash");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_full_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_full_eval_smoke.kab");
+    assert!(smoke.exists(), "full smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_full\""), "should import full");
+    assert!(content.contains("tls13PeerFullEvalOk"), "should call full eval");
+    assert!(content.contains("28457"), "should use rustls port");
 }
 
 #[test]
