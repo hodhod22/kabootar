@@ -1,0 +1,17 @@
+import "kab/crypto/crypto_tls13_peer_nlen"
+
+fn allBadLengthsRejected() {
+    let bad = [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    let i = 0
+    while i < len(bad) {
+        if bad[i] != 4 {
+            if tls13PeerNLenEvalOk(28457, bad[i]) == true {
+                return false
+            }
+        }
+        i = i + 1
+    }
+    return true
+}
+
+return allBadLengthsRejected()
