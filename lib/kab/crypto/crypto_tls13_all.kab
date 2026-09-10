@@ -1,6 +1,7 @@
-// SH23: aggregate all Kab TLS 1.3 client gates before allowing host delete.
+// SH23: aggregate all Kab TLS client gates before allowing host delete.
 // Do not grow crypto_host.kab. This file decides whether rustls can be deleted.
 
+import "kab/crypto/crypto_tls12_client"
 import "kab/crypto/crypto_tls13_client"
 import "kab/crypto/crypto_tls13_client_get"
 import "kab/crypto/crypto_tls13_client_post"
@@ -9,8 +10,14 @@ import "kab/crypto/crypto_tls13_client_reconnect"
 import "kab/crypto/crypto_tls13_client_timeout"
 import "kab/crypto/crypto_tls13_client_config"
 import "kab/crypto/crypto_tls13_client_loop"
+import "kab/crypto/crypto_tls13_client_generic"
 
 pub fn cryptoTls13AllOk() {
+    // TLS 1.2 client gate
+    if tls12ClientConnect("127.0.0.1", 28291) == false {
+        return false
+    }
+    // TLS 1.3 client gates
     if tls13ClientConnect("127.0.0.1", 28296) == false {
         return false
     }
@@ -30,6 +37,12 @@ pub fn cryptoTls13AllOk() {
     if tls13ClientGetCfg(cfg) == false {
         return false
     }
+    // Generic loopback fetcher
+    let url = "https://127.0.0.1:28296/v?q=1"
+    if tls13ClientGenericFetch("GET", url, "", {}, 0) == false {
+        return false
+    }
+    // Self-hosted loopback without rustls
     if tls13ClientNoRustlsEvalOk() == false {
         return false
     }

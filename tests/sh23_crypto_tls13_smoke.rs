@@ -1030,10 +1030,12 @@ fn sh23_crypto_tls13_all_exists() {
         .expect("should read all file");
     
     assert!(content.contains("cryptoTls13AllOk"), "should have all eval");
+    assert!(content.contains("tls12ClientConnect"), "should test tls12 client");
     assert!(content.contains("tls13ClientGetOk"), "should test client GET");
     assert!(content.contains("tls13ClientReconnectEvalOk"), "should test reconnect");
     assert!(content.contains("tls13ClientNoRustlsEvalOk"), "should test no-rustls");
     assert!(content.contains("tls13ClientTimeoutEvalOk"), "should test timeout");
+    assert!(content.contains("tls13ClientGenericFetch"), "should test generic fetch");
 }
 
 #[test]
