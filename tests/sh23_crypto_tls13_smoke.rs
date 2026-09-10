@@ -727,6 +727,32 @@ fn sh23_crypto_tls13_client_get_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_client_reconnect_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_client_reconnect.kab");
+    assert!(file.exists(), "crypto_tls13_client_reconnect.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read reconnect file");
+    
+    assert!(content.contains("tls13ClientReconnectEvalOk"), "should have reconnect eval");
+    assert!(content.contains("tls13ClientConnect"), "should call client connect");
+    assert!(content.contains("tcp_close"), "should close sockets");
+    assert!(content.contains("28296"), "should use TLS 1.3 HTTP peer port");
+}
+
+#[test]
+fn sh23_crypto_tls13_client_reconnect_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_reconnect_eval_smoke.kab");
+    assert!(smoke.exists(), "reconnect smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_client_reconnect\""), "should import reconnect");
+    assert!(content.contains("tls13ClientReconnectEvalOk"), "should call reconnect eval");
+}
+
+#[test]
 fn sh23_crypto_tls13_client_get_smoke_exists() {
     let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_get_eval_smoke.kab");
     assert!(smoke.exists(), "client_get smoke should exist");
