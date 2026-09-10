@@ -201,6 +201,33 @@ fn sh23_crypto_tls13_peer_n4_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_dates_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_dates.kab");
+    assert!(file.exists(), "crypto_tls13_peer_dates.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read dates file");
+    
+    assert!(content.contains("tls13PeerValidityEvalOk"), "should have validity eval");
+    assert!(content.contains("tls13PeerTimeParse"), "should parse time");
+    assert!(content.contains("UTCTime"), "should handle UTCTime");
+    assert!(content.contains("notBefore"), "should check notBefore");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_dates_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_dates_eval_smoke.kab");
+    assert!(smoke.exists(), "dates smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_dates\""), "should import dates");
+    assert!(content.contains("tls13PeerValidityEvalOk"), "should call validity eval");
+    assert!(content.contains("28457"), "should use rustls port 28457");
+}
+
+#[test]
 fn sh23_crypto_tls13_basic_peer() {
     let peer_file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer.kab");
     assert!(peer_file.exists(), "crypto_tls13_peer.kab should exist");

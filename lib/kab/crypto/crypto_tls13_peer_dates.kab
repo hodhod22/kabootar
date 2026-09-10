@@ -1,0 +1,157 @@
+// SH23: Kab TLS 1.3 leaf validity notBefore/notAfter structure vs rustls P-256 peer.
+// Do not grow crypto_tls13_peer_eku.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_root"
+
+// Parse a UTCTime or GeneralizedTime into {year, month, day, hour, min, sec, tag}.
+// UTCTime (23): YYMMDDHHMMSSZ, GeneralizedTime (24): YYYYMMDDHHMMSSZ.
+pub fn tls13PeerTimeParse(bytes, t) {
+    if t == false || (t["tag"] != 23 && t["tag"] != 24) {
+        return false
+    }
+    let len = t["len"]
+    if t["tag"] == 23 {
+        if len != 13 {
+            return false
+        }
+        if (bytes["" + (t["body"] + 12)] & 255) != 90 {
+            return false
+        }
+        let yy = ((bytes["" + t["body"]] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 1)] & 255) - 48)
+        let year = yy
+        if yy <= 49 {
+            year = 2000 + yy
+        } else {
+            year = 1900 + yy
+        }
+        let o = {}
+        o["tag"] = 23
+        o["year"] = year
+        o["month"] = ((bytes["" + (t["body"] + 2)] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 3)] & 255) - 48)
+        o["day"] = ((bytes["" + (t["body"] + 4)] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 5)] & 255) - 48)
+        o["hour"] = ((bytes["" + (t["body"] + 6)] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 7)] & 255) - 48)
+        o["min"] = ((bytes["" + (t["body"] + 8)] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 9)] & 255) - 48)
+        o["sec"] = ((bytes["" + (t["body"] + 10)] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 11)] & 255) - 48)
+        return o
+    }
+    if len != 15 {
+        return false
+    }
+    if (bytes["" + (t["body"] + 14)] & 255) != 90 {
+        return false
+    }
+    let o = {}
+    o["tag"] = 24
+    o["year"] = ((bytes["" + t["body"]] & 255) - 48) * 1000 +
+        ((bytes["" + (t["body"] + 1)] & 255) - 48) * 100 +
+        ((bytes["" + (t["body"] + 2)] & 255) - 48) * 10 +
+        ((bytes["" + (t["body"] + 3)] & 255) - 48)
+    o["month"] = ((bytes["" + (t["body"] + 4)] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 5)] & 255) - 48)
+    o["day"] = ((bytes["" + (t["body"] + 6)] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 7)] & 255) - 48)
+    o["hour"] = ((bytes["" + (t["body"] + 8)] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 9)] & 255) - 48)
+    o["min"] = ((bytes["" + (t["body"] + 10)] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 11)] & 255) - 48)
+    o["sec"] = ((bytes["" + (t["body"] + 12)] & 255) - 48) * 10 + ((bytes["" + (t["body"] + 13)] & 255) - 48)
+    return o
+}
+
+// Check that notBefore < notAfter (year, month, day ordering).
+pub fn tls13PeerValidityOk(bytes, validity) {
+    if validity == false || validity["tag"] != 48 {
+        return false
+    }
+    let nb = cryptoDerTlv(bytes, validity["body"])
+    if nb == false {
+        return false
+    }
+    let na = cryptoDerTlv(bytes, nb["end"])
+    if na == false || na["end"] != validity["end"] {
+        return false
+    }
+    let nbp = tls13PeerTimeParse(bytes, nb)
+    let nap = tls13PeerTimeParse(bytes, na)
+    if nbp == false || nap == false {
+        return false
+    }
+    if nbp["year"] > nap["year"] {
+        return false
+    }
+    if nbp["year"] == nap["year"] {
+        if nbp["month"] > nap["month"] {
+            return false
+        }
+        if nbp["month"] == nap["month"] {
+            if nbp["day"] > nap["day"] {
+                return false
+            }
+            if nbp["day"] == nap["day"] {
+                if nbp["hour"] > nap["hour"] {
+                    return false
+                }
+            }
+        }
+    }
+    if nbp["month"] < 1 || nbp["month"] > 12 {
+        return false
+    }
+    if nap["month"] < 1 || nap["month"] > 12 {
+        return false
+    }
+    if nbp["day"] < 1 || nbp["day"] > 31 {
+        return false
+    }
+    if nap["day"] < 1 || nap["day"] > 31 {
+        return false
+    }
+    return true
+}
+
+pub fn tls13PeerValidityEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    if der == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let first = cryptoDerTlv(der, tbs["body"])
+    if first == false {
+        return false
+    }
+    let serialOff = tbs["body"]
+    if first["tag"] == 160 {
+        serialOff = first["end"]
+    }
+    let serial = cryptoDerTlv(der, serialOff)
+    if serial == false || serial["tag"] != 2 {
+        return false
+    }
+    let innerAlg = cryptoDerTlv(der, serial["end"])
+    if innerAlg == false || innerAlg["tag"] != 48 {
+        return false
+    }
+    let issuer = cryptoDerTlv(der, innerAlg["end"])
+    if issuer == false || issuer["tag"] != 48 {
+        return false
+    }
+    let validity = cryptoDerTlv(der, issuer["end"])
+    if validity == false || validity["tag"] != 48 {
+        return false
+    }
+    return tls13PeerValidityOk(der, validity)
+}
