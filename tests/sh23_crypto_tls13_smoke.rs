@@ -178,6 +178,32 @@ fn sh23_crypto_tls13_client_fetch_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_client_timeout_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_client_timeout.kab");
+    assert!(file.exists(), "crypto_tls13_client_timeout.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read client timeout file");
+    
+    assert!(content.contains("tls13ClientTimeoutEvalOk"), "should have timeout eval");
+    assert!(content.contains("http_set_timeout"), "should set timeout");
+    assert!(content.contains("http_reset_timeout"), "should reset timeout");
+    assert!(content.contains("tls13ClientConnect"), "should connect");
+}
+
+#[test]
+fn sh23_crypto_tls13_client_timeout_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_timeout_eval_smoke.kab");
+    assert!(smoke.exists(), "client timeout smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_client_timeout\""), "should import client timeout");
+    assert!(content.contains("tls13ClientTimeoutEvalOk"), "should call timeout eval");
+}
+
+#[test]
 fn sh23_crypto_tls13_client_post_exists() {
     let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_client_post.kab");
     assert!(file.exists(), "crypto_tls13_client_post.kab should exist");
@@ -808,6 +834,33 @@ fn sh23_crypto_tls13_client_reconnect_smoke_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_all_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_all.kab");
+    assert!(file.exists(), "crypto_tls13_all.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read all file");
+    
+    assert!(content.contains("cryptoTls13AllOk"), "should have all eval");
+    assert!(content.contains("tls13ClientGetOk"), "should test client GET");
+    assert!(content.contains("tls13ClientReconnectEvalOk"), "should test reconnect");
+    assert!(content.contains("tls13ClientNoRustlsEvalOk"), "should test no-rustls");
+    assert!(content.contains("tls13ClientTimeoutEvalOk"), "should test timeout");
+}
+
+#[test]
+fn sh23_crypto_tls13_all_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_all_eval_smoke.kab");
+    assert!(smoke.exists(), "all smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_all\""), "should import all");
+    assert!(content.contains("cryptoTls13AllOk"), "should call all eval");
+}
+
+#[test]
 fn sh23_crypto_tls13_client_get_smoke_exists() {
     let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_get_eval_smoke.kab");
     assert!(smoke.exists(), "client_get smoke should exist");
@@ -824,10 +877,11 @@ fn sh23_crypto_tls13_host_delete_policy() {
     let crypto_host_file = std::fs::read_to_string("lib/kab/crypto/crypto_host.kab")
         .expect("crypto_host.kab should exist");
     
-    // Verify delete gate is correctly closed (false) until smoke-complete
+    // Verify delete gate delegates to the aggregate SH23 smoke gate
     assert!(crypto_host_file.contains("cryptoHostDeleteOk"), "should have delete ok function");
-    assert!(crypto_host_file.contains("return false"), "delete gate should be false");
+    assert!(crypto_host_file.contains("cryptoTls13AllOk"), "should use aggregate gate");
     
-    // Make sure it's not accidentally set to true
-    assert!(!crypto_host_file.contains("return true"), "delete gate should not be true yet");
+    // Make sure it's not accidentally hardcoded to true/false
+    assert!(!crypto_host_file.contains("return true"), "delete gate should not be hardcoded true");
+    assert!(!crypto_host_file.contains("return false"), "delete gate should not be hardcoded false");
 }
