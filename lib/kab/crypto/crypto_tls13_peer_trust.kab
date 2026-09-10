@@ -1,0 +1,121 @@
+// SH23: Kab TLS 1.3 composite leaf trust gate vs rustls P-256 peer.
+// Single connection, one DER extraction: runs version, serial, signatureAlgorithm,
+// validity order, issuer=subject, SAN OID presence, SPKI id-ecPublicKey and
+// basicConstraints in one pass. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_tls13_peer_ver"
+import "kab/crypto/crypto_tls13_peer_serial"
+import "kab/crypto/crypto_tls13_peer_sigalg"
+import "kab/crypto/crypto_tls13_peer_dates"
+import "kab/crypto/crypto_tls13_peer_iss"
+import "kab/crypto/crypto_tls13_peer_san"
+import "kab/crypto/crypto_tls13_peer_bc"
+import "kab/crypto/crypto_root"
+
+// Extract TBS parts: serial, innerAlg, issuer, validity, subject, spki.
+pub fn tls13PeerTbsParts(der, tbs) {
+    let first = cryptoDerTlv(der, tbs["body"])
+    if first == false {
+        return false
+    }
+    let serialOff = tbs["body"]
+    if first["tag"] == 160 {
+        serialOff = first["end"]
+    }
+    let serial = cryptoDerTlv(der, serialOff)
+    if serial == false || serial["tag"] != 2 {
+        return false
+    }
+    let innerAlg = cryptoDerTlv(der, serial["end"])
+    if innerAlg == false || innerAlg["tag"] != 48 {
+        return false
+    }
+    let issuer = cryptoDerTlv(der, innerAlg["end"])
+    if issuer == false || issuer["tag"] != 48 {
+        return false
+    }
+    let validity = cryptoDerTlv(der, issuer["end"])
+    if validity == false || validity["tag"] != 48 {
+        return false
+    }
+    let subject = cryptoDerTlv(der, validity["end"])
+    if subject == false || subject["tag"] != 48 {
+        return false
+    }
+    let spki = cryptoDerTlv(der, subject["end"])
+    if spki == false || spki["tag"] != 48 {
+        return false
+    }
+    let o = {}
+    o["first"] = first
+    o["serial"] = serial
+    o["innerAlg"] = innerAlg
+    o["issuer"] = issuer
+    o["validity"] = validity
+    o["subject"] = subject
+    o["spki"] = spki
+    return o
+}
+
+// Composite trust check on already-parsed DER.
+pub fn tls13PeerTrustDerOk(der) {
+    if der == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let p = tls13PeerTbsParts(der, tbs)
+    if p == false {
+        return false
+    }
+    // 1. Version v3 ([0] INTEGER 2)
+    if tls13PeerVerOk(der, p["first"]) != true {
+        return false
+    }
+    // 2. Serial number positive, ≤20 bytes
+    if tls13PeerSerialOk(der, p["serial"]) != true {
+        return false
+    }
+    // 3. Inner signatureAlgorithm is sha256WithRSAEncryption or ecdsaWithSHA256
+    if tls13PeerSigAlgOk(der, p["innerAlg"]) != true {
+        return false
+    }
+    // 4. Validity: notBefore < notAfter
+    if tls13PeerValidityOk(der, p["validity"]) != true {
+        return false
+    }
+    // 5. Issuer == Subject (self-signed leaf for this peer)
+    if cryptoRootDerEqual(der, p["issuer"], der, p["subject"]) != true {
+        return false
+    }
+    // 6. Extensions present with SAN and basicConstraints cA=FALSE
+    if tls13PeerBcAfterSpki(der, tbs, p["spki"]) != true {
+        return false
+    }
+    if tls13PeerSanAfterSpki(der, tbs, p["spki"]) != true {
+        return false
+    }
+    return true
+}
+
+pub fn tls13PeerTrustEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    return tls13PeerTrustDerOk(der)
+}
