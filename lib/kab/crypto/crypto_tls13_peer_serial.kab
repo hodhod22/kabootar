@@ -1,0 +1,64 @@
+// SH23: Kab TLS 1.3 leaf serialNumber validation vs rustls P-256 peer.
+// RFC 5280: serial number must be positive, max 20 bytes.
+// Do not grow crypto_tls13_peer_ver.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_root"
+
+pub fn tls13PeerSerialOk(bytes, serial) {
+    if serial == false || serial["tag"] != 2 {
+        return false
+    }
+    if serial["len"] < 1 || serial["len"] > 20 {
+        return false
+    }
+    // Serial must be non-negative: first bit must not be set (positive INTEGER).
+    if (bytes["" + serial["body"]] & 128) != 0 {
+        return false
+    }
+    // Must not be all zeros (serial = 0 is technically allowed but unusual).
+    let i = 0
+    let allZero = true
+    while i < serial["len"] {
+        if (bytes["" + (serial["body"] + i)] & 255) != 0 {
+            allZero = false
+        }
+        i = i + 1
+    }
+    return !allZero
+}
+
+pub fn tls13PeerSerialEvalOk(port) {
+    let s = tls13PeerHsClientOpen(port)
+    if s == false {
+        return false
+    }
+    if s["cert"] == false {
+        tcp_close(s["sock"])
+        return false
+    }
+    let der = tls13PeerCertDer(s["cert"])
+    tcp_close(s["sock"])
+    if der == false {
+        return false
+    }
+    let outer = cryptoDerTlv(der, 0)
+    if outer == false || outer["tag"] != 48 || outer["end"] != der["n"] {
+        return false
+    }
+    let tbs = cryptoDerTlv(der, outer["body"])
+    if tbs == false || tbs["tag"] != 48 {
+        return false
+    }
+    let first = cryptoDerTlv(der, tbs["body"])
+    if first == false {
+        return false
+    }
+    let serialOff = tbs["body"]
+    if first["tag"] == 160 {
+        serialOff = first["end"]
+    }
+    let serial = cryptoDerTlv(der, serialOff)
+    return tls13PeerSerialOk(der, serial)
+}

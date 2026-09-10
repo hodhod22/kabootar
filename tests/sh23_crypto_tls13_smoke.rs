@@ -215,6 +215,59 @@ fn sh23_crypto_tls13_peer_dates_exists() {
 }
 
 #[test]
+fn sh23_crypto_tls13_peer_sigalg_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_sigalg.kab");
+    assert!(file.exists(), "crypto_tls13_peer_sigalg.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read sigalg file");
+    
+    assert!(content.contains("tls13PeerSigAlgEvalOk"), "should have sigalg eval");
+    assert!(content.contains("tls13PeerSigAlgOk"), "should have sigalg validator");
+    assert!(content.contains("outerAlg"), "should check outer signature algorithm");
+    assert!(content.contains("innerAlg"), "should check inner signature algorithm");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_chain_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_chain.kab");
+    assert!(file.exists(), "crypto_tls13_peer_chain.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read chain file");
+    
+    assert!(content.contains("tls13PeerChainCount"), "should count chain");
+    assert!(content.contains("tls13PeerChainEvalOk"), "should have chain eval");
+    assert!(content.contains("tls13PeerChainLenOk"), "should have chain length check");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_chain_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_chain_eval_smoke.kab");
+    assert!(smoke.exists(), "chain smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_chain\""), "should import chain");
+    assert!(content.contains("tls13PeerChainEvalOk"), "should call chain eval");
+    assert!(content.contains("28457"), "should use rustls port");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_sigalg_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_sigalg_eval_smoke.kab");
+    assert!(smoke.exists(), "sigalg smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_sigalg\""), "should import sigalg");
+    assert!(content.contains("tls13PeerSigAlgEvalOk"), "should call sigalg eval");
+    assert!(content.contains("28457"), "should use rustls port");
+}
+
+#[test]
 fn sh23_crypto_tls13_peer_dates_smoke_exists() {
     let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_dates_eval_smoke.kab");
     assert!(smoke.exists(), "dates smoke should exist");
@@ -225,6 +278,32 @@ fn sh23_crypto_tls13_peer_dates_smoke_exists() {
     assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_dates\""), "should import dates");
     assert!(content.contains("tls13PeerValidityEvalOk"), "should call validity eval");
     assert!(content.contains("28457"), "should use rustls port 28457");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_serial_exists() {
+    let file = std::path::Path::new("lib/kab/crypto/crypto_tls13_peer_serial.kab");
+    assert!(file.exists(), "crypto_tls13_peer_serial.kab should exist");
+    
+    let content = std::fs::read_to_string(file)
+        .expect("should read serial file");
+    
+    assert!(content.contains("tls13PeerSerialEvalOk"), "should have serial eval");
+    assert!(content.contains("tls13PeerSerialOk"), "should have serial validator");
+    assert!(content.contains("serial[\"len\"]"), "should check serial length");
+}
+
+#[test]
+fn sh23_crypto_tls13_peer_serial_smoke_exists() {
+    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_serial_eval_smoke.kab");
+    assert!(smoke.exists(), "serial smoke should exist");
+    
+    let content = std::fs::read_to_string(smoke)
+        .expect("should read smoke");
+    
+    assert!(content.contains("import \"kab/crypto/crypto_tls13_peer_serial\""), "should import serial");
+    assert!(content.contains("tls13PeerSerialEvalOk"), "should call serial eval");
+    assert!(content.contains("28457"), "should use rustls port");
 }
 
 #[test]

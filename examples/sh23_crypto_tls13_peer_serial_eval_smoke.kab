@@ -1,0 +1,3 @@
+import "kab/crypto/crypto_tls13_peer_serial"
+
+return tls13PeerSerialEvalOk(28457)
