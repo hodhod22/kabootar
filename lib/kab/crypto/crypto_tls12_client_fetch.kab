@@ -1,0 +1,40 @@
+// SH23: bind high-level Kab TLS 1.2 client into http_fetch for rustls-peer :28291.
+// Uses crypto_tls12_client's connect+get instead of the lower-level peer_get.
+// Cheap smokes import only kab/http/http_fetch. cryptoHostDeleteOk stays false.
+
+import "kab/http/http_fetch"
+import "kab/crypto/crypto_tls12_client"
+
+pub fn tls12ClientFetch(method, url, body, headers, timeoutMs) {
+    if timeoutMs != 0 {
+        return false
+    }
+    if len(url) < 8 {
+        return false
+    }
+    if str_slice(url, 0, 8) != "https://" {
+        return false
+    }
+    if httpPortFromHttps(url) != 28291 {
+        return false
+    }
+    let host = httpHostName(httpHostFromHttps(url))
+    if httpIsLoopbackHost(host) != true {
+        return false
+    }
+    let s = tls12ClientConnect(host, 28291)
+    if s == false {
+        return false
+    }
+    let resp = tls12ClientGet(s, httpFetchTarget(method, url))
+    if resp == false {
+        return false
+    }
+    let o = {}
+    o["status"] = 200
+    o["body"] = httpBytesToStr(resp)
+    o["headers"] = {}
+    return o
+}
+
+httpBindPeerFetch(tls12ClientFetch)
