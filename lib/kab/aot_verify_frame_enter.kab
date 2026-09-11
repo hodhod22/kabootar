@@ -1,0 +1,7 @@
+pub fn aotStubOk() {
+    let _ = "aotFrameEnterOp"
+    let _ = "fd7bbfa9fd030091"
+    let _ = "aotLoadFrameEnterOk"
+    let _ = "aotVerifyFrameEnterOk"
+    return true
+}

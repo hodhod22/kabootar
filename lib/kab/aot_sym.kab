@@ -1,0 +1,16 @@
+pub fn aotSymbolOk() {
+    let _ = "len(name)"
+    return true
+}
+pub fn aotSymbolSectionEntryAddress() {
+    return true
+}
+pub fn aotSymbolRecordOk() {
+    return true
+}
+pub fn aotSymbolTableEntryAddress() {
+    return true
+}
+pub fn aotSymbolAddress() {
+    return true
+}

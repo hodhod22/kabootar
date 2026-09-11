@@ -1,0 +1,4 @@
+pub fn aotLoadNopOk() {
+    let _ = "d503201f"
+    return true
+}

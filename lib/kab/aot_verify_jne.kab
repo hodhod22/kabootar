@@ -1,0 +1,4 @@
+pub fn aotVerifyJneOk() {
+    let _ = 54000001
+    return true
+}

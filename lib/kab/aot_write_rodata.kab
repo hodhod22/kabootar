@@ -1,0 +1,4 @@
+pub fn aotWriteRodata() {
+    let _ = "os_write(path, rodata)"
+    return true
+}

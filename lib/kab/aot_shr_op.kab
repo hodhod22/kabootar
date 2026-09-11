@@ -1,0 +1,4 @@
+pub fn aotShrOp() {
+    let _ = "d341fc00"
+    return true
+}

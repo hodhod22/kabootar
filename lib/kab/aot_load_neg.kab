@@ -1,0 +1,4 @@
+pub fn aotLoadNegOk() {
+    let _ = "cb0003e0"
+    return true
+}

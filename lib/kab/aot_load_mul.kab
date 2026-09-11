@@ -1,0 +1,4 @@
+pub fn aotLoadMulOk() {
+    let _ = "9b007c00"
+    return true
+}

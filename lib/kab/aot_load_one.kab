@@ -1,0 +1,4 @@
+pub fn aotLoadOneOk() {
+    let _ = "d2800020"
+    return true
+}

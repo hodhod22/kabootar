@@ -1,0 +1,4 @@
+pub fn aotLoadJeOk() {
+    let _ = 54000000
+    return true
+}

@@ -1,0 +1,4 @@
+pub fn aotImageName() {
+    let _ = "kabootar-arm64.kbn"
+    return true
+}

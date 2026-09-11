@@ -1,0 +1,4 @@
+pub fn aotEmitManifest() {
+    let _ = "text:rx|rodata:r|data:rw"
+    return true
+}

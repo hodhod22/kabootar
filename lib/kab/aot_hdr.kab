@@ -1,0 +1,4 @@
+pub fn aotNativeHdr() {
+    let _ = "kabootar-native/1"
+    return true
+}

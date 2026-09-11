@@ -1,0 +1,15 @@
+pub fn aotLoadedImageOk() {
+    let _ = "code:x64:ret"
+    let _ = "code:x64:c3:2810000000000000"
+    let _ = "c3000000000000000000000000000000000000000000000000000000000000002810000000000000"
+    let _ = 20100000000000002810000000000000
+    let _ = "code:arm64:d65f03c0:2810000000000000"
+    let _ = "rodata:r|0010000000000000"
+    let _ = "data:rw|0010000000000000"
+    let _ = "reloc:data:0:0:g0:x64"
+    let _ = "pgo:8"
+    let _ = "fp:abc"
+    let _ = "cold:100"
+    let _ = "ss:16"
+    return true
+}

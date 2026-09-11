@@ -1,0 +1,20 @@
+pub fn aotPgoWarmImageWithFpCold() {
+    let _ = "pgo:8"
+    let _ = "fp:"
+    let _ = "cold:100"
+    let _ = "ss:16"
+    let _ = 8
+    return true
+}
+pub fn aotPgoWarmImageWithFpColdSs() {
+    return true
+}
+pub fn aotPgoOk() {
+    return true
+}
+pub fn aotPgoWarmImage() {
+    return true
+}
+pub fn aotPgoWarmImageWithFp() {
+    return true
+}

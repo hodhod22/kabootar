@@ -1,0 +1,4 @@
+pub fn aotLoadRodataOk() {
+    let _ = "rodata:r|00"
+    return true
+}

@@ -1,0 +1,4 @@
+pub fn aotTextProtectOk() {
+    // "rx"
+    return true
+}

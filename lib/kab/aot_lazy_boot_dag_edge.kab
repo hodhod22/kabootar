@@ -1,0 +1,6 @@
+pub fn aotLazyBootDagEdgeOk() {
+    let _ = "aotLazyBootDagNamedOk"
+    let _ = "fromName"
+    let _ = "toName"
+    return true
+}

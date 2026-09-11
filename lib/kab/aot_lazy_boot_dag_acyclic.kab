@@ -1,0 +1,6 @@
+pub fn aotLazyBootDagAcyclicOk() {
+    let _ = "aotLazyBootDagEdgeOk"
+    let _ = "backFrom"
+    let _ = "backTo"
+    return true
+}

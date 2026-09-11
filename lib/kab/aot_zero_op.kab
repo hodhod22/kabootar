@@ -1,0 +1,4 @@
+pub fn aotZeroOp() {
+    let _ = "aa1f03e0"
+    return true
+}

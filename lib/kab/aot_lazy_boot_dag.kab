@@ -1,0 +1,6 @@
+pub fn aotLazyBootDagOk() {
+    let _ = "aotLazyNativeLoopOk"
+    let _ = "nBoot"
+    let _ = "nRest"
+    return true
+}

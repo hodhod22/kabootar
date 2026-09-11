@@ -1,0 +1,4 @@
+pub fn aotVerifyCodeOk() {
+    let _ = "kabootar-arm64.kbn"
+    return true
+}

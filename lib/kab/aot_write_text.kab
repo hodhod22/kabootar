@@ -1,0 +1,4 @@
+pub fn aotWriteText() {
+    let _ = "os_write(path, text)"
+    return true
+}

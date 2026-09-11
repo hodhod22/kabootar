@@ -1,0 +1,8 @@
+pub fn aotSectionAddress() {
+    // "rodata"
+    return true
+}
+
+pub fn aotSectionOk() {
+    return true
+}

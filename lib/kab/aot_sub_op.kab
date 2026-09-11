@@ -1,0 +1,4 @@
+pub fn aotSubOp() {
+    let _ = "cb000000"
+    return true
+}

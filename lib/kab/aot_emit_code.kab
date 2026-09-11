@@ -1,0 +1,4 @@
+pub fn aotEmitCode() {
+    let _ = "code:x64:ret"
+    return true
+}

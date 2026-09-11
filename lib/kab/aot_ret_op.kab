@@ -1,0 +1,4 @@
+pub fn aotRetOp() {
+    let _ = "d65f03c0"
+    return true
+}

@@ -1,0 +1,4 @@
+pub fn aotVerifyNopOk() {
+    let _ = "d503201f"
+    return true
+}

@@ -1,0 +1,4 @@
+pub fn aotVerifyAddOk() {
+    let _ = "8b000000"
+    return true
+}

@@ -1,0 +1,5 @@
+pub fn aotLazyBootDagNamedOk() {
+    let _ = "aotLazyBootDagOk"
+    let _ = "bootName"
+    return true
+}

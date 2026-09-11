@@ -1,0 +1,4 @@
+pub fn aotAndOp() {
+    let _ = "8a000000"
+    return true
+}

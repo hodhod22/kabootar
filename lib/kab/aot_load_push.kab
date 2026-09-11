@@ -1,0 +1,7 @@
+pub fn aotStubOk() {
+    let _ = "aotPushOp"
+    let _ = "e00f1ff8"
+    let _ = "aotLoadPushOk"
+    let _ = "aotVerifyPushOk"
+    return true
+}

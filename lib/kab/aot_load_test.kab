@@ -1,0 +1,4 @@
+pub fn aotLoadTestOk() {
+    let _ = "ea00001f"
+    return true
+}

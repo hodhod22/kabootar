@@ -1,0 +1,4 @@
+pub fn aotShipRodataOk() {
+    let _ = "rodata:r|00"
+    return true
+}

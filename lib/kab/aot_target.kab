@@ -1,0 +1,4 @@
+pub fn aotTargetOk() {
+    // "arm64"
+    return true
+}

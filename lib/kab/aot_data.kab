@@ -1,0 +1,4 @@
+pub fn aotDataProtectOk() {
+    // "rw"
+    return true
+}

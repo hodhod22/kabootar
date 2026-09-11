@@ -1,0 +1,7 @@
+pub fn jitStubOk() {
+    let _ = "aotIncLocalOp"
+    let _ = "a00b40f900040091a00b00f9"
+    let _ = "aotLoadIncLocalOk"
+    let _ = "aotVerifyIncLocalOk"
+    return true
+}

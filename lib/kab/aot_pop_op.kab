@@ -1,0 +1,7 @@
+pub fn jitStubOk() {
+    let _ = "aotPopOp"
+    let _ = "e00741f8"
+    let _ = "aotLoadPopOk"
+    let _ = "aotVerifyPopOk"
+    return true
+}

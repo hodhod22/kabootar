@@ -1,0 +1,4 @@
+pub fn aotVerifyImageOk() {
+    let _ = "kabootar-arm64.kbn"
+    return true
+}

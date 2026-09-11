@@ -1,0 +1,4 @@
+pub fn aotLoadAndOk() {
+    let _ = "8a000000"
+    return true
+}

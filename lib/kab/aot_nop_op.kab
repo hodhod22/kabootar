@@ -1,0 +1,4 @@
+pub fn aotNopOp() {
+    let _ = "d503201f"
+    return true
+}

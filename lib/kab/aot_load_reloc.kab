@@ -1,0 +1,14 @@
+pub fn aotLoadRelocOk() {
+    let _ = "reloc:text:32:0:main:x64"
+    let _ = "reloc:text:32:0:main:arm64"
+    return true
+}
+pub fn aotEmitReloc() {
+    return true
+}
+pub fn aotLoadRelocWithAddendOk() {
+    return true
+}
+pub fn aotEmitRelocWithAddend() {
+    return true
+}

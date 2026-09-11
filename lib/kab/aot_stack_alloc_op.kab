@@ -1,0 +1,7 @@
+pub fn jitStubOk() {
+    let _ = "aotStackAllocOp"
+    let _ = "ff4300d1"
+    let _ = "aotLoadStackAllocOk"
+    let _ = "aotVerifyStackAllocOk"
+    return true
+}

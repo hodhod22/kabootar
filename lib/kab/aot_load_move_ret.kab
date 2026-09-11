@@ -1,0 +1,7 @@
+pub fn aotStubOk() {
+    let _ = "aotMoveRetOp"
+    let _ = "e10300aa"
+    let _ = "aotLoadMoveRetOk"
+    let _ = "aotVerifyMoveRetOk"
+    return true
+}

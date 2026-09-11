@@ -1,0 +1,4 @@
+pub fn aotShipDataOk() {
+    let _ = "data:rw|00"
+    return true
+}

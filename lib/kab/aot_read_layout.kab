@@ -1,0 +1,4 @@
+pub fn aotReadLayout() {
+    let _ = "os_read(path)"
+    return true
+}

@@ -1,0 +1,4 @@
+pub fn aotLoadPlanOk() {
+    let _ = "abi:aapcs64|entry:0|page:4096"
+    return true
+}

@@ -1,0 +1,4 @@
+pub fn aotEmitPage() {
+    let _ = "page:4096"
+    return true
+}

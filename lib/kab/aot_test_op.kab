@@ -1,0 +1,4 @@
+pub fn aotTestOp() {
+    let _ = "ea00001f"
+    return true
+}

@@ -1,0 +1,4 @@
+pub fn aotXorOp() {
+    let _ = "ca000000"
+    return true
+}

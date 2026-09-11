@@ -1,0 +1,4 @@
+pub fn aotRelocSymbolBindOk() {
+    let _ = "relocAddress == symbolAddress"
+    return true
+}

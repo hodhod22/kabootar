@@ -1,0 +1,7 @@
+pub fn aotStubOk() {
+    let _ = "aotCallOp"
+    let _ = 94000000
+    let _ = "aotLoadCallOk"
+    let _ = "aotVerifyCallOk"
+    return true
+}

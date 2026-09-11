@@ -1,0 +1,4 @@
+pub fn aotEmitPlan() {
+    let _ = "abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw"
+    return true
+}

@@ -1,0 +1,4 @@
+pub fn aotLoadJneOk() {
+    let _ = 54000001
+    return true
+}

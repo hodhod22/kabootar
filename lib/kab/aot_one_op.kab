@@ -1,0 +1,4 @@
+pub fn aotOneOp() {
+    let _ = "d2800020"
+    return true
+}

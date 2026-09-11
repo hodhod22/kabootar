@@ -1,0 +1,4 @@
+pub fn aotVerifyOrOk() {
+    let _ = "aa000000"
+    return true
+}

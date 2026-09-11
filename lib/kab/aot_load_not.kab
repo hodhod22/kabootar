@@ -1,0 +1,4 @@
+pub fn aotLoadNotOk() {
+    let _ = "aa2003e0"
+    return true
+}

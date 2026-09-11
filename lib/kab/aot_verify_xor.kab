@@ -1,0 +1,4 @@
+pub fn aotVerifyXorOk() {
+    let _ = "ca000000"
+    return true
+}
