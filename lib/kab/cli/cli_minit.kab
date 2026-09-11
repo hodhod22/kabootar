@@ -1,0 +1,6 @@
+// SH25: mod init argv off cli_path.kab. import "kab/cli/cli_minit"
+// Do not grow cli_path.kab. Host src/cli remains skuld.
+
+pub fn cliIsModInit(sub) {
+    return sub == "init"
+}

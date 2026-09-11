@@ -1,0 +1,15 @@
+import "kab/cli/cli_path"
+
+if cliIsRunPath("app.kab") == false {
+    return false
+}
+if cliIsRunPath("app.kabootar") == false {
+    return false
+}
+if cliIsRunPath("app.kbcb") == false {
+    return false
+}
+if cliIsRunPath("app.txt") {
+    return false
+}
+return cliIsNbPath("nb.knb")

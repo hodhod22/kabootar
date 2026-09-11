@@ -1,0 +1,10 @@
+// SH25: run/notebook path argv off cli_flag.kab. import "kab/cli/cli_path"
+// Do not grow cli_flag.kab. Host src/cli remains skuld.
+
+pub fn cliIsRunPath(path) {
+    return ends_with(path, ".kab") || ends_with(path, ".kabootar") || ends_with(path, ".kbcb")
+}
+
+pub fn cliIsNbPath(path) {
+    return ends_with(path, ".knb")
+}
