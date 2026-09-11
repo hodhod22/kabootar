@@ -1,0 +1,3 @@
+import "kab/cli/cli_serve"
+
+return cliIsServe("serve")

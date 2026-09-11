@@ -1,0 +1,6 @@
+// SH25: serve argv off cli_cat.kab. import "kab/cli/cli_serve"
+// Do not grow cli_cat.kab. Host src/cli remains skuld.
+
+pub fn cliIsServe(cmd) {
+    return cmd == "serve"
+}

@@ -1,7 +1,23 @@
 import "kabtest/cli"
+import "kab/cli/cli_host"
 
 let a = ktCliIsTest("test")
-if a {
-    return true
+if a == false {
+    return false
 }
-return false
+if ktCliDefaultRoot() != "tests" {
+    return false
+}
+if ktCliIsCoverage("--coverage") == false {
+    return false
+}
+if ktCliExit(true) != 0 {
+    return false
+}
+if ktCliExit(false) != 1 {
+    return false
+}
+if ktCliHostDeleteOk() != false {
+    return false
+}
+return cliHostDeleteOk() == false
