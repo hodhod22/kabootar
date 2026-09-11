@@ -1,0 +1,17 @@
+import "kab/cli/cli_path"
+import "kab/cli/cli_flag"
+import "kab/cli/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsHelpFlag("-h") == false {
+    return false
+}
+if cliIsRunPath("app.kab") == false {
+    return false
+}
+if cliIsNbPath("nb.knb") == false {
+    return false
+}
+return cliHostDeleteOk() == false

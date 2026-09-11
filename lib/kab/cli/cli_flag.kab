@@ -1,0 +1,10 @@
+// SH25: version/help flag argv off cli_publish.kab. import "kab/cli/cli_flag"
+// Do not grow cli_publish.kab. Host src/cli remains skuld.
+
+pub fn cliIsVersionFlag(cmd) {
+    return cmd == "--version" || cmd == "-V"
+}
+
+pub fn cliIsHelpFlag(cmd) {
+    return cmd == "--help" || cmd == "-h"
+}

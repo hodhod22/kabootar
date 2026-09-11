@@ -1,0 +1,6 @@
+// SH25: mod run argv off cli_minit.kab. import "kab/cli/cli_mrun"
+// Do not grow cli_minit.kab. Host src/cli remains skuld.
+
+pub fn cliIsModRun(sub) {
+    return sub == "run"
+}

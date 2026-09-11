@@ -1,0 +1,17 @@
+import "kab/cli/cli_flag"
+import "kab/cli/cli_publish"
+import "kab/cli/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsPublish("publish") == false {
+    return false
+}
+if cliIsVersionFlag("--version") == false {
+    return false
+}
+if cliIsHelpFlag("--help") == false {
+    return false
+}
+return cliHostDeleteOk() == false

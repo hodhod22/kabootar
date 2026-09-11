@@ -1,0 +1,14 @@
+import "kab/cli/cli_mrun"
+import "kab/cli/cli_minit"
+import "kab/cli/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsModInit("init") == false {
+    return false
+}
+if cliIsModRun("run") == false {
+    return false
+}
+return cliHostDeleteOk() == false

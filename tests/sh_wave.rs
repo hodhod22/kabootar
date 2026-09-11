@@ -63745,6 +63745,114 @@ fn sh25_cli_publish_host_dual_bind_in_kab() {
     );
 }
 
+/// SH25 deepen: version/help flag argv lives off cli_publish.kab.
+#[test]
+fn sh25_cli_flag_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/cli/cli_flag.kab")).expect("cli_flag.kab");
+    assert!(
+        f.contains("pub fn cliIsVersionFlag")
+            && f.contains("pub fn cliIsHelpFlag")
+            && f.contains("--version")
+            && f.contains("--help"),
+        "SH25 Kab cliIsVersionFlag/cliIsHelpFlag"
+    );
+}
+
+/// SH25 deepen: flag dual-bind to host delete gate.
+#[test]
+fn sh25_cli_flag_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_flag_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_flag_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsVersionFlag")
+            && s.contains("cliIsHelpFlag")
+            && s.contains("--version"),
+        "SH25 Kab cli flag host dual-bind"
+    );
+}
+
+/// SH25 deepen: run/notebook path argv lives off cli_flag.kab.
+#[test]
+fn sh25_cli_path_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/cli/cli_path.kab")).expect("cli_path.kab");
+    assert!(
+        p.contains("pub fn cliIsRunPath")
+            && p.contains("pub fn cliIsNbPath")
+            && p.contains(".kbcb")
+            && p.contains(".knb"),
+        "SH25 Kab cliIsRunPath/cliIsNbPath"
+    );
+}
+
+/// SH25 deepen: path dual-bind to host delete gate.
+#[test]
+fn sh25_cli_path_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_path_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_path_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsRunPath")
+            && s.contains("cliIsNbPath")
+            && s.contains(".knb"),
+        "SH25 Kab cli path host dual-bind"
+    );
+}
+
+/// SH25 deepen: mod init argv lives off cli_path.kab.
+#[test]
+fn sh25_cli_minit_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/cli/cli_minit.kab")).expect("cli_minit.kab");
+    assert!(
+        m.contains("pub fn cliIsModInit") && m.contains("init"),
+        "SH25 Kab cliIsModInit"
+    );
+}
+
+/// SH25 deepen: mod init dual-bind to host delete gate.
+#[test]
+fn sh25_cli_minit_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_minit_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_minit_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsModInit")
+            && s.contains("init"),
+        "SH25 Kab cli mod init host dual-bind"
+    );
+}
+
+/// SH25 deepen: mod run argv lives off cli_minit.kab.
+#[test]
+fn sh25_cli_mrun_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/cli/cli_mrun.kab")).expect("cli_mrun.kab");
+    assert!(
+        m.contains("pub fn cliIsModRun") && m.contains("run"),
+        "SH25 Kab cliIsModRun"
+    );
+}
+
+/// SH25 deepen: mod run dual-bind to host delete gate.
+#[test]
+fn sh25_cli_mrun_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_mrun_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_mrun_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsModRun")
+            && s.contains("run"),
+        "SH25 Kab cli mod run host dual-bind"
+    );
+}
+
 /// SH26: science/nd arithmetic lives in Kab (host GPU is syscall skuld).
 #[test]
 fn sh26_sci_plan_in_kab() {

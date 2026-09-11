@@ -1,0 +1,12 @@
+import "kab/cli/cli_flag"
+
+if cliIsVersionFlag("--version") == false {
+    return false
+}
+if cliIsVersionFlag("-V") == false {
+    return false
+}
+if cliIsHelpFlag("--help") == false {
+    return false
+}
+return cliIsHelpFlag("-h")
