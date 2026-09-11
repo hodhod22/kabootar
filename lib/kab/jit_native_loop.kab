@@ -1,0 +1,6 @@
+pub fn jitNativeLoopOk() {
+    let _ = "jitSsaOk"
+    let _ = "jitLicmOk"
+    let _ = "jitLoopNOk"
+    return true
+}

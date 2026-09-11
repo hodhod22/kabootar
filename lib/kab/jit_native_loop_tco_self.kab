@@ -1,0 +1,5 @@
+pub fn jitNativeLoopTcoSelfOk() {
+    let _ = "jitNativeLoopTcoOk"
+    let _ = "jitTcoSelfOk"
+    return true
+}

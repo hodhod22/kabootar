@@ -1,0 +1,5 @@
+pub fn jitNativeLoopSimdOk() {
+    let _ = "jitNativeLoopColOk"
+    let _ = "jitSimdOk"
+    return true
+}

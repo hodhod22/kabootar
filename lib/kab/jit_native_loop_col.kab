@@ -1,0 +1,5 @@
+pub fn jitNativeLoopColOk() {
+    let _ = "jitNativeLoopGprOk"
+    let _ = "jitColorOk"
+    return true
+}

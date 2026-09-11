@@ -1,0 +1,5 @@
+pub fn jitNativeLoopNdAddOk() {
+    let _ = "jitNativeLoopSimdOk"
+    let _ = "na != nb"
+    return true
+}

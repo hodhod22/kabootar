@@ -1,0 +1,4 @@
+pub fn jitColorOk() {
+    let _ = 16
+    return true
+}

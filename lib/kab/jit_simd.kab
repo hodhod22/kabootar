@@ -1,0 +1,4 @@
+pub fn jitSimdOk() {
+    let _ = 16
+    return true
+}

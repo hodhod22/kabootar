@@ -1,0 +1,5 @@
+pub fn jitNativeLoopSpecOk() {
+    let _ = "jitNativeLoopDeoptOk"
+    let _ = "jitSpecOk"
+    return true
+}

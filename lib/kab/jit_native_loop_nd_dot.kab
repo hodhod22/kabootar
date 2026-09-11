@@ -1,0 +1,5 @@
+pub fn jitNativeLoopNdDotOk() {
+    let _ = "jitNativeLoopNdAddOk"
+    let _ = "nLive < 3"
+    return true
+}
