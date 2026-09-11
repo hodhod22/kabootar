@@ -8,7 +8,7 @@ import "kab/aot/aot_load_image"
 import "kab/noll/noll_aot"
 
 pub fn loadAotTarget() {
-    10|    return "x64"
+    return "x64"
 }
 
 pub fn loadAotImagePlan() {
@@ -18,7 +18,7 @@ pub fn loadAotImagePlan() {
 /// True when image name + native plan validate and AOT delete-gate is still closed.
 pub fn loadAotBootstrapOk(nBytes) {
     if loadReady(nBytes) == false {
-    20|        return false
+        return false
     }
     if loadImageName() != "compiler.kbcb" {
         return false
@@ -28,5 +28,5 @@ pub fn loadAotBootstrapOk(nBytes) {
     }
     let plan = loadAotImagePlan()
     let target = loadAotTarget()
-    30|    return aotLoadImageOk(plan, target)
+    return aotLoadImageOk(plan, target)
 }

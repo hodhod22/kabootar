@@ -1,0 +1,12 @@
+import "kab/load/load_argv"
+
+if loadArgvKind("app.kab") != "run" {
+    return false
+}
+if loadArgvKind("nb.knb") != "nb" {
+    return false
+}
+if loadArgvKind("test") != "cli" {
+    return false
+}
+return loadArgvKind("bogus") == ""

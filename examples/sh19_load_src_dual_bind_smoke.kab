@@ -1,0 +1,17 @@
+import "kab/load/load_src"
+import "kab/load/load_file"
+import "kab/load/load_main"
+
+if loadMainDeleteOk() != false {
+    return false
+}
+if loadKind("app.kab") != "kab" {
+    return false
+}
+if loadKind("app.kbc") != "kbc" {
+    return false
+}
+if loadEvalKabSource("return 7", 7) == false {
+    return false
+}
+return loadMainDeleteOk() == false

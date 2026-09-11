@@ -57740,6 +57740,28 @@ fn sh19_load_kbcb_exec_smoke() {
         .expect("join");
 }
 
+/// SH19: persist .kab source, os_read, compile+Kab-VM eval (not string-gate).
+#[test]
+fn sh19_load_src_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh19_load_src_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh19-load-src-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile load src exec smoke");
+            let value = eval_program(&program, &mut env).expect("run load src exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH20: JSON parse/stringify in Kab (eval, not string-gate).
 #[test]
 fn sh20_std_json_codec_exec_smoke() {
@@ -57850,7 +57872,7 @@ fn sh19_load_plan_in_kab() {
 #[test]
 fn sh19_load_kbc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let k = std::fs::read_to_string(root.join("lib/kab/load_kbc.kab")).expect("load_kbc.kab");
+    let k = std::fs::read_to_string(root.join("lib/kab/load/load_kbc.kab")).expect("load_kbc.kab");
     assert!(
         k.contains("pub fn loadIsKbc") && k.contains(".kbc"),
         "SH19 Kab loadIsKbc"
@@ -57861,7 +57883,7 @@ fn sh19_load_kbc_in_kab() {
 #[test]
 fn sh19_load_img_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/load_img.kab")).expect("load_img.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/load/load_img.kab")).expect("load_img.kab");
     assert!(
         i.contains("pub fn loadImageName") && i.contains("compiler.kbcb"),
         "SH19 Kab loadImageName"
@@ -57912,7 +57934,7 @@ fn sh19_load_main_reject_in_kab() {
 #[test]
 fn sh19_load_aot_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/load_aot.kab")).expect("load_aot.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/load/load_aot.kab")).expect("load_aot.kab");
     assert!(
         a.contains("pub fn loadAotBootstrapOk")
             && a.contains("pub fn loadAotImagePlan")
@@ -57956,7 +57978,7 @@ fn sh19_load_aot_reject_in_kab() {
 #[test]
 fn sh19_load_aot_reloc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let r = std::fs::read_to_string(root.join("lib/kab/load_aot_reloc.kab")).expect("load_aot_reloc.kab");
+    let r = std::fs::read_to_string(root.join("lib/kab/load/load_aot_reloc.kab")).expect("load_aot_reloc.kab");
     assert!(
         r.contains("pub fn loadAotRelocBootstrapOk")
             && r.contains("pub fn loadAotRelocTableOk")
@@ -58000,7 +58022,7 @@ fn sh19_load_aot_reloc_reject_in_kab() {
 #[test]
 fn sh19_load_aot_reloc_word_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let w = std::fs::read_to_string(root.join("lib/kab/load_aot_reloc_word.kab"))
+    let w = std::fs::read_to_string(root.join("lib/kab/load/load_aot_reloc_word.kab"))
         .expect("load_aot_reloc_word.kab");
     assert!(
         w.contains("pub fn loadAotRelocWordOk")
@@ -58046,7 +58068,7 @@ fn sh19_load_aot_reloc_word_reject_in_kab() {
 #[test]
 fn sh19_load_aot_reloc_text_at_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/load_aot_reloc_text_at.kab"))
+    let t = std::fs::read_to_string(root.join("lib/kab/load/load_aot_reloc_text_at.kab"))
         .expect("load_aot_reloc_text_at.kab");
     assert!(
         t.contains("pub fn loadAotRelocTextAt32Ok")
@@ -58092,7 +58114,7 @@ fn sh19_load_aot_reloc_text_at_reject_in_kab() {
 #[test]
 fn sh19_load_aot_reloc_rodata_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let r = std::fs::read_to_string(root.join("lib/kab/load_aot_reloc_rodata.kab"))
+    let r = std::fs::read_to_string(root.join("lib/kab/load/load_aot_reloc_rodata.kab"))
         .expect("load_aot_reloc_rodata.kab");
     assert!(
         r.contains("pub fn loadAotRelocRodataDataOk")
@@ -58137,7 +58159,7 @@ fn sh19_load_aot_reloc_rodata_reject_in_kab() {
 #[test]
 fn sh19_load_aot_reloc_full_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/load_aot_reloc_full.kab"))
+    let f = std::fs::read_to_string(root.join("lib/kab/load/load_aot_reloc_full.kab"))
         .expect("load_aot_reloc_full.kab");
     assert!(
         f.contains("pub fn loadAotRelocFullOk")
@@ -58181,7 +58203,7 @@ fn sh19_load_aot_reloc_full_reject_in_kab() {
 #[test]
 fn sh19_load_aot_pgo_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let p = std::fs::read_to_string(root.join("lib/kab/load_aot_pgo.kab")).expect("load_aot_pgo.kab");
+    let p = std::fs::read_to_string(root.join("lib/kab/load/load_aot_pgo.kab")).expect("load_aot_pgo.kab");
     assert!(
         p.contains("pub fn loadAotPgoBootstrapOk")
             && p.contains("pub fn loadAotPgoWarmOk")
@@ -58311,7 +58333,7 @@ fn sh19_load_ship_verify_reject_in_kab() {
 #[test]
 fn sh19_load_aot_chain_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/load_aot_chain.kab"))
+    let s = std::fs::read_to_string(root.join("lib/kab/load/load_aot_chain.kab"))
         .expect("load_aot_chain.kab");
     assert!(
         s.contains("pub fn loadAotChainOk")
@@ -58403,7 +58425,7 @@ fn sh19_load_ship_loaded_reject_in_kab() {
 #[test]
 fn sh19_load_aot_ready_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/load_aot_ready.kab"))
+    let s = std::fs::read_to_string(root.join("lib/kab/load/load_aot_ready.kab"))
         .expect("load_aot_ready.kab");
     assert!(
         s.contains("pub fn loadAotReadyOk")
@@ -58448,7 +58470,7 @@ fn sh19_load_aot_ready_reject_in_kab() {
 #[test]
 fn sh19_load_aot_capstone_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/load_aot_capstone.kab"))
+    let s = std::fs::read_to_string(root.join("lib/kab/load/load_aot_capstone.kab"))
         .expect("load_aot_capstone.kab");
     assert!(
         s.contains("pub fn loadAotCapstoneOk")
@@ -58485,6 +58507,85 @@ fn sh19_load_aot_capstone_reject_in_kab() {
     assert!(
         s.contains("loadAotCapstoneOk") && s.contains("0"),
         "SH19 Kab AOT capstone rejection"
+    );
+}
+
+/// SH19 deepen: .kab source loader lives off load_file.kab.
+#[test]
+fn sh19_load_src_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/load/load_src.kab")).expect("load_src.kab");
+    assert!(
+        s.contains("pub fn loadEvalKabFile")
+            && s.contains("pub fn loadEvalKabSource")
+            && s.contains("bootCompile")
+            && s.contains("evalKbcKabOnly"),
+        "SH19 Kab loadEvalKabFile/loadEvalKabSource"
+    );
+}
+
+/// SH19 deepen: .kab source loader dual-bind to main delete gate.
+#[test]
+fn sh19_load_src_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh19_load_src_dual_bind_smoke.kab"))
+        .expect("sh19_load_src_dual_bind_smoke.kab");
+    assert!(
+        s.contains("loadMainDeleteOk")
+            && s.contains("loadEvalKabSource")
+            && s.contains("loadKind"),
+        "SH19 Kab load src host dual-bind"
+    );
+}
+
+/// SH19 deepen: .kab source loader rejects non-kab path and wrong expect.
+#[test]
+fn sh19_load_src_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh19_load_src_reject_smoke.kab"))
+        .expect("sh19_load_src_reject_smoke.kab");
+    assert!(
+        s.contains("loadMainDeleteOk") && s.contains("loadEvalKabFile") && s.contains(".txt"),
+        "SH19 Kab load src rejection"
+    );
+}
+
+/// SH19 deepen: argv entry dispatch lives off load_src.kab.
+#[test]
+fn sh19_load_argv_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/load/load_argv.kab")).expect("load_argv.kab");
+    assert!(
+        a.contains("pub fn loadArgvKind")
+            && a.contains("cliIsRunPath")
+            && a.contains("cliIsNbPath"),
+        "SH19 Kab loadArgvKind"
+    );
+}
+
+/// SH19 deepen: argv dispatch dual-bind to main delete gate.
+#[test]
+fn sh19_load_argv_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh19_load_argv_dual_bind_smoke.kab"))
+        .expect("sh19_load_argv_dual_bind_smoke.kab");
+    assert!(
+        s.contains("loadMainDeleteOk")
+            && s.contains("loadArgvKind")
+            && s.contains("run"),
+        "SH19 Kab load argv host dual-bind"
+    );
+}
+
+/// SH19 deepen: argv dispatch rejects unknown command.
+#[test]
+fn sh19_load_argv_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh19_load_argv_reject_smoke.kab"))
+        .expect("sh19_load_argv_reject_smoke.kab");
+    assert!(
+        s.contains("loadMainDeleteOk") && s.contains("loadArgvKind") && s.contains("bogus"),
+        "SH19 Kab load argv rejection"
     );
 }
 

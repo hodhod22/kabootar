@@ -1,0 +1,10 @@
+import "kab/load/load_argv"
+import "kab/load/load_main"
+
+if loadMainDeleteOk() {
+    return false
+}
+if loadArgvKind("bogus") != "" {
+    return false
+}
+return loadMainDeleteOk() == false

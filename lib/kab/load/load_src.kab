@@ -1,0 +1,46 @@
+// SH19: open a .kab source file, compile, eval on Kab-VM. import "kab/load/load_src"
+// Do not grow load_file.kab. Host main.rs stays skuld.
+
+import "kab/load"
+import "kab/load/load_file"
+import "kab/boot"
+import "kab/vm"
+
+/// Compile in-memory .kab source and eval on Kab-VM (no host VM).
+pub fn loadEvalKabSource(src, expect) {
+    let kbc = bootCompile(src)
+    if isBytecode(kbc) == false {
+        return false
+    }
+    let got = evalKbcKabOnly(kbc)
+    if got == expect {
+        return true
+    }
+    return false
+}
+
+/// Read .kab source from disk, compile, eval on Kab-VM (no host VM).
+pub fn loadEvalKabFile(path) {
+    if loadKind(path) != "kab" {
+        return false
+    }
+    let src = os_read(path)
+    if loadReady(len("" + src)) == false {
+        return false
+    }
+    let kbc = bootCompile(src)
+    if isBytecode(kbc) == false {
+        return false
+    }
+    return evalKbcKabOnly(kbc)
+}
+
+/// Persist .kab source, load back, compile+eval on Kab-VM.
+pub fn loadEvalKabRoundtripOk(path, source, expect) {
+    os_write(path, source)
+    let got = loadEvalKabFile(path)
+    if got == expect {
+        return true
+    }
+    return false
+}

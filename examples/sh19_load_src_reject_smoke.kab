@@ -1,0 +1,13 @@
+import "kab/load/load_src"
+import "kab/load/load_main"
+
+if loadMainDeleteOk() {
+    return false
+}
+if loadEvalKabFile("note.txt") != false {
+    return false
+}
+if loadEvalKabSource("return 1", 2) {
+    return false
+}
+return loadMainDeleteOk() == false

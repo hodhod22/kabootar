@@ -3,6 +3,12 @@
 
 import "kab/crypto/crypto_tls13_all"
 
+/// Gate opens only when the harness declares live TLS peers (KAB_TLS_PEERS=1)
+/// and the full aggregate suite passes. Without peers it stays deterministically
+/// closed instead of dying on tcp_connect.
 pub fn cryptoHostDeleteOk() {
+    if env_get("KAB_TLS_PEERS") != "1" {
+        return false
+    }
     return cryptoTls13AllOk()
 }

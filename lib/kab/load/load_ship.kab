@@ -9,7 +9,7 @@ import "kab/aot/aot_ship"
 pub fn loadShipNativeName() {
     return "kabootar-x64.kbn"
 }
-    10|
+
 /// PGO bootstrap plus shippable native name and image plan validates.
 pub fn loadShipOk(nBytes) {
     if loadAotPgoBootstrapOk(nBytes) == false {
@@ -18,5 +18,5 @@ pub fn loadShipOk(nBytes) {
     let name = loadShipNativeName()
     let plan = loadAotPgoSymRelocPlan()
     let target = loadAotTarget()
-    20|    return aotShipOk(name, plan, target)
+    return aotShipOk(name, plan, target)
 }
