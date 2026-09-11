@@ -1,0 +1,83 @@
+// SH24: Kab HTTP/1.1 client over kab/net + host tcp_start_tls (TLS for now).
+// import "kab/http/http_client"
+
+import "kab/net"
+import "kab/http/http_util"
+
+// Fetch https:// URLs using Kab TCP + host TLS upgrade.
+// Returns {status, body, headers} or false.
+pub fn httpKabFetch(method, url, body, headers, timeoutMs) {
+    if timeoutMs != 0 {
+        return false
+    }
+    if httpIsHttps(url) != true {
+        return false
+    }
+    let host = httpHostName(httpHostFromHttps(url))
+    if host == false {
+        return false
+    }
+    let port = httpPortFromHttps(url)
+    if port == false {
+        return false
+    }
+    if port == 0 {
+        port = 443
+    }
+    let path = httpPathFromHttps(url)
+    let req = httpBuildFetchReq(method, host, path, body, headers)
+    if req == false {
+        return false
+    }
+    let sock = 0
+    try {
+        sock = netConnect(host, port)
+    } catch (e) {
+        return false
+    }
+    if sock <= 0 {
+        return false
+    }
+    let tls = 0
+    try {
+        tls = netStartTls(sock, host)
+    } catch (e) {
+        netClose(sock)
+        return false
+    }
+    if tls <= 0 {
+        netClose(sock)
+        return false
+    }
+    try {
+        netWriteBytes(tls, req)
+    } catch (e) {
+        netClose(tls)
+        netClose(sock)
+        return false
+    }
+    let raw = ""
+    try {
+        raw = netRead(tls, 65536)
+    } catch (e) {
+        netClose(tls)
+        netClose(sock)
+        return false
+    }
+    netClose(tls)
+    netClose(sock)
+    if raw == "" {
+        return false
+    }
+    let pt = httpStrToBytes(raw)
+    let code = httpStatusCode(pt)
+    if code == 0 {
+        return false
+    }
+    let bodyPt = httpRespBody(pt)
+    let out = {}
+    out["status"] = code
+    out["headers"] = httpHdrObj(pt)
+    out["body"] = httpBytesToStr(bodyPt)
+    return out
+}

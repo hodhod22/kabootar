@@ -1,0 +1,5 @@
+// SH24: DELETE method policy helper.
+
+pub fn httpIsDelete(method) {
+    return method == "DELETE"
+}

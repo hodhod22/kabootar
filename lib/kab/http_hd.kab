@@ -1,0 +1,4 @@
+// F14: HTTP headers extractor wrapper.
+pub fn httpHeadersOf(resp) {
+    return http_headers(resp)
+}

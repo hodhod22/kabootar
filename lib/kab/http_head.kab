@@ -1,0 +1,5 @@
+// SH24: HEAD method policy helper.
+
+pub fn httpIsHead(method) {
+    return method == "HEAD"
+}

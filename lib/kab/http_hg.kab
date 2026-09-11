@@ -1,0 +1,4 @@
+// F14: HTTP single header lookup wrapper.
+pub fn httpHeaderOf(resp, name) {
+    return http_header(resp, name)
+}

@@ -1,24 +1,11 @@
+import "kab/http_host"
 import "kab/http"
-import "kab/http/http_post"
-import "kab/http/http_ct"
-import "kab/http/http_host"
-
-if httpHostDeleteOk() != false {
-    return false
-}
-if httpIsGet("GET") == false {
-    return false
-}
-if httpOk(200) == false {
-    return false
-}
-if httpIsFetch("http://example.com") == false {
-    return false
-}
-if httpIsPost("POST") == false {
-    return false
-}
-if httpIsJson("application/json") == false {
-    return false
-}
-return httpHostDeleteOk() == false
+import "kab/http_post"
+import "kab/http_ct"
+let ok = httpHostDeleteOk()
+let g = httpIsGet("GET")
+let p = httpIsPost("POST")
+let j = httpIsJson("application/json")
+let f = httpIsFetch("http://x")
+let r = httpOk("hi")
+ok

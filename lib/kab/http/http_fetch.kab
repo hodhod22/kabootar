@@ -12,6 +12,7 @@
 // Non-loopback URLs still http_fetch_async. httpHostDeleteOk stays false.
 
 import "kab/http/http_nat"
+import "kab/http/http_client"
 
 let gLoopFetch = false
 let gPeerFetch = false
@@ -195,5 +196,14 @@ pub fn httpFetch(method, url, body, headers, timeoutMs) {
         }
         return promise_resolve(httpKabToHost(gTls13GenericFetch(method, url, body, headers, timeoutMs)))
     }
-    return http_fetch_async(method, url, body, headers, timeoutMs)
+    if urlHasPrefix(url, "https://") {
+        return promise_resolve(httpKabFetch(method, url, body, headers, timeoutMs))
+    }
+    return promise_then(http_fetch_async(method, url, body, headers, timeoutMs), (res) => {
+        let out = {}
+        out["status"] = httpStatusHost(res)
+        out["body"] = httpBodyHost(res)
+        out["headers"] = httpHeadersHost(res)
+        return out
+    })
 }

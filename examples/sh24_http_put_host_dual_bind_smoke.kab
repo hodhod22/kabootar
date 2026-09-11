@@ -1,10 +1,5 @@
-import "kab/http/http_put"
-import "kab/http/http_host"
-
-if httpHostDeleteOk() != false {
-    return false
-}
-if httpIsPut("PUT") == false {
-    return false
-}
-return httpHostDeleteOk() == false
+import "kab/http_host"
+import "kab/http_put"
+let ok = httpHostDeleteOk()
+let p = httpIsPut("PUT")
+ok

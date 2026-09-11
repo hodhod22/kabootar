@@ -1,0 +1,5 @@
+// SH24: JSON content-type helper.
+
+pub fn httpIsJson(ct) {
+    return ct == "application/json"
+}

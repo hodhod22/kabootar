@@ -1,0 +1,6 @@
+// F14: host-HTTP drop gate (still false).
+pub fn httpWorkDropOk() {
+    let httpHostDeleteOk = false
+    let workParOk = false
+    return httpHostDeleteOk && workParOk
+}

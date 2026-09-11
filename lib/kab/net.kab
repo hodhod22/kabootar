@@ -1,0 +1,45 @@
+// SH24: Kab TCP wrapper over host tcp_* natives. import "kab/net"
+// Do not grow this file. Keep host tcp_* as the only runtime dependency.
+// netHostDeleteOk stays false until host tcp is no longer needed.
+
+pub fn netConnect(host, port) {
+    return tcp_connect(host, port)
+}
+
+pub fn netListen(host, port) {
+    return tcp_listen(host, port)
+}
+
+pub fn netAccept(listener) {
+    return tcp_accept(listener)
+}
+
+pub fn netRead(sock, max) {
+    if max == undefined || max == null || max <= 0 {
+        max = 4096
+    }
+    return tcp_read(sock, max)
+}
+
+pub fn netReadBytes(sock, max) {
+    if max == undefined || max == null || max <= 0 {
+        max = 4096
+    }
+    return tcp_read_bytes(sock, max)
+}
+
+pub fn netWrite(sock, data) {
+    return tcp_write(sock, data)
+}
+
+pub fn netWriteBytes(sock, bytes) {
+    return tcp_write_bytes(sock, bytes)
+}
+
+pub fn netClose(handle) {
+    return tcp_close(handle)
+}
+
+pub fn netStartTls(sock, hostname) {
+    return tcp_start_tls(sock, hostname)
+}
