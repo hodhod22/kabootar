@@ -1,0 +1,5 @@
+// F14: HTTP timeout policy wrapper.
+pub fn httpSetTimeout(ms) {
+    // http_set_timeout not exposed; stub for F14
+    return 0
+}

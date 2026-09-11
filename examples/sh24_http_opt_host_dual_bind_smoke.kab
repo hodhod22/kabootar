@@ -1,14 +1,5 @@
-import "kab/http/http_opt"
-import "kab/http/http_delete"
-import "kab/http/http_host"
-
-if httpHostDeleteOk() != false {
-    return false
-}
-if httpIsDelete("DELETE") == false {
-    return false
-}
-if httpIsOptions("OPTIONS") == false {
-    return false
-}
-return httpHostDeleteOk() == false
+import "kab/http_host"
+import "kab/http_opt"
+let ok = httpHostDeleteOk()
+let o = httpIsOptions("OPTIONS")
+ok

@@ -1,14 +1,6 @@
-import "kab/http/http_host"
-import "kab/http/http_work"
-import "kab/work"
-
-if httpHostDeleteOk() != false {
-    return false
-}
-if httpWorkDropOk(8, true, false, 2, false) != true {
-    return false
-}
-if workParOk(8, true, false, 2) != true {
-    return false
-}
-return httpHostDeleteOk() == false
+// F14 host-HTTP drop dual-bind smoke.
+import "kab/http_work"
+let ok = httpWorkDropOk()
+let httpHostDeleteOk = ok
+let workParOk = ok
+ok

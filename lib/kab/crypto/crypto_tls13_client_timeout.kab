@@ -1,0 +1,21 @@
+// SH23: Kab TLS 1.3 client timeout gate vs rustls P-256 peer.
+// Uses http_set_timeout/http_reset_timeout around the Kab handshake.
+// Do not grow crypto_tls13_client.kab. Host rustls remains skuld.
+
+import "kab/crypto/crypto_tls13_client"
+import "kab/http/http_to"
+import "kab/http/http_rst"
+
+pub fn tls13ClientTimeoutEvalOk(ms) {
+    if ms <= 0 {
+        return false
+    }
+    http_set_timeout(ms)
+    let s = tls13ClientConnect("127.0.0.1", 28296)
+    http_reset_timeout()
+    if s == false {
+        return false
+    }
+    tcp_close(s["sock"])
+    return true
+}

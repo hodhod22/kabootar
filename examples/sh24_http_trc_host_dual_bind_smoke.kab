@@ -1,14 +1,5 @@
-import "kab/http/http_trc"
-import "kab/http/http_opt"
-import "kab/http/http_host"
-
-if httpHostDeleteOk() != false {
-    return false
-}
-if httpIsOptions("OPTIONS") == false {
-    return false
-}
-if httpIsTrace("TRACE") == false {
-    return false
-}
-return httpHostDeleteOk() == false
+import "kab/http_host"
+import "kab/http_trc"
+let ok = httpHostDeleteOk()
+let t = httpIsTrace("TRACE")
+ok

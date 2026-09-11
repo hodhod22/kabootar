@@ -1,0 +1,19 @@
+// F14/SH24: one-shot HTTP/1.1 server over kab/net (replaces host http_serve_once).
+// import "kab/http_so"
+
+import "kab/net"
+import "kab/http/http_server"
+
+// http_serve_once was a host native; now replaced by the Kab net-based loop below.
+pub fn httpServeOnce(port, handler) {
+    let s = netListen("0.0.0.0", port)
+    let c = netAccept(s)
+    let raw = netRead(c, 4096)
+    let req = httpParseReq(raw)
+    let res = handler(req)
+    let out = httpBuildResp(res)
+    netWrite(c, out)
+    netClose(c)
+    netClose(s)
+    return 0
+}

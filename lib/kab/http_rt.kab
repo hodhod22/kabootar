@@ -1,0 +1,4 @@
+// F14: HTTP route matcher wrapper.
+pub fn httpRouteOk(req, route) {
+    return http_route(req, route)
+}

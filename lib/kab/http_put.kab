@@ -1,0 +1,5 @@
+// SH24: PUT method policy helper.
+
+pub fn httpIsPut(method) {
+    return method == "PUT"
+}

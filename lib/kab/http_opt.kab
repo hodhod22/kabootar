@@ -1,0 +1,5 @@
+// SH24: OPTIONS method policy helper.
+
+pub fn httpIsOptions(method) {
+    return method == "OPTIONS"
+}

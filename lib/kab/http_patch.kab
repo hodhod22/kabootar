@@ -1,0 +1,5 @@
+// SH24: PATCH method policy helper.
+
+pub fn httpIsPatch(method) {
+    return method == "PATCH"
+}

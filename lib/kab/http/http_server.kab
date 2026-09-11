@@ -1,0 +1,147 @@
+// SH24: pure HTTP/1.1 server helpers for kab/http_so and kab/http_srv.
+// import "kab/http/http_server"
+
+import "kab/http/http_util"
+
+pub fn httpFindChar(s, ch, start) {
+    let i = start
+    let n = len(s)
+    while i < n {
+        if char_code_at(s, i) == ch {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+pub fn httpFindCrLf(s, start) {
+    let i = start
+    let n = len(s)
+    while i + 1 < n {
+        if char_code_at(s, i) == 13 {
+            if char_code_at(s, i + 1) == 10 {
+                return i
+            }
+        }
+        i = i + 1
+    }
+    return n
+}
+
+pub fn httpTrim(s) {
+    let n = len(s)
+    let lo = 0
+    while lo < n {
+        let c = char_code_at(s, lo)
+        if c != 32 {
+            if c != 9 {
+                break
+            }
+        }
+        lo = lo + 1
+    }
+    let hi = n
+    while hi > lo {
+        let c = char_code_at(s, hi - 1)
+        if c != 32 {
+            if c != 9 {
+                break
+            }
+        }
+        hi = hi - 1
+    }
+    return str_slice(s, lo, hi)
+}
+
+pub fn httpParseReq(raw) {
+    if raw == "" {
+        return false
+    }
+    let n = len(raw)
+    let lineEnd = httpFindCrLf(raw, 0)
+    let first = str_slice(raw, 0, lineEnd)
+    let sp1 = httpFindChar(first, 32, 0)
+    if sp1 < 0 {
+        return false
+    }
+    let sp2 = httpFindChar(first, 32, sp1 + 1)
+    if sp2 < 0 {
+        return false
+    }
+    let method = str_slice(first, 0, sp1)
+    let path = str_slice(first, sp1 + 1, sp2)
+    let i = lineEnd + 2
+    let headers = {}
+    let body = ""
+    while i < n {
+        let end = httpFindCrLf(raw, i)
+        if end == i {
+            i = end + 2
+            body = str_slice(raw, i, n)
+            break
+        }
+        if end >= n {
+            break
+        }
+        let line = str_slice(raw, i, end)
+        let colon = httpFindChar(line, 58, 0)
+        if colon >= 0 {
+            let name = httpHdrLower(str_slice(line, 0, colon))
+            let value = httpTrim(str_slice(line, colon + 1, len(line)))
+            headers[name] = value
+        }
+        i = end + 2
+    }
+    let req = {}
+    req["method"] = method
+    req["path"] = path
+    req["headers"] = headers
+    req["body"] = body
+    return req
+}
+
+pub fn httpStatusText(code) {
+    if code == 200 {
+        return "OK"
+    }
+    if code == 404 {
+        return "Not Found"
+    }
+    if code == 500 {
+        return "Internal Server Error"
+    }
+    return "OK"
+}
+
+pub fn httpBuildResp(res) {
+    let status = 200
+    let statusText = "OK"
+    let body = ""
+    let headers = {}
+    if typeof(res) == "object" {
+        if res["status"] != undefined {
+            status = res["status"]
+        }
+        if res["statusText"] != undefined {
+            statusText = res["statusText"]
+        }
+        if res["body"] != undefined {
+            body = res["body"]
+        }
+        if res["headers"] != undefined {
+            headers = res["headers"]
+        }
+    } else {
+        body = "" + res
+    }
+    if statusText == "OK" {
+        statusText = httpStatusText(status)
+    }
+    let out = "HTTP/1.1 " + status + " " + statusText + "\r\n"
+    out = out + "Content-Length: " + len(body) + "\r\n"
+    out = out + "Content-Type: text/plain; charset=utf-8\r\n"
+    // TODO: merge res["headers"] here once for-in is exercised.
+    out = out + "\r\n" + body
+    return out
+}

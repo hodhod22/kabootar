@@ -1,0 +1,4 @@
+// F14: HTTP body extractor wrapper.
+pub fn httpBodyOf(resp) {
+    return http_body(resp)
+}

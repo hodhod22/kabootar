@@ -1,0 +1,4 @@
+// F14: HTTP async request wrapper.
+pub fn httpReqAsync(req) {
+    return http_request_async(req)
+}

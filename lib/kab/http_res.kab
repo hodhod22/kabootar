@@ -1,0 +1,4 @@
+// F14: HTTP response builder wrapper.
+pub fn httpRes(status, body, headers) {
+    return http_response(status, body, headers)
+}

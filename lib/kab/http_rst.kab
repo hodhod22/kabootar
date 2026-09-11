@@ -1,0 +1,5 @@
+// F14: HTTP timeout reset wrapper.
+pub fn httpResetTimeout() {
+    // http_reset_timeout not exposed; stub for F14
+    return 0
+}

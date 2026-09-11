@@ -1,0 +1,12 @@
+// F14/SH24: multi-request HTTP/1.1 server over kab/net (replaces host http_serve).
+// import "kab/http_srv"
+
+import "kab/http_so"
+
+// http_serve was a host native; now replaced by looping over httpServeOnce.
+pub fn httpServe(port, handler) {
+    while true {
+        httpServeOnce(port, handler)
+    }
+    return 0
+}

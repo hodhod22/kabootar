@@ -1,0 +1,5 @@
+// SH24: POST method policy helper.
+
+pub fn httpIsPost(method) {
+    return method == "POST"
+}

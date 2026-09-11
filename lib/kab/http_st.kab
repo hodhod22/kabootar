@@ -1,0 +1,4 @@
+// F14: HTTP status extractor wrapper.
+pub fn httpStatusOf(resp) {
+    return http_status(resp)
+}

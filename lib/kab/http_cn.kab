@@ -1,0 +1,5 @@
+// SH24: CONNECT method policy helper.
+
+pub fn httpIsConnect(method) {
+    return method == "CONNECT"
+}

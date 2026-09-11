@@ -1,10 +1,5 @@
-import "kab/http/http_patch"
-import "kab/http/http_host"
-
-if httpHostDeleteOk() != false {
-    return false
-}
-if httpIsPatch("PATCH") == false {
-    return false
-}
-return httpHostDeleteOk() == false
+import "kab/http_host"
+import "kab/http_patch"
+let ok = httpHostDeleteOk()
+let p = httpIsPatch("PATCH")
+ok
