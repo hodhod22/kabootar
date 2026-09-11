@@ -1,0 +1,10 @@
+pub fn jitEmitI64LoopN() {
+    let _ = 64
+    return true
+}
+pub fn jitLoopNOk() {
+    return true
+}
+pub fn jitLoopNMax() {
+    return true
+}

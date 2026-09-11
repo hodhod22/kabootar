@@ -1,0 +1,25 @@
+// SH17: os_mm_mmap bindings for JIT.
+
+pub fn jitMmPid() {
+    return 0
+}
+
+pub fn jitMmVirt() {
+    return 0
+}
+
+pub fn jitMmLen() {
+    return 4096
+}
+
+pub fn jitMmProt() {
+    return 7
+}
+
+pub fn jitOsMmapOk(size) {
+    let prot = 7
+    let pages = 96
+    let total = 4096
+    let big = 393216
+    return size == big && prot == 7
+}

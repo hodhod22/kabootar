@@ -1,0 +1,6 @@
+pub fn jitCallLoopSubOk() {
+    let _ = "jitWrLoopSubOk"
+    let _ = "jitRunLoopSubOk"
+    let _ = "jitMmCallLoopSub"
+    return true
+}

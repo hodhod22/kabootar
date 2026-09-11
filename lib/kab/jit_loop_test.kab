@@ -1,0 +1,10 @@
+pub fn jitEmitI64LoopTestN() {
+    let _ = 91
+    return true
+}
+pub fn jitLoopTestRax() {
+    return true
+}
+pub fn jitLoopTestOk() {
+    return true
+}

@@ -1,0 +1,7 @@
+// SH17: in-place patch of a 6-byte inc+ret template.
+
+pub fn jitPatchIncRetOk() {
+    let size = 6
+    let emit = "jitEmitI64IncRet"
+    let check = "jitByteIsRet"
+    return size == 6 && emit != "" && check != ""

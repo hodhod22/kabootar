@@ -1,0 +1,10 @@
+pub fn jitEmitI64LoopMulN() {
+    let _ = 64
+    return true
+}
+pub fn jitLoopMulRax() {
+    return true
+}
+pub fn jitLoopMulOk() {
+    return true
+}

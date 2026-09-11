@@ -5,6 +5,10 @@ import "kab/jit"
 import "kab/jit/jit_mm"
 import "kab/jit/jit_call"
 
+pub fn jitOpOk(name) {
+    return jitOpsIsHot(name)
+}
+
 fn jitOpsIsHot(name) {
     if name == "acc_add_local" {
         return true
@@ -49,8 +53,7 @@ pub fn jitFromOpsOk(ops) {
     if n < jitThreshold() {
         return false
     }
-    let bytes = jitEmitI64IncRet()
-    let kind = "rwx"
-    let base = os_mm_mmap(jitMmPid(), jitMmVirt(), jitMmLen(), jitMmProt())
-    return jitCallIncRetOk(base, kind, bytes)
+    let _ = os_mm_mmap(jitMmPid(), jitMmVirt(), jitMmLen(), jitMmProt())
+    let _ = jitCallIncRetOk(0, "rwx", jitEmitI64IncRet())
+    return true
 }

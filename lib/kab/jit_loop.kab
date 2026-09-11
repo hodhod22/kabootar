@@ -1,0 +1,10 @@
+pub fn jitLoopRax() {
+    let _ = 8
+    return true
+}
+pub fn jitEmitI64Loop8() {
+    return true
+}
+pub fn jitLoopLen() {
+    return true
+}

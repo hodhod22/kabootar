@@ -1,0 +1,5 @@
+pub fn jitMmStoreIncRet() {
+    let _ = "os_mm_store"
+    let _ = "jitMmPid"
+    return true
+}

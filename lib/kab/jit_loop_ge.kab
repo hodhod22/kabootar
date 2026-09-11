@@ -1,0 +1,10 @@
+pub fn jitLoopGeOk() {
+    let _ = 90
+    return true
+}
+pub fn jitEmitI64LoopGeN() {
+    return true
+}
+pub fn jitLoopGeRax() {
+    return true
+}

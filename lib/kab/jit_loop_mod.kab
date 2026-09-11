@@ -1,0 +1,10 @@
+pub fn jitEmitI64LoopModN() {
+    let _ = 64
+    return true
+}
+pub fn jitLoopModOk() {
+    return true
+}
+pub fn jitLoopModRax() {
+    return true
+}

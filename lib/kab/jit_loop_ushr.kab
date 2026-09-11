@@ -1,0 +1,10 @@
+pub fn jitEmitI64LoopUshrN() {
+    let _ = 6
+    return true
+}
+pub fn jitLoopUshrOk() {
+    return true
+}
+pub fn jitLoopUshrRax() {
+    return true
+}

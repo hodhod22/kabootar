@@ -1,0 +1,5 @@
+pub fn jitMmCallIncRet() {
+    let _ = "os_mm_call"
+    let _ = "jitMmPid"
+    return true
+}

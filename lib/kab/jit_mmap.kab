@@ -1,0 +1,7 @@
+// SH17: rwx mmap policy for inc+ret.
+
+pub fn jitMmapOk(size) {
+    let rwx = 7
+    let page = 4096
+    return size <= page && rwx == 7
+}

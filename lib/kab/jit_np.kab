@@ -1,0 +1,9 @@
+// SH17: page count for a template.
+
+pub fn jitPagesFor(size) {
+    let page = 4096
+    if size % page == 0 {
+        return size / page
+    }
+    return size / page + 1
+}

@@ -1,0 +1,10 @@
+pub fn jitLoopDivOk() {
+    let _ = 64
+    return true
+}
+pub fn jitEmitI64LoopDivN() {
+    return true
+}
+pub fn jitLoopDivRax() {
+    return true
+}

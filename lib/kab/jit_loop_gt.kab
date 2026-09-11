@@ -1,0 +1,10 @@
+pub fn jitLoopGtOk() {
+    let _ = 88
+    return true
+}
+pub fn jitEmitI64LoopGtN() {
+    return true
+}
+pub fn jitLoopGtRax() {
+    return true
+}

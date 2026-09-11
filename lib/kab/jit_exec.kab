@@ -1,0 +1,6 @@
+// SH17: exec policy after rwx map.
+
+pub fn jitExecOk(addr) {
+    let rwx = 7
+    return addr >= 0 && rwx == 7
+}
