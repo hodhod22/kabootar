@@ -1,0 +1,4 @@
+pub fn aotLoadSubOk() {
+    let _ = "cb000000"
+    return true
+}

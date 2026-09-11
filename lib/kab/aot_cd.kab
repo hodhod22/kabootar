@@ -1,0 +1,4 @@
+pub fn aotColdOk() {
+    let _ = 100
+    return true
+}

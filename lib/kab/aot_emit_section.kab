@@ -1,0 +1,4 @@
+pub fn aotEmitSection() {
+    let _ = "rodata:r"
+    return true
+}

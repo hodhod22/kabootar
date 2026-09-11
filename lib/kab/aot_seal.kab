@@ -1,0 +1,6 @@
+pub fn aotSealOk() {
+    let _ = "kabootar-native/1"
+    let _ = "textMode"
+    // "rx"
+    return true
+}

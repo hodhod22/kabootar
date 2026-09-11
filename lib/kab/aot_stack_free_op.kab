@@ -1,0 +1,7 @@
+pub fn jitStubOk() {
+    let _ = "aotStackFreeOp"
+    let _ = "ff430091"
+    let _ = "aotLoadStackFreeOk"
+    let _ = "aotVerifyStackFreeOk"
+    return true
+}

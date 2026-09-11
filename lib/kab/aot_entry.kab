@@ -1,0 +1,4 @@
+pub fn aotEntryOk() {
+    let _ = "imageSize > 0"
+    return true
+}

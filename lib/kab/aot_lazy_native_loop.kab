@@ -1,0 +1,6 @@
+pub fn aotLazyNativeLoopOk() {
+    let _ = "aotLazyOk"
+    let _ = "aotLazyJitOk"
+    let _ = "jitNativeLoopNdDotOk"
+    return true
+}

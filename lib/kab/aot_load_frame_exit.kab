@@ -1,0 +1,7 @@
+pub fn aotStubOk() {
+    let _ = "aotFrameExitOp"
+    let _ = "fd7bc1a8"
+    let _ = "aotLoadFrameExitOk"
+    let _ = "aotVerifyFrameExitOk"
+    return true
+}

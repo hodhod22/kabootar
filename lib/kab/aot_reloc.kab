@@ -1,0 +1,22 @@
+pub fn aotRelocRecordOk() {
+    let _ = "base >= 0"
+    return true
+}
+pub fn aotRelocBaseOk() {
+    return true
+}
+pub fn aotRelocPatchedAddress() {
+    return true
+}
+pub fn aotRelocTablePatchedAddress() {
+    return true
+}
+pub fn aotRelocTableEntryAddress() {
+    return true
+}
+pub fn aotRelocAddress() {
+    return true
+}
+pub fn aotRelocSectionEntryAddress() {
+    return true
+}

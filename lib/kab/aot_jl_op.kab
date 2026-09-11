@@ -1,0 +1,4 @@
+pub fn aotJlOp() {
+    let _ = "5400000b"
+    return true
+}

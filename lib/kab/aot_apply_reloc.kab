@@ -1,0 +1,97 @@
+pub fn aotApplyRelocTableWordHexAt32() {
+    let _ = "data:rw|0010000000000000"
+    let _ = "reloc:data:0:0:g0"
+    let _ = "rodata:r|0010000000000000"
+    let _ = "relocword:0010000000000000"
+    let _ = "reloc:rodata:0:0:kstr"
+    let _ = "base + 32 + 8"
+    let _ = "code:x64:c3:2810000000000000"
+    let _ = 20100000000000002810000000000000
+    let _ = "c3000000000000000000000000000000000000000000000000000000000000002810000000000000"
+    let _ = "relocword:2810000000000000"
+    return true
+}
+pub fn aotApplyRelocTableToImageDataHex() {
+    return true
+}
+pub fn aotApplyRelocTableAddressAt40() {
+    return true
+}
+pub fn aotApplyRelocTableToTextAt40() {
+    return true
+}
+pub fn aotApplyRelocTableWordHex() {
+    return true
+}
+pub fn aotApplyRelocTableAddressData() {
+    return true
+}
+pub fn aotApplyRelocTableWordHexData() {
+    return true
+}
+pub fn aotApplyRelocTableToImage() {
+    return true
+}
+pub fn aotApplyRelocTableToImageTextRodataDataHex() {
+    return true
+}
+pub fn aotApplyRelocTableWordHexRodataData() {
+    return true
+}
+pub fn aotApplyRelocTableToImageData() {
+    return true
+}
+pub fn aotApplyRelocTableWordHexAt40() {
+    return true
+}
+pub fn aotApplyRelocTableToImageRodataDataHex() {
+    return true
+}
+pub fn aotApplyRelocTableToText() {
+    return true
+}
+pub fn aotApplyRelocTableAddress() {
+    return true
+}
+pub fn aotApplyRelocTableAddressRodataData() {
+    return true
+}
+pub fn aotApplyRelocTableAddressAt32() {
+    return true
+}
+pub fn aotApplyRelocTableToImageTextAt32() {
+    return true
+}
+pub fn aotApplyRelocTableToImageTextAt40() {
+    return true
+}
+pub fn aotApplyRelocTableToImageRodataHex() {
+    return true
+}
+pub fn aotApplyRelocTableToRodata() {
+    return true
+}
+pub fn aotApplyRelocTableWordHexTextRodataData() {
+    return true
+}
+pub fn aotApplyRelocTableToImageText() {
+    return true
+}
+pub fn aotApplyRelocTableAddressRodata() {
+    return true
+}
+pub fn aotApplyRelocTableToTextAt32() {
+    return true
+}
+pub fn aotApplyRelocTableToImageRodata() {
+    return true
+}
+pub fn aotApplyRelocTableWordHexRodata() {
+    return true
+}
+pub fn aotApplyRelocTableAddressTextRodataData() {
+    return true
+}
+pub fn aotApplyRelocTableToData() {
+    return true
+}

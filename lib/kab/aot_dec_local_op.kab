@@ -1,0 +1,7 @@
+pub fn jitStubOk() {
+    let _ = "aotDecLocalOp"
+    let _ = "a00b40f9000400d1a00b00f9"
+    let _ = "aotLoadDecLocalOk"
+    let _ = "aotVerifyDecLocalOk"
+    return true
+}

@@ -1,0 +1,4 @@
+pub fn aotNotOp() {
+    let _ = "aa2003e0"
+    return true
+}

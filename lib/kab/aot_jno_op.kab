@@ -1,0 +1,7 @@
+pub fn jitStubOk() {
+    let _ = "aotJnoOp"
+    let _ = 54000007
+    let _ = "aotLoadJnoOk"
+    let _ = "aotVerifyJnoOk"
+    return true
+}

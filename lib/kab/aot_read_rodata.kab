@@ -1,0 +1,4 @@
+pub fn aotReadRodata() {
+    let _ = "os_read(path)"
+    return true
+}

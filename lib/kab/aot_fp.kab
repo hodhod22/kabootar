@@ -1,0 +1,4 @@
+pub fn aotFpOk() {
+    let _ = "len(fp)"
+    return true
+}

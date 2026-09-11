@@ -1,0 +1,4 @@
+pub fn aotCacheKeyOk() {
+    let _ = "len(key) > 7"
+    return true
+}

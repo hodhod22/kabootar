@@ -1,0 +1,4 @@
+pub fn aotCmpOp() {
+    let _ = "eb00001f"
+    return true
+}

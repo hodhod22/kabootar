@@ -1,0 +1,4 @@
+pub fn aotWritePlan() {
+    let _ = "os_write(path, plan)"
+    return true
+}

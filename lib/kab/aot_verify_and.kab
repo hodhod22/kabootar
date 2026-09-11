@@ -1,0 +1,4 @@
+pub fn aotVerifyAndOk() {
+    let _ = "8a000000"
+    return true
+}

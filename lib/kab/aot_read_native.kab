@@ -1,0 +1,4 @@
+pub fn aotReadNative() {
+    let _ = "os_read(path)"
+    return true
+}

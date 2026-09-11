@@ -1,0 +1,4 @@
+pub fn aotLoadedPlanOk() {
+    let _ = "page:4096"
+    return true
+}

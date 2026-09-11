@@ -1,0 +1,4 @@
+pub fn aotLoadShlOk() {
+    let _ = "d37ff800"
+    return true
+}

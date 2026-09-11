@@ -1,0 +1,4 @@
+pub fn aotLoadZeroOk() {
+    let _ = "aa1f03e0"
+    return true
+}

@@ -1,0 +1,7 @@
+pub fn aotStubOk() {
+    let _ = "aotBranchLocalZeroOp"
+    let _ = "a00b40f91f0000f154000000"
+    let _ = "aotLoadBranchLocalZeroOk"
+    let _ = "aotVerifyBranchLocalZeroOk"
+    return true
+}

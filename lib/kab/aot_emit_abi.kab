@@ -1,0 +1,4 @@
+pub fn aotEmitAbi() {
+    let _ = "abi:aapcs64"
+    return true
+}

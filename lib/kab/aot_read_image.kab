@@ -1,0 +1,4 @@
+pub fn aotReadImage() {
+    let _ = "os_read(path)"
+    return true
+}

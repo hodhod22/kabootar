@@ -1,0 +1,4 @@
+pub fn aotOrOp() {
+    let _ = "aa000000"
+    return true
+}

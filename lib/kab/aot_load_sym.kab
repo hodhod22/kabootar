@@ -1,0 +1,8 @@
+pub fn aotLoadSymbolOk() {
+    let _ = "sym:text:32:main:x64"
+    let _ = "sym:text:32:main:arm64"
+    return true
+}
+pub fn aotEmitSymbol() {
+    return true
+}

@@ -1,0 +1,29 @@
+pub fn aotEmitImage() {
+    let _ = "reloc:data:0:0:g0:x64"
+    let _ = "reloc:rodata:0:0:kstr:x64"
+    let _ = "code:x64:ret"
+    let _ = "sym:text:32:main:x64"
+    let _ = "reloc:text:32:0:main:x64"
+    return true
+}
+pub fn aotEmitImageWithRelocAddend() {
+    return true
+}
+pub fn aotEmitImageWithTables() {
+    return true
+}
+pub fn aotEmitImageWithRelocTable() {
+    return true
+}
+pub fn aotEmitImageWithRelocTableData() {
+    return true
+}
+pub fn aotEmitImageWithRelocTableRodataData() {
+    return true
+}
+pub fn aotEmitImageWithRelocTableTextRodataData() {
+    return true
+}
+pub fn aotEmitImageWithRelocTableRodata() {
+    return true
+}

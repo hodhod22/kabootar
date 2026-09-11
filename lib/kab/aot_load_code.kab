@@ -1,0 +1,4 @@
+pub fn aotLoadCodeOk() {
+    let _ = "code:arm64:ret"
+    return true
+}

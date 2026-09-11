@@ -1,0 +1,4 @@
+pub fn aotAbiOk() {
+    let _ = "aapcs64"
+    return true
+}

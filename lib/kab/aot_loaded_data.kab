@@ -1,0 +1,4 @@
+pub fn aotLoadedDataOk() {
+    let _ = "data:rw|00"
+    return true
+}

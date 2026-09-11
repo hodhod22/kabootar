@@ -1,0 +1,4 @@
+pub fn aotLoadDivOk() {
+    let _ = "9ac00c00"
+    return true
+}

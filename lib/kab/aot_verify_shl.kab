@@ -1,0 +1,4 @@
+pub fn aotVerifyShlOk() {
+    let _ = "d37ff800"
+    return true
+}

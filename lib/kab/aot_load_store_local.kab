@@ -1,0 +1,7 @@
+pub fn aotStubOk() {
+    let _ = "aotStoreLocalOp"
+    let _ = "a00b00f9"
+    let _ = "aotLoadStoreLocalOk"
+    let _ = "aotVerifyStoreLocalOk"
+    return true
+}

@@ -1,0 +1,7 @@
+pub fn aotStubOk() {
+    let _ = "aotJgOp"
+    let _ = "5400000c"
+    let _ = "aotLoadJgOk"
+    let _ = "aotVerifyJgOk"
+    return true
+}

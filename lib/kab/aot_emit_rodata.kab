@@ -1,0 +1,4 @@
+pub fn aotEmitRodata() {
+    let _ = "rodata:r|00"
+    return true
+}

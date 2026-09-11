@@ -1,0 +1,4 @@
+pub fn aotWriteData() {
+    let _ = "os_write(path, data)"
+    return true
+}

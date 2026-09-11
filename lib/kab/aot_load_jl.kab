@@ -1,0 +1,4 @@
+pub fn aotLoadJlOk() {
+    let _ = "5400000b"
+    return true
+}

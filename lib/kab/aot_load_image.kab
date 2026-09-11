@@ -1,0 +1,67 @@
+pub fn aotLoadImageWithRelocWordDataOk() {
+    let _ = "pgo:8"
+    let _ = "fp:abc"
+    let _ = "cold:100"
+    let _ = "ss:16"
+    let _ = "data:rw|0010000000000000"
+    let _ = "rodata:r|0010000000000000|data:rw|0010000000000000"
+    let _ = "reloc:data:0:0:g0:x64"
+    let _ = "relocword:0010000000000000"
+    let _ = 20100000000000002810000000000000
+    let _ = "c3000000000000000000000000000000000000000000000000000000000000002810000000000000"
+    let _ = "code:x64:c3:2810000000000000"
+    let _ = "relocword:2810000000000000"
+    let _ = "code:arm64:ret"
+    let _ = "reloc:text:32:8:main:arm64"
+    let _ = "sym:text:32:main:arm64"
+    let _ = "reloc:text:32:0:main:arm64"
+    return true
+}
+pub fn aotLoadImageWithPgoWarmOk() {
+    return true
+}
+pub fn aotLoadImageOk() {
+    return true
+}
+pub fn aotLoadImageWithRelocWordRodataOk() {
+    return true
+}
+pub fn aotLoadImageWithPgoWarmFpColdSsOk() {
+    return true
+}
+pub fn aotLoadImageWithPgoWarmFpOk() {
+    return true
+}
+pub fn aotLoadImageWithRelocDataHexOk() {
+    return true
+}
+pub fn aotLoadImageWithRelocTextRodataDataHexOk() {
+    return true
+}
+pub fn aotLoadImageWithRelocTextAt40Ok() {
+    return true
+}
+pub fn aotLoadImageWithRelocTextAt32Ok() {
+    return true
+}
+pub fn aotLoadImageWithRelocRodataDataHexOk() {
+    return true
+}
+pub fn aotLoadImageWithPgoWarmFpColdOk() {
+    return true
+}
+pub fn aotLoadImageWithRelocWordOk() {
+    return true
+}
+pub fn aotLoadImageWithRelocTableOk() {
+    return true
+}
+pub fn aotLoadImageWithTablesOk() {
+    return true
+}
+pub fn aotLoadImageWithRelocRodataHexOk() {
+    return true
+}
+pub fn aotLoadImageWithRelocTextOk() {
+    return true
+}

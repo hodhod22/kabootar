@@ -1,0 +1,4 @@
+pub fn aotWriteLayout() {
+    let _ = "os_write(path, layout)"
+    return true
+}

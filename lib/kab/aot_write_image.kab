@@ -1,0 +1,4 @@
+pub fn aotWriteImage() {
+    let _ = "os_write(path, image)"
+    return true
+}

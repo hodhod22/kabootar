@@ -1,0 +1,8 @@
+pub fn aotEmitSymbolTable() {
+    let _ = "sym:text:0:_start:x64"
+    let _ = "sym:text:32:main:arm64"
+    return true
+}
+pub fn aotLoadSymbolTableOk() {
+    return true
+}

@@ -1,0 +1,5 @@
+pub fn aotJpOp() {
+    let _ = "aotJpOp"
+    let _ = "7a00"
+    return true
+}

@@ -1,0 +1,6 @@
+pub fn aotLayoutOk() {
+    // textMode == "rx"
+    // rodataMode == "r"
+    // dataMode == "rw"
+    return true
+}

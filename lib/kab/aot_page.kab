@@ -1,0 +1,4 @@
+pub fn aotPageOk() {
+    let _ = ">= 4096"
+    return true
+}

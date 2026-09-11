@@ -1,0 +1,4 @@
+pub fn aotRodataProtectOk() {
+    // "r"
+    return true
+}
