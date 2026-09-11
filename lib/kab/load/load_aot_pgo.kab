@@ -8,7 +8,7 @@ import "kab/aot/aot_load_image"
 pub fn loadAotPgoHits() {
     return 8
 }
-    10|
+
 pub fn loadAotPgoWarmPlan() {
     return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8"
 }
@@ -18,7 +18,7 @@ pub fn loadAotPgoWarmFpPlan() {
 }
 
 pub fn loadAotPgoWarmFpColdPlan() {
-    20|    return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:abc|cold:100"
+    return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:abc|cold:100"
 }
 
 pub fn loadAotPgoWarmFpColdSsPlan() {
@@ -28,7 +28,7 @@ pub fn loadAotPgoWarmFpColdSsPlan() {
 pub fn loadAotPgoSymRelocPlan() {
     return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:ret|pgo:8|fp:abc|cold:100|ss:16|sym:text:32:main:x64|reloc:text:32:0:main:x64"
 }
-    30|
+
 /// Full reloc image plus PGO hit threshold validates.
 pub fn loadAotPgoWarmOk(nBytes) {
     if loadAotRelocFullOk(nBytes) == false {
@@ -38,7 +38,7 @@ pub fn loadAotPgoWarmOk(nBytes) {
     let target = loadAotTarget()
     return aotLoadImageWithPgoWarmOk(plan, target)
 }
-    40|
+
 /// PGO warm plus fingerprint validates.
 pub fn loadAotPgoWarmFpOk(nBytes) {
     if loadAotPgoWarmOk(nBytes) == false {
@@ -48,7 +48,7 @@ pub fn loadAotPgoWarmFpOk(nBytes) {
     let target = loadAotTarget()
     return aotLoadImageWithPgoWarmFpOk(plan, target)
 }
-    50|
+
 /// Fingerprint plus cold-start budget validates.
 pub fn loadAotPgoWarmFpColdOk(nBytes) {
     if loadAotPgoWarmFpOk(nBytes) == false {
@@ -58,7 +58,7 @@ pub fn loadAotPgoWarmFpColdOk(nBytes) {
     let target = loadAotTarget()
     return aotLoadImageWithPgoWarmFpColdOk(plan, target)
 }
-    60|
+
 /// Cold-start plus steady-state frame budget validates.
 pub fn loadAotPgoWarmFpColdSsOk(nBytes) {
     if loadAotPgoWarmFpColdOk(nBytes) == false {
@@ -68,7 +68,7 @@ pub fn loadAotPgoWarmFpColdSsOk(nBytes) {
     let target = loadAotTarget()
     return aotLoadImageWithPgoWarmFpColdSsOk(plan, target)
 }
-    70|
+
 /// PGO budgets plus sym/reloc records validate — ship-ready gate.
 pub fn loadAotPgoBootstrapOk(nBytes) {
     if loadAotPgoWarmFpColdSsOk(nBytes) == false {

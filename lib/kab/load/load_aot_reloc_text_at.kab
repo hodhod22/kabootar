@@ -8,7 +8,7 @@ import "kab/aot/aot_load_image"
 pub fn loadAotRelocTextAt32Plan() {
     return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:c3000000000000000000000000000000000000000000000000000000000000002810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
 }
-    10|
+
 pub fn loadAotRelocTextAt40Plan() {
     return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:c30000000000000000000000000000000000000000000000000000000000000020100000000000002810000000000000|syms:sym:text:0:_start:x64;sym:text:32:main:x64|relocs:reloc:text:32:0:main:x64;reloc:text:32:8:main:x64"
 }
@@ -18,7 +18,7 @@ pub fn loadAotRelocTextAt32Ok(nBytes) {
     if loadAotRelocTextOk(nBytes) == false {
         return false
     }
-    20|    let plan = loadAotRelocTextAt32Plan()
+    let plan = loadAotRelocTextAt32Plan()
     let target = loadAotTarget()
     return aotLoadImageWithRelocTextAt32Ok(plan, target)
 }
@@ -28,7 +28,7 @@ pub fn loadAotRelocTextAt40Ok(nBytes) {
     if loadAotRelocTextAt32Ok(nBytes) == false {
         return false
     }
-    30|    let plan = loadAotRelocTextAt40Plan()
+    let plan = loadAotRelocTextAt40Plan()
     let target = loadAotTarget()
     return aotLoadImageWithRelocTextAt40Ok(plan, target)
 }

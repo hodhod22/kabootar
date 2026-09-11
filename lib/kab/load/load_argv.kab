@@ -1,0 +1,20 @@
+// SH19 deepen: argv[0] entry dispatch in Kab. import "kab/load/load_argv"
+// Do not grow load_src.kab. Host main.rs stays skuld.
+
+import "kab/cli"
+import "kab/cli/cli_path"
+import "kab/load/load_src"
+
+/// Classify argv[0]: runnable path, notebook, or CLI subcommand.
+pub fn loadArgvKind(arg) {
+    if cliIsNbPath(arg) {
+        return "nb"
+    }
+    if cliIsRunPath(arg) {
+        return "run"
+    }
+    if cliIsRun(arg) || cliIsRepl(arg) || cliIsTest(arg) {
+        return "cli"
+    }
+    return ""
+}

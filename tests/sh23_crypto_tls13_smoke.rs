@@ -1070,8 +1070,11 @@ fn sh23_crypto_tls13_host_delete_policy() {
     // Verify delete gate delegates to the aggregate SH23 smoke gate
     assert!(crypto_host_file.contains("cryptoHostDeleteOk"), "should have delete ok function");
     assert!(crypto_host_file.contains("cryptoTls13AllOk"), "should use aggregate gate");
-    
-    // Make sure it's not accidentally hardcoded to true/false
+
+    // Live suite only runs when the harness declares peers are up — otherwise
+    // the gate stays closed without dying on tcp_connect (uncatchable on Kab-VM).
+    assert!(crypto_host_file.contains("KAB_TLS_PEERS"), "should require live-peer env before running suite");
+
+    // Make sure it's not accidentally hardcoded to true
     assert!(!crypto_host_file.contains("return true"), "delete gate should not be hardcoded true");
-    assert!(!crypto_host_file.contains("return false"), "delete gate should not be hardcoded false");
 }
