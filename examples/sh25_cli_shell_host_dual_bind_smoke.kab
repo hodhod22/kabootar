@@ -1,0 +1,14 @@
+import "kab/cli/cli_shell"
+import "kab/cli/cli_serve"
+import "kab/cli/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsServe("serve") == false {
+    return false
+}
+if cliIsShell("shell") == false {
+    return false
+}
+return cliHostDeleteOk() == false

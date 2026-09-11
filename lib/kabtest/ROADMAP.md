@@ -33,7 +33,7 @@ KT0 inventering
 | **KT5** | Guest **Kv8**: eval källtext, assert resultat | En JS-lik fil i suite | ✅ subset: `kabtest/guest_kv8` + `ok.kv8`; `kv8/eval` DAG/`@version` deepen |
 | **KT6** | Guest **proc**: spawn, timeout, golden stdout/exit | t.ex. `python -c` *eller* Kab-binär — adapter, inte hårdkodat språk | ✅ subset: `kabtest/guest_proc` + `ok.golden`; `os_spawn`/timeout deepen |
 | **KT7** | Coverage: importerade moduler + rad-approx i Kab | Rapport utan `src/cli/test_runner` coverage | ✅ subset: `kabtest/cov` `ktCovPct` / `ktCovIsMod` / `ktCovLineHint`; instrumentation deepen |
-| **KT8** | `kabootar test` anropar kabtest; radera `test_runner.rs` | SH25 delete-gate | ✅ subset: `kabtest/cli` `ktCliIsTest` / `ktCliDefaultRoot` / `ktCliExit`; Rust `test_cmd` + delete deepen |
+| **KT8** | `kabootar test` anropar kabtest; radera `test_runner.rs` | SH25 delete-gate | ✅ subset: `kabtest/cli` `ktCliIsTest` / `ktCliDefaultRoot` / `ktCliIsCoverage` / `ktCliExit` / `ktCliHostDeleteOk`; Rust `test_cmd` + delete deepen |
 | **KT9** | Produkt-CI: kabtest-gates; `cargo test` bara kvarvarande `src/`-skuld | SH28 närmare | ✅ subset: `kabtest/ci` `ktCiIsProductGate` / `ktCiCargoForSrcSkuld`; workflow utan rustc deepen |
 
 ## Adapters (KT5–KT6)

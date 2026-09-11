@@ -1,0 +1,3 @@
+import "kab/cli/cli_nb"
+
+return cliIsNotebook("notebook") && cliIsNotebook("nb")

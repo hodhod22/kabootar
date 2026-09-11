@@ -1,0 +1,6 @@
+// SH25: notebook/nb argv off cli_shell.kab. import "kab/cli/cli_nb"
+// Do not grow cli_shell.kab. Host src/cli remains skuld.
+
+pub fn cliIsNotebook(cmd) {
+    return cmd == "notebook" || cmd == "nb"
+}

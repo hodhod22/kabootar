@@ -1,0 +1,3 @@
+import "kab/cli/cli_shell"
+
+return cliIsShell("shell")

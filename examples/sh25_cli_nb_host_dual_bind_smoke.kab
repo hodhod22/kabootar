@@ -1,0 +1,17 @@
+import "kab/cli/cli_nb"
+import "kab/cli/cli_shell"
+import "kab/cli/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsShell("shell") == false {
+    return false
+}
+if cliIsNotebook("notebook") == false {
+    return false
+}
+if cliIsNotebook("nb") == false {
+    return false
+}
+return cliHostDeleteOk() == false

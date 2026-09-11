@@ -63169,7 +63169,7 @@ fn sh25_cli_plan_in_kab() {
 #[test]
 fn sh25_cli_cc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/cli_cc.kab")).expect("cli_cc.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/cli/cli_cc.kab")).expect("cli_cc.kab");
     assert!(
         c.contains("pub fn cliIsCompile") && c.contains("compile"),
         "SH25 Kab cliIsCompile"
@@ -63180,7 +63180,7 @@ fn sh25_cli_cc_in_kab() {
 #[test]
 fn sh25_cli_fmt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let f = std::fs::read_to_string(root.join("lib/kab/cli_fmt.kab")).expect("cli_fmt.kab");
+    let f = std::fs::read_to_string(root.join("lib/kab/cli/cli_fmt.kab")).expect("cli_fmt.kab");
     assert!(
         f.contains("pub fn cliIsFmt") && f.contains("fmt"),
         "SH25 Kab cliIsFmt"
@@ -63191,7 +63191,7 @@ fn sh25_cli_fmt_in_kab() {
 #[test]
 fn sh25_cli_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/cli_host.kab")).expect("cli_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/cli/cli_host.kab")).expect("cli_host.kab");
     assert!(
         h.contains("pub fn cliHostDeleteOk") && h.contains("false"),
         "SH25 Kab cliHostDeleteOk delete gate"
@@ -63219,7 +63219,7 @@ fn sh25_cli_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_check_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/cli_check.kab")).expect("cli_check.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/cli/cli_check.kab")).expect("cli_check.kab");
     assert!(
         c.contains("pub fn cliIsCheck") && c.contains("check"),
         "SH25 Kab cliIsCheck"
@@ -63244,7 +63244,7 @@ fn sh25_cli_check_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_lint_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/cli_lint.kab")).expect("cli_lint.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/cli/cli_lint.kab")).expect("cli_lint.kab");
     assert!(
         l.contains("pub fn cliIsLint") && l.contains("lint"),
         "SH25 Kab cliIsLint"
@@ -63269,7 +63269,7 @@ fn sh25_cli_lint_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_version_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let v = std::fs::read_to_string(root.join("lib/kab/cli_version.kab")).expect("cli_version.kab");
+    let v = std::fs::read_to_string(root.join("lib/kab/cli/cli_version.kab")).expect("cli_version.kab");
     assert!(
         v.contains("pub fn cliIsVersion") && v.contains("version"),
         "SH25 Kab cliIsVersion"
@@ -63294,7 +63294,7 @@ fn sh25_cli_version_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_help_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/cli_help.kab")).expect("cli_help.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/cli/cli_help.kab")).expect("cli_help.kab");
     assert!(
         h.contains("pub fn cliIsHelp") && h.contains("help"),
         "SH25 Kab cliIsHelp"
@@ -63319,7 +63319,7 @@ fn sh25_cli_help_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_doc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/cli_doc.kab")).expect("cli_doc.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/cli/cli_doc.kab")).expect("cli_doc.kab");
     assert!(
         d.contains("pub fn cliIsDoc") && d.contains("doc"),
         "SH25 Kab cliIsDoc"
@@ -63344,7 +63344,7 @@ fn sh25_cli_doc_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_bench_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let b = std::fs::read_to_string(root.join("lib/kab/cli_bench.kab")).expect("cli_bench.kab");
+    let b = std::fs::read_to_string(root.join("lib/kab/cli/cli_bench.kab")).expect("cli_bench.kab");
     assert!(
         b.contains("pub fn cliIsBench") && b.contains("bench"),
         "SH25 Kab cliIsBench"
@@ -63369,7 +63369,7 @@ fn sh25_cli_bench_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_new_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let n = std::fs::read_to_string(root.join("lib/kab/cli_new.kab")).expect("cli_new.kab");
+    let n = std::fs::read_to_string(root.join("lib/kab/cli/cli_new.kab")).expect("cli_new.kab");
     assert!(
         n.contains("pub fn cliIsNew") && n.contains("new"),
         "SH25 Kab cliIsNew"
@@ -63394,7 +63394,7 @@ fn sh25_cli_new_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_init_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let i = std::fs::read_to_string(root.join("lib/kab/cli_init.kab")).expect("cli_init.kab");
+    let i = std::fs::read_to_string(root.join("lib/kab/cli/cli_init.kab")).expect("cli_init.kab");
     assert!(
         i.contains("pub fn cliIsInit") && i.contains("init"),
         "SH25 Kab cliIsInit"
@@ -63419,7 +63419,7 @@ fn sh25_cli_init_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_watch_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let w = std::fs::read_to_string(root.join("lib/kab/cli_watch.kab")).expect("cli_watch.kab");
+    let w = std::fs::read_to_string(root.join("lib/kab/cli/cli_watch.kab")).expect("cli_watch.kab");
     assert!(
         w.contains("pub fn cliIsWatch") && w.contains("watch"),
         "SH25 Kab cliIsWatch"
@@ -63444,7 +63444,7 @@ fn sh25_cli_watch_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_clean_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/cli_clean.kab")).expect("cli_clean.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/cli/cli_clean.kab")).expect("cli_clean.kab");
     assert!(
         c.contains("pub fn cliIsClean") && c.contains("clean"),
         "SH25 Kab cliIsClean"
@@ -63469,7 +63469,7 @@ fn sh25_cli_clean_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_add_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/cli_add.kab")).expect("cli_add.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/cli/cli_add.kab")).expect("cli_add.kab");
     assert!(
         a.contains("pub fn cliIsAdd") && a.contains("add"),
         "SH25 Kab cliIsAdd"
@@ -63494,7 +63494,7 @@ fn sh25_cli_add_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_rm_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let r = std::fs::read_to_string(root.join("lib/kab/cli_rm.kab")).expect("cli_rm.kab");
+    let r = std::fs::read_to_string(root.join("lib/kab/cli/cli_rm.kab")).expect("cli_rm.kab");
     assert!(
         r.contains("pub fn cliIsRm") && r.contains("rm"),
         "SH25 Kab cliIsRm"
@@ -63519,7 +63519,7 @@ fn sh25_cli_rm_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_mod_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let m = std::fs::read_to_string(root.join("lib/kab/cli_mod.kab")).expect("cli_mod.kab");
+    let m = std::fs::read_to_string(root.join("lib/kab/cli/cli_mod.kab")).expect("cli_mod.kab");
     assert!(
         m.contains("pub fn cliIsMod") && m.contains("mod"),
         "SH25 Kab cliIsMod"
@@ -63544,7 +63544,7 @@ fn sh25_cli_mod_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_ls_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/cli_ls.kab")).expect("cli_ls.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/cli/cli_ls.kab")).expect("cli_ls.kab");
     assert!(
         l.contains("pub fn cliIsLs") && l.contains("ls"),
         "SH25 Kab cliIsLs"
@@ -63569,7 +63569,7 @@ fn sh25_cli_ls_host_dual_bind_in_kab() {
 #[test]
 fn sh25_cli_cat_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/cli_cat.kab")).expect("cli_cat.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/cli/cli_cat.kab")).expect("cli_cat.kab");
     assert!(
         c.contains("pub fn cliIsCat") && c.contains("cat"),
         "SH25 Kab cliIsCat"
@@ -63587,6 +63587,161 @@ fn sh25_cli_cat_host_dual_bind_in_kab() {
             && s.contains("cliIsCat")
             && s.contains("cat"),
         "SH25 Kab cli cat host dual-bind"
+    );
+}
+
+/// SH25 deepen: serve argv lives off cli_cat.kab.
+#[test]
+fn sh25_cli_serve_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/cli/cli_serve.kab")).expect("cli_serve.kab");
+    assert!(
+        s.contains("pub fn cliIsServe") && s.contains("serve"),
+        "SH25 Kab cliIsServe"
+    );
+}
+
+/// SH25 deepen: serve dual-bind to host delete gate.
+#[test]
+fn sh25_cli_serve_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_serve_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_serve_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsServe")
+            && s.contains("serve"),
+        "SH25 Kab cli serve host dual-bind"
+    );
+}
+
+/// SH25 deepen: shell argv lives off cli_serve.kab.
+#[test]
+fn sh25_cli_shell_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/cli/cli_shell.kab")).expect("cli_shell.kab");
+    assert!(
+        s.contains("pub fn cliIsShell") && s.contains("shell"),
+        "SH25 Kab cliIsShell"
+    );
+}
+
+/// SH25 deepen: shell dual-bind to host delete gate.
+#[test]
+fn sh25_cli_shell_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_shell_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_shell_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsShell")
+            && s.contains("shell"),
+        "SH25 Kab cli shell host dual-bind"
+    );
+}
+
+/// SH25 deepen: notebook/nb argv lives off cli_shell.kab.
+#[test]
+fn sh25_cli_nb_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kab/cli/cli_nb.kab")).expect("cli_nb.kab");
+    assert!(
+        n.contains("pub fn cliIsNotebook")
+            && n.contains("notebook")
+            && n.contains("nb"),
+        "SH25 Kab cliIsNotebook"
+    );
+}
+
+/// SH25 deepen: notebook dual-bind to host delete gate.
+#[test]
+fn sh25_cli_nb_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_nb_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_nb_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsNotebook")
+            && s.contains("notebook"),
+        "SH25 Kab cli notebook host dual-bind"
+    );
+}
+
+/// SH25 deepen: registry argv lives off cli_nb.kab.
+#[test]
+fn sh25_cli_registry_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/cli/cli_registry.kab"))
+        .expect("cli_registry.kab");
+    assert!(
+        r.contains("pub fn cliIsRegistry") && r.contains("registry"),
+        "SH25 Kab cliIsRegistry"
+    );
+}
+
+/// SH25 deepen: registry dual-bind to host delete gate.
+#[test]
+fn sh25_cli_registry_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_registry_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_registry_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsRegistry")
+            && s.contains("registry"),
+        "SH25 Kab cli registry host dual-bind"
+    );
+}
+
+/// SH25 deepen: install argv lives off cli_registry.kab.
+#[test]
+fn sh25_cli_install_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/cli/cli_install.kab"))
+        .expect("cli_install.kab");
+    assert!(
+        i.contains("pub fn cliIsInstall") && i.contains("install"),
+        "SH25 Kab cliIsInstall"
+    );
+}
+
+/// SH25 deepen: install dual-bind to host delete gate.
+#[test]
+fn sh25_cli_install_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_install_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_install_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsInstall")
+            && s.contains("install"),
+        "SH25 Kab cli install host dual-bind"
+    );
+}
+
+/// SH25 deepen: publish argv lives off cli_install.kab.
+#[test]
+fn sh25_cli_publish_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/cli/cli_publish.kab"))
+        .expect("cli_publish.kab");
+    assert!(
+        p.contains("pub fn cliIsPublish") && p.contains("publish"),
+        "SH25 Kab cliIsPublish"
+    );
+}
+
+/// SH25 deepen: publish dual-bind to host delete gate.
+#[test]
+fn sh25_cli_publish_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh25_cli_publish_host_dual_bind_smoke.kab"))
+        .expect("sh25_cli_publish_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("cliHostDeleteOk")
+            && s.contains("cliIsPublish")
+            && s.contains("publish"),
+        "SH25 Kab cli publish host dual-bind"
     );
 }
 

@@ -9,9 +9,17 @@ pub fn ktCliDefaultRoot() {
     return "tests"
 }
 
+pub fn ktCliIsCoverage(arg) {
+    return arg == "--coverage"
+}
+
 pub fn ktCliExit(ok) {
     if ok {
         return 0
     }
     return 1
+}
+
+pub fn ktCliHostDeleteOk() {
+    return false
 }

@@ -1,0 +1,6 @@
+// SH25: publish argv off cli_install.kab. import "kab/cli/cli_publish"
+// Do not grow cli_install.kab. Host src/cli remains skuld.
+
+pub fn cliIsPublish(cmd) {
+    return cmd == "publish"
+}

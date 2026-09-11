@@ -1,0 +1,14 @@
+import "kab/cli/cli_install"
+import "kab/cli/cli_registry"
+import "kab/cli/cli_host"
+
+if cliHostDeleteOk() != false {
+    return false
+}
+if cliIsRegistry("registry") == false {
+    return false
+}
+if cliIsInstall("install") == false {
+    return false
+}
+return cliHostDeleteOk() == false
