@@ -540,7 +540,7 @@ pub fn eval_binary_op(
                 return r;
             }
             match (left, right) {
-            (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a * b)),
+            (Value::Number(a), Value::Number(b)) => Ok(Value::Number((*a).wrapping_mul(*b))),
             (Value::Float(a), Value::Float(b)) => Ok(Value::Float(a * b)),
             (Value::Number(a), Value::Float(b)) => Ok(Value::Float(*a as f64 * b)),
             (Value::Float(a), Value::Number(b)) => Ok(Value::Float(a * *b as f64)),
