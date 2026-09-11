@@ -1,0 +1,7 @@
+// SH17: tiny x64 opcode check leaf.
+
+let X64_RET = 195
+
+pub fn jitByteIsRet(b) {
+    return b == X64_RET
+}

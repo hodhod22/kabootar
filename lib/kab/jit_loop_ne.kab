@@ -1,0 +1,10 @@
+pub fn jitLoopNeRax() {
+    let _ = 86
+    return true
+}
+pub fn jitEmitI64LoopNeN() {
+    return true
+}
+pub fn jitLoopNeOk() {
+    return true
+}

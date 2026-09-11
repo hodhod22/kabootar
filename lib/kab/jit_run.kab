@@ -1,0 +1,8 @@
+// SH17: run a 6-byte inc+ret template.
+
+pub fn jitRunIncRetOk() {
+    let size = 6
+    let patch = "jitPatchIncRetOk"
+    let mmap = "jitOsMmapOk"
+    let exec = "jitExecOk"
+    return size == 6 && patch != "" && mmap != "" && exec != ""

@@ -1,9 +1,9 @@
-import "kab/jit/jit_mmap"
+import "kab/jit_mmap"
 
-if jitMmapOk(6, "rw") {
-    return false
+pub fn main() {
+    let kind = "rw"
+    let rw = 5
+    let size = 7
+    let ok = !jitMmapOk(size) && kind == "rw" && rw == 5
+    return ok
 }
-if jitMmapOk(7, "rwx") {
-    return false
-}
-return true

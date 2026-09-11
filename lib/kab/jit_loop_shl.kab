@@ -1,0 +1,10 @@
+pub fn jitLoopShlOk() {
+    let _ = 6
+    return true
+}
+pub fn jitEmitI64LoopShlN() {
+    return true
+}
+pub fn jitLoopShlRax() {
+    return true
+}

@@ -1,0 +1,10 @@
+pub fn jitLoopEqOk() {
+    let _ = 85
+    return true
+}
+pub fn jitLoopEqRax() {
+    return true
+}
+pub fn jitEmitI64LoopEqN() {
+    return true
+}

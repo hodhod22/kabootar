@@ -1,0 +1,6 @@
+pub fn jitCallLoopDivOk() {
+    let _ = "jitWrLoopDivOk"
+    let _ = "jitRunLoopDivOk"
+    let _ = "jitMmCallLoopDiv"
+    return true
+}

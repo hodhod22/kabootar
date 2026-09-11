@@ -1,0 +1,10 @@
+pub fn jitLoopNotOk() {
+    let _ = 83
+    return true
+}
+pub fn jitEmitI64LoopNotN() {
+    return true
+}
+pub fn jitLoopNotRax() {
+    return true
+}

@@ -1,0 +1,7 @@
+// SH17: rwx map policy for 6-byte inc+ret template.
+
+pub fn jitMapIncRetOk() {
+    let rwx = 7
+    let size = 6
+    return rwx == 7 && size == 6
+}

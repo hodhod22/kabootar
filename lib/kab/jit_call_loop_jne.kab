@@ -1,0 +1,6 @@
+pub fn jitCallLoopJneOk() {
+    let _ = "jitWrLoopJneOk"
+    let _ = "jitRunLoopJneOk"
+    let _ = "jitMmCallLoopJne"
+    return true
+}

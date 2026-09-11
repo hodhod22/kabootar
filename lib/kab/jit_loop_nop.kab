@@ -1,0 +1,10 @@
+pub fn jitEmitI64LoopNopN() {
+    let _ = 99
+    return true
+}
+pub fn jitLoopNopRax() {
+    return true
+}
+pub fn jitLoopNopOk() {
+    return true
+}

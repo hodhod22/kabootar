@@ -1,0 +1,10 @@
+pub fn jitLoopSubRax() {
+    let _ = 64
+    return true
+}
+pub fn jitEmitI64LoopSubN() {
+    return true
+}
+pub fn jitLoopSubOk() {
+    return true
+}

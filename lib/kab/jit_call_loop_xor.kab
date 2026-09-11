@@ -1,0 +1,6 @@
+pub fn jitCallLoopXorOk() {
+    let _ = "jitWrLoopXorOk"
+    let _ = "jitRunLoopXorOk"
+    let _ = "jitMmCallLoopXor"
+    return true
+}

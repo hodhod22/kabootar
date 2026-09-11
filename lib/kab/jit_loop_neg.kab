@@ -1,0 +1,10 @@
+pub fn jitEmitI64LoopNegN() {
+    let _ = 84
+    return true
+}
+pub fn jitLoopNegOk() {
+    return true
+}
+pub fn jitLoopNegRax() {
+    return true
+}

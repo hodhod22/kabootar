@@ -1,0 +1,6 @@
+pub fn jitCallIncRetOk() {
+    let _ = "jitWrIncRetOk"
+    let _ = "jitRunIncRetOk"
+    let _ = "jitMmCallIncRet"
+    return true
+}

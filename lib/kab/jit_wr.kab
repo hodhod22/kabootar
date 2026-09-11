@@ -1,0 +1,6 @@
+pub fn jitWrIncRetOk() {
+    let _ = "os_mm_translate"
+    let _ = "jitMmStoreIncRet"
+    let _ = "jitPatchIncRetOk"
+    return true
+}

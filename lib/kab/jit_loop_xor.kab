@@ -1,0 +1,10 @@
+pub fn jitEmitI64LoopXorN() {
+    let _ = 64
+    return true
+}
+pub fn jitLoopXorOk() {
+    return true
+}
+pub fn jitLoopXorRax() {
+    return true
+}

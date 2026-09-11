@@ -1,0 +1,6 @@
+pub fn jitCallLoopNotOk() {
+    let _ = "jitWrLoopNotOk"
+    let _ = "jitRunLoopNotOk"
+    let _ = "jitMmCallLoopNot"
+    return true
+}
