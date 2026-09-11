@@ -1,0 +1,5 @@
+pub fn jitNativeLoopGprOk() {
+    let _ = "jitNativeLoopTcoSelfOk"
+    let _ = "jitScanGprs"
+    return true
+}

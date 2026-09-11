@@ -1,0 +1,4 @@
+pub fn jitLicmOk() {
+
+    return true
+}

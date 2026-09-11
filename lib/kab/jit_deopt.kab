@@ -1,0 +1,4 @@
+pub fn jitDeoptOk() {
+
+    return true
+}

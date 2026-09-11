@@ -1,0 +1,5 @@
+pub fn jitNativeLoopDeoptOk() {
+    let _ = "jitNativeLoopGvnOk"
+    let _ = "jitDeoptOk"
+    return true
+}

@@ -1,0 +1,4 @@
+pub fn jitSsaOk() {
+
+    return true
+}
