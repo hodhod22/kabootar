@@ -1,0 +1,30 @@
+// SH18 deepen 3: large object space — big allocs bypass the nursery.
+// import "kab/gc/gc_los"
+// Do not grow gc_alloc.kab. Large objects land in old space and are never
+// bump-allocated or evacuated by the semi-space copy.
+
+import "kab/gc"
+import "kab/gc/gc_rem"
+
+/// Space for an alloc of n bytes: >= nursery cap goes straight to old (LOS).
+pub fn gcLosSpace(n) {
+    if n >= gcNurseryCap() {
+        return gcGenOld()
+    }
+    return gcGenYoung()
+}
+
+/// Gate: a small alloc lands young; a large alloc lands old in place — no
+/// nursery charge, no copy evacuation.
+pub fn gcLosOk(small, large) {
+    if small >= gcNurseryCap() {
+        return false
+    }
+    if large < gcNurseryCap() {
+        return false
+    }
+    if gcLosSpace(small) != gcGenYoung() {
+        return false
+    }
+    return gcLosSpace(large) == gcGenOld()
+}

@@ -1,0 +1,24 @@
+// SH18 deepen 3: rollup gc_deep2 + compaction + LOS + free-list leaves.
+// import "kab/gc/gc_deep3"
+// Do not grow gc_deep2.kab. gcHostDeleteOk stays false.
+
+import "kab/gc/gc_deep2"
+import "kab/gc/gc_compact"
+import "kab/gc/gc_los"
+import "kab/gc/gc_fl"
+
+/// Deep-3 chain: full gc_deep2 rollup plus sliding compaction (4 slots, 2 live
+/// pack to slots 0..1), large-object-space bypass (64B young, 128KiB old), and
+/// first-fit free-list reuse of swept holes.
+pub fn gcDeep3Ok() {
+    if gcDeep2Ok() == false {
+        return false
+    }
+    if gcCompactOk([10, 20, 30, 40], [20, 40], 2) == false {
+        return false
+    }
+    if gcLosOk(64, 131072) == false {
+        return false
+    }
+    return gcFlAllocOk()
+}

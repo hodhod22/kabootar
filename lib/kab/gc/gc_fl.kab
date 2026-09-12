@@ -1,0 +1,48 @@
+// SH18 deepen 3: free-list old-space alloc — swept holes are reused first-fit.
+// import "kab/gc/gc_fl"
+// Do not grow gc_sweep.kab. free[] is a list of hole sizes; a hole shrunk to 0
+// is consumed (never fits a positive request).
+
+/// First-fit index of a hole >= n, or -1.
+pub fn gcFlFit(free, n) {
+    if n <= 0 {
+        return -1
+    }
+    let i = 0
+    while i < len(free) {
+        if free[i] >= n {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+/// Alloc n bytes first-fit: the chosen hole shrinks in place. Returns the
+/// updated free list; unchanged when no hole fits.
+pub fn gcFlAlloc(free, n) {
+    let i = gcFlFit(free, n)
+    if i < 0 {
+        return free
+    }
+    free[i] = free[i] - n
+    return free
+}
+
+/// Gate: holes [64, 32, 128]; alloc 48 takes hole 0 (->16), alloc 100 takes
+/// hole 2 (->28), alloc 200 fits nothing.
+pub fn gcFlAllocOk() {
+    let free = gcFlAlloc([64, 32, 128], 48)
+    if free[0] != 16 {
+        return false
+    }
+    free = gcFlAlloc(free, 100)
+    if free[2] != 28 {
+        return false
+    }
+    if gcFlFit(free, 200) != -1 {
+        return false
+    }
+    free = gcFlAlloc(free, 200)
+    return free[0] == 16 && free[2] == 28
+}

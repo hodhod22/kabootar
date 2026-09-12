@@ -58905,6 +58905,141 @@ fn sh18_gc_deep2_exec_smoke() {
         .expect("join");
 }
 
+/// SH18 deepen 3: sliding compaction stays in a tiny leaf (do not grow gc_copy).
+#[test]
+fn sh18_gc_compact_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/gc/gc_compact.kab")).expect("gc_compact.kab");
+    assert!(
+        c.contains("pub fn gcCompactFwd")
+            && c.contains("pub fn gcCompactOk"),
+        "SH18 Kab sliding compaction"
+    );
+}
+
+/// SH18 deepen 3: large object space stays in a tiny leaf (do not grow gc_alloc).
+#[test]
+fn sh18_gc_los_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/gc/gc_los.kab")).expect("gc_los.kab");
+    assert!(
+        l.contains("pub fn gcLosSpace")
+            && l.contains("pub fn gcLosOk")
+            && l.contains("gcNurseryCap"),
+        "SH18 Kab large object space"
+    );
+}
+
+/// SH18 deepen 3: free-list first-fit stays in a tiny leaf (do not grow gc_sweep).
+#[test]
+fn sh18_gc_fl_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/gc/gc_fl.kab")).expect("gc_fl.kab");
+    assert!(
+        f.contains("pub fn gcFlFit")
+            && f.contains("pub fn gcFlAlloc")
+            && f.contains("pub fn gcFlAllocOk"),
+        "SH18 Kab free-list first-fit"
+    );
+}
+
+/// SH18 deepen 3: rollup leaf chains deep-2 + compact/los/fl.
+#[test]
+fn sh18_gc_deep3_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/gc/gc_deep3.kab")).expect("gc_deep3.kab");
+    assert!(
+        d.contains("pub fn gcDeep3Ok")
+            && d.contains("gcDeep2Ok")
+            && d.contains("gcCompactOk")
+            && d.contains("gcLosOk")
+            && d.contains("gcFlAllocOk"),
+        "SH18 Kab deep-3 rollup"
+    );
+}
+
+/// SH18 deepen 3: sliding compaction gate (eval).
+#[test]
+fn sh18_gc_compact_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_compact_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-compact-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc compact smoke");
+            let value = eval_program(&program, &mut env).expect("run gc compact smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 3: large object space gate (eval).
+#[test]
+fn sh18_gc_los_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_los_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-los-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc los smoke");
+            let value = eval_program(&program, &mut env).expect("run gc los smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 3: free-list first-fit gate (eval).
+#[test]
+fn sh18_gc_fl_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_fl_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-fl-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc fl smoke");
+            let value = eval_program(&program, &mut env).expect("run gc fl smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 3: full deep-3 capstone — chain + deep-3 leaves + gates closed (eval).
+#[test]
+fn sh18_gc_deep3_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_deep3_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-deep3-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc deep3 smoke");
+            let value = eval_program(&program, &mut env).expect("run gc deep3 smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 #[test]
 fn sh19_load_aot_capstone_exec_smoke() {
     let path = format!(

@@ -42,3 +42,12 @@ pub fn gcCapstoneDeep2Ok(live) {
     }
     return gcCapstoneGatesClosed()
 }
+
+/// Full GC capstone including the deep-3 leaves (compact/LOS/free-list)
+/// — host delete gates still closed.
+pub fn gcCapstoneDeep3Ok(live) {
+    if gcChainDeep3Ok(live) == false {
+        return false
+    }
+    return gcCapstoneGatesClosed()
+}
