@@ -1,0 +1,34 @@
+// SH18 deepen: @manual allocs are exempt from nursery accounting.
+// import "kab/gc/gc_manual"
+// Do not grow gc_alloc.kab. Release-mode @manual skips the bump charge.
+
+import "kab/gc"
+
+/// A @manual alloc leaves `used` untouched; a normal alloc bumps by n.
+pub fn gcManualAlloc(manual, used, n) {
+    if manual {
+        return used
+    }
+    return gcBump(used, n)
+}
+
+/// Gate: manual allocs never charge the nursery; normal allocs add n.
+pub fn gcManualChargeOk(manual, used, n) {
+    let after = gcManualAlloc(manual, used, n)
+    if manual {
+        return after == used
+    }
+    return after == used + n
+}
+
+/// Host dual-bind: a real nursery_alloc of n bytes bumps host `used` by n.
+pub fn gcManualHostOk(n) {
+    if n <= 0 {
+        return false
+    }
+    let st0 = gc_nursery_stats()
+    let used0 = st0["used"]
+    let _ = gc_nursery_alloc(n)
+    let st1 = gc_nursery_stats()
+    return st1["used"] == used0 + n
+}

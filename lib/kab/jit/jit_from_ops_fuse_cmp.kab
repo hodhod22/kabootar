@@ -1,0 +1,77 @@
+// SH17 deepen: ops-driven cmp+branch fusion — const/const/cmp/jcc/ret lowers
+// to ONE guest predicate template; jump_if_false folds the negated predicate.
+// import "kab/jit/jit_from_ops_fuse_cmp"
+// Do not grow jit_from_ops_fuse.kab. Ops select the predicate; n,k are the imms.
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_fuse_cmp"
+import "kab/jit/jit_mm_loop_fuse_cmp"
+import "kab/jit/jit_call_loop_fuse_cmp"
+
+/// Resolved guest magic for a fusible cmp+jcc chain: jump_if_true keeps the
+/// predicate, jump_if_false negates it. 0 when the chain cannot fuse.
+pub fn jitFuseCmpTarget(ops) {
+    let m = jitCmpMagic(ops[2])
+    if ops[3] == "jump_if_false" {
+        return jitCmpNeg(m)
+    }
+    return m
+}
+
+/// True when ops are exactly the fusible cmp+branch chain
+/// const/const/cmp/jump_if_*/ret with a resolvable predicate.
+pub fn jitFuseCmpOpsOk(ops) {
+    if typeof(ops) != "array" {
+        return false
+    }
+    if len(ops) != 5 {
+        return false
+    }
+    if ops[0] != "const" {
+        return false
+    }
+    if ops[1] != "const" {
+        return false
+    }
+    if jitCmpMagic(ops[2]) == 0 {
+        return false
+    }
+    if ops[3] != "jump_if_true" {
+        if ops[3] != "jump_if_false" {
+            return false
+        }
+    }
+    if ops[4] != "ret" {
+        return false
+    }
+    if jitFuseCmpTarget(ops) == 0 {
+        return false
+    }
+    return true
+}
+
+/// Compile a fusible cmp+branch chain into one predicate template and exec it
+/// in the guest MMU; true when guest rax matches jitFuseCmpRax.
+pub fn jitFromOpsFuseCmpOk(ops, n, k) {
+    if jitCanCompile(ops) == false {
+        return false
+    }
+    if jitFuseCmpOpsOk(ops) == false {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        if jitOpOk(ops[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    if jitFuseCmpOk(n, k) == false {
+        return false
+    }
+    let magic = jitFuseCmpTarget(ops)
+    let base = os_mm_mmap(jitMmLoopFuseCmpPid(), jitMmLoopFuseCmpVirt(), jitMmLoopFuseCmpLen(), jitMmLoopFuseCmpProt())
+    let bytes = jitEmitI64FuseCmp(magic, n, k)
+    return jitCallLoopFuseCmpOk(base, "rwx", magic, n, k, bytes)
+}

@@ -1,0 +1,6 @@
+import "kab/jit/jit_f64"
+import "kab/jit/jit_call_loop_f64"
+
+let kind = "rwx"
+let tpl = jitEmitI64F64(103, 16, 3)
+return jitCallLoopF64Ok(663552, kind, 103, 16, 0, tpl) == false

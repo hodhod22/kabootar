@@ -1,0 +1,28 @@
+// SH17 deepen: translate+store for fused-chain template. import "kab/jit/jit_wr_loop_fuse"
+// Do not grow jit_wr_loop_mod.kab.
+
+import "kab/jit/jit_patch_loop_fuse"
+import "kab/jit/jit_mm_loop_fuse"
+import "kab/jit/jit_mm_store_loop_fuse"
+import "kab/jit/jit_fuse"
+
+pub fn jitWrLoopFuseOk(bytes, n, k, s, m, d, r) {
+    if jitPatchLoopFuseOk(bytes, n, k, s, m, d, r) == false {
+        return false
+    }
+    let pid = jitMmLoopFusePid()
+    let virt = jitMmLoopFuseVirt()
+    let p0 = os_mm_translate(pid, virt)
+    if p0 <= 0 {
+        return false
+    }
+    let p7 = os_mm_translate(pid, virt + 7)
+    if p7 <= 0 {
+        return false
+    }
+    let w = jitMmStoreLoopFuse(bytes, n, k, s, m, d, r)
+    if w != jitFuseLen() {
+        return false
+    }
+    return true
+}

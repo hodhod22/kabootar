@@ -1,0 +1,8 @@
+import "kab/gc/gc_sweep"
+
+let objs = [1, 2, 3, 4]
+let marked = [1, 2]
+if gcSweepFreeBytes(objs, marked, 64) != 128 {
+    return false
+}
+return gcSweepBytesOk(objs, marked, 64, 128)

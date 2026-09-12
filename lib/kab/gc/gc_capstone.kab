@@ -24,3 +24,21 @@ pub fn gcCapstoneOk(live) {
     }
     return gcCapstoneGatesClosed()
 }
+
+/// Full GC capstone including the deep leaves (tricolor/incr/rem/copy/sweep/
+/// @manual) — host delete gates still closed.
+pub fn gcCapstoneDeepOk(live) {
+    if gcChainDeepOk(live) == false {
+        return false
+    }
+    return gcCapstoneGatesClosed()
+}
+
+/// Full GC capstone including the deep-2 leaves (tenuring/card-scan/safepoint)
+/// — host delete gates still closed.
+pub fn gcCapstoneDeep2Ok(live) {
+    if gcChainDeep2Ok(live) == false {
+        return false
+    }
+    return gcCapstoneGatesClosed()
+}

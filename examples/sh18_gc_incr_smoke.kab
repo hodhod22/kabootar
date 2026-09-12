@@ -1,0 +1,16 @@
+import "kab/gc/gc_incr"
+
+if gcIncrStep([1, 2, 3, 4], 0, 2) != 2 {
+    return false
+}
+if gcIncrMarkOk(4, 2, 1) {
+    return false
+}
+let kids = [[1, 2], [3], [], []]
+if gcIncrTreeMarkOk([0], kids, 1, 3) {
+    return false
+}
+if gcIncrTreeMarkOk([0], kids, 1, 4) == false {
+    return false
+}
+return gcIncrMarkOk(4, 2, 4)

@@ -1,0 +1,11 @@
+import "kab/jit/jit_fuse_cmp"
+import "kab/jit/jit_mm_loop_fuse_cmp"
+import "kab/jit/jit_call_loop_fuse_cmp"
+
+let kind = "rwx"
+let magic = 87
+let n = 16
+let k = 3
+let tpl = jitEmitI64FuseCmp(magic, n, k)
+let base = os_mm_mmap(jitMmLoopFuseCmpPid(), jitMmLoopFuseCmpVirt(), jitMmLoopFuseCmpLen(), jitMmLoopFuseCmpProt())
+return jitCallLoopFuseCmpOk(base, kind, magic, n, k, tpl)

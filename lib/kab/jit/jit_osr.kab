@@ -1,0 +1,16 @@
+// SH17 deepen: OSR eligibility — on-stack replace at a hot loop header.
+// import "kab/jit/jit_osr"
+// Do not grow jit_hot.kab. pc 0 is fn entry; OSR only inside a hot loop body.
+
+import "kab/jit/jit_hot"
+
+/// True when execution may be replaced mid-loop: header pc > 0 and hot.
+pub fn jitOsrOk(pc, hits) {
+    if pc <= 0 {
+        return false
+    }
+    if jitHotOk(hits) == false {
+        return false
+    }
+    return true
+}

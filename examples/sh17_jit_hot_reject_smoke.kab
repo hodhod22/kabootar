@@ -1,0 +1,16 @@
+import "kab/jit/jit_from_ops_hot"
+
+let ops = ["const", "add", "sub", "mul", "div", "mod", "ret"]
+if jitFromOpsHotExecOk(ops, 7, 16, 3, 2, 4, 2, 5) {
+    return false
+}
+if jitHotOpsOk(ops, 7) {
+    return false
+}
+if jitHotOpsOk(["const", "add", "call", "ret"], 9) {
+    return false
+}
+if jitHotOpsOk("not-ops", 9) {
+    return false
+}
+return true

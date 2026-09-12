@@ -1,0 +1,15 @@
+import "kab/jit/jit_ic"
+
+if jitIcOk(1, 90, 9) == false {
+    return false
+}
+if jitIcOk(2, 90, 9) {
+    return false
+}
+if jitIcOk(1, 50, 9) {
+    return false
+}
+if jitIcOk(1, 90, 7) {
+    return false
+}
+return true

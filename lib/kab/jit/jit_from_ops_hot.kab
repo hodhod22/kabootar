@@ -1,0 +1,33 @@
+// SH17 deepen: hot ops → fused compile. import "kab/jit/jit_from_ops_hot"
+// Do not grow jit_from_ops_fuse.kab. Cold or illegal ops stay interpreted.
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_from_ops_fuse"
+import "kab/jit/jit_hot"
+
+/// True when ops are JIT-legal AND the profile is hot enough to compile.
+pub fn jitHotOpsOk(ops, hits) {
+    if jitHotOk(hits) == false {
+        return false
+    }
+    if jitCanCompile(ops) == false {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        if jitOpOk(ops[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+/// Hot fusible chain → fused exec; true when the guest rax matches jitFuseRax.
+pub fn jitFromOpsHotExecOk(ops, hits, n, k, s, m, d, r) {
+    if jitHotOpsOk(ops, hits) == false {
+        return false
+    }
+    return jitFromOpsFuseOk(ops, n, k, s, m, d, r)
+}

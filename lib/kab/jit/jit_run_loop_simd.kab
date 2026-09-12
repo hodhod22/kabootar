@@ -1,0 +1,31 @@
+// SH17 deepen: mmap+exec policy for SIMD template.
+// import "kab/jit/jit_run_loop_simd"
+// Do not grow jit_run_loop_f64.kab.
+
+import "kab/jit/jit_mmap_loop"
+import "kab/jit/jit_np"
+import "kab/jit/jit_exec"
+import "kab/jit/jit_mm_loop_simd"
+import "kab/jit/jit_patch_loop_simd"
+import "kab/jit/jit_simd_op"
+
+pub fn jitRunLoopSimdOk(base, kind, bytes, magic, a0, a1, b0, b1) {
+    if base <= 0 {
+        return false
+    }
+    if jitPatchLoopSimdOk(bytes, magic, a0, a1, b0, b1) == false {
+        return false
+    }
+    let nb = len(bytes)
+    if jitMmapLoopOk(nb, kind) == false {
+        return false
+    }
+    if jitOsMmapLoopSimdOk(nb, kind, magic, a0, a1, b0, b1) == false {
+        return false
+    }
+    let pages = jitPagesFor(nb)
+    if jitExecOk(pages, kind) == false {
+        return false
+    }
+    return true
+}

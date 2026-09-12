@@ -1,0 +1,39 @@
+// SH17 deepen: fused-chain guest mmap args. import "kab/jit/jit_mm_loop_fuse"
+// Do not grow jit_mm_loop_mod.kab. Separate virt slot from single-op loops.
+
+import "kab/jit/jit_fuse"
+
+pub fn jitMmLoopFusePid() {
+    return 1
+}
+
+pub fn jitMmLoopFuseVirt() {
+    return 647168
+}
+
+pub fn jitMmLoopFuseLen() {
+    return 4096
+}
+
+pub fn jitMmLoopFuseProt() {
+    return 7
+}
+
+pub fn jitOsMmapLoopFuseOk(nBytes, kind, n, k, s, m, d, r) {
+    if jitFuseOk(n, k, s, m, d, r) == false {
+        return false
+    }
+    if nBytes != jitFuseLen() {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    if jitMmLoopFuseLen() != 4096 {
+        return false
+    }
+    if jitMmLoopFuseProt() != 7 {
+        return false
+    }
+    return true
+}

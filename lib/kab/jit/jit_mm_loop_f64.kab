@@ -1,0 +1,42 @@
+// SH17 deepen: f64 guest mmap args. import "kab/jit/jit_mm_loop_f64"
+// Do not grow jit_mm_loop_fuse_cmp.kab. Separate virt slot for f64 exec.
+
+import "kab/jit/jit_f64"
+
+pub fn jitMmLoopF64Pid() {
+    return 1
+}
+
+pub fn jitMmLoopF64Virt() {
+    return 663552
+}
+
+pub fn jitMmLoopF64Len() {
+    return 4096
+}
+
+pub fn jitMmLoopF64Prot() {
+    return 7
+}
+
+pub fn jitOsMmapLoopF64Ok(nBytes, kind, magic, n, k) {
+    if jitF64MagicOk(magic) == false {
+        return false
+    }
+    if jitF64Ok(n, k) == false {
+        return false
+    }
+    if nBytes != jitF64Len() {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    if jitMmLoopF64Len() != 4096 {
+        return false
+    }
+    if jitMmLoopF64Prot() != 7 {
+        return false
+    }
+    return true
+}

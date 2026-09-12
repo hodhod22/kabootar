@@ -1,0 +1,10 @@
+import "kab/jit/jit_from_ops_osr"
+
+let ops = ["const", "add", "sub", "mul", "div", "mod", "ret"]
+if jitFromOpsOsrExecOk(ops, 0, 9, 16, 3, 2, 4, 2, 5) {
+    return false
+}
+if jitFromOpsOsrExecOk(ops, 4, 7, 16, 3, 2, 4, 2, 5) {
+    return false
+}
+return true

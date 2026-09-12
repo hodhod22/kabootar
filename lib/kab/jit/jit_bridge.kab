@@ -4,6 +4,8 @@
 import "kab/jit"
 import "kab/jit/jit_run"
 import "kab/jit/jit_mm"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_emit_op"
 
 /// Check if a function can be JIT-compiled by Kab-JIT (Rust callable).
 pub fn jitBridgeCanCompile(opcodeNames) {

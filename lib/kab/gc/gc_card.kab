@@ -1,0 +1,47 @@
+// SH18 deepen: card-table scan — dirty cards feed the gray worklist.
+// import "kab/gc/gc_card"
+// Do not grow gc_rem.kab. cards[] maps card index -> object ids on that card.
+
+import "kab/gc/gc_rem"
+import "kab/gc/gc_member"
+
+/// Re-scan objects living on dirty cards; returns the deduped gray worklist.
+pub fn gcCardScan(rem, cards) {
+    let gray = []
+    let i = 0
+    while i < len(rem) {
+        let card = rem[i]
+        if card < len(cards) {
+            let objs = cards[card]
+            let j = 0
+            while j < len(objs) {
+                if gcIsMarked(gray, objs[j]) == false {
+                    gray = push(gray, objs[j])
+                }
+                j = j + 1
+            }
+        }
+        i = i + 1
+    }
+    return gray
+}
+
+/// Gate: one old→young store dirties one card and scanning yields exactly its
+/// objects; a second dirty card adds its objects without duplicating the first.
+pub fn gcCardScanOk() {
+    let cards = [[1, 2], [3], [4, 5]]
+    let rem = gcRemWrite([], gcGenOld(), gcGenYoung(), 1)
+    let gray = gcCardScan(rem, cards)
+    if len(gray) != 1 {
+        return false
+    }
+    if gray[0] != 3 {
+        return false
+    }
+    rem = gcRemWrite(rem, gcGenOld(), gcGenYoung(), 2)
+    gray = gcCardScan(rem, cards)
+    if len(gray) != 3 {
+        return false
+    }
+    return gcIsMarked(gray, 4) && gcIsMarked(gray, 5)
+}

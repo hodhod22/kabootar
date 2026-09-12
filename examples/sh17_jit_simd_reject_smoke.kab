@@ -1,0 +1,16 @@
+import "kab/jit/jit_from_ops_simd"
+
+let ops = ["const", "const", "const", "const", "simd_dot", "ret"]
+if jitSimdOpsOk(["const", "const", "simd_add", "ret"]) {
+    return false
+}
+if jitSimdOpsOk(["const", "const", "const", "const", "add", "ret"]) {
+    return false
+}
+if jitFromOpsSimdOk(ops, 0, 3, 2, 4) {
+    return false
+}
+if jitFromOpsSimdOk(ops, 16, 3, 2, 65) {
+    return false
+}
+return true

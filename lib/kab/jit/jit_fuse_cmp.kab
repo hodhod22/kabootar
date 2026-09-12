@@ -1,0 +1,149 @@
+// SH17 deepen: fused cmp+branch chain template. import "kab/jit/jit_fuse_cmp"
+// Do not grow jit_fuse.kab. const/const/cmp/jcc/ret lowers to ONE guest
+// predicate template; jump_if_false folds the negated predicate.
+
+import "kab/jit/jit_loop_n"
+
+pub fn jitFuseCmpMax() {
+    return 64
+}
+
+/// Guest magic for a cmp-family op name; 0 when not a fusible predicate.
+pub fn jitCmpMagic(name) {
+    if name == "eq" {
+        return 85
+    }
+    if name == "ne" {
+        return 86
+    }
+    if name == "lt" {
+        return 87
+    }
+    if name == "gt" {
+        return 88
+    }
+    if name == "le" {
+        return 89
+    }
+    if name == "ge" {
+        return 90
+    }
+    if name == "test" {
+        return 91
+    }
+    return 0
+}
+
+/// Negated predicate magic for jump_if_false fusion; 0 when no negated
+/// template exists (test has none).
+pub fn jitCmpNeg(magic) {
+    if magic == 85 {
+        return 86
+    }
+    if magic == 86 {
+        return 85
+    }
+    if magic == 87 {
+        return 90
+    }
+    if magic == 88 {
+        return 89
+    }
+    if magic == 89 {
+        return 88
+    }
+    if magic == 90 {
+        return 87
+    }
+    return 0
+}
+
+/// Operand bounds match the guest U–b template contract (n,k 1..=64).
+pub fn jitFuseCmpOk(n, k) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if k <= 0 {
+        return false
+    }
+    if k > jitFuseCmpMax() {
+        return false
+    }
+    return true
+}
+
+/// True when magic is a predicate template the guest can exec.
+pub fn jitFuseCmpMagicOk(magic) {
+    if magic < 85 {
+        return false
+    }
+    if magic > 91 {
+        return false
+    }
+    return true
+}
+
+/// Mirror of the guest predicate semantics for dual-bind checks.
+pub fn jitFuseCmpRax(n, k, magic) {
+    if magic == 85 {
+        if n == k {
+            return 1
+        }
+        return 0
+    }
+    if magic == 86 {
+        if n != k {
+            return 1
+        }
+        return 0
+    }
+    if magic == 87 {
+        if n < k {
+            return 1
+        }
+        return 0
+    }
+    if magic == 88 {
+        if n > k {
+            return 1
+        }
+        return 0
+    }
+    if magic == 89 {
+        if n <= k {
+            return 1
+        }
+        return 0
+    }
+    if magic == 90 {
+        if n >= k {
+            return 1
+        }
+        return 0
+    }
+    if magic == 91 {
+        if (n & k) == 0 {
+            return 0
+        }
+        return 1
+    }
+    return 0
+}
+
+pub fn jitFuseCmpLen() {
+    return jitLoopNLen()
+}
+
+/// Predicate marker, n, k, pad, ret — simulated guest rax = jitFuseCmpRax.
+pub fn jitEmitI64FuseCmp(magic, n, k) {
+    let b = []
+    b = push(b, magic)
+    b = push(b, n)
+    b = push(b, k)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

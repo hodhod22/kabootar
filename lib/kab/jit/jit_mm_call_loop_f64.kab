@@ -1,0 +1,25 @@
+// SH17 deepen: guest call for f64 template.
+// import "kab/jit/jit_mm_call_loop_f64"
+// Do not grow jit_mm_call_loop_fuse_cmp.kab.
+
+import "kab/jit/jit_mm_loop_f64"
+import "kab/jit/jit_f64"
+
+pub fn jitMmCallLoopF64(bytes, magic, n, k) {
+    if jitF64MagicOk(magic) == false {
+        return 0
+    }
+    if jitF64Ok(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitF64Len() {
+        return 0
+    }
+    let pid = jitMmLoopF64Pid()
+    let virt = jitMmLoopF64Virt()
+    let res = os_mm_call(pid, virt)
+    if res != jitF64Rax(n, k, magic) {
+        return 0
+    }
+    return res
+}

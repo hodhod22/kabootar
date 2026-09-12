@@ -1,0 +1,110 @@
+// SH18 deepen: incremental mark with a real gray worklist.
+// import "kab/gc/gc_incr"
+// Do not grow gc_conc.kab. Each frame drains at most `slice` gray items;
+// the whole mark must finish within framesMax frames.
+
+import "kab/gc"
+
+/// Seed the gray worklist from the root set.
+pub fn gcIncrStart(roots) {
+    let gray = []
+    let i = 0
+    while i < len(roots) {
+        gray = push(gray, roots[i])
+        i = i + 1
+    }
+    return gray
+}
+
+/// One frame slice: process at most `slice` gray items starting at cursor
+/// `at`; returns the new cursor.
+pub fn gcIncrStep(gray, at, slice) {
+    let done = 0
+    while at < len(gray) {
+        if done >= slice {
+            return at
+        }
+        at = at + 1
+        done = done + 1
+    }
+    return at
+}
+
+/// Child-aware frame slice: scanning gray[at] shades its children (kids[obj])
+/// onto the worklist. Returns [cursor, worklist] after at most `slice` scans.
+pub fn gcIncrScanSlice(gray, at, slice, kids) {
+    let done = 0
+    while at < len(gray) {
+        if done >= slice {
+            return [at, gray]
+        }
+        let obj = gray[at]
+        if obj < len(kids) {
+            let ch = kids[obj]
+            let i = 0
+            while i < len(ch) {
+                gray = push(gray, ch[i])
+                i = i + 1
+            }
+        }
+        at = at + 1
+        done = done + 1
+    }
+    return [at, gray]
+}
+
+/// Incremental mark over a tree: roots seed gray; scanning a node shades its
+/// children into the worklist (each node has one parent — no visited set).
+/// False when the frame budget is exceeded before the worklist drains.
+pub fn gcIncrTreeMarkOk(roots, kids, slice, framesMax) {
+    if slice <= 0 {
+        return false
+    }
+    if framesMax <= 0 {
+        return false
+    }
+    let gray = gcIncrStart(roots)
+    let at = 0
+    let frames = 0
+    while at < len(gray) {
+        if frames >= framesMax {
+            return false
+        }
+        let st = gcIncrScanSlice(gray, at, slice, kids)
+        at = st[0]
+        gray = st[1]
+        frames = frames + 1
+    }
+    return at == len(gray)
+}
+
+/// Incremental mark of nRoots in `slice`-sized steps within `framesMax`
+/// frames; false when the budget is exceeded.
+pub fn gcIncrMarkOk(nRoots, slice, framesMax) {
+    if nRoots <= 0 {
+        return false
+    }
+    if slice <= 0 {
+        return false
+    }
+    if framesMax <= 0 {
+        return false
+    }
+    let roots = []
+    let i = 0
+    while i < nRoots {
+        roots = push(roots, i)
+        i = i + 1
+    }
+    let gray = gcIncrStart(roots)
+    let at = 0
+    let frames = 0
+    while at < len(gray) {
+        if frames >= framesMax {
+            return false
+        }
+        at = gcIncrStep(gray, at, slice)
+        frames = frames + 1
+    }
+    return at == len(gray)
+}

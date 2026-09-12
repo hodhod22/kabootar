@@ -1,0 +1,35 @@
+// SH17 deepen: validate f64 template.
+// import "kab/jit/jit_patch_loop_f64"
+// Do not grow jit_patch_loop_fuse_cmp.kab.
+
+import "kab/jit/jit_f64"
+import "kab/jit/jit_check"
+
+pub fn jitPatchLoopF64Ok(bytes, magic, n, k) {
+    if jitF64MagicOk(magic) == false {
+        return false
+    }
+    if jitF64Ok(n, k) == false {
+        return false
+    }
+    let tpl = jitEmitI64F64(magic, n, k)
+    if len(bytes) != jitF64Len() {
+        return false
+    }
+    if len(tpl) != jitF64Len() {
+        return false
+    }
+    if bytes[0] != tpl[0] {
+        return false
+    }
+    if bytes[1] != tpl[1] {
+        return false
+    }
+    if bytes[2] != tpl[2] {
+        return false
+    }
+    if jitByteIsRet(bytes[7]) == false {
+        return false
+    }
+    return bytes[7] == tpl[7]
+}

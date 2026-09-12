@@ -1,0 +1,12 @@
+// SH17 deepen: hotness trigger — profile hits vs jitThreshold. import "kab/jit/jit_hot"
+// Do not grow jit.kab. Cold code stays in the Kab-VM; only hot ops get compiled.
+
+import "kab/jit"
+
+/// True when a loop/fn has hit the compile threshold (jitThreshold = 8).
+pub fn jitHotOk(hits) {
+    if hits < jitThreshold() {
+        return false
+    }
+    return true
+}

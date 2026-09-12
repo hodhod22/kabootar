@@ -1,0 +1,11 @@
+import "kab/gc/gc_card"
+
+// Empty rem set scans nothing; out-of-range card index is skipped.
+let cards = [[1, 2], [3], [4, 5]]
+if len(gcCardScan([], cards)) != 0 {
+    return false
+}
+if len(gcCardScan([9], cards)) != 0 {
+    return false
+}
+return gcCardScanOk()

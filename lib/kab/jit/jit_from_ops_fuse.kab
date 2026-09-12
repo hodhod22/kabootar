@@ -1,0 +1,68 @@
+// SH17 deepen: ops-driven fused codegen — the const/add/sub/mul/div/mod/ret
+// chain lowers to ONE guest L-template via mmap/store/os_mm_call.
+// import "kab/jit/jit_from_ops_fuse"
+// Do not grow jit_from_ops.kab. Ops select the template; imms come from the planner.
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_fuse"
+import "kab/jit/jit_mm_loop_fuse"
+import "kab/jit/jit_call_loop_fuse"
+
+/// True when ops are exactly the fusible i64 arith chain — one guest op covers
+/// the whole sequence instead of per-op templates.
+pub fn jitFuseOpsOk(ops) {
+    if typeof(ops) != "array" {
+        return false
+    }
+    if len(ops) != 7 {
+        return false
+    }
+    if ops[0] != "const" {
+        return false
+    }
+    if ops[1] != "add" {
+        return false
+    }
+    if ops[2] != "sub" {
+        return false
+    }
+    if ops[3] != "mul" {
+        return false
+    }
+    if ops[4] != "div" {
+        return false
+    }
+    if ops[5] != "mod" {
+        return false
+    }
+    if ops[6] != "ret" {
+        return false
+    }
+    return true
+}
+
+/// Compile a fusible op-chain into one L-template and exec it in the guest MMU.
+/// True when the guest rax matches jitFuseRax — real ops-driven codegen, not a
+/// fixed inc+ret like jitFromOpsOk.
+pub fn jitFromOpsFuseOk(ops, n, k, s, m, d, r) {
+    if jitCanCompile(ops) == false {
+        return false
+    }
+    if jitFuseOpsOk(ops) == false {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        if jitOpOk(ops[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    if jitFuseOk(n, k, s, m, d, r) == false {
+        return false
+    }
+    let base = os_mm_mmap(jitMmLoopFusePid(), jitMmLoopFuseVirt(), jitMmLoopFuseLen(), jitMmLoopFuseProt())
+    let bytes = jitEmitI64Fuse(n, k, s, m, d, r)
+    return jitCallLoopFuseOk(base, "rwx", n, k, s, m, d, r, bytes)
+}

@@ -1,0 +1,6 @@
+import "kab/jit/jit_fuse_cmp"
+import "kab/jit/jit_call_loop_fuse_cmp"
+
+let kind = "rwx"
+let tpl = jitEmitI64FuseCmp(87, 16, 3)
+return jitCallLoopFuseCmpOk(655360, kind, 87, 0, 3, tpl) == false

@@ -1,0 +1,21 @@
+// SH17 deepen: guest call for fused-chain template. import "kab/jit/jit_mm_call_loop_fuse"
+// Do not grow jit_mm_call_loop_mod.kab.
+
+import "kab/jit/jit_mm_loop_fuse"
+import "kab/jit/jit_fuse"
+
+pub fn jitMmCallLoopFuse(bytes, n, k, s, m, d, r) {
+    if jitFuseOk(n, k, s, m, d, r) == false {
+        return 0
+    }
+    if len(bytes) != jitFuseLen() {
+        return 0
+    }
+    let pid = jitMmLoopFusePid()
+    let virt = jitMmLoopFuseVirt()
+    let res = os_mm_call(pid, virt)
+    if res != jitFuseRax(n, k, s, m, d, r) {
+        return 0
+    }
+    return res
+}

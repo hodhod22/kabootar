@@ -43,10 +43,13 @@ pub fn jitEmitRet(out) {
     return push(out, X64_RET)
 }
 
+/// xor eax,eax; add eax,1; ret — the 6-byte guest inc+ret the MMU executes.
 pub fn jitEmitI64IncRet() {
     let t = []
-    t = push(t, 72)
-    t = push(t, 255)
+    t = push(t, 49)
     t = push(t, 192)
+    t = push(t, 131)
+    t = push(t, 192)
+    t = push(t, 1)
     return jitEmitRet(t)
 }

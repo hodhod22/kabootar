@@ -1,0 +1,10 @@
+import "kab/jit/jit_from_ops_fuse_cmp"
+
+let ops = ["const", "const", "lt", "jump_if_false", "ret"]
+if jitFuseCmpTarget(ops) != 90 {
+    return false
+}
+if jitFuseCmpTarget(["const", "const", "lt", "jump_if_true", "ret"]) != 87 {
+    return false
+}
+return jitFromOpsFuseCmpOk(ops, 16, 3)

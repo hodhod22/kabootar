@@ -23,10 +23,10 @@ pub fn gcLoadBumpOk() {
     return gcNeedCollect(u, cap)
 }
 
-/// Nursery cycle after cap fill; `live` bytes survive promote+sweep.
+/// Nursery cycle landing exactly on cap; `live` bytes survive promote+sweep.
 pub fn gcLoadCycleOk(live) {
     let cap = gcNurseryCap()
-    return gcNurseryCycleOk(cap, 8, live)
+    return gcNurseryCycleOk(0, cap, live)
 }
 
 /// Bump→cycle, then mark slices each within 16ms frame budget until `live` gray left.

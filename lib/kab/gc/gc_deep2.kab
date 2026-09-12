@@ -1,0 +1,25 @@
+// SH18 deepen 2: rollup gc_deep + tenuring + card-scan + safepoint leaves.
+// import "kab/gc/gc_deep2"
+// Do not grow gc_deep.kab. gcHostDeleteOk stays false.
+
+import "kab/gc/gc_deep"
+import "kab/gc/gc_age"
+import "kab/gc/gc_prom"
+import "kab/gc/gc_card"
+import "kab/gc/gc_safe"
+
+/// Deep-2 chain: full gc_deep rollup plus tenuring (2 cycles promote the 2
+/// marked), card-scan of dirty cards 1+2 (3 objects re-scanned), and safepoint
+/// polls (4 allocs, poll every 2, 2/2 parked → 2 collects run).
+pub fn gcDeep2Ok() {
+    if gcDeepOk() == false {
+        return false
+    }
+    if gcAgeCyclesOk([0, 1, 2, 3], [0, 1], gcPromoteThreshold(), 2) == false {
+        return false
+    }
+    if gcCardScanOk() == false {
+        return false
+    }
+    return gcSafeRunOk(4, 2, 2, 2, 2)
+}

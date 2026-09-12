@@ -1,0 +1,63 @@
+// SH17 deepen: ops-driven SIMD fusion — const x4 + sop + ret lowers to ONE
+// 2-lane guest SIMD template (magic 104-106). import "kab/jit/jit_from_ops_simd"
+// Do not grow jit_from_ops_f64.kab. Ops select the SIMD op; lanes are imms.
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_simd_op"
+import "kab/jit/jit_mm_loop_simd"
+import "kab/jit/jit_call_loop_simd"
+
+/// True when ops are exactly the fusible SIMD chain const/const/const/const/sop/ret.
+pub fn jitSimdOpsOk(ops) {
+    if typeof(ops) != "array" {
+        return false
+    }
+    if len(ops) != 6 {
+        return false
+    }
+    if ops[0] != "const" {
+        return false
+    }
+    if ops[1] != "const" {
+        return false
+    }
+    if ops[2] != "const" {
+        return false
+    }
+    if ops[3] != "const" {
+        return false
+    }
+    if jitSimdMagic(ops[4]) == 0 {
+        return false
+    }
+    if ops[5] != "ret" {
+        return false
+    }
+    return true
+}
+
+/// Compile a fusible SIMD chain into one 2-lane template and exec it in the
+/// guest MMU; true when guest rax matches jitSimdRax.
+pub fn jitFromOpsSimdOk(ops, a0, a1, b0, b1) {
+    if jitCanCompile(ops) == false {
+        return false
+    }
+    if jitSimdOpsOk(ops) == false {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        if jitOpOk(ops[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    if jitSimdLanesOk(a0, a1, b0, b1) == false {
+        return false
+    }
+    let magic = jitSimdMagic(ops[4])
+    let base = os_mm_mmap(jitMmLoopSimdPid(), jitMmLoopSimdVirt(), jitMmLoopSimdLen(), jitMmLoopSimdProt())
+    let bytes = jitEmitI64Simd(magic, a0, a1, b0, b1)
+    return jitCallLoopSimdOk(base, "rwx", magic, a0, a1, b0, b1, bytes)
+}

@@ -1047,7 +1047,8 @@ fn run_chunk(
                     if !func.def.generator_fn && !func.def.async_fn {
                         let p = Rc::as_ptr(&func.def) as usize;
                         let _hit = call_ic_observe(call_site_key(code, *ip), CallKind::Bc(p));
-                        let (result, obj_wb) = match call_bytecode_sync(func, call_args, env) {
+                        let (result, obj_wb) =
+                            match call_bytecode_sync(func, call_args, classes, env) {
                             Ok(v) => v,
                             Err(e) => {
                                 if try_catch_propagated_throw(
@@ -2120,6 +2121,17 @@ pub fn run_bytecode_fn_with_locals(
     args: Vec<Value>,
     env: &mut Environment,
 ) -> Result<(Value, Vec<Value>), String> {
+    run_bytecode_fn_with_locals_and_classes(func, args, &[], env)
+}
+
+/// `new_instance`/`new_instance_from_array` inside a fn body index the module
+/// class table — nested calls must see it or they hit "Invalid class index".
+pub fn run_bytecode_fn_with_locals_and_classes(
+    func: &BytecodeFnDef,
+    args: Vec<Value>,
+    classes: &[BytecodeClassDef],
+    env: &mut Environment,
+) -> Result<(Value, Vec<Value>), String> {
     if let Some(typed) = super::typed::try_run_typed_i64(func, &args) {
         let (v, local_vals) = typed?;
         sync_fn_locals_to_env(func, &local_vals, env);
@@ -2139,7 +2151,7 @@ pub fn run_bytecode_fn_with_locals(
         &func.locals,
         &func.immutable_locals,
         &func.arrow_functions,
-        &[],
+        classes,
         Some((func, args)),
         None,
         None,
@@ -2446,6 +2458,7 @@ pub fn schedule_bytecode_async(
 fn call_bytecode_sync(
     mut func: BytecodeFunction,
     args: Vec<Value>,
+    classes: &[BytecodeClassDef],
     env: &mut Environment,
 ) -> Result<(Value, Vec<(usize, Value)>), String> {
     crate::runtime::closure_sync::pull_bytecode_globals(&mut func, env);
@@ -2460,8 +2473,12 @@ fn call_bytecode_sync(
     } else {
         Vec::new()
     };
-    let (result, local_vals) =
-        run_bytecode_fn_with_locals(func.def.as_ref(), args, &mut call_env)?;
+    let (result, local_vals) = run_bytecode_fn_with_locals_and_classes(
+        func.def.as_ref(),
+        args,
+        classes,
+        &mut call_env,
+    )?;
     let capture_names: Vec<String> = func
         .def
         .locals
@@ -2519,7 +2536,7 @@ pub fn call_value(
                     env,
                 );
             }
-            let (v, _wb) = call_bytecode_sync(func, args, env)?;
+            let (v, _wb) = call_bytecode_sync(func, args, classes, env)?;
             Ok(v)
         }
         Value::NativeFunction(f) => f(&args, env),

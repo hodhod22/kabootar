@@ -369,6 +369,28 @@ mod host {
         }
     }
 
+    /// The array kernels only receive `(base, len)` / `(len)` — extra params
+    /// cannot be passed through. If the body reads a second param's local slot
+    /// the JIT would run with it bound to 0; bail to the boxed VM instead.
+    fn extra_param_unread(func: &BytecodeFnDef) -> bool {
+        let Some(pname) = func.params.get(1) else {
+            return true;
+        };
+        let Some(idx) = func.locals.iter().position(|l| l == pname) else {
+            return true;
+        };
+        !func.code.iter().any(|op| {
+            matches!(
+                op,
+                Opcode::LoadLocal(i)
+                | Opcode::AccAddLocal(i)
+                | Opcode::LenLocal(i)
+                | Opcode::IndexGetLocal(i)
+                    if *i as usize == idx
+            )
+        })
+    }
+
     fn try_run_index(
         func: &BytecodeFnDef,
         args: &[KabVal],
@@ -385,6 +407,9 @@ mod host {
         }
         if wants_index {
             if let Some(buf) = flatten_i64_array(args.first()?) {
+                if !extra_param_unread(func) {
+                    return None;
+                }
                 let ptr = match with_state(|st| {
                     if let Some(p) = st.cache.get(&key).copied() {
                         return Ok(p);
@@ -411,6 +436,9 @@ mod host {
                 return Some(Ok((KabVal::Number(ret), Vec::new())));
             }
             return try_run_str_char_index(func, args, key);
+        }
+        if !extra_param_unread(func) {
+            return None;
         }
         let len = crate::value::container_len(args.first()?).ok()?;
         let ptr = match with_state(|st| {

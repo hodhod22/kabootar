@@ -1,0 +1,14 @@
+// SH17 deepen: deopt decision before fused exec. import "kab/jit/jit_from_ops_deopt"
+// Do not grow jit_from_ops_osr.kab. IC type feedback wins over a hot chain.
+
+import "kab/jit/jit_spec_deopt"
+import "kab/jit/jit_from_ops_hot"
+
+/// True when the deopt decision is correct: a new IC type stays in the VM
+/// (no exec); a matching type on a hot fusible chain execs the template.
+pub fn jitFromOpsDeoptOk(ops, hits, seen, spec, n, k, s, m, d, r) {
+    if jitSpecDeoptOk(seen, spec) {
+        return true
+    }
+    return jitFromOpsHotExecOk(ops, hits, n, k, s, m, d, r)
+}

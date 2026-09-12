@@ -1,0 +1,6 @@
+import "kab/jit/jit_fuse"
+import "kab/jit/jit_call_loop_fuse"
+
+let kind = "rwx"
+let tpl = jitEmitI64Fuse(16, 3, 2, 4, 2, 5)
+return jitCallLoopFuseOk(647168, kind, 0, 3, 2, 4, 2, 5, tpl) == false

@@ -1,0 +1,16 @@
+import "kab/jit/jit_from_ops_f64"
+
+let ops = ["const", "const", "fmul", "ret"]
+if jitF64OpsOk(["const", "fmul", "ret"]) {
+    return false
+}
+if jitF64OpsOk(["const", "const", "mul", "ret"]) {
+    return false
+}
+if jitFromOpsF64Ok(ops, 0, 3) {
+    return false
+}
+if jitFromOpsF64Ok(ops, 16, 0) {
+    return false
+}
+return true

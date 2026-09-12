@@ -1,0 +1,33 @@
+// SH17 deepen: validate SIMD template.
+// import "kab/jit/jit_patch_loop_simd"
+// Do not grow jit_patch_loop_f64.kab.
+
+import "kab/jit/jit_simd_op"
+import "kab/jit/jit_check"
+
+pub fn jitPatchLoopSimdOk(bytes, magic, a0, a1, b0, b1) {
+    if jitSimdMagicOk(magic) == false {
+        return false
+    }
+    if jitSimdLanesOk(a0, a1, b0, b1) == false {
+        return false
+    }
+    let tpl = jitEmitI64Simd(magic, a0, a1, b0, b1)
+    if len(bytes) != jitSimdOpLen() {
+        return false
+    }
+    if len(tpl) != jitSimdOpLen() {
+        return false
+    }
+    let i = 0
+    while i < 5 {
+        if bytes[i] != tpl[i] {
+            return false
+        }
+        i = i + 1
+    }
+    if jitByteIsRet(bytes[7]) == false {
+        return false
+    }
+    return bytes[7] == tpl[7]
+}

@@ -1,0 +1,52 @@
+// SH17 deepen: unified fusion dispatcher. import "kab/jit/jit_from_ops_any"
+// Do not grow jit_from_ops_simd.kab. Picks the right lowering per shape:
+// arith fuse, cmp+branch fuse, f64 fuse, SIMD fuse, or cold (interpreted).
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_from_ops_fuse"
+import "kab/jit/jit_from_ops_fuse_cmp"
+import "kab/jit/jit_from_ops_f64"
+import "kab/jit/jit_from_ops_simd"
+
+/// 1 = arith fuse, 2 = cmp+branch fuse, 3 = f64 fuse, 4 = SIMD fuse,
+/// 0 = no fusible shape.
+pub fn jitFuseKind(ops) {
+    if jitFuseOpsOk(ops) {
+        return 1
+    }
+    if jitFuseCmpOpsOk(ops) {
+        return 2
+    }
+    if jitF64OpsOk(ops) {
+        return 3
+    }
+    if jitSimdOpsOk(ops) {
+        return 4
+    }
+    return 0
+}
+
+/// Unified exec for i64/f64 shapes: dispatch to the matching fused pipeline;
+/// cold shapes return false (no code emitted — stays in the Kab-VM).
+pub fn jitFromOpsAnyExecOk(ops, n, k, s, m, d, r) {
+    let kind = jitFuseKind(ops)
+    if kind == 1 {
+        return jitFromOpsFuseOk(ops, n, k, s, m, d, r)
+    }
+    if kind == 2 {
+        return jitFromOpsFuseCmpOk(ops, n, k)
+    }
+    if kind == 3 {
+        return jitFromOpsF64Ok(ops, n, k)
+    }
+    return false
+}
+
+/// SIMD variant of the dispatcher exec — 2-lane operands a,b.
+pub fn jitFromOpsAnySimdExecOk(ops, a0, a1, b0, b1) {
+    if jitFuseKind(ops) != 4 {
+        return false
+    }
+    return jitFromOpsSimdOk(ops, a0, a1, b0, b1)
+}
