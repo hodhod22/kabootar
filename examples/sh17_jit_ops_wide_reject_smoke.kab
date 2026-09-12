@@ -1,0 +1,22 @@
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+
+if jitOpOk("call") {
+    return false
+}
+if jitOpOk("new_instance") {
+    return false
+}
+if jitOpOk("throw") {
+    return false
+}
+if jitCanCompile(null) {
+    return false
+}
+if jitCanCompile([]) {
+    return false
+}
+if jitFromOpsOk(["add", "call", "ret"]) {
+    return false
+}
+return true

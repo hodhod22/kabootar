@@ -22577,6 +22577,63 @@ fn sh17_jit_from_ops_exec_smoke() {
         .expect("join");
 }
 
+/// SH17 deepen: widened i64 op legality + honest jitCanCompile gate.
+#[test]
+fn sh17_jit_ops_wide_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/jit/jit_from_ops.kab"))
+        .expect("jit_from_ops.kab");
+    assert!(
+        f.contains("jitOpsIsColdLegal")
+            && f.contains("\"jump_if_false\"")
+            && f.contains("\"mul\"")
+            && f.contains("\"bit_xor\""),
+        "SH17 Kab widened op legality"
+    );
+    let jit = std::fs::read_to_string(root.join("lib/kab/jit.kab")).expect("jit.kab");
+    assert!(
+        jit.contains("typeof(ops) != \"array\""),
+        "SH17 jitCanCompile rejects non-array ops"
+    );
+}
+
+/// SH17 deepen: ops-wide smoke rejects heap/call/throw ops and garbage input.
+#[test]
+fn sh17_jit_ops_wide_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_ops_wide_reject_smoke.kab"))
+        .expect("sh17_jit_ops_wide_reject_smoke.kab");
+    assert!(
+        s.contains("jitOpOk")
+            && s.contains("jitCanCompile")
+            && s.contains("call")
+            && s.contains("new_instance"),
+        "SH17 Kab ops-wide rejection"
+    );
+}
+
+/// SH17: widened i64 op set → inc+ret mmap/store/os_mm_call (eval).
+#[test]
+fn sh17_jit_ops_wide_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_ops_wide_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-ops-wide-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit ops-wide exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit ops-wide exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH17 deepen: i64 loop8 template lives off jit.kab.
 #[test]
 fn sh17_jit_loop_in_kab() {

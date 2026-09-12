@@ -1,0 +1,16 @@
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+
+if jitOpOk("mul") == false {
+    return false
+}
+if jitOpOk("jump_if_false") == false {
+    return false
+}
+if jitOpOk("call") {
+    return false
+}
+if jitCanCompile(["add", "ret"]) == false {
+    return false
+}
+return jitOpOk("ge")

@@ -4,7 +4,22 @@
 let X64_RET = 195
 
 // acc_add_local op is the canonical i64 loop seed.
+/// True only for a non-empty array of op-name strings (legality lives in
+/// jit_from_ops; this gate rejects garbage before planning).
 pub fn jitCanCompile(ops) {
+    if typeof(ops) != "array" {
+        return false
+    }
+    if len(ops) <= 0 {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        if typeof(ops[i]) != "string" {
+            return false
+        }
+        i = i + 1
+    }
     return true
 }
 
