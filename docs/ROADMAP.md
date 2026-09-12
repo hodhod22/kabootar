@@ -12,7 +12,7 @@
 
 | | |
 |--|--|
-| **Våg / steg** | **SH24** ✅ — HTTP/1.1 wrappers i Kab (`lib/kab/http_*.kab` + `http/http_server.kab`); riktig `httpServeOnce`/`httpServe` över `kab/net`; `http_fetch_async` wrappas till `{status, body, headers}`; 19/19 `sh24_http_` gröna. **Match-paritet** ✅ — `sh6_self_host_match_*` (20/20) gröna under Kab-VM. **SH23** ✅ — krypto + TLS 1.2 **och TLS 1.3** i Kab. |
+| **Våg / steg** | **SH19** deepen — `load_src.kab` (`loadEvalKabFile`/`loadEvalKabRoundtripOk`: `.kab`-källa → disk → `bootCompile` → Kab-VM) + `load_argv.kab` (`loadArgvKind` argv-dispatch via SH25-gates); 56/56 `sh19_` gröna. **Akutundantag:** `src/main.rs` kör CLI på 64 MiB-stack-tråd — self-host-compile av `try`+call overflowade main-stacken (återgång: återställ `main.rs` om emit-rekursionen grundas). **SH24** ✅ — HTTP/1.1 wrappers i Kab. **SH23** ✅ — krypto + TLS 1.2/1.3 i Kab; `cryptoHostDeleteOk` kräver `KAB_TLS_PEERS=1` (native-fel är ofångbara — `catch` tar bara `throw`-värden). |
 | **Nästa kod** | SH5: försiktig, stegvis reverse-densify av stora parser/emit-blad utan att bryta `sh6_self_host_*`. FT/JIT: utöka Kab-VM opcodes/JIT. Nästa gate: SH28 arkivera `src/` när alla bootstrap/AOT/no-rustc gater passerar. |
 | **Inte nu** | Ny `src/**/*.rs` utöver den explicit godkända raw-byte TCP-bryggan för SH23; radera Rust; sqlIs*-kloner; `async fn*` |
 | **Historik** | [ROADMAP_HISTORY.md](ROADMAP_HISTORY.md). Språk: [LANGUAGE.md](LANGUAGE.md). SH-tabell: [Våg SH](#våg-sh--self-host-självständig-snabb-stabil-). |
