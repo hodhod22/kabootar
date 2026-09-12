@@ -1,0 +1,7 @@
+import "kab/gc/gc_deep"
+import "kab/gc/gc_capstone"
+
+if gcDeepOk() == false {
+    return false
+}
+return gcCapstoneDeepOk(2)

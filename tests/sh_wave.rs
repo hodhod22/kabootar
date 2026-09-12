@@ -24391,6 +24391,787 @@ fn sh17_jit_os_loop_nop_call_reject_in_kab() {
     );
 }
 
+/// SH17 deepen: fused i64 arith chain template lives off jit_loop_mod.kab.
+#[test]
+fn sh17_jit_fuse_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/jit/jit_fuse.kab")).expect("jit_fuse.kab");
+    assert!(
+        f.contains("pub fn jitEmitI64Fuse")
+            && f.contains("pub fn jitFuseOk")
+            && f.contains("pub fn jitFuseRax")
+            && f.contains("76")
+            && f.contains("64"),
+        "SH17 Kab i64 fused arith template"
+    );
+}
+
+/// SH17 deepen: fused-chain wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_fuse_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit/jit_call_loop_fuse.kab"))
+        .expect("jit_call_loop_fuse.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopFuseOk")
+            && c.contains("jitWrLoopFuseOk")
+            && c.contains("jitRunLoopFuseOk")
+            && c.contains("jitMmCallLoopFuse"),
+        "SH17 Kab jitCallLoopFuseOk fused pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for fused arith template.
+#[test]
+fn sh17_jit_os_loop_fuse_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_fuse_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_fuse_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopFuseOk")
+            && s.contains("jitEmitI64Fuse")
+            && s.contains("os_mm_mmap")
+            && s.contains("16")
+            && s.contains("3"),
+        "SH17 Kab fused-chain os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid fused seed before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_fuse_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s =
+        std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_fuse_call_reject_smoke.kab"))
+            .expect("sh17_jit_os_loop_fuse_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopFuseOk")
+            && s.contains("jitEmitI64Fuse")
+            && s.contains("0"),
+        "SH17 Kab fused-chain call rejection"
+    );
+}
+
+/// SH17 deepen: ops drive codegen — const/add/sub/mul/div/mod/ret lowers to one L template (eval).
+#[test]
+fn sh17_jit_from_ops_fuse_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_fuse_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-fuse-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit fuse exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit fuse exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: non-fusible chains and bad imms rejected by the fused planner (eval).
+#[test]
+fn sh17_jit_from_ops_fuse_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_fuse_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-fuse-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit fuse reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit fuse reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: hotness trigger gate lives off jit.kab.
+#[test]
+fn sh17_jit_hot_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let h = std::fs::read_to_string(root.join("lib/kab/jit/jit_hot.kab")).expect("jit_hot.kab");
+    assert!(
+        h.contains("pub fn jitHotOk") && h.contains("jitThreshold"),
+        "SH17 Kab jitHotOk threshold gate"
+    );
+}
+
+/// SH17 deepen: OSR eligibility gate lives off jit_hot.kab.
+#[test]
+fn sh17_jit_osr_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let o = std::fs::read_to_string(root.join("lib/kab/jit/jit_osr.kab")).expect("jit_osr.kab");
+    assert!(
+        o.contains("pub fn jitOsrOk") && o.contains("jitHotOk"),
+        "SH17 Kab jitOsrOk loop-header gate"
+    );
+}
+
+/// SH17 deepen: hot ops → fused exec (eval).
+#[test]
+fn sh17_jit_from_ops_hot_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_hot_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-hot-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit hot exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit hot exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: cold hits and illegal ops stay interpreted (eval).
+#[test]
+fn sh17_jit_from_ops_hot_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_hot_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-hot-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit hot reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit hot reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: OSR into fused code at a hot loop header (eval).
+#[test]
+fn sh17_jit_from_ops_osr_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_osr_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-osr-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit osr exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit osr exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: OSR rejected at fn entry pc and when cold (eval).
+#[test]
+fn sh17_jit_from_ops_osr_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_osr_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-osr-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit osr reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit osr reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: deopt decision — new IC type stays in VM, matching type execs (eval).
+#[test]
+fn sh17_jit_from_ops_deopt_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_deopt_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-deopt-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit deopt exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit deopt exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: cold chain with matching type does not exec (eval).
+#[test]
+fn sh17_jit_from_ops_deopt_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_deopt_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-deopt-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit deopt reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit deopt reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 capstone: the whole hot→OSR→fuse→exec→deopt→spec story in one leaf.
+#[test]
+fn sh17_jit_capstone_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit/jit_capstone.kab"))
+        .expect("jit_capstone.kab");
+    assert!(
+        c.contains("pub fn jitCapstoneOk")
+            && c.contains("jitIcOk")
+            && c.contains("jitOsrOk")
+            && c.contains("jitFuseOpsOk")
+            && c.contains("jitFuseCmpOpsOk")
+            && c.contains("jitF64OpsOk")
+            && c.contains("jitSimdOpsOk")
+            && c.contains("jitFromOpsFuseOk")
+            && c.contains("jitFromOpsFuseCmpOk")
+            && c.contains("jitFromOpsF64Ok")
+            && c.contains("jitFromOpsSimdOk")
+            && c.contains("jitFromOpsDeoptOk")
+            && c.contains("jitSpecOk"),
+        "SH17 Kab jitCapstoneOk rollup"
+    );
+}
+
+/// SH17 capstone: hot loop compiled by the Kab JIT end-to-end (eval).
+#[test]
+fn sh17_jit_capstone_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_capstone_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-capstone-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit capstone smoke");
+            let value = eval_program(&program, &mut env).expect("run jit capstone smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: per-op template emit for the Rust-callable bridge.
+#[test]
+fn sh17_jit_emit_op_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let e = std::fs::read_to_string(root.join("lib/kab/jit/jit_emit_op.kab"))
+        .expect("jit_emit_op.kab");
+    assert!(
+        e.contains("pub fn jitOpMagic")
+            && e.contains("pub fn jitOpLen")
+            && e.contains("pub fn jitEmitOp")
+            && e.contains("76")
+            && e.contains("99")
+            && e.contains("195"),
+        "SH17 Kab per-op magic/len/emit table"
+    );
+}
+
+/// SH17 deepen: jit_bridge emit/validate/mmap-policy pipeline is real (eval).
+#[test]
+fn sh17_jit_bridge_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_bridge_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-bridge-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit bridge exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit bridge exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: bridge rejects illegal ops, empty bodies and wrong mmap args (eval).
+#[test]
+fn sh17_jit_bridge_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_bridge_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-bridge-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit bridge reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit bridge reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: fused cmp+branch template lives off jit_fuse.kab.
+#[test]
+fn sh17_jit_fuse_cmp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/jit/jit_fuse_cmp.kab"))
+        .expect("jit_fuse_cmp.kab");
+    assert!(
+        f.contains("pub fn jitEmitI64FuseCmp")
+            && f.contains("pub fn jitCmpMagic")
+            && f.contains("pub fn jitCmpNeg")
+            && f.contains("pub fn jitFuseCmpOk")
+            && f.contains("pub fn jitFuseCmpRax")
+            && f.contains("91"),
+        "SH17 Kab fused cmp+branch template"
+    );
+}
+
+/// SH17 deepen: fused cmp+branch wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_fuse_cmp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit/jit_call_loop_fuse_cmp.kab"))
+        .expect("jit_call_loop_fuse_cmp.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopFuseCmpOk")
+            && c.contains("jitWrLoopFuseCmpOk")
+            && c.contains("jitRunLoopFuseCmpOk")
+            && c.contains("jitMmCallLoopFuseCmp"),
+        "SH17 Kab jitCallLoopFuseCmpOk fused pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for fused cmp+branch template.
+#[test]
+fn sh17_jit_os_loop_fuse_cmp_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s =
+        std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_fuse_cmp_call_smoke.kab"))
+            .expect("sh17_jit_os_loop_fuse_cmp_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopFuseCmpOk")
+            && s.contains("jitEmitI64FuseCmp")
+            && s.contains("os_mm_mmap")
+            && s.contains("16")
+            && s.contains("3"),
+        "SH17 Kab fused-cmp os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid fused-cmp operand before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_fuse_cmp_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/sh17_jit_os_loop_fuse_cmp_call_reject_smoke.kab"),
+    )
+    .expect("sh17_jit_os_loop_fuse_cmp_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopFuseCmpOk")
+            && s.contains("jitEmitI64FuseCmp")
+            && s.contains("0"),
+        "SH17 Kab fused-cmp call rejection"
+    );
+}
+
+/// SH17 deepen: ops drive cmp+branch fusion — const/const/cmp/jcc/ret lowers to one predicate template (eval).
+#[test]
+fn sh17_jit_from_ops_fuse_cmp_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_fuse_cmp_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-fuse-cmp-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit fuse-cmp exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit fuse-cmp exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: non-fusible chains and bad imms rejected by the cmp-fusion planner (eval).
+#[test]
+fn sh17_jit_from_ops_fuse_cmp_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_fuse_cmp_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-fuse-cmp-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile jit fuse-cmp reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit fuse-cmp reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: IC feedback gate couples mono-shape + hit-rate + hotness.
+#[test]
+fn sh17_jit_ic_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/jit/jit_ic.kab")).expect("jit_ic.kab");
+    assert!(
+        i.contains("pub fn jitIcOk")
+            && i.contains("icIsMono")
+            && i.contains("icHitOk")
+            && i.contains("jitHotOk"),
+        "SH17 Kab jitIcOk IC-feedback gate"
+    );
+}
+
+/// SH17 deepen: IC gate — mono + hot + hit-rate compile, poly/cold reject (eval).
+#[test]
+fn sh17_jit_ic_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_ic_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-ic-smoke".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit ic smoke");
+            let value = eval_program(&program, &mut env).expect("run jit ic smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: f64 guest templates (magic 100-103) live off jit_fuse_cmp.kab.
+#[test]
+fn sh17_jit_f64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/jit/jit_f64.kab")).expect("jit_f64.kab");
+    assert!(
+        f.contains("pub fn jitEmitI64F64")
+            && f.contains("pub fn jitF64Magic")
+            && f.contains("pub fn jitF64Ok")
+            && f.contains("pub fn jitF64Rax")
+            && f.contains("103"),
+        "SH17 Kab f64 template emit"
+    );
+}
+
+/// SH17 deepen: f64 wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_f64_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit/jit_call_loop_f64.kab"))
+        .expect("jit_call_loop_f64.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopF64Ok")
+            && c.contains("jitWrLoopF64Ok")
+            && c.contains("jitRunLoopF64Ok")
+            && c.contains("jitMmCallLoopF64"),
+        "SH17 Kab jitCallLoopF64Ok fused pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for f64 template.
+#[test]
+fn sh17_jit_os_loop_f64_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_f64_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_f64_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopF64Ok")
+            && s.contains("jitEmitI64F64")
+            && s.contains("os_mm_mmap")
+            && s.contains("16")
+            && s.contains("3"),
+        "SH17 Kab f64 os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid f64 operand before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_f64_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/sh17_jit_os_loop_f64_call_reject_smoke.kab"),
+    )
+    .expect("sh17_jit_os_loop_f64_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopF64Ok") && s.contains("jitEmitI64F64") && s.contains("0"),
+        "SH17 Kab f64 call rejection"
+    );
+}
+
+/// SH17 deepen: ops drive f64 fusion — const/const/fop/ret lowers to one f64 template (eval).
+#[test]
+fn sh17_jit_from_ops_f64_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_f64_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-f64-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit f64 exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit f64 exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: non-fusible chains and bad imms rejected by the f64 planner (eval).
+#[test]
+fn sh17_jit_from_ops_f64_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_f64_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-f64-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit f64 reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit f64 reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: unified fusion dispatcher picks arith/cmp/f64 lowering.
+#[test]
+fn sh17_jit_from_ops_any_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/jit/jit_from_ops_any.kab"))
+        .expect("jit_from_ops_any.kab");
+    assert!(
+        a.contains("pub fn jitFuseKind")
+            && a.contains("pub fn jitFromOpsAnyExecOk")
+            && a.contains("jitFuseOpsOk")
+            && a.contains("jitFuseCmpOpsOk")
+            && a.contains("jitF64OpsOk"),
+        "SH17 Kab jitFuseKind dispatcher"
+    );
+}
+
+/// SH17 deepen: dispatcher execs all three fusible shapes on separate slots (eval).
+#[test]
+fn sh17_jit_from_ops_any_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_any_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-any-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit any exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit any exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: dispatcher rejects non-fusible shapes (eval).
+#[test]
+fn sh17_jit_from_ops_any_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_any_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-any-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit any reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit any reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: 2-lane u8 SIMD templates (magic 104-106) live off jit_simd.kab.
+#[test]
+fn sh17_jit_simd_op_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/jit/jit_simd_op.kab"))
+        .expect("jit_simd_op.kab");
+    assert!(
+        s.contains("pub fn jitEmitI64Simd")
+            && s.contains("pub fn jitSimdMagic")
+            && s.contains("pub fn jitSimdLanesOk")
+            && s.contains("pub fn jitSimdRax")
+            && s.contains("106"),
+        "SH17 Kab SIMD template emit"
+    );
+}
+
+/// SH17 deepen: SIMD wr+run+call policy chain.
+#[test]
+fn sh17_jit_call_loop_simd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/jit/jit_call_loop_simd.kab"))
+        .expect("jit_call_loop_simd.kab");
+    assert!(
+        c.contains("pub fn jitCallLoopSimdOk")
+            && c.contains("jitWrLoopSimdOk")
+            && c.contains("jitRunLoopSimdOk")
+            && c.contains("jitMmCallLoopSimd"),
+        "SH17 Kab jitCallLoopSimdOk fused pipeline"
+    );
+}
+
+/// SH17 deepen: os_mm_mmap + store + call for SIMD template.
+#[test]
+fn sh17_jit_os_loop_simd_call_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh17_jit_os_loop_simd_call_smoke.kab"))
+        .expect("sh17_jit_os_loop_simd_call_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopSimdOk")
+            && s.contains("jitEmitI64Simd")
+            && s.contains("os_mm_mmap")
+            && s.contains("16")
+            && s.contains("4"),
+        "SH17 Kab SIMD os_mm dual-bind"
+    );
+}
+
+/// SH17 deepen: reject invalid SIMD lane before wr+call completes.
+#[test]
+fn sh17_jit_os_loop_simd_call_reject_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(
+        root.join("examples/sh17_jit_os_loop_simd_call_reject_smoke.kab"),
+    )
+    .expect("sh17_jit_os_loop_simd_call_reject_smoke.kab");
+    assert!(
+        s.contains("jitCallLoopSimdOk") && s.contains("jitEmitI64Simd") && s.contains("0"),
+        "SH17 Kab SIMD call rejection"
+    );
+}
+
+/// SH17 deepen: ops drive SIMD fusion — const x4 + sop + ret lowers to one 2-lane template (eval).
+#[test]
+fn sh17_jit_from_ops_simd_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_simd_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-simd-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit simd exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit simd exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: non-fusible chains and bad lanes rejected by the SIMD planner (eval).
+#[test]
+fn sh17_jit_from_ops_simd_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_simd_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-from-ops-simd-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit simd reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit simd reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// F8: inline budget stays in a tiny leaf (do not grow jit.kab).
 #[test]
 fn f8_jit_opt_in_kab() {
@@ -25111,7 +25892,7 @@ fn f10_aot_lazy_boot_dag_acyclic_reject_in_kab() {
 #[test]
 fn f11_gc_tlab_nursery_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let n = std::fs::read_to_string(root.join("lib/kab/gc_tlab_nursery.kab")).expect("gc_tlab_nursery.kab");
+    let n = std::fs::read_to_string(root.join("lib/kab/gc/gc_tlab_nursery.kab")).expect("gc_tlab_nursery.kab");
     assert!(
         n.contains("pub fn gcTlabNurseryOk")
             && n.contains("tlabOk")
@@ -25152,7 +25933,7 @@ fn f11_gc_tlab_nursery_reject_in_kab() {
 #[test]
 fn f11_gc_tlab_pause_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let n = std::fs::read_to_string(root.join("lib/kab/gc_tlab_pause.kab")).expect("gc_tlab_pause.kab");
+    let n = std::fs::read_to_string(root.join("lib/kab/gc/gc_tlab_pause.kab")).expect("gc_tlab_pause.kab");
     assert!(
         n.contains("pub fn gcTlabPauseOk")
             && n.contains("gcTlabNurseryOk")
@@ -25192,7 +25973,7 @@ fn f11_gc_tlab_pause_reject_in_kab() {
 #[test]
 fn f11_gc_tlab_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let n = std::fs::read_to_string(root.join("lib/kab/gc_tlab_host.kab")).expect("gc_tlab_host.kab");
+    let n = std::fs::read_to_string(root.join("lib/kab/gc/gc_tlab_host.kab")).expect("gc_tlab_host.kab");
     assert!(
         n.contains("pub fn gcTlabHostDropOk")
             && n.contains("gcTlabPauseOk")
@@ -57115,7 +57896,7 @@ fn sh18_gc_plan_in_kab() {
 #[test]
 fn sh18_gc_prom_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let p = std::fs::read_to_string(root.join("lib/kab/gc_prom.kab")).expect("gc_prom.kab");
+    let p = std::fs::read_to_string(root.join("lib/kab/gc/gc_prom.kab")).expect("gc_prom.kab");
     assert!(
         p.contains("pub fn gcPromote"),
         "SH18 Kab nursery promote"
@@ -57126,7 +57907,7 @@ fn sh18_gc_prom_in_kab() {
 #[test]
 fn sh18_gc_mark_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let m = std::fs::read_to_string(root.join("lib/kab/gc_mark.kab")).expect("gc_mark.kab");
+    let m = std::fs::read_to_string(root.join("lib/kab/gc/gc_mark.kab")).expect("gc_mark.kab");
     assert!(
         m.contains("pub fn gcSweepDead"),
         "SH18 Kab sweep dead count"
@@ -57137,7 +57918,7 @@ fn sh18_gc_mark_in_kab() {
 #[test]
 fn sh18_gc_bar_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let b = std::fs::read_to_string(root.join("lib/kab/gc_bar.kab")).expect("gc_bar.kab");
+    let b = std::fs::read_to_string(root.join("lib/kab/gc/gc_bar.kab")).expect("gc_bar.kab");
     assert!(
         b.contains("pub fn gcWriteBarrier"),
         "SH18 Kab write barrier"
@@ -57148,7 +57929,7 @@ fn sh18_gc_bar_in_kab() {
 #[test]
 fn sh18_gc_conc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/gc_conc.kab")).expect("gc_conc.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/gc/gc_conc.kab")).expect("gc_conc.kab");
     assert!(
         c.contains("pub fn gcMarkStep") && c.contains("budgetMs"),
         "SH18 Kab concurrent mark step"
@@ -57159,7 +57940,7 @@ fn sh18_gc_conc_in_kab() {
 #[test]
 fn sh18_gc_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/gc_host.kab")).expect("gc_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/gc/gc_host.kab")).expect("gc_host.kab");
     assert!(
         h.contains("pub fn gcHostDeleteOk") && h.contains("false") && !h.contains("Rc::"),
         "SH18 Kab gcHostDeleteOk delete gate"
@@ -57198,7 +57979,7 @@ fn sh18_gc_host_reject_in_kab() {
 #[test]
 fn sh18_gc_cycle_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let c = std::fs::read_to_string(root.join("lib/kab/gc_cycle.kab")).expect("gc_cycle.kab");
+    let c = std::fs::read_to_string(root.join("lib/kab/gc/gc_cycle.kab")).expect("gc_cycle.kab");
     assert!(
         c.contains("pub fn gcNurseryCycleOk")
             && c.contains("gcPromote")
@@ -57229,7 +58010,7 @@ fn sh18_gc_cycle_dual_bind_in_kab() {
 #[test]
 fn sh18_gc_load_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/gc_load.kab")).expect("gc_load.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/gc/gc_load.kab")).expect("gc_load.kab");
     assert!(
         l.contains("pub fn gcLoadBumpOk")
             && l.contains("pub fn gcLoadCycleOk")
@@ -57273,7 +58054,7 @@ fn sh18_gc_load_reject_in_kab() {
 #[test]
 fn sh18_gc_stress_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/gc_stress.kab")).expect("gc_stress.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_stress.kab")).expect("gc_stress.kab");
     assert!(
         s.contains("pub fn gcStressCyclesOk")
             && s.contains("pub fn gcStressCycleCount")
@@ -57314,7 +58095,7 @@ fn sh18_gc_stress_reject_in_kab() {
 #[test]
 fn sh18_gc_concurrent_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/gc_concurrent.kab"))
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_concurrent.kab"))
         .expect("gc_concurrent.kab");
     assert!(
         s.contains("pub fn gcConcurrentOk")
@@ -57357,7 +58138,7 @@ fn sh18_gc_concurrent_reject_in_kab() {
 #[test]
 fn sh18_gc_concurrent_stress_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/gc_concurrent_stress.kab"))
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_concurrent_stress.kab"))
         .expect("gc_concurrent_stress.kab");
     assert!(
         s.contains("pub fn gcConcurrentStressOk")
@@ -57399,7 +58180,7 @@ fn sh18_gc_concurrent_stress_reject_in_kab() {
 #[test]
 fn sh18_gc_capstone_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/gc_capstone.kab")).expect("gc_capstone.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_capstone.kab")).expect("gc_capstone.kab");
     assert!(
         s.contains("pub fn gcCapstoneOk")
             && s.contains("pub fn gcCapstoneGatesClosed")
@@ -57441,7 +58222,7 @@ fn sh18_gc_capstone_reject_in_kab() {
 #[test]
 fn sh18_gc_chain_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/gc_chain.kab")).expect("gc_chain.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_chain.kab")).expect("gc_chain.kab");
     assert!(
         s.contains("pub fn gcChainOk")
             && s.contains("pub fn gcChainStepsOk")
@@ -57730,6 +58511,398 @@ fn sh18_gc_vm_new_instance_exec_smoke() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "1");
+}
+
+/// SH18 deepen: tricolor marking stays in a tiny leaf (do not grow gc_mark).
+#[test]
+fn sh18_gc_tri_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/gc/gc_tri.kab")).expect("gc_tri.kab");
+    assert!(
+        t.contains("pub fn gcTriWhite")
+            && t.contains("pub fn gcTriGray")
+            && t.contains("pub fn gcTriBlack")
+            && t.contains("pub fn gcTriShade")
+            && t.contains("pub fn gcTriScan")
+            && t.contains("pub fn gcTriCycleOk"),
+        "SH18 Kab tricolor marking"
+    );
+}
+
+/// SH18 deepen: incremental mark worklist stays in a tiny leaf.
+#[test]
+fn sh18_gc_incr_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let i = std::fs::read_to_string(root.join("lib/kab/gc/gc_incr.kab")).expect("gc_incr.kab");
+    assert!(
+        i.contains("pub fn gcIncrStart")
+            && i.contains("pub fn gcIncrStep")
+            && i.contains("pub fn gcIncrMarkOk")
+            && i.contains("framesMax"),
+        "SH18 Kab incremental mark worklist"
+    );
+}
+
+/// SH18 deepen: remembered set + generational barrier stays in a tiny leaf.
+#[test]
+fn sh18_gc_rem_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/gc/gc_rem.kab")).expect("gc_rem.kab");
+    assert!(
+        r.contains("pub fn gcRemNeedsMark")
+            && r.contains("pub fn gcRemAdd")
+            && r.contains("pub fn gcRemWrite")
+            && r.contains("pub fn gcRemOk"),
+        "SH18 Kab remembered set barrier"
+    );
+}
+
+/// SH18 deepen: semi-space copy stays in a tiny leaf.
+#[test]
+fn sh18_gc_copy_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/gc/gc_copy.kab")).expect("gc_copy.kab");
+    assert!(
+        c.contains("pub fn gcCopyLiveOk") && c.contains("pub fn gcCopyOk"),
+        "SH18 Kab semi-space copy"
+    );
+}
+
+/// SH18 deepen: free-list sweep stays in a tiny leaf.
+#[test]
+fn sh18_gc_sweep_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_sweep.kab")).expect("gc_sweep.kab");
+    assert!(
+        s.contains("pub fn gcSweepFreeBytes") && s.contains("pub fn gcSweepBytesOk"),
+        "SH18 Kab free-list sweep"
+    );
+}
+
+/// SH18 deepen: @manual exemption + host nursery dual-bind in a tiny leaf.
+#[test]
+fn sh18_gc_manual_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/gc/gc_manual.kab")).expect("gc_manual.kab");
+    assert!(
+        m.contains("pub fn gcManualAlloc")
+            && m.contains("pub fn gcManualChargeOk")
+            && m.contains("gc_nursery_alloc")
+            && m.contains("gc_nursery_stats"),
+        "SH18 Kab @manual exemption + nursery dual-bind"
+    );
+}
+
+/// SH18 deepen: deep rollup leaf chains tri/incr/rem/copy/sweep/manual.
+#[test]
+fn sh18_gc_deep_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/gc/gc_deep.kab")).expect("gc_deep.kab");
+    assert!(
+        d.contains("pub fn gcDeepOk")
+            && d.contains("gcTriCycleOk")
+            && d.contains("gcIncrMarkOk")
+            && d.contains("gcRemOk")
+            && d.contains("gcCopyOk")
+            && d.contains("gcSweepBytesOk")
+            && d.contains("gcManualChargeOk"),
+        "SH18 Kab deep GC rollup"
+    );
+}
+
+/// SH18 deepen: tricolor cycle gate (eval).
+#[test]
+fn sh18_gc_tri_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_tri_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-tri-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc tri smoke");
+            let value = eval_program(&program, &mut env).expect("run gc tri smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: incremental mark worklist gate (eval).
+#[test]
+fn sh18_gc_incr_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_incr_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-incr-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc incr smoke");
+            let value = eval_program(&program, &mut env).expect("run gc incr smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: remembered set generational barrier gate (eval).
+#[test]
+fn sh18_gc_rem_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_rem_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-rem-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc rem smoke");
+            let value = eval_program(&program, &mut env).expect("run gc rem smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: semi-space copy gate (eval).
+#[test]
+fn sh18_gc_copy_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_copy_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-copy-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc copy smoke");
+            let value = eval_program(&program, &mut env).expect("run gc copy smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: free-list sweep gate (eval).
+#[test]
+fn sh18_gc_sweep_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_sweep_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-sweep-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc sweep smoke");
+            let value = eval_program(&program, &mut env).expect("run gc sweep smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: full deep capstone — chain + deep leaves + gates closed (eval).
+#[test]
+fn sh18_gc_deep_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_deep_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-deep-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc deep smoke");
+            let value = eval_program(&program, &mut env).expect("run gc deep smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: deep leaves reject bad params (eval).
+#[test]
+fn sh18_gc_deep_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_deep_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-deep-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc deep reject smoke");
+            let value = eval_program(&program, &mut env).expect("run gc deep reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: @manual charge policy + real host nursery dual-bind (eval).
+#[test]
+fn sh18_gc_manual_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_manual_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-manual-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc manual smoke");
+            let value = eval_program(&program, &mut env).expect("run gc manual smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 2: tenuring/aging stays in a tiny leaf (do not grow gc_prom).
+#[test]
+fn sh18_gc_age_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/gc/gc_age.kab")).expect("gc_age.kab");
+    assert!(
+        a.contains("pub fn gcAgeBump")
+            && a.contains("pub fn gcAgeReady")
+            && a.contains("pub fn gcAgeCyclesOk")
+            && a.contains("gcShouldPromote"),
+        "SH18 Kab tenuring age"
+    );
+}
+
+/// SH18 deepen 2: card-table scan stays in a tiny leaf (do not grow gc_rem).
+#[test]
+fn sh18_gc_card_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/gc/gc_card.kab")).expect("gc_card.kab");
+    assert!(
+        c.contains("pub fn gcCardScan")
+            && c.contains("pub fn gcCardScanOk")
+            && c.contains("gcRemWrite"),
+        "SH18 Kab card-table scan"
+    );
+}
+
+/// SH18 deepen 2: safepoint polls stay in a tiny leaf (do not grow gc.kab).
+#[test]
+fn sh18_gc_safe_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_safe.kab")).expect("gc_safe.kab");
+    assert!(
+        s.contains("pub fn gcSafePollFires")
+            && s.contains("pub fn gcSafeCollectOk")
+            && s.contains("pub fn gcSafeRunOk"),
+        "SH18 Kab safepoint polls"
+    );
+}
+
+/// SH18 deepen 2: rollup leaf chains deep + age/card/safe.
+#[test]
+fn sh18_gc_deep2_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/gc/gc_deep2.kab")).expect("gc_deep2.kab");
+    assert!(
+        d.contains("pub fn gcDeep2Ok")
+            && d.contains("gcDeepOk")
+            && d.contains("gcAgeCyclesOk")
+            && d.contains("gcCardScanOk")
+            && d.contains("gcSafeRunOk"),
+        "SH18 Kab deep-2 rollup"
+    );
+}
+
+/// SH18 deepen 2: tenuring gate (eval).
+#[test]
+fn sh18_gc_age_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_age_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-age-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc age smoke");
+            let value = eval_program(&program, &mut env).expect("run gc age smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 2: card-table scan gate (eval).
+#[test]
+fn sh18_gc_card_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_card_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-card-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc card smoke");
+            let value = eval_program(&program, &mut env).expect("run gc card smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 2: safepoint polls gate (eval).
+#[test]
+fn sh18_gc_safe_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_safe_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-safe-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc safe smoke");
+            let value = eval_program(&program, &mut env).expect("run gc safe smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 2: full deep-2 capstone — chain + deep-2 leaves + gates closed (eval).
+#[test]
+fn sh18_gc_deep2_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_deep2_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-deep2-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc deep2 smoke");
+            let value = eval_program(&program, &mut env).expect("run gc deep2 smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 #[test]
@@ -75429,6 +76602,28 @@ fn sh28_noll_keep_in_kab() {
     assert!(
         k.contains("pub fn nollKeepSrc") && k.contains("return true"),
         "SH28 Kab nollKeepSrc"
+    );
+}
+
+/// SH28 deepen: 6-month stability window gate before src/ archive.
+#[test]
+fn sh28_noll_stable_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/noll/noll_stable.kab"))
+        .expect("noll_stable.kab");
+    assert!(
+        s.contains("pub fn nollStableMonths")
+            && s.contains("pub fn nollStableOk")
+            && s.contains("pub fn nollArcReady")
+            && s.contains("nollAotReady")
+            && s.contains("6"),
+        "SH28 Kab nollStableOk 6-month window"
+    );
+    let sm = std::fs::read_to_string(root.join("examples/sh28_noll_stable_smoke.kab"))
+        .expect("sh28_noll_stable_smoke.kab");
+    assert!(
+        sm.contains("nollStableMonths") && sm.contains("nollStableOk") && sm.contains("nollArcReady"),
+        "SH28 Kab noll stable smoke"
     );
 }
 

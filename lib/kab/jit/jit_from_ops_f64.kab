@@ -1,0 +1,57 @@
+// SH17 deepen: ops-driven f64 fusion — const/const/fop/ret lowers to ONE
+// guest f64 template (magic 100-103). import "kab/jit/jit_from_ops_f64"
+// Do not grow jit_from_ops_fuse_cmp.kab. Ops select the f64 op; n,k are imms.
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_f64"
+import "kab/jit/jit_mm_loop_f64"
+import "kab/jit/jit_call_loop_f64"
+
+/// True when ops are exactly the fusible f64 chain const/const/fop/ret.
+pub fn jitF64OpsOk(ops) {
+    if typeof(ops) != "array" {
+        return false
+    }
+    if len(ops) != 4 {
+        return false
+    }
+    if ops[0] != "const" {
+        return false
+    }
+    if ops[1] != "const" {
+        return false
+    }
+    if jitF64Magic(ops[2]) == 0 {
+        return false
+    }
+    if ops[3] != "ret" {
+        return false
+    }
+    return true
+}
+
+/// Compile a fusible f64 chain into one f64 template and exec it in the guest
+/// MMU; true when guest rax matches jitF64Rax.
+pub fn jitFromOpsF64Ok(ops, n, k) {
+    if jitCanCompile(ops) == false {
+        return false
+    }
+    if jitF64OpsOk(ops) == false {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        if jitOpOk(ops[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    if jitF64Ok(n, k) == false {
+        return false
+    }
+    let magic = jitF64Magic(ops[2])
+    let base = os_mm_mmap(jitMmLoopF64Pid(), jitMmLoopF64Virt(), jitMmLoopF64Len(), jitMmLoopF64Prot())
+    let bytes = jitEmitI64F64(magic, n, k)
+    return jitCallLoopF64Ok(base, "rwx", magic, n, k, bytes)
+}

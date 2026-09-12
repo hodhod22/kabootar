@@ -1,0 +1,67 @@
+// SH18 deepen: tricolor marking — white/gray/black. import "kab/gc/gc_tri"
+// Do not grow gc_mark.kab. Whites are swept; grays are the worklist.
+
+import "kab/gc/gc_member"
+
+pub fn gcTriWhite() {
+    return 0
+}
+
+pub fn gcTriGray() {
+    return 1
+}
+
+pub fn gcTriBlack() {
+    return 2
+}
+
+/// Mark-on-encounter: a white object shades gray; other colors unchanged.
+pub fn gcTriShade(color) {
+    if color == gcTriWhite() {
+        return gcTriGray()
+    }
+    return color
+}
+
+/// Scan a gray object black once its children are shaded.
+pub fn gcTriScan(color) {
+    if color == gcTriGray() {
+        return gcTriBlack()
+    }
+    return color
+}
+
+/// Sweep predicate: only white objects are dead after the mark phase.
+pub fn gcTriDead(color) {
+    return color == gcTriWhite()
+}
+
+/// Full tricolor cycle over `objects` (id list): rootIds shade gray, scan
+/// turns every gray black, whites are counted dead. True when the dead count
+/// equals wantDead.
+pub fn gcTriCycleOk(objects, rootIds, wantDead) {
+    let colors = []
+    let i = 0
+    while i < len(objects) {
+        let c = gcTriWhite()
+        if gcIsMarked(rootIds, objects[i]) {
+            c = gcTriShade(c)
+        }
+        colors = push(colors, c)
+        i = i + 1
+    }
+    i = 0
+    while i < len(colors) {
+        colors[i] = gcTriScan(colors[i])
+        i = i + 1
+    }
+    let dead = 0
+    i = 0
+    while i < len(colors) {
+        if gcTriDead(colors[i]) {
+            dead = dead + 1
+        }
+        i = i + 1
+    }
+    return dead == wantDead
+}

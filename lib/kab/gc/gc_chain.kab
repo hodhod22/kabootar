@@ -5,6 +5,8 @@ import "kab/gc/gc_load"
 import "kab/gc/gc_stress"
 import "kab/gc/gc_concurrent"
 import "kab/gc/gc_concurrent_stress"
+import "kab/gc/gc_deep"
+import "kab/gc/gc_deep2"
 import "kab/gc/gc_host"
 
 pub fn gcChainLiveGray() {
@@ -34,4 +36,20 @@ pub fn gcChainStepsOk(live) {
 /// Full GC deepen chain validates (single-pass via gc_concurrent_stress).
 pub fn gcChainOk(live) {
     return gcConcurrentStressOk(live)
+}
+
+/// Deep chain: full chain + tricolor/incr/rem/copy/sweep/@manual leaves.
+pub fn gcChainDeepOk(live) {
+    if gcChainOk(live) == false {
+        return false
+    }
+    return gcDeepOk()
+}
+
+/// Deep-2 chain: deep chain + tenuring/card-scan/safepoint leaves.
+pub fn gcChainDeep2Ok(live) {
+    if gcChainDeepOk(live) == false {
+        return false
+    }
+    return gcDeep2Ok()
 }

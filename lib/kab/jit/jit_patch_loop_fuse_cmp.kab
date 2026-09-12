@@ -1,0 +1,35 @@
+// SH17 deepen: validate fused cmp+branch template.
+// import "kab/jit/jit_patch_loop_fuse_cmp"
+// Do not grow jit_patch_loop_fuse.kab. magic + n + k carry the fused predicate.
+
+import "kab/jit/jit_fuse_cmp"
+import "kab/jit/jit_check"
+
+pub fn jitPatchLoopFuseCmpOk(bytes, magic, n, k) {
+    if jitFuseCmpMagicOk(magic) == false {
+        return false
+    }
+    if jitFuseCmpOk(n, k) == false {
+        return false
+    }
+    let tpl = jitEmitI64FuseCmp(magic, n, k)
+    if len(bytes) != jitFuseCmpLen() {
+        return false
+    }
+    if len(tpl) != jitFuseCmpLen() {
+        return false
+    }
+    if bytes[0] != tpl[0] {
+        return false
+    }
+    if bytes[1] != tpl[1] {
+        return false
+    }
+    if bytes[2] != tpl[2] {
+        return false
+    }
+    if jitByteIsRet(bytes[7]) == false {
+        return false
+    }
+    return bytes[7] == tpl[7]
+}

@@ -1,0 +1,175 @@
+// SH17 deepen: per-op template emit for the Rust-callable bridge.
+// import "kab/jit/jit_emit_op"
+// Do not grow jit_bridge.kab. Stack/global/control ops emit no guest code
+// (len 0 — regalloc/interpreter territory); arith/bit/cmp/jcc ops emit their
+// 8-byte guest template with canonical minimal imms; ret/return/halt emit RET.
+
+/// Guest magic byte for an op name; 195 = lone RET; 0 = no guest code emitted.
+pub fn jitOpMagic(name) {
+    if name == "acc_add_local" {
+        return 76
+    }
+    if name == "add" {
+        return 76
+    }
+    if name == "sub" {
+        return 76
+    }
+    if name == "mul" {
+        return 76
+    }
+    if name == "div" {
+        return 76
+    }
+    if name == "mod" {
+        return 76
+    }
+    if name == "bit_and" {
+        return 77
+    }
+    if name == "bit_or" {
+        return 78
+    }
+    if name == "bit_xor" {
+        return 79
+    }
+    if name == "shl" {
+        return 80
+    }
+    if name == "shr" {
+        return 81
+    }
+    if name == "ushr" {
+        return 82
+    }
+    if name == "bit_not" {
+        return 83
+    }
+    if name == "not" {
+        return 83
+    }
+    if name == "neg" {
+        return 84
+    }
+    if name == "eq" {
+        return 85
+    }
+    if name == "ne" {
+        return 86
+    }
+    if name == "lt" {
+        return 87
+    }
+    if name == "gt" {
+        return 88
+    }
+    if name == "le" {
+        return 89
+    }
+    if name == "ge" {
+        return 90
+    }
+    if name == "test" {
+        return 91
+    }
+    if name == "je" {
+        return 92
+    }
+    if name == "jne" {
+        return 93
+    }
+    if name == "jmp" {
+        return 94
+    }
+    if name == "jl" {
+        return 95
+    }
+    if name == "jle" {
+        return 96
+    }
+    if name == "jg" {
+        return 97
+    }
+    if name == "jge" {
+        return 98
+    }
+    if name == "nop" {
+        return 99
+    }
+    if name == "fadd" {
+        return 100
+    }
+    if name == "fsub" {
+        return 101
+    }
+    if name == "fmul" {
+        return 102
+    }
+    if name == "fdiv" {
+        return 103
+    }
+    if name == "simd_add" {
+        return 104
+    }
+    if name == "simd_mul" {
+        return 105
+    }
+    if name == "simd_dot" {
+        return 106
+    }
+    if name == "ret" {
+        return 195
+    }
+    if name == "return" {
+        return 195
+    }
+    if name == "halt" {
+        return 195
+    }
+    return 0
+}
+
+/// Byte length of the emitted code for an op: 1 for RET, 8 for guest
+/// templates, 0 for ops that produce no guest code (or illegal names).
+pub fn jitOpLen(name) {
+    let magic = jitOpMagic(name)
+    if magic == 0 {
+        return 0
+    }
+    if magic == 195 {
+        return 1
+    }
+    return 8
+}
+
+/// Emit the canonical guest template for one op. Canonical imms n=1, k=1 are
+/// inside every template's legal operand range (sh=1 for shifts); SIMD magic
+/// uses all four lanes = 1 (b0,b1 may not be 0).
+pub fn jitEmitOp(name) {
+    let magic = jitOpMagic(name)
+    if magic == 0 {
+        return []
+    }
+    let b = []
+    if magic == 195 {
+        b = push(b, 195)
+        return b
+    }
+    b = push(b, magic)
+    b = push(b, 1)
+    b = push(b, 1)
+    if magic >= 104 {
+        b = push(b, 1)
+        b = push(b, 1)
+        b = push(b, 0)
+        b = push(b, 0)
+        b = push(b, 195)
+        return b
+    }
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

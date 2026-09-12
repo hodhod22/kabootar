@@ -1,0 +1,18 @@
+// SH17 deepen: IC feedback into the compile decision. import "kab/jit/jit_ic"
+// Do not grow jit_hot.kab. A monomorphic hot site with a good hit rate
+// is the one worth compiling; polymorphic/cold sites stay interpreted.
+
+import "kab/ic"
+import "kab/ic_ht"
+import "kab/jit/jit_hot"
+
+/// True when the site is monomorphic, hits its IC often, and is hot.
+pub fn jitIcOk(nShapes, pct, hits) {
+    if icIsMono(nShapes) == false {
+        return false
+    }
+    if icHitOk(pct) == false {
+        return false
+    }
+    return jitHotOk(hits)
+}

@@ -1,0 +1,81 @@
+// SH17 deepen: 2-lane u8 SIMD guest templates (magic 104-106).
+// import "kab/jit/jit_simd_op"
+// Do not grow jit_simd.kab. Lanes a=(a0,a1), b=(b0,b1) pack in the 8-byte
+// template; lane-wise results pack into rax (u8 for add, u16 for mul),
+// dot reduces to a scalar — the nd_dot shape.
+
+import "kab/jit/jit_loop_n"
+
+/// Guest magic for a SIMD op name; 0 when not fusible.
+pub fn jitSimdMagic(name) {
+    if name == "simd_add" {
+        return 104
+    }
+    if name == "simd_mul" {
+        return 105
+    }
+    if name == "simd_dot" {
+        return 106
+    }
+    return 0
+}
+
+pub fn jitSimdMagicOk(magic) {
+    if magic < 104 {
+        return false
+    }
+    if magic > 106 {
+        return false
+    }
+    return true
+}
+
+/// Lane bounds match the guest SIMD template contract (each lane 1..=64).
+pub fn jitSimdLanesOk(a0, a1, b0, b1) {
+    if jitLoopNOk(a0) == false {
+        return false
+    }
+    if jitLoopNOk(a1) == false {
+        return false
+    }
+    if jitLoopNOk(b0) == false {
+        return false
+    }
+    if jitLoopNOk(b1) == false {
+        return false
+    }
+    return true
+}
+
+/// Mirror of the guest SIMD semantics: add packs u8 lanes (sums fit u8),
+/// mul packs u16 lanes (products fit u16), dot reduces to a scalar.
+pub fn jitSimdRax(a0, a1, b0, b1, magic) {
+    if magic == 104 {
+        return (a0 + b0) | ((a1 + b1) << 8)
+    }
+    if magic == 105 {
+        return (a0 * b0) | ((a1 * b1) << 16)
+    }
+    if magic == 106 {
+        return a0 * b0 + a1 * b1
+    }
+    return 0
+}
+
+pub fn jitSimdOpLen() {
+    return jitLoopNLen()
+}
+
+/// SIMD marker 104-106, a0, a1, b0, b1, pad, ret — guest rax = jitSimdRax.
+pub fn jitEmitI64Simd(magic, a0, a1, b0, b1) {
+    let b = []
+    b = push(b, magic)
+    b = push(b, a0)
+    b = push(b, a1)
+    b = push(b, b0)
+    b = push(b, b1)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

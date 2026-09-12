@@ -1,0 +1,29 @@
+// SH17 deepen: translate+store for SIMD template.
+// import "kab/jit/jit_wr_loop_simd"
+// Do not grow jit_wr_loop_f64.kab.
+
+import "kab/jit/jit_patch_loop_simd"
+import "kab/jit/jit_mm_loop_simd"
+import "kab/jit/jit_mm_store_loop_simd"
+import "kab/jit/jit_simd_op"
+
+pub fn jitWrLoopSimdOk(bytes, magic, a0, a1, b0, b1) {
+    if jitPatchLoopSimdOk(bytes, magic, a0, a1, b0, b1) == false {
+        return false
+    }
+    let pid = jitMmLoopSimdPid()
+    let virt = jitMmLoopSimdVirt()
+    let p0 = os_mm_translate(pid, virt)
+    if p0 <= 0 {
+        return false
+    }
+    let p7 = os_mm_translate(pid, virt + 7)
+    if p7 <= 0 {
+        return false
+    }
+    let w = jitMmStoreLoopSimd(bytes, magic, a0, a1, b0, b1)
+    if w != jitSimdOpLen() {
+        return false
+    }
+    return true
+}

@@ -1,0 +1,28 @@
+// SH28: archive src/ only after 6 stable months on Kab's own feet.
+// import "kab/noll/noll_stable"
+// Do not grow noll_drop.kab. The window is a hard gate, not a test result.
+
+import "kab/noll/noll_keep"
+import "kab/noll/noll_aot"
+
+/// Required stability window before src/ may be archived (months).
+pub fn nollStableMonths() {
+    return 6
+}
+
+/// True when the stability window is met: Kab-only feet for >= 6 months.
+pub fn nollStableOk(months) {
+    if months < nollStableMonths() {
+        return false
+    }
+    return nollKeepSrc()
+}
+
+/// Archive decision: window met AND AOT ready — stays false today
+/// (nollAotReady is still false).
+pub fn nollArcReady(months) {
+    if nollStableOk(months) == false {
+        return false
+    }
+    return nollAotReady()
+}

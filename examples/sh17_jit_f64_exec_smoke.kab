@@ -1,0 +1,8 @@
+import "kab/jit/jit_f64"
+import "kab/jit/jit_from_ops_f64"
+
+let ops = ["const", "const", "fmul", "ret"]
+if jitF64Magic("fmul") != 102 {
+    return false
+}
+return jitFromOpsF64Ok(ops, 16, 3)

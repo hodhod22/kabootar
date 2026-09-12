@@ -1,0 +1,7 @@
+import "kab/jit/jit_from_ops_deopt"
+
+let ops = ["const", "add", "sub", "mul", "div", "mod", "ret"]
+if jitFromOpsDeoptOk(ops, 9, "f64", "i64", 16, 3, 2, 4, 2, 5) == false {
+    return false
+}
+return jitFromOpsDeoptOk(ops, 9, "i64", "i64", 16, 3, 2, 4, 2, 5)

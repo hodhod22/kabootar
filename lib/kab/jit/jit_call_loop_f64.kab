@@ -1,0 +1,28 @@
+// SH17 deepen: f64 wr+run+call pipeline.
+// import "kab/jit/jit_call_loop_f64"
+// Do not grow jit_call_loop_fuse_cmp.kab.
+
+import "kab/jit/jit_wr_loop_f64"
+import "kab/jit/jit_run_loop_f64"
+import "kab/jit/jit_mm_call_loop_f64"
+import "kab/jit/jit_f64"
+
+pub fn jitCallLoopF64Ok(base, kind, magic, n, k, bytes) {
+    if jitF64MagicOk(magic) == false {
+        return false
+    }
+    if jitF64Ok(n, k) == false {
+        return false
+    }
+    if jitWrLoopF64Ok(bytes, magic, n, k) == false {
+        return false
+    }
+    if jitRunLoopF64Ok(base, kind, bytes, magic, n, k) == false {
+        return false
+    }
+    let res = jitMmCallLoopF64(bytes, magic, n, k)
+    if res != jitF64Rax(n, k, magic) {
+        return false
+    }
+    return true
+}

@@ -1,0 +1,22 @@
+// SH17 deepen: guest store for f64 template.
+// import "kab/jit/jit_mm_store_loop_f64"
+// Do not grow jit_mm_store_loop_fuse_cmp.kab.
+
+import "kab/jit/jit_mm_loop_f64"
+import "kab/jit/jit_f64"
+
+pub fn jitMmStoreLoopF64(bytes, magic, n, k) {
+    if jitF64MagicOk(magic) == false {
+        return 0
+    }
+    if jitF64Ok(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitF64Len() {
+        return 0
+    }
+    let pid = jitMmLoopF64Pid()
+    let virt = jitMmLoopF64Virt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

@@ -1,0 +1,35 @@
+// SH18 deepen: semi-space nursery copy — evac live to to-space.
+// import "kab/gc/gc_copy"
+// Do not grow gc_prom.kab. Dead objects are never copied.
+
+import "kab/gc/gc_member"
+
+/// Evacuate live (marked) object ids to to-space; returns the to-space list.
+pub fn gcCopyLiveOk(objects, marked) {
+    let to = []
+    let i = 0
+    while i < len(objects) {
+        if gcIsMarked(marked, objects[i]) {
+            to = push(to, objects[i])
+        }
+        i = i + 1
+    }
+    return to
+}
+
+/// Gate: to-space holds exactly `wantLive` objects and every evacuated id is
+/// marked.
+pub fn gcCopyOk(objects, marked, wantLive) {
+    let to = gcCopyLiveOk(objects, marked)
+    if len(to) != wantLive {
+        return false
+    }
+    let i = 0
+    while i < len(to) {
+        if gcIsMarked(marked, to[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}

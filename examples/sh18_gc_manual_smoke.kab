@@ -1,0 +1,9 @@
+import "kab/gc/gc_manual"
+
+if gcManualChargeOk(true, 100, 64) == false {
+    return false
+}
+if gcManualChargeOk(false, 100, 64) == false {
+    return false
+}
+return gcManualHostOk(64)

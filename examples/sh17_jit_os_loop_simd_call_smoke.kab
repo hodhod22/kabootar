@@ -1,0 +1,13 @@
+import "kab/jit/jit_simd_op"
+import "kab/jit/jit_mm_loop_simd"
+import "kab/jit/jit_call_loop_simd"
+
+let kind = "rwx"
+let magic = 104
+let a0 = 16
+let a1 = 3
+let b0 = 2
+let b1 = 4
+let tpl = jitEmitI64Simd(magic, a0, a1, b0, b1)
+let base = os_mm_mmap(jitMmLoopSimdPid(), jitMmLoopSimdVirt(), jitMmLoopSimdLen(), jitMmLoopSimdProt())
+return jitCallLoopSimdOk(base, kind, magic, a0, a1, b0, b1, tpl)

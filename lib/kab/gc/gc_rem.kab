@@ -1,0 +1,55 @@
+// SH18 deepen: remembered set + generational write barrier.
+// import "kab/gc/gc_rem"
+// Do not grow gc_bar.kab. Only old→young stores dirty a card.
+
+pub fn gcGenYoung() {
+    return 0
+}
+
+pub fn gcGenOld() {
+    return 1
+}
+
+/// True when a store crosses old→young and must be remembered.
+pub fn gcRemNeedsMark(slotGen, valGen) {
+    if slotGen == gcGenOld() {
+        return valGen == gcGenYoung()
+    }
+    return false
+}
+
+/// Remembered set: dedup add of a card index.
+pub fn gcRemAdd(rem, card) {
+    let i = 0
+    while i < len(rem) {
+        if rem[i] == card {
+            return rem
+        }
+        i = i + 1
+    }
+    return push(rem, card)
+}
+
+/// Full barrier write: records `card` iff the store crosses old→young.
+pub fn gcRemWrite(rem, slotGen, valGen, card) {
+    if gcRemNeedsMark(slotGen, valGen) {
+        return gcRemAdd(rem, card)
+    }
+    return rem
+}
+
+/// Gate: an old→young store records exactly one card; a young→old store and a
+/// duplicate old→young store record nothing new.
+pub fn gcRemOk() {
+    let rem = []
+    rem = gcRemWrite(rem, gcGenOld(), gcGenYoung(), 7)
+    if len(rem) != 1 {
+        return false
+    }
+    rem = gcRemWrite(rem, gcGenYoung(), gcGenOld(), 9)
+    if len(rem) != 1 {
+        return false
+    }
+    rem = gcRemWrite(rem, gcGenOld(), gcGenYoung(), 7)
+    return len(rem) == 1
+}

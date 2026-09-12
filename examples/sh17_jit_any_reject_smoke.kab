@@ -1,0 +1,15 @@
+import "kab/jit/jit_from_ops_any"
+
+if jitFuseKind(["const", "add", "ret"]) != 0 {
+    return false
+}
+if jitFuseKind(["pop", "dup", "ret"]) != 0 {
+    return false
+}
+if jitFromOpsAnyExecOk(["pop", "dup", "ret"], 16, 3, 2, 4, 2, 5) {
+    return false
+}
+if jitFromOpsAnySimdExecOk(["pop", "dup", "ret"], 16, 3, 2, 4) {
+    return false
+}
+return true

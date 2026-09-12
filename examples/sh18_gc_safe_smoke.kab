@@ -1,0 +1,16 @@
+import "kab/gc/gc_safe"
+
+// Polls fire at allocs 2 and 4; a collect runs only when all 2 threads park.
+if gcSafePollFires(3, 2) {
+    return false
+}
+if gcSafePollFires(4, 2) == false {
+    return false
+}
+if gcSafeRunOk(4, 2, 1, 2, 0) == false {
+    return false
+}
+if gcSafeRunOk(4, 2, 1, 2, 2) {
+    return false
+}
+return gcSafeRunOk(4, 2, 2, 2, 2)

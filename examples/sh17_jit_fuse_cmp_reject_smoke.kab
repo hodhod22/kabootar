@@ -1,0 +1,22 @@
+import "kab/jit/jit_from_ops_fuse_cmp"
+
+let ops = ["const", "const", "lt", "jump_if_false", "ret"]
+if jitFuseCmpOpsOk(["const", "lt", "ret"]) {
+    return false
+}
+if jitFuseCmpOpsOk(["const", "const", "add", "jump_if_false", "ret"]) {
+    return false
+}
+if jitFuseCmpOpsOk(["const", "const", "test", "jump_if_false", "ret"]) {
+    return false
+}
+if jitFuseCmpOpsOk(["const", "const", "lt", "jump", "ret"]) {
+    return false
+}
+if jitFromOpsFuseCmpOk(ops, 0, 3) {
+    return false
+}
+if jitFromOpsFuseCmpOk(ops, 16, 65) {
+    return false
+}
+return true

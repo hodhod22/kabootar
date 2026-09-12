@@ -1,0 +1,92 @@
+// SH17 deepen: fused i64 arith chain template. import "kab/jit/jit_fuse"
+// Do not grow jit_loop_mod.kab. Magic L packs const/add/sub/mul/div/mod into
+// one guest op: rax = ((n + k - s) * m / d) % r. m=0/d=0 mean skip, r=0 skips mod.
+
+import "kab/jit/jit_loop_n"
+
+pub fn jitFuseMax() {
+    return 64
+}
+
+/// Operand bounds match the guest L-template contract: seed 1..=64, imms 0..=64,
+/// and the add/sub intermediate must stay non-negative (guest rejects rax < 0).
+pub fn jitFuseOk(n, k, s, m, d, r) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if k < 0 {
+        return false
+    }
+    if k > jitFuseMax() {
+        return false
+    }
+    if s < 0 {
+        return false
+    }
+    if s > jitFuseMax() {
+        return false
+    }
+    if m < 0 {
+        return false
+    }
+    if m > jitFuseMax() {
+        return false
+    }
+    if d < 0 {
+        return false
+    }
+    if d > jitFuseMax() {
+        return false
+    }
+    if r < 0 {
+        return false
+    }
+    if r > jitFuseMax() {
+        return false
+    }
+    if n + k - s < 0 {
+        return false
+    }
+    return true
+}
+
+/// Mirror of the guest L-template semantics for dual-bind checks.
+pub fn jitFuseRax(n, k, s, m, d, r) {
+    let rax = n + k - s
+    if rax < 0 {
+        return 0
+    }
+    let mul = m
+    if mul == 0 {
+        mul = 1
+    }
+    rax = rax * mul
+    let div = d
+    if div == 0 {
+        div = 1
+    }
+    rax = rax / div
+    if r != 0 {
+        rax = rax % r
+    }
+    return rax
+}
+
+pub fn jitFuseLen() {
+    return jitLoopNLen()
+}
+
+/// Loop marker 76, seed n, add k, sub s, mul m, div d, mod r, ret — one guest op
+/// for the whole fused arith chain; simulated guest rax = jitFuseRax.
+pub fn jitEmitI64Fuse(n, k, s, m, d, r) {
+    let b = []
+    b = push(b, 76)
+    b = push(b, n)
+    b = push(b, k)
+    b = push(b, s)
+    b = push(b, m)
+    b = push(b, d)
+    b = push(b, r)
+    b = push(b, 195)
+    return b
+}

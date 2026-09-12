@@ -1,0 +1,15 @@
+import "kab/noll/noll_stable"
+
+if nollStableMonths() != 6 {
+    return false
+}
+if nollStableOk(5) {
+    return false
+}
+if nollStableOk(6) == false {
+    return false
+}
+if nollArcReady(6) {
+    return false
+}
+return true

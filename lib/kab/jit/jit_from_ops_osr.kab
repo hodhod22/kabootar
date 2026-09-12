@@ -1,0 +1,13 @@
+// SH17 deepen: OSR into fused code at a hot loop header. import "kab/jit/jit_from_ops_osr"
+// Do not grow jit_from_ops_hot.kab.
+
+import "kab/jit/jit_osr"
+import "kab/jit/jit_from_ops_fuse"
+
+/// On-stack replace a hot loop header: OSR-eligible pc + hot + fusible → exec.
+pub fn jitFromOpsOsrExecOk(ops, pc, hits, n, k, s, m, d, r) {
+    if jitOsrOk(pc, hits) == false {
+        return false
+    }
+    return jitFromOpsFuseOk(ops, n, k, s, m, d, r)
+}

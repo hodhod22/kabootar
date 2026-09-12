@@ -1,0 +1,25 @@
+// SH17 deepen: guest call for fused cmp+branch template.
+// import "kab/jit/jit_mm_call_loop_fuse_cmp"
+// Do not grow jit_mm_call_loop_fuse.kab.
+
+import "kab/jit/jit_mm_loop_fuse_cmp"
+import "kab/jit/jit_fuse_cmp"
+
+pub fn jitMmCallLoopFuseCmp(bytes, magic, n, k) {
+    if jitFuseCmpMagicOk(magic) == false {
+        return 0
+    }
+    if jitFuseCmpOk(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitFuseCmpLen() {
+        return 0
+    }
+    let pid = jitMmLoopFuseCmpPid()
+    let virt = jitMmLoopFuseCmpVirt()
+    let res = os_mm_call(pid, virt)
+    if res != jitFuseCmpRax(n, k, magic) {
+        return 0
+    }
+    return res
+}

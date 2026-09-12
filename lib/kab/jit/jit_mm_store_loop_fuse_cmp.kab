@@ -1,0 +1,22 @@
+// SH17 deepen: guest store for fused cmp+branch template.
+// import "kab/jit/jit_mm_store_loop_fuse_cmp"
+// Do not grow jit_mm_store_loop_fuse.kab.
+
+import "kab/jit/jit_mm_loop_fuse_cmp"
+import "kab/jit/jit_fuse_cmp"
+
+pub fn jitMmStoreLoopFuseCmp(bytes, magic, n, k) {
+    if jitFuseCmpMagicOk(magic) == false {
+        return 0
+    }
+    if jitFuseCmpOk(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitFuseCmpLen() {
+        return 0
+    }
+    let pid = jitMmLoopFuseCmpPid()
+    let virt = jitMmLoopFuseCmpVirt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

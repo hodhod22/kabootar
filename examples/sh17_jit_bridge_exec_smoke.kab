@@ -1,0 +1,24 @@
+import "kab/jit/jit_bridge"
+
+let ops = ["add", "sub", "ret"]
+if jitBridgeCanCompile(ops) == false {
+    return false
+}
+if jitBridgeTotalLen(ops) != 17 {
+    return false
+}
+let bytes = jitBridgeEmit(ops)
+if jitBridgeValidate(bytes, 17) == false {
+    return false
+}
+let pol = jitBridgeGetMmapPolicy()
+if pol[0] != 1 {
+    return false
+}
+if pol[2] != 4096 {
+    return false
+}
+if jitBridgeCheckMmap(pol[0], pol[1], pol[2], pol[3]) == false {
+    return false
+}
+return jitBridgePipelineOk(ops)

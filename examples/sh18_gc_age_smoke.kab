@@ -1,0 +1,15 @@
+import "kab/gc/gc_age"
+import "kab/gc/gc_prom"
+
+// Two survived cycles promote the 2 marked; one cycle is below threshold.
+if gcAgeCyclesOk([0, 1, 2, 3], [0, 1], 1, 2) {
+    return false
+}
+if gcAgeCyclesOk([0, 1, 2, 3], [0, 1], gcPromoteThreshold(), 1) {
+    return false
+}
+let ages = gcAgeBump([0, 0, 0, 0], [0, 1, 2, 3], [0, 1])
+if ages[0] != 1 || ages[1] != 1 || ages[2] != 0 || ages[3] != 0 {
+    return false
+}
+return gcAgeCyclesOk([0, 1, 2, 3], [0, 1], gcPromoteThreshold(), 2)

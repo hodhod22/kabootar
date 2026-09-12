@@ -1,0 +1,11 @@
+import "kab/gc/gc_copy"
+
+let objs = [1, 2, 3, 4]
+let marked = [1, 2]
+if len(gcCopyLiveOk(objs, marked)) != 2 {
+    return false
+}
+if gcCopyOk(objs, marked, 3) {
+    return false
+}
+return gcCopyOk(objs, marked, 2)

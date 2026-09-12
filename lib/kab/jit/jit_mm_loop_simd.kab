@@ -1,0 +1,42 @@
+// SH17 deepen: SIMD guest mmap args. import "kab/jit/jit_mm_loop_simd"
+// Do not grow jit_mm_loop_f64.kab. Separate virt slot for SIMD exec.
+
+import "kab/jit/jit_simd_op"
+
+pub fn jitMmLoopSimdPid() {
+    return 1
+}
+
+pub fn jitMmLoopSimdVirt() {
+    return 671744
+}
+
+pub fn jitMmLoopSimdLen() {
+    return 4096
+}
+
+pub fn jitMmLoopSimdProt() {
+    return 7
+}
+
+pub fn jitOsMmapLoopSimdOk(nBytes, kind, magic, a0, a1, b0, b1) {
+    if jitSimdMagicOk(magic) == false {
+        return false
+    }
+    if jitSimdLanesOk(a0, a1, b0, b1) == false {
+        return false
+    }
+    if nBytes != jitSimdOpLen() {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    if jitMmLoopSimdLen() != 4096 {
+        return false
+    }
+    if jitMmLoopSimdProt() != 7 {
+        return false
+    }
+    return true
+}

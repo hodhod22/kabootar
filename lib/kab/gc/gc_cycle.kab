@@ -13,7 +13,7 @@ pub fn gcNurseryCycleOk(start, bump, live) {
         return false
     }
     let promoted = gcPromote(u, cap)
-    if promoted <= 0 {
+    if promoted < 0 {
         return false
     }
     let dead = gcSweepDead(u, live)

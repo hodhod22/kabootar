@@ -1,0 +1,18 @@
+// SH17 deepen: guest store for fused-chain template. import "kab/jit/jit_mm_store_loop_fuse"
+// Do not grow jit_mm_store_loop_mod.kab.
+
+import "kab/jit/jit_mm_loop_fuse"
+import "kab/jit/jit_fuse"
+
+pub fn jitMmStoreLoopFuse(bytes, n, k, s, m, d, r) {
+    if jitFuseOk(n, k, s, m, d, r) == false {
+        return 0
+    }
+    if len(bytes) != jitFuseLen() {
+        return 0
+    }
+    let pid = jitMmLoopFusePid()
+    let virt = jitMmLoopFuseVirt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

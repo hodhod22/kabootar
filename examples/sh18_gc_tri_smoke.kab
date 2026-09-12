@@ -1,0 +1,9 @@
+import "kab/gc/gc_tri"
+
+if gcTriShade(gcTriBlack()) != gcTriBlack() {
+    return false
+}
+if gcTriDead(gcTriGray()) {
+    return false
+}
+return gcTriCycleOk([1, 2, 3, 4], [1, 2], 2)

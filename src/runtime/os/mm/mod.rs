@@ -360,6 +360,60 @@ impl MemorySubsystem {
                 return Ok(1);
             }
         }
+        // f64 guest ops: u8 immediates lifted to f64, result truncated to i64.
+        if bytes8.len() == 8 && bytes8[0] == 100 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(((n as f64) + (k as f64)) as i64);
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 101 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(((n as f64) - (k as f64)) as i64);
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 102 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(((n as f64) * (k as f64)) as i64);
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 103 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                return Ok(((n as f64) / (k as f64)) as i64);
+            }
+        }
+        // SIMD guest ops: two u8 lanes (a0,a1) x (b0,b1) packed in the template.
+        // Lane-wise results are packed into rax (u8 lanes for add, u16 for mul);
+        // dot reduces to a scalar.
+        if bytes8.len() == 8 && bytes8[0] == 104 && bytes8[7] == 195 {
+            let (a0, a1, b0, b1) = (bytes8[1], bytes8[2], bytes8[3], bytes8[4]);
+            if [a0, a1, b0, b1].iter().all(|v| (1..=64).contains(v)) {
+                let lo = (a0 as i64) + (b0 as i64);
+                let hi = (a1 as i64) + (b1 as i64);
+                return Ok(lo | (hi << 8));
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 105 && bytes8[7] == 195 {
+            let (a0, a1, b0, b1) = (bytes8[1], bytes8[2], bytes8[3], bytes8[4]);
+            if [a0, a1, b0, b1].iter().all(|v| (1..=64).contains(v)) {
+                let lo = (a0 as i64) * (b0 as i64);
+                let hi = (a1 as i64) * (b1 as i64);
+                return Ok(lo | (hi << 16));
+            }
+        }
+        if bytes8.len() == 8 && bytes8[0] == 106 && bytes8[7] == 195 {
+            let (a0, a1, b0, b1) = (bytes8[1], bytes8[2], bytes8[3], bytes8[4]);
+            if [a0, a1, b0, b1].iter().all(|v| (1..=64).contains(v)) {
+                return Ok((a0 as i64) * (b0 as i64) + (a1 as i64) * (b1 as i64));
+            }
+        }
         Err("os_mm_call: unknown guest entry".into())
     }
 

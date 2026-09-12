@@ -1,0 +1,15 @@
+import "kab/jit/jit_bridge"
+
+if jitBridgePipelineOk([]) {
+    return false
+}
+if jitBridgePipelineOk(["call", "ret"]) {
+    return false
+}
+if jitBridgePipelineOk(["pop", "dup", "swap"]) {
+    return false
+}
+if jitBridgeCheckMmap(2, 393216, 4096, 7) {
+    return false
+}
+return true

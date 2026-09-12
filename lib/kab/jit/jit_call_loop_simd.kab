@@ -1,0 +1,28 @@
+// SH17 deepen: SIMD wr+run+call pipeline.
+// import "kab/jit/jit_call_loop_simd"
+// Do not grow jit_call_loop_f64.kab.
+
+import "kab/jit/jit_wr_loop_simd"
+import "kab/jit/jit_run_loop_simd"
+import "kab/jit/jit_mm_call_loop_simd"
+import "kab/jit/jit_simd_op"
+
+pub fn jitCallLoopSimdOk(base, kind, magic, a0, a1, b0, b1, bytes) {
+    if jitSimdMagicOk(magic) == false {
+        return false
+    }
+    if jitSimdLanesOk(a0, a1, b0, b1) == false {
+        return false
+    }
+    if jitWrLoopSimdOk(bytes, magic, a0, a1, b0, b1) == false {
+        return false
+    }
+    if jitRunLoopSimdOk(base, kind, bytes, magic, a0, a1, b0, b1) == false {
+        return false
+    }
+    let res = jitMmCallLoopSimd(bytes, magic, a0, a1, b0, b1)
+    if res != jitSimdRax(a0, a1, b0, b1, magic) {
+        return false
+    }
+    return true
+}

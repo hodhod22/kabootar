@@ -1,0 +1,28 @@
+import "kab/jit/jit_from_ops_any"
+
+let ops = ["const", "add", "sub", "mul", "div", "mod", "ret"]
+let cops = ["const", "const", "lt", "jump_if_false", "ret"]
+let fops = ["const", "const", "fadd", "ret"]
+let sops = ["const", "const", "const", "const", "simd_mul", "ret"]
+if jitFuseKind(ops) != 1 {
+    return false
+}
+if jitFuseKind(cops) != 2 {
+    return false
+}
+if jitFuseKind(fops) != 3 {
+    return false
+}
+if jitFuseKind(sops) != 4 {
+    return false
+}
+if jitFromOpsAnyExecOk(ops, 16, 3, 2, 4, 2, 5) == false {
+    return false
+}
+if jitFromOpsAnyExecOk(cops, 16, 3, 0, 0, 0, 0) == false {
+    return false
+}
+if jitFromOpsAnyExecOk(fops, 16, 3, 0, 0, 0, 0) == false {
+    return false
+}
+return jitFromOpsAnySimdExecOk(sops, 16, 3, 2, 4)

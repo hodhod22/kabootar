@@ -1,0 +1,42 @@
+// SH18 deepen: deep GC rollup — tricolor + incremental + rem + copy + sweep
+// + @manual, all in Kab policy. import "kab/gc/gc_deep"
+// Do not grow gc_chain.kab. gcHostDeleteOk stays false.
+
+import "kab/gc"
+import "kab/gc/gc_tri"
+import "kab/gc/gc_incr"
+import "kab/gc/gc_rem"
+import "kab/gc/gc_copy"
+import "kab/gc/gc_sweep"
+import "kab/gc/gc_manual"
+
+/// Full deep-GC chain: 4 objects, 2 roots — tricolor marks 2 dead; incremental
+/// mark drains a child-shaded worklist in bounded frames; rem-set records the one
+/// old→young store; semi-space copies the 2 live; sweep frees 2*64 bytes;
+/// @manual allocs skip the charge.
+pub fn gcDeepOk() {
+    let objs = [1, 2, 3, 4]
+    let live = [1, 2]
+    if gcTriCycleOk(objs, live, 2) == false {
+        return false
+    }
+    if gcIncrMarkOk(4, 2, 4) == false {
+        return false
+    }
+    if gcIncrTreeMarkOk([0], [[1, 2], [3], [], []], 1, 4) == false {
+        return false
+    }
+    if gcRemOk() == false {
+        return false
+    }
+    if gcCopyOk(objs, live, 2) == false {
+        return false
+    }
+    if gcSweepBytesOk(objs, live, 64, 128) == false {
+        return false
+    }
+    if gcManualChargeOk(true, 100, 64) == false {
+        return false
+    }
+    return gcManualChargeOk(false, 100, 64)
+}

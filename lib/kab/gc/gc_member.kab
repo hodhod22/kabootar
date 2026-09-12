@@ -1,0 +1,14 @@
+// SH18 deepen: mark-set membership helper. import "kab/gc/gc_member"
+// Do not grow gc_mark.kab. Shared by tri/copy/sweep leaves.
+
+/// True when `id` is in the mark set (marked = live).
+pub fn gcIsMarked(marked, id) {
+    let i = 0
+    while i < len(marked) {
+        if marked[i] == id {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}

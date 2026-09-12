@@ -1,0 +1,6 @@
+import "kab/jit/jit_simd_op"
+import "kab/jit/jit_call_loop_simd"
+
+let kind = "rwx"
+let tpl = jitEmitI64Simd(104, 16, 3, 2, 4)
+return jitCallLoopSimdOk(671744, kind, 104, 0, 3, 2, 4, tpl) == false

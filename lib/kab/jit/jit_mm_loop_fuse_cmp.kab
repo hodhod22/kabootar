@@ -1,0 +1,42 @@
+// SH17 deepen: fused cmp+branch guest mmap args. import "kab/jit/jit_mm_loop_fuse_cmp"
+// Do not grow jit_mm_loop_fuse.kab. Separate virt slot from the arith fuse.
+
+import "kab/jit/jit_fuse_cmp"
+
+pub fn jitMmLoopFuseCmpPid() {
+    return 1
+}
+
+pub fn jitMmLoopFuseCmpVirt() {
+    return 655360
+}
+
+pub fn jitMmLoopFuseCmpLen() {
+    return 4096
+}
+
+pub fn jitMmLoopFuseCmpProt() {
+    return 7
+}
+
+pub fn jitOsMmapLoopFuseCmpOk(nBytes, kind, magic, n, k) {
+    if jitFuseCmpMagicOk(magic) == false {
+        return false
+    }
+    if jitFuseCmpOk(n, k) == false {
+        return false
+    }
+    if nBytes != jitFuseCmpLen() {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    if jitMmLoopFuseCmpLen() != 4096 {
+        return false
+    }
+    if jitMmLoopFuseCmpProt() != 7 {
+        return false
+    }
+    return true
+}

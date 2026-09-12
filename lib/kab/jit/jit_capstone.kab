@@ -1,0 +1,60 @@
+// SH17 capstone: hot loop compiled by the Kab JIT end-to-end. import "kab/jit/jit_capstone"
+// Do not grow jit_from_ops_deopt.kab. One mmap, one exec, all decision gates.
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_from_ops_fuse"
+import "kab/jit/jit_from_ops_fuse_cmp"
+import "kab/jit/jit_from_ops_f64"
+import "kab/jit/jit_from_ops_simd"
+import "kab/jit/jit_from_ops_deopt"
+import "kab/jit/jit_hot"
+import "kab/jit/jit_ic"
+import "kab/jit/jit_osr"
+import "kab/jit/jit_spec"
+
+/// Full SH17 story in one gate: monomorphic hot site → OSR-eligible header →
+/// fusible arith + cmp+branch + f64 + SIMD chains → fused template execs with
+/// real rax on four virt slots → deopt honored → i64 spec. The deopt leg must
+/// not exec.
+pub fn jitCapstoneOk() {
+    let ops = ["const", "add", "sub", "mul", "div", "mod", "ret"]
+    let cops = ["const", "const", "lt", "jump_if_false", "ret"]
+    let fops = ["const", "const", "fmul", "ret"]
+    let sops = ["const", "const", "const", "const", "simd_dot", "ret"]
+    let hits = jitThreshold() + 1
+    if jitIcOk(1, 90, hits) == false {
+        return false
+    }
+    if jitOsrOk(4, hits) == false {
+        return false
+    }
+    if jitFuseOpsOk(ops) == false {
+        return false
+    }
+    if jitFuseCmpOpsOk(cops) == false {
+        return false
+    }
+    if jitF64OpsOk(fops) == false {
+        return false
+    }
+    if jitSimdOpsOk(sops) == false {
+        return false
+    }
+    if jitFromOpsFuseOk(ops, 16, 3, 2, 4, 2, 5) == false {
+        return false
+    }
+    if jitFromOpsFuseCmpOk(cops, 16, 3) == false {
+        return false
+    }
+    if jitFromOpsF64Ok(fops, 16, 3) == false {
+        return false
+    }
+    if jitFromOpsSimdOk(sops, 16, 3, 2, 4) == false {
+        return false
+    }
+    if jitFromOpsDeoptOk(ops, hits, "f64", "i64", 16, 3, 2, 4, 2, 5) == false {
+        return false
+    }
+    return jitSpecOk("i64")
+}

@@ -1,0 +1,15 @@
+import "kab/gc/gc_deep"
+import "kab/gc/gc_tri"
+import "kab/gc/gc_incr"
+import "kab/gc/gc_rem"
+
+if gcTriCycleOk([1, 2, 3, 4], [1, 2], 1) {
+    return false
+}
+if gcIncrMarkOk(0, 2, 4) {
+    return false
+}
+if gcRemNeedsMark(0, 0) {
+    return false
+}
+return true

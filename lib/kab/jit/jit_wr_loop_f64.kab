@@ -1,0 +1,29 @@
+// SH17 deepen: translate+store for f64 template.
+// import "kab/jit/jit_wr_loop_f64"
+// Do not grow jit_wr_loop_fuse_cmp.kab.
+
+import "kab/jit/jit_patch_loop_f64"
+import "kab/jit/jit_mm_loop_f64"
+import "kab/jit/jit_mm_store_loop_f64"
+import "kab/jit/jit_f64"
+
+pub fn jitWrLoopF64Ok(bytes, magic, n, k) {
+    if jitPatchLoopF64Ok(bytes, magic, n, k) == false {
+        return false
+    }
+    let pid = jitMmLoopF64Pid()
+    let virt = jitMmLoopF64Virt()
+    let p0 = os_mm_translate(pid, virt)
+    if p0 <= 0 {
+        return false
+    }
+    let p7 = os_mm_translate(pid, virt + 7)
+    if p7 <= 0 {
+        return false
+    }
+    let w = jitMmStoreLoopF64(bytes, magic, n, k)
+    if w != jitF64Len() {
+        return false
+    }
+    return true
+}

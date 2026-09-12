@@ -1,0 +1,83 @@
+// SH17 deepen: f64 guest templates (magic 100-103). import "kab/jit/jit_f64"
+// Do not grow jit_fuse_cmp.kab. u8 immediates lift to f64 in the guest;
+// for the 1..=64 range the f64 result truncated to i64 equals the integer
+// mirror exactly.
+
+import "kab/jit/jit_loop_n"
+
+/// Guest magic for an f64 arith op name; 0 when not fusible.
+pub fn jitF64Magic(name) {
+    if name == "fadd" {
+        return 100
+    }
+    if name == "fsub" {
+        return 101
+    }
+    if name == "fmul" {
+        return 102
+    }
+    if name == "fdiv" {
+        return 103
+    }
+    return 0
+}
+
+pub fn jitF64MagicOk(magic) {
+    if magic < 100 {
+        return false
+    }
+    if magic > 103 {
+        return false
+    }
+    return true
+}
+
+/// Operand bounds match the guest f64 template contract (n,k 1..=64).
+pub fn jitF64Ok(n, k) {
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if k <= 0 {
+        return false
+    }
+    if k > 64 {
+        return false
+    }
+    return true
+}
+
+/// Mirror of the guest f64 semantics — exact in the 1..=64 range since the
+/// f64 result truncated to i64 equals the integer op (fdiv = trunc division).
+pub fn jitF64Rax(n, k, magic) {
+    if magic == 100 {
+        return n + k
+    }
+    if magic == 101 {
+        return n - k
+    }
+    if magic == 102 {
+        return n * k
+    }
+    if magic == 103 {
+        return n / k
+    }
+    return 0
+}
+
+pub fn jitF64Len() {
+    return jitLoopNLen()
+}
+
+/// f64 marker 100-103, n, k, pad, ret — simulated guest rax = jitF64Rax.
+pub fn jitEmitI64F64(magic, n, k) {
+    let b = []
+    b = push(b, magic)
+    b = push(b, n)
+    b = push(b, k)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

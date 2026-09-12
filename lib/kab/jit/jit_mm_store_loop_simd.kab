@@ -1,0 +1,22 @@
+// SH17 deepen: guest store for SIMD template.
+// import "kab/jit/jit_mm_store_loop_simd"
+// Do not grow jit_mm_store_loop_f64.kab.
+
+import "kab/jit/jit_mm_loop_simd"
+import "kab/jit/jit_simd_op"
+
+pub fn jitMmStoreLoopSimd(bytes, magic, a0, a1, b0, b1) {
+    if jitSimdMagicOk(magic) == false {
+        return 0
+    }
+    if jitSimdLanesOk(a0, a1, b0, b1) == false {
+        return 0
+    }
+    if len(bytes) != jitSimdOpLen() {
+        return 0
+    }
+    let pid = jitMmLoopSimdPid()
+    let virt = jitMmLoopSimdVirt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

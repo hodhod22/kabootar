@@ -17,8 +17,8 @@ pub fn jitOpOk(name) {
     return false
 }
 
-/// Ops that count toward the hot threshold (i64 compute + the original
-/// loop-seed ops const/load/store/ret kept hot for gate compatibility).
+/// Ops that count toward the hot threshold (i64 compute + f64 arith + the
+/// original loop-seed ops const/load/store/ret kept hot for gate compat).
 fn jitOpsIsHot(name) {
     if name == "acc_add_local" {
         return true
@@ -93,6 +93,27 @@ fn jitOpsIsHot(name) {
         return true
     }
     if name == "ge" {
+        return true
+    }
+    if name == "fadd" {
+        return true
+    }
+    if name == "fsub" {
+        return true
+    }
+    if name == "fmul" {
+        return true
+    }
+    if name == "fdiv" {
+        return true
+    }
+    if name == "simd_add" {
+        return true
+    }
+    if name == "simd_mul" {
+        return true
+    }
+    if name == "simd_dot" {
         return true
     }
     return false
@@ -176,7 +197,6 @@ pub fn jitFromOpsOk(ops) {
     if n < jitThreshold() {
         return false
     }
-    let _ = os_mm_mmap(jitMmPid(), jitMmVirt(), jitMmLen(), jitMmProt())
-    let _ = jitCallIncRetOk(0, "rwx", jitEmitI64IncRet())
-    return true
+    let base = os_mm_mmap(jitMmPid(), jitMmVirt(), jitMmLen(), jitMmProt())
+    return jitCallIncRetOk(base, "rwx", jitEmitI64IncRet())
 }
