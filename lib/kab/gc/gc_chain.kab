@@ -7,6 +7,7 @@ import "kab/gc/gc_concurrent"
 import "kab/gc/gc_concurrent_stress"
 import "kab/gc/gc_deep"
 import "kab/gc/gc_deep2"
+import "kab/gc/gc_deep3"
 import "kab/gc/gc_host"
 
 pub fn gcChainLiveGray() {
@@ -52,4 +53,12 @@ pub fn gcChainDeep2Ok(live) {
         return false
     }
     return gcDeep2Ok()
+}
+
+/// Deep-3 chain: deep-2 chain + compaction/LOS/free-list leaves.
+pub fn gcChainDeep3Ok(live) {
+    if gcChainDeep2Ok(live) == false {
+        return false
+    }
+    return gcDeep3Ok()
 }

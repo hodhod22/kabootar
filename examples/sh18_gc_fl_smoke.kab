@@ -1,0 +1,16 @@
+import "kab/gc/gc_fl"
+
+if gcFlFit([64, 32, 128], 0) != -1 {
+    return false
+}
+if gcFlFit([64, 32, 128], 100) != 2 {
+    return false
+}
+let free = gcFlAlloc([10], 10)
+if free[0] != 0 {
+    return false
+}
+if gcFlFit(free, 1) != -1 {
+    return false
+}
+return gcFlAllocOk()

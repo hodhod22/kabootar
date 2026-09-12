@@ -1,0 +1,14 @@
+import "kab/gc/gc_los"
+import "kab/gc"
+
+let cap = gcNurseryCap()
+if gcLosSpace(64) != 0 {
+    return false
+}
+if gcLosSpace(cap) != 1 {
+    return false
+}
+if gcLosOk(cap, 64) {
+    return false
+}
+return gcLosOk(64, cap + 1)

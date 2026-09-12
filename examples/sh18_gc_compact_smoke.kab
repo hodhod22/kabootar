@@ -1,0 +1,14 @@
+import "kab/gc/gc_compact"
+
+// Live [20, 40] slide to slots 0..1; wrong top or missing mark rejects.
+if gcCompactOk([10, 20, 30, 40], [20, 40], 3) {
+    return false
+}
+if gcCompactOk([10, 20, 30, 40], [20], 2) {
+    return false
+}
+let fwd = gcCompactFwd([10, 20, 30, 40], [20, 40])
+if fwd[0] != -1 || fwd[1] != 0 || fwd[2] != -1 || fwd[3] != 1 {
+    return false
+}
+return gcCompactOk([10, 20, 30, 40], [20, 40], 2)
