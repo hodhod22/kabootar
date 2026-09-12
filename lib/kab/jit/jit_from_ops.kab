@@ -5,15 +5,22 @@ import "kab/jit"
 import "kab/jit/jit_mm"
 import "kab/jit/jit_call"
 
+/// i64-baseline JIT-legal ops: integer/stack/control only — no heap, object,
+/// call, throw, await or option/result ops.
 pub fn jitOpOk(name) {
-    return jitOpsIsHot(name)
-}
-
-fn jitOpsIsHot(name) {
-    if name == "acc_add_local" {
+    if jitOpsIsHot(name) {
         return true
     }
-    if name == "add" {
+    if jitOpsIsColdLegal(name) {
+        return true
+    }
+    return false
+}
+
+/// Ops that count toward the hot threshold (i64 compute + the original
+/// loop-seed ops const/load/store/ret kept hot for gate compatibility).
+fn jitOpsIsHot(name) {
+    if name == "acc_add_local" {
         return true
     }
     if name == "const" {
@@ -26,6 +33,119 @@ fn jitOpsIsHot(name) {
         return true
     }
     if name == "ret" {
+        return true
+    }
+    if name == "add" {
+        return true
+    }
+    if name == "sub" {
+        return true
+    }
+    if name == "mul" {
+        return true
+    }
+    if name == "div" {
+        return true
+    }
+    if name == "mod" {
+        return true
+    }
+    if name == "neg" {
+        return true
+    }
+    if name == "bit_and" {
+        return true
+    }
+    if name == "bit_or" {
+        return true
+    }
+    if name == "bit_xor" {
+        return true
+    }
+    if name == "shl" {
+        return true
+    }
+    if name == "shr" {
+        return true
+    }
+    if name == "ushr" {
+        return true
+    }
+    if name == "bit_not" {
+        return true
+    }
+    if name == "not" {
+        return true
+    }
+    if name == "eq" {
+        return true
+    }
+    if name == "ne" {
+        return true
+    }
+    if name == "lt" {
+        return true
+    }
+    if name == "gt" {
+        return true
+    }
+    if name == "le" {
+        return true
+    }
+    if name == "ge" {
+        return true
+    }
+    return false
+}
+
+/// Legal but not hot: pure stack moves, globals and control flow.
+fn jitOpsIsColdLegal(name) {
+    if name == "pop" {
+        return true
+    }
+    if name == "dup" {
+        return true
+    }
+    if name == "swap" {
+        return true
+    }
+    if name == "take_local" {
+        return true
+    }
+    if name == "load_global" {
+        return true
+    }
+    if name == "store_global" {
+        return true
+    }
+    if name == "take_global" {
+        return true
+    }
+    if name == "acc_add_global" {
+        return true
+    }
+    if name == "jump" {
+        return true
+    }
+    if name == "jump_if_false" {
+        return true
+    }
+    if name == "jump_if_true" {
+        return true
+    }
+    if name == "jump_if_not_nullish" {
+        return true
+    }
+    if name == "and" {
+        return true
+    }
+    if name == "or" {
+        return true
+    }
+    if name == "return" {
+        return true
+    }
+    if name == "halt" {
         return true
     }
     return false
@@ -47,8 +167,11 @@ pub fn jitOpsHotCount(ops) {
     return n
 }
 
-/// True when ops are JIT-legal and hot AccAdd/add/const/load/store/ret hits threshold, then guest call returns 1.
+/// True when ops are JIT-legal and hot i64 ops hit threshold, then guest call returns 1.
 pub fn jitFromOpsOk(ops) {
+    if jitCanCompile(ops) == false {
+        return false
+    }
     let n = jitOpsHotCount(ops)
     if n < jitThreshold() {
         return false
