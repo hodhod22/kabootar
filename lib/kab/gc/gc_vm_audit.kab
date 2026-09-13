@@ -1,0 +1,75 @@
+// SH18 deepen: VM session audit — collect the inst-id root set from the VM's
+// stacks, then count live/dead in the inst heap. import "kab/gc/gc_vm_audit"
+// Do not grow gc_roots.kab. Audit only: nothing is swept; host heap stays skuld.
+
+import "kab/gc/gc_member"
+
+/// Inst id of a value: objects with vmI/__kab_oid are instances; anything else
+/// is not an inst and yields -1.
+pub fn gcVmValId(v) {
+    if v == null {
+        return -1
+    }
+    if typeof(v) != "object" {
+        return -1
+    }
+    let id = v["vmI"]
+    if id == undefined {
+        id = v["__kab_oid"]
+    }
+    if id == undefined {
+        return -1
+    }
+    return id
+}
+
+/// Deduped inst ids found in one array of values.
+pub fn gcVmScanArr(roots, arr) {
+    if typeof(arr) != "array" {
+        return roots
+    }
+    let i = 0
+    while i < len(arr) {
+        let id = gcVmValId(arr[i])
+        if id >= 0 {
+            if gcIsMarked(roots, id) == false {
+                roots = push(roots, id)
+            }
+        }
+        i = i + 1
+    }
+    return roots
+}
+
+/// Root set = inst ids reachable from stack + locals + globals + thisStack.
+pub fn gcVmRoots(stack, locals, globals, thisStack) {
+    let roots = []
+    roots = gcVmScanArr(roots, stack)
+    roots = gcVmScanArr(roots, locals)
+    roots = gcVmScanArr(roots, globals)
+    roots = gcVmScanArr(roots, thisStack)
+    return roots
+}
+
+/// Gate: insts (id-indexed heap, undefined-padded) split into live (rooted)
+/// and dead — wantLive/wantDead must match exactly. Nothing is removed.
+pub fn gcVmAuditOk(insts, roots, wantLive, wantDead) {
+    let live = 0
+    let dead = 0
+    let i = 0
+    while i < len(insts) {
+        let id = gcVmValId(insts[i])
+        if id >= 0 {
+            if gcIsMarked(roots, id) {
+                live = live + 1
+            } else {
+                dead = dead + 1
+            }
+        }
+        i = i + 1
+    }
+    if live != wantLive {
+        return false
+    }
+    return dead == wantDead
+}

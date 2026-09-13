@@ -59340,6 +59340,50 @@ fn sh18_gc_deep5_exec_smoke() {
         .expect("join");
 }
 
+/// SH18 deepen: VM session audit leaf + Kab-VM wires it on nursery collect.
+#[test]
+fn sh18_gc_vm_audit_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/gc/gc_vm_audit.kab"))
+        .expect("gc_vm_audit.kab");
+    assert!(
+        a.contains("pub fn gcVmValId")
+            && a.contains("pub fn gcVmRoots")
+            && a.contains("pub fn gcVmAuditOk"),
+        "SH18 Kab VM audit leaf"
+    );
+    let v = std::fs::read_to_string(root.join("self_host/vm_run_new_run.kab"))
+        .expect("vm_run_new_run.kab");
+    assert!(
+        v.contains("pub fn vGcRootsAuditS")
+            && v.contains("vGcRootsAuditS(S)")
+            && v.contains("vGcScanArrS"),
+        "SH18 Kab-VM root audit wired on nursery collect"
+    );
+}
+
+/// SH18 deepen: VM audit gate (eval).
+#[test]
+fn sh18_gc_vm_audit_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_vm_audit_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-vm-audit-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc vm audit smoke");
+            let value = eval_program(&program, &mut env).expect("run gc vm audit smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 #[test]
 fn sh19_load_aot_capstone_exec_smoke() {
     let path = format!(

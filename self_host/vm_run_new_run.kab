@@ -51,8 +51,79 @@ pub fn vNurseryCharge(S, n) {
             c = 0
         }
         S["gcCollects"] = c + 1
+        vGcRootsAuditS(S)
     }
     S["gcUsed"] = next
+}
+
+// --- vm_run_gc_audit ---
+/// Deduped inst ids (vmI/__kab_oid) found in one value array.
+pub fn vGcScanArrS(roots, arr) {
+    if typeof(arr) != "array" {
+        return roots
+    }
+    let i = 0
+    while i < len(arr) {
+        let id = vInstId(arr[i])
+        if id != undefined {
+            let seen = false
+            let j = 0
+            while j < len(roots) {
+                if roots[j] == id {
+                    seen = true
+                }
+                j = j + 1
+            }
+            if seen == false {
+                roots = push(roots, id)
+            }
+        }
+        i = i + 1
+    }
+    return roots
+}
+
+/// Audit-only collect: scan stack/locals/globals/thisStack for the root set,
+/// then count live (rooted) vs dead insts in the heap. Nothing is swept —
+/// host heap remains skuld until gcHostDeleteOk.
+pub fn vGcRootsAuditS(S) {
+    let roots = []
+    roots = vGcScanArrS(roots, S["stack"])
+    roots = vGcScanArrS(roots, S["locals"])
+    roots = vGcScanArrS(roots, S["globals"])
+    roots = vGcScanArrS(roots, S["thisStack"])
+    S["gcRootsN"] = len(roots)
+    let heap = S["insts"]
+    if typeof(heap) != "array" {
+        S["gcLiveN"] = 0
+        S["gcDeadN"] = 0
+        return
+    }
+    let live = 0
+    let dead = 0
+    let i = 0
+    while i < len(heap) {
+        let id = vInstId(heap[i])
+        if id != undefined {
+            let rooted = false
+            let j = 0
+            while j < len(roots) {
+                if roots[j] == id {
+                    rooted = true
+                }
+                j = j + 1
+            }
+            if rooted {
+                live = live + 1
+            } else {
+                dead = dead + 1
+            }
+        }
+        i = i + 1
+    }
+    S["gcLiveN"] = live
+    S["gcDeadN"] = dead
+    return
 }
 
 // --- vm_run_new_shell ---
