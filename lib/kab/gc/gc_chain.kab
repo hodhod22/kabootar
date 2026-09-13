@@ -9,6 +9,7 @@ import "kab/gc/gc_deep"
 import "kab/gc/gc_deep2"
 import "kab/gc/gc_deep3"
 import "kab/gc/gc_deep4"
+import "kab/gc/gc_deep5"
 import "kab/gc/gc_host"
 
 pub fn gcChainLiveGray() {
@@ -70,4 +71,12 @@ pub fn gcChainDeep4Ok(live) {
         return false
     }
     return gcDeep4Ok()
+}
+
+/// Deep-5 chain: deep-4 chain + finalizer/ephemeron/mature/SATB leaves.
+pub fn gcChainDeep5Ok(live) {
+    if gcChainDeep4Ok(live) == false {
+        return false
+    }
+    return gcDeep5Ok()
 }

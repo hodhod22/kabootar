@@ -59172,6 +59172,174 @@ fn sh18_gc_deep4_exec_smoke() {
         .expect("join");
 }
 
+/// SH18 deepen 5: finalizer queue stays in a tiny leaf (do not grow gc_sweep).
+#[test]
+fn sh18_gc_final_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/gc/gc_final.kab")).expect("gc_final.kab");
+    assert!(
+        f.contains("pub fn gcFinalQueue")
+            && f.contains("pub fn gcFinalOk")
+            && f.contains("gcSweepBytesOk"),
+        "SH18 Kab finalizer queue"
+    );
+}
+
+/// SH18 deepen 5: finalizer queue gate (eval).
+#[test]
+fn sh18_gc_final_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_final_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-final-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc final smoke");
+            let value = eval_program(&program, &mut env).expect("run gc final smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 5: ephemerons stay in a tiny leaf (do not grow gc_weak).
+#[test]
+fn sh18_gc_ephemeron_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let e = std::fs::read_to_string(root.join("lib/kab/gc/gc_ephemeron.kab")).expect("gc_ephemeron.kab");
+    assert!(
+        e.contains("pub fn gcEphMark")
+            && e.contains("pub fn gcEphOk")
+            && e.contains("fixpoint"),
+        "SH18 Kab ephemerons"
+    );
+}
+
+/// SH18 deepen 5: ephemerons gate (eval).
+#[test]
+fn sh18_gc_ephemeron_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_ephemeron_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-ephemeron-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc ephemeron smoke");
+            let value = eval_program(&program, &mut env).expect("run gc ephemeron smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 5: pretenuring stays in a tiny leaf (do not grow gc_los).
+#[test]
+fn sh18_gc_mature_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/gc/gc_mature.kab")).expect("gc_mature.kab");
+    assert!(
+        m.contains("pub fn gcMatureDecide")
+            && m.contains("pub fn gcMatureOk"),
+        "SH18 Kab pretenuring"
+    );
+}
+
+/// SH18 deepen 5: pretenuring gate (eval).
+#[test]
+fn sh18_gc_mature_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_mature_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-mature-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc mature smoke");
+            let value = eval_program(&program, &mut env).expect("run gc mature smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 5: SATB barrier stays in a tiny leaf (do not grow gc_rem).
+#[test]
+fn sh18_gc_satb_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_satb.kab")).expect("gc_satb.kab");
+    assert!(
+        s.contains("pub fn gcSatbLog")
+            && s.contains("pub fn gcSatbDrain")
+            && s.contains("pub fn gcSatbOk"),
+        "SH18 Kab SATB barrier"
+    );
+}
+
+/// SH18 deepen 5: SATB barrier gate (eval).
+#[test]
+fn sh18_gc_satb_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_satb_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-satb-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc satb smoke");
+            let value = eval_program(&program, &mut env).expect("run gc satb smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 5: rollup leaf chains deep-4 + final/eph/mature/satb.
+#[test]
+fn sh18_gc_deep5_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/gc/gc_deep5.kab")).expect("gc_deep5.kab");
+    assert!(
+        d.contains("pub fn gcDeep5Ok")
+            && d.contains("gcDeep4Ok")
+            && d.contains("gcFinalOk")
+            && d.contains("gcEphOk")
+            && d.contains("gcMatureOk")
+            && d.contains("gcSatbOk"),
+        "SH18 Kab deep-5 rollup"
+    );
+}
+
+/// SH18 deepen 5: full deep-5 capstone — chain + deep-5 leaves + gates closed (eval).
+#[test]
+fn sh18_gc_deep5_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_deep5_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-deep5-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc deep5 smoke");
+            let value = eval_program(&program, &mut env).expect("run gc deep5 smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 #[test]
 fn sh19_load_aot_capstone_exec_smoke() {
     let path = format!(

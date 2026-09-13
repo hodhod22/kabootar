@@ -1,0 +1,39 @@
+// SH18 deepen 5: ephemerons — eph = [key, value]; the value is marked only
+// while the key is live. import "kab/gc/gc_ephemeron"
+// Do not grow gc_weak.kab. Iterate to fixpoint so chained keys propagate.
+
+import "kab/gc/gc_member"
+
+/// Mark ephemeron values whose key is already marked; repeat until fixpoint so
+/// a marked value that is itself a key propagates.
+pub fn gcEphMark(ephs, marked) {
+    let changed = true
+    while changed {
+        changed = false
+        let i = 0
+        while i < len(ephs) {
+            let kv = ephs[i]
+            if gcIsMarked(marked, kv[0]) {
+                if gcIsMarked(marked, kv[1]) == false {
+                    marked = push(marked, kv[1])
+                    changed = true
+                }
+            }
+            i = i + 1
+        }
+    }
+    return marked
+}
+
+/// Gate: ephs [[1,2],[2,3],[9,4]] with marked [1] — 1 marks 2, 2 marks 3;
+/// dead key 9 never marks 4.
+pub fn gcEphOk() {
+    let marked = gcEphMark([[1, 2], [2, 3], [9, 4]], [1])
+    if len(marked) != 3 {
+        return false
+    }
+    if gcIsMarked(marked, 4) {
+        return false
+    }
+    return gcIsMarked(marked, 3)
+}

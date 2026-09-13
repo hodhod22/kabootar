@@ -1,0 +1,9 @@
+import "kab/gc/gc_satb"
+
+if len(gcSatbLog([], -1)) != 0 {
+    return false
+}
+if len(gcSatbDrain([5], [5])) != 1 {
+    return false
+}
+return gcSatbOk()

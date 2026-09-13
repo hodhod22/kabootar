@@ -60,3 +60,12 @@ pub fn gcCapstoneDeep4Ok(live) {
     }
     return gcCapstoneGatesClosed()
 }
+
+/// Full GC capstone including the deep-5 leaves (final/eph/mature/SATB)
+/// — host delete gates still closed.
+pub fn gcCapstoneDeep5Ok(live) {
+    if gcChainDeep5Ok(live) == false {
+        return false
+    }
+    return gcCapstoneGatesClosed()
+}

@@ -1,0 +1,29 @@
+// SH18 deepen 5: rollup gc_deep4 + finalizer + ephemeron + pretenuring + SATB.
+// import "kab/gc/gc_deep5"
+// Do not grow gc_deep4.kab. gcHostDeleteOk stays false.
+
+import "kab/gc/gc_deep4"
+import "kab/gc/gc_final"
+import "kab/gc/gc_ephemeron"
+import "kab/gc/gc_mature"
+import "kab/gc/gc_satb"
+
+/// Deep-5 chain: full gc_deep4 rollup plus finalizer queue (dead-with-finalizer
+/// run before sweep frees all dead bytes), ephemeron fixpoint (live key marks
+/// value, chained), pretenuring (90% survival site goes old), and SATB barrier
+/// (unlinked ref stays live via the log drain).
+pub fn gcDeep5Ok() {
+    if gcDeep4Ok() == false {
+        return false
+    }
+    if gcFinalOk([1, 2, 3, 4], [2], [1, 4], 64, 2, 192) == false {
+        return false
+    }
+    if gcEphOk() == false {
+        return false
+    }
+    if gcMatureOk() == false {
+        return false
+    }
+    return gcSatbOk()
+}

@@ -1,0 +1,32 @@
+// SH18 deepen 5: pretenuring — an alloc site whose objects historically
+// survive allocates straight to old space. import "kab/gc/gc_mature"
+// Do not grow gc_los.kab. Feedback is per site: survived*100 >= alloced*pct.
+
+import "kab/gc/gc_rem"
+
+/// Pretenure decision for one alloc site: at/above the survival percent the
+/// new object lands old, skipping the nursery entirely.
+pub fn gcMatureDecide(alloced, survived, pct) {
+    if alloced <= 0 {
+        return gcGenYoung()
+    }
+    if survived * 100 >= alloced * pct {
+        return gcGenOld()
+    }
+    return gcGenYoung()
+}
+
+/// Gate: a site at 90% survival (9/10) pretenures old at pct 80; 50% and a
+/// never-allocated site stay young.
+pub fn gcMatureOk() {
+    if gcMatureDecide(10, 9, 80) != gcGenOld() {
+        return false
+    }
+    if gcMatureDecide(10, 5, 80) != gcGenYoung() {
+        return false
+    }
+    if gcMatureDecide(0, 0, 80) != gcGenYoung() {
+        return false
+    }
+    return gcMatureDecide(10, 8, 80) == gcGenOld()
+}

@@ -1,0 +1,9 @@
+import "kab/gc/gc_mature"
+
+if gcMatureDecide(10, 7, 80) != 0 {
+    return false
+}
+if gcMatureDecide(10, 8, 80) != 1 {
+    return false
+}
+return gcMatureOk()
