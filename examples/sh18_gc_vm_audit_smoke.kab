@@ -1,0 +1,23 @@
+import "kab/gc/gc_vm_audit"
+
+// Insts have vmI/__kab_oid; numbers, strings and non-arrays scan as nothing.
+let stack = [{ "vmI": 1 }, 42, "x"]
+let locals = [{ "vmI": 2 }, { "vmI": 1 }]
+let globals = []
+let thisStack = [{ "vmI": 3 }]
+let roots = gcVmRoots(stack, locals, globals, thisStack)
+if len(roots) != 3 {
+    return false
+}
+if gcVmValId(5) != -1 {
+    return false
+}
+if len(gcVmScanArr([], "nope")) != 0 {
+    return false
+}
+// Heap id-indexed with undefined pad: ids 1..3 rooted, id 4 dead.
+let insts = [undefined, { "vmI": 1 }, { "vmI": 2 }, { "vmI": 3 }, { "vmI": 4 }]
+if gcVmAuditOk(insts, roots, 4, 0) {
+    return false
+}
+return gcVmAuditOk(insts, roots, 3, 1)
