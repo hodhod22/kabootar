@@ -209,20 +209,17 @@ global 43 pCallRelExpr
 global 44 parseCompare_bit
 global 45 TOKEN_IS
 global 46 parseCompare_eq
-global 47 op
-global 48 right
-global 49 left
-global 50 parseCompare_logic_and
-global 51 parseCompare_logic_or_bit
-global 52 parseCompare_logic_or_and
-global 53 parseCompare_logic_or
-global 54 parseCompare_logic
-global 55 parseCompare_nullish
-global 56 parseCompare_ternary
-global 57 hasTernaryColon
-global 58 AST_RESULT_QUESTION
-global 59 pCallCompare
-global 60 AST_TERNARY
+global 47 parseCompare_logic_and
+global 48 parseCompare_logic_or_bit
+global 49 parseCompare_logic_or_and
+global 50 parseCompare_logic_or
+global 51 parseCompare_logic
+global 52 parseCompare_nullish
+global 53 parseCompare_ternary
+global 54 hasTernaryColon
+global 55 AST_RESULT_QUESTION
+global 56 pCallCompare
+global 57 AST_TERNARY
 local 0 gSess
 functions=29
 fn 0 pSessionInit_core
@@ -2872,22 +2869,29 @@ fn_op 19 return
 fn_arrows 19 0
 fn 20 parseCompare_logic_and
 fn_params 20 sess
-fn_locals 20 sess,__kab_a0
+fn_locals 20 sess,left,right,op,__kab_a0
 fn_op 20 load_local 0
 fn_op 20 get_member 5
 fn_op 20 get_member 7
 fn_op 20 const 145
 fn_op 20 eq
-fn_op 20 jump_if_false 70
+fn_op 20 jump_if_false 81
 fn_op 20 load_local 0
 fn_op 20 load_global 8
 fn_op 20 call 1
 fn_op 20 pop
 fn_op 20 load_local 0
+fn_op 20 get_member 29
+fn_op 20 store_local 1
+fn_op 20 load_local 0
+fn_op 20 load_global 43
+fn_op 20 call 1
+fn_op 20 store_local 2
+fn_op 20 load_local 0
 fn_op 20 get_member 28
 fn_op 20 const 0
 fn_op 20 eq
-fn_op 20 jump_if_false 43
+fn_op 20 jump_if_false 47
 fn_op 20 load_local 0
 fn_op 20 get_member 5
 fn_op 20 get_member 7
@@ -2911,16 +2915,20 @@ fn_op 20 get_member 5
 fn_op 20 get_member 7
 fn_op 20 const 142
 fn_op 20 eq
-fn_op 20 jump_if_false 19
+fn_op 20 jump_if_false 23
+fn_op 20 load_local 0
+fn_op 20 get_member 5
+fn_op 20 get_member 7
+fn_op 20 store_local 3
 fn_op 20 load_local 0
 fn_op 20 load_global 8
 fn_op 20 call 1
 fn_op 20 pop
 fn_op 20 load_global 36
 fn_op 20 const 113
-fn_op 20 load_global 47
+fn_op 20 load_local 3
 fn_op 20 const 118
-fn_op 20 load_global 48
+fn_op 20 load_local 2
 fn_op 20 const 129
 fn_op 20 load_local 0
 fn_op 20 load_global 43
@@ -2928,33 +2936,33 @@ fn_op 20 call 1
 fn_op 20 const 130
 fn_op 20 make_object 4
 fn_op 20 dup
-fn_op 20 store_global 48
+fn_op 20 store_local 2
 fn_op 20 pop
-fn_op 20 jump -43
+fn_op 20 jump -47
 fn_op 20 load_global 36
 fn_op 20 const 113
 fn_op 20 const 145
 fn_op 20 const 118
-fn_op 20 load_global 49
+fn_op 20 load_local 1
 fn_op 20 const 129
-fn_op 20 load_global 48
+fn_op 20 load_local 2
 fn_op 20 const 130
 fn_op 20 make_object 4
-fn_op 20 store_local 1
+fn_op 20 store_local 4
 fn_op 20 load_local 0
 fn_op 20 const 29
-fn_op 20 load_local 1
+fn_op 20 load_local 4
 fn_op 20 index_set
 fn_op 20 swap
 fn_op 20 store_local 0
 fn_op 20 pop
-fn_op 20 jump -76
+fn_op 20 jump -87
 fn_op 20 const 0
 fn_op 20 return
 fn_arrows 20 0
 fn 21 parseCompare_logic_or_bit
 fn_params 21 sess
-fn_locals 21 sess,__kab_a0
+fn_locals 21 sess,op,__kab_a0
 fn_op 21 load_local 0
 fn_op 21 get_member 28
 fn_op 21 const 0
@@ -2985,14 +2993,18 @@ fn_op 21 get_member 5
 fn_op 21 get_member 7
 fn_op 21 const 142
 fn_op 21 eq
-fn_op 21 jump_if_false 25
+fn_op 21 jump_if_false 29
+fn_op 21 load_local 0
+fn_op 21 get_member 5
+fn_op 21 get_member 7
+fn_op 21 store_local 1
 fn_op 21 load_local 0
 fn_op 21 load_global 8
 fn_op 21 call 1
 fn_op 21 pop
 fn_op 21 load_global 36
 fn_op 21 const 113
-fn_op 21 load_global 47
+fn_op 21 load_local 1
 fn_op 21 const 118
 fn_op 21 load_local 0
 fn_op 21 get_member 30
@@ -3002,15 +3014,15 @@ fn_op 21 load_global 43
 fn_op 21 call 1
 fn_op 21 const 130
 fn_op 21 make_object 4
-fn_op 21 store_local 1
+fn_op 21 store_local 2
 fn_op 21 load_local 0
 fn_op 21 const 30
-fn_op 21 load_local 1
+fn_op 21 load_local 2
 fn_op 21 index_set
 fn_op 21 swap
 fn_op 21 store_local 0
 fn_op 21 pop
-fn_op 21 jump -49
+fn_op 21 jump -53
 fn_op 21 const 0
 fn_op 21 return
 fn_arrows 21 0
@@ -3044,7 +3056,7 @@ fn_op 22 swap
 fn_op 22 store_local 0
 fn_op 22 pop
 fn_op 22 load_local 0
-fn_op 22 load_global 51
+fn_op 22 load_global 48
 fn_op 22 call 1
 fn_op 22 pop
 fn_op 22 load_local 0
@@ -3075,55 +3087,58 @@ fn_op 22 return
 fn_arrows 22 0
 fn 23 parseCompare_logic_or
 fn_params 23 sess
-fn_locals 23 sess,__kab_a0,__kab_a1
+fn_locals 23 sess,left,__kab_a0,__kab_a1
 fn_op 23 load_local 0
 fn_op 23 get_member 5
 fn_op 23 get_member 7
 fn_op 23 const 146
 fn_op 23 eq
-fn_op 23 jump_if_false 42
+fn_op 23 jump_if_false 45
 fn_op 23 load_local 0
 fn_op 23 load_global 8
 fn_op 23 call 1
 fn_op 23 pop
 fn_op 23 load_local 0
-fn_op 23 load_global 43
-fn_op 23 call 1
+fn_op 23 get_member 29
 fn_op 23 store_local 1
 fn_op 23 load_local 0
+fn_op 23 load_global 43
+fn_op 23 call 1
+fn_op 23 store_local 2
+fn_op 23 load_local 0
 fn_op 23 const 30
-fn_op 23 load_local 1
+fn_op 23 load_local 2
 fn_op 23 index_set
 fn_op 23 swap
 fn_op 23 store_local 0
 fn_op 23 pop
 fn_op 23 load_local 0
-fn_op 23 load_global 51
+fn_op 23 load_global 48
 fn_op 23 call 1
 fn_op 23 pop
 fn_op 23 load_local 0
-fn_op 23 load_global 52
+fn_op 23 load_global 49
 fn_op 23 call 1
 fn_op 23 pop
 fn_op 23 load_global 36
 fn_op 23 const 113
 fn_op 23 const 146
 fn_op 23 const 118
-fn_op 23 load_global 49
+fn_op 23 load_local 1
 fn_op 23 const 129
 fn_op 23 load_local 0
 fn_op 23 get_member 30
 fn_op 23 const 130
 fn_op 23 make_object 4
-fn_op 23 store_local 2
+fn_op 23 store_local 3
 fn_op 23 load_local 0
 fn_op 23 const 29
-fn_op 23 load_local 2
+fn_op 23 load_local 3
 fn_op 23 index_set
 fn_op 23 swap
 fn_op 23 store_local 0
 fn_op 23 pop
-fn_op 23 jump -48
+fn_op 23 jump -51
 fn_op 23 const 0
 fn_op 23 return
 fn_arrows 23 0
@@ -3131,11 +3146,11 @@ fn 24 parseCompare_logic
 fn_params 24 sess
 fn_locals 24 sess
 fn_op 24 load_local 0
-fn_op 24 load_global 50
+fn_op 24 load_global 47
 fn_op 24 call 1
 fn_op 24 pop
 fn_op 24 load_local 0
-fn_op 24 load_global 53
+fn_op 24 load_global 50
 fn_op 24 call 1
 fn_op 24 pop
 fn_op 24 const 0
@@ -3189,15 +3204,15 @@ fn_op 25 load_local 0
 fn_op 25 get_member 29
 fn_op 25 return
 fn_op 25 load_local 0
-fn_op 25 load_global 54
+fn_op 25 load_global 51
 fn_op 25 call 1
 fn_op 25 pop
 fn_op 25 load_local 0
-fn_op 25 load_global 55
+fn_op 25 load_global 52
 fn_op 25 call 1
 fn_op 25 pop
 fn_op 25 load_local 0
-fn_op 25 load_global 56
+fn_op 25 load_global 53
 fn_op 25 call 1
 fn_op 25 pop
 fn_op 25 load_local 0
@@ -3359,7 +3374,7 @@ fn_op 28 jump_if_false 2
 fn_op 28 const 0
 fn_op 28 return
 fn_op 28 load_local 0
-fn_op 28 load_global 57
+fn_op 28 load_global 54
 fn_op 28 call 1
 fn_op 28 const 0
 fn_op 28 eq
@@ -3368,7 +3383,7 @@ fn_op 28 load_local 0
 fn_op 28 load_global 8
 fn_op 28 call 1
 fn_op 28 pop
-fn_op 28 load_global 58
+fn_op 28 load_global 55
 fn_op 28 const 113
 fn_op 28 load_local 0
 fn_op 28 get_member 29
@@ -3392,7 +3407,7 @@ fn_op 28 load_local 0
 fn_op 28 get_member 29
 fn_op 28 store_local 2
 fn_op 28 load_local 0
-fn_op 28 load_global 59
+fn_op 28 load_global 56
 fn_op 28 call 1
 fn_op 28 store_local 3
 fn_op 28 load_local 0
@@ -3409,10 +3424,10 @@ fn_op 28 load_global 8
 fn_op 28 call 1
 fn_op 28 pop
 fn_op 28 load_local 0
-fn_op 28 load_global 59
+fn_op 28 load_global 56
 fn_op 28 call 1
 fn_op 28 store_local 4
-fn_op 28 load_global 60
+fn_op 28 load_global 57
 fn_op 28 const 113
 fn_op 28 load_local 2
 fn_op 28 const 159
@@ -3473,4 +3488,4 @@ halt
 
 source=self_host/parser_exec.kab
 statements=33
-fingerprint=a012601ac4f7624f
+fingerprint=20d15be13796710b

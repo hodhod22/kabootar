@@ -1,4 +1,6 @@
 import "self_host/emit_defs"
+import "kab/gc"
+import "kab/gc/gc_alloc"
 
 // --- vm_s_caps ---
 // P6b: snap local caps from session S.
@@ -328,6 +330,16 @@ pub fn vHeapPut(S, obj) {
     return
 }
 
+/// Publish obj to the inst heap, charging the nursery only when the id slot
+/// is fresh (re-puts of an already-heaped inst are updates, not allocs).
+pub fn vHeapPutFreshS(S, obj) {
+    let id = vInstId(obj)
+    if id != undefined && vHeapGet(S, id) == undefined {
+        vNurseryCharge(S, gcInstShellBytes())
+    }
+    vHeapPut(S, obj)
+}
+
 pub fn vCanonicalInstS(S, v) {
     let id = vInstId(v)
     let h = vHeapGet(S, id)
@@ -335,7 +347,7 @@ pub fn vCanonicalInstS(S, v) {
         return h
     }
     if id != undefined {
-        vHeapPut(S, v)
+        vHeapPutFreshS(S, v)
     }
     return v
 }
@@ -356,7 +368,7 @@ pub fn vPublishInstS(S, updated) {
             }
         }
     }
-    vHeapPut(S, updated)
+    vHeapPutFreshS(S, updated)
     if len(S["thisStack"]) > 0 {
         let cur2 = S["thisStack"][len(S["thisStack"]) - 1]
         if vSameVmI(vInstId(cur2), vInstId(updated)) {
@@ -386,7 +398,7 @@ pub fn vWritebackAfterMethodS(S, recv, updated) {
         return
     }
     updated["vmI"] = id
-    vHeapPut(S, updated)
+    vHeapPutFreshS(S, updated)
     vMergeInstInPlace(recv, updated)
     S["locals"] = vReplaceByVmI(S["locals"], updated, id)
     S["globals"] = vReplaceByVmI(S["globals"], updated, id)
@@ -395,6 +407,158 @@ pub fn vWritebackAfterMethodS(S, recv, updated) {
 
 pub fn vWritebackInstanceS(S, updated) {
     vWritebackAfterMethodS(S, null, updated)
+}
+
+// --- vm_s_gc_charge ---
+/// Charge nursery bump for one heap publish; collect is promote-account plus
+/// a roots audit (host heap still skuld).
+pub fn vNurseryCharge(S, n) {
+    let cap = S["gcCap"]
+    if cap == null {
+        cap = gcNurseryCap()
+        S["gcCap"] = cap
+    }
+    let used = S["gcUsed"]
+    if used == null {
+        used = 0
+    }
+    let next = gcAllocOrCollect(used, n, cap)
+    if next < used {
+        let c = S["gcCollects"]
+        if c == null {
+            c = 0
+        }
+        S["gcCollects"] = c + 1
+        vGcRootsAuditS(S)
+    }
+    S["gcUsed"] = next
+}
+
+// --- vm_s_gc_audit ---
+/// Add one value's inst id to the root set (dedup via seen map).
+/// `st` = { "roots": [...ids], "seen": {"id" -> true} }; the string-keyed
+/// seen map keeps membership O(1) instead of a linear scan over roots.
+/// (ids can be large host __kab_oid values — never index arrays by id.)
+pub fn vGcMarkValS(st, v) {
+    let id = vInstId(v)
+    if id == undefined {
+        return st
+    }
+    let k = " " + id
+    let seen = st["seen"]
+    if seen[k] != undefined {
+        return st
+    }
+    seen[k] = true
+    st["seen"] = seen
+    st["roots"] = push(st["roots"], id)
+    return st
+}
+
+/// Deduped inst ids (vmI/__kab_oid) found in one value array.
+pub fn vGcScanArrS(st, arr) {
+    if typeof(arr) != "array" {
+        return st
+    }
+    let i = 0
+    while i < len(arr) {
+        st = vGcMarkValS(st, arr[i])
+        i = i + 1
+    }
+    return st
+}
+
+/// Scan a single session root — array, inst, or any other value.
+pub fn vGcScanValS(st, v) {
+    if typeof(v) == "array" {
+        return vGcScanArrS(st, v)
+    }
+    return vGcMarkValS(st, v)
+}
+
+/// Collect: scan stack/locals/globals/thisStack for the root set, plus the
+/// single-value roots lastThis/result/classes/_args, then transitively mark
+/// insts reachable through rooted inst fields (BFS worklist over the root
+/// ids). Counts live (marked) vs dead insts in the heap, the reclaimable
+/// bytes, and sweeps dead inst slots to undefined in `S["insts"]`. The host
+/// heap remains skuld until gcHostDeleteOk.
+pub fn vGcRootsAuditS(S) {
+    let st = { "roots": [], "seen": {} }
+    st = vGcScanArrS(st, S["stack"])
+    st = vGcScanArrS(st, S["locals"])
+    st = vGcScanArrS(st, S["globals"])
+    st = vGcScanArrS(st, S["thisStack"])
+    st = vGcScanValS(st, S["lastThis"])
+    st = vGcScanValS(st, S["result"])
+    st = vGcScanValS(st, S["classes"])
+    st = vGcScanValS(st, S["_args"])
+    S["gcRootsN"] = len(st["roots"])
+    let heap = S["insts"]
+    if typeof(heap) == "array" {
+        let wi = 0
+        while wi < len(st["roots"]) {
+            let rid = st["roots"][wi]
+            if typeof(rid) == "number" && rid >= 0 && rid < len(heap) {
+                let obj = heap[rid]
+                if typeof(obj) == "object" && obj != null {
+                    let keys = object_keys(obj)
+                    let ki = 0
+                    while ki < len(keys) {
+                        st = vGcScanValS(st, obj[keys[ki]])
+                        ki = ki + 1
+                    }
+                }
+            }
+            wi = wi + 1
+        }
+    }
+    let seen = st["seen"]
+    S["gcMarkedN"] = len(st["roots"])
+    if typeof(heap) != "array" {
+        S["gcLiveN"] = 0
+        S["gcDeadN"] = 0
+        S["gcDeadBytes"] = 0
+        return
+    }
+    let live = 0
+    let dead = 0
+    let i = 0
+    while i < len(heap) {
+        let id = vInstId(heap[i])
+        if id != undefined {
+            if seen[" " + id] == true {
+                live = live + 1
+            } else {
+                dead = dead + 1
+            }
+        }
+        i = i + 1
+    }
+    S["gcLiveN"] = live
+    S["gcDeadN"] = dead
+    S["gcDeadBytes"] = dead * gcInstShellBytes()
+    vGcSweepDeadS(S, seen, heap)
+    return
+}
+
+/// Sweep: tombstone heap slots whose inst id was not marked, then account
+/// reclaimed insts/bytes. Only the Kab-VM inst heap is touched — the host
+/// heap remains skuld until gcHostDeleteOk.
+pub fn vGcSweepDeadS(S, seen, heap) {
+    let reclaimed = 0
+    let i = 0
+    while i < len(heap) {
+        let id = vInstId(heap[i])
+        if id != undefined && seen[" " + id] != true {
+            heap[i] = undefined
+            reclaimed = reclaimed + 1
+        }
+        i = i + 1
+    }
+    S["insts"] = heap
+    S["gcReclaimedN"] = reclaimed
+    S["gcReclaimedBytes"] = reclaimed * gcInstShellBytes()
+    return
 }
 
 pub fn vReplaceByVmI(arr, updated, id) {

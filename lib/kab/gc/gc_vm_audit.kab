@@ -1,8 +1,7 @@
 // SH18 deepen: VM session audit — collect the inst-id root set from the VM's
 // stacks, then count live/dead in the inst heap. import "kab/gc/gc_vm_audit"
-// Do not grow gc_roots.kab. Audit only: nothing is swept; host heap stays skuld.
-
-import "kab/gc/gc_member"
+// Do not grow gc_roots.kab. Audit only: counts/marks; VM-side sweep lives in
+// self_host/vm_s_stack.kab (vGcSweepDeadS); host heap stays skuld.
 
 /// Inst id of a value: objects with vmI/__kab_oid are instances; anything else
 /// is not an inst and yields -1.
@@ -23,22 +22,75 @@ pub fn gcVmValId(v) {
     return id
 }
 
+/// Seen map {"id" -> true} built from a roots array — O(1) membership for
+/// ids that may be large host __kab_oid values (never index arrays by id).
+pub fn gcVmMarkMap(roots) {
+    let seen = {}
+    let i = 0
+    while i < len(roots) {
+        seen[" " + roots[i]] = true
+        i = i + 1
+    }
+    return seen
+}
+
+/// Mark one value's inst id into `st` = { "roots": [...], "seen": {"id": true} };
+/// arrays recurse per element.
+pub fn gcVmMarkVal(st, v) {
+    if typeof(v) == "array" {
+        let i = 0
+        while i < len(v) {
+            st = gcVmMarkVal(st, v[i])
+            i = i + 1
+        }
+        return st
+    }
+    let id = gcVmValId(v)
+    if id >= 0 {
+        let k = " " + id
+        let seen = st["seen"]
+        if seen[k] == undefined {
+            seen[k] = true
+            st["seen"] = seen
+            st["roots"] = push(st["roots"], id)
+        }
+    }
+    return st
+}
+
 /// Deduped inst ids found in one array of values.
 pub fn gcVmScanArr(roots, arr) {
     if typeof(arr) != "array" {
         return roots
     }
-    let i = 0
-    while i < len(arr) {
-        let id = gcVmValId(arr[i])
-        if id >= 0 {
-            if gcIsMarked(roots, id) == false {
-                roots = push(roots, id)
+    let st = { "roots": roots, "seen": gcVmMarkMap(roots) }
+    return gcVmMarkVal(st, arr)["roots"]
+}
+
+/// Transitively expand the root set through inst fields — an inst held only
+/// by another live inst stays live (BFS over the id-indexed insts heap).
+pub fn gcVmTransitive(roots, insts) {
+    if typeof(insts) != "array" {
+        return roots
+    }
+    let st = { "roots": roots, "seen": gcVmMarkMap(roots) }
+    let wi = 0
+    while wi < len(st["roots"]) {
+        let rid = st["roots"][wi]
+        if typeof(rid) == "number" && rid >= 0 && rid < len(insts) {
+            let obj = insts[rid]
+            if typeof(obj) == "object" && obj != null {
+                let keys = object_keys(obj)
+                let ki = 0
+                while ki < len(keys) {
+                    st = gcVmMarkVal(st, obj[keys[ki]])
+                    ki = ki + 1
+                }
             }
         }
-        i = i + 1
+        wi = wi + 1
     }
-    return roots
+    return st["roots"]
 }
 
 /// Root set = inst ids reachable from stack + locals + globals + thisStack.
@@ -53,14 +105,16 @@ pub fn gcVmRoots(stack, locals, globals, thisStack) {
 
 /// Gate: insts (id-indexed heap, undefined-padded) split into live (rooted)
 /// and dead — wantLive/wantDead must match exactly. Nothing is removed.
+/// Membership is O(1) via gcVmMarkMap.
 pub fn gcVmAuditOk(insts, roots, wantLive, wantDead) {
+    let seen = gcVmMarkMap(roots)
     let live = 0
     let dead = 0
     let i = 0
     while i < len(insts) {
         let id = gcVmValId(insts[i])
         if id >= 0 {
-            if gcIsMarked(roots, id) {
+            if seen[" " + id] == true {
                 live = live + 1
             } else {
                 dead = dead + 1

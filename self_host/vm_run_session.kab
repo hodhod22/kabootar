@@ -1,6 +1,7 @@
 import "self_host/vm_run_restore_mod"
 import "self_host/vm_run_prep_fn"
 import "self_host/vm_s_stack"
+import "kab/gc/gc_alloc"
 
 // --- vm_run_alloc_globals ---
 pub fn vAllocGlobals(S, n) {
@@ -365,6 +366,7 @@ pub fn vPublishGenS(S, g) {
         }
         S["nextInstId"] = nid + 1
         g["vmI"] = nid
+        vNurseryCharge(S, gcInstShellBytes())
     }
     vHeapPut(S, g)
     vRetargetGenMethodsS(g, g)
