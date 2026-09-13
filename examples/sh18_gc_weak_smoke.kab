@@ -1,0 +1,13 @@
+import "kab/gc/gc_weak"
+
+if gcWeakGet(7, [7]) != 7 {
+    return false
+}
+if gcWeakGet(8, [7]) != -1 {
+    return false
+}
+let weaks = gcWeakSweep([1, 2, 3], [2])
+if weaks[0] != -1 || weaks[1] != 2 || weaks[2] != -1 {
+    return false
+}
+return gcWeakOk()

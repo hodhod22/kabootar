@@ -1,0 +1,11 @@
+import "kab/gc/gc_pace"
+import "kab/gc"
+
+let cap = gcNurseryCap()
+if gcPaceGrow(cap, 40000, 80, cap * 8) != cap {
+    return false
+}
+if gcPaceGrow(cap, 0, 80, cap * 8) != cap {
+    return false
+}
+return gcPaceOk()

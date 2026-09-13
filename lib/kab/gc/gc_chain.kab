@@ -8,6 +8,7 @@ import "kab/gc/gc_concurrent_stress"
 import "kab/gc/gc_deep"
 import "kab/gc/gc_deep2"
 import "kab/gc/gc_deep3"
+import "kab/gc/gc_deep4"
 import "kab/gc/gc_host"
 
 pub fn gcChainLiveGray() {
@@ -61,4 +62,12 @@ pub fn gcChainDeep3Ok(live) {
         return false
     }
     return gcDeep3Ok()
+}
+
+/// Deep-4 chain: deep-3 chain + roots/pacing/weak leaves.
+pub fn gcChainDeep4Ok(live) {
+    if gcChainDeep3Ok(live) == false {
+        return false
+    }
+    return gcDeep4Ok()
 }
