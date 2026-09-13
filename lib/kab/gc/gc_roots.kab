@@ -1,0 +1,43 @@
+// SH18 deepen 4: shadow-stack roots — frames push/pop root slots; only the
+// still-pushed ids may seed the mark phase. import "kab/gc/gc_roots"
+// Do not grow gc_mark.kab. Root stack is LIFO per call frame.
+
+import "kab/gc/gc_member"
+
+/// Push a root id onto the shadow stack; returns the grown stack.
+pub fn gcRootPush(roots, id) {
+    return push(roots, id)
+}
+
+/// Pop the top root at frame exit; returns the shrunken stack.
+pub fn gcRootPop(roots) {
+    let n = len(roots)
+    if n == 0 {
+        return roots
+    }
+    let out = []
+    let i = 0
+    while i < n - 1 {
+        out = push(out, roots[i])
+        i = i + 1
+    }
+    return out
+}
+
+/// Gate: outer frame roots 7, inner frame pushes 9 then pops — only 7 remains
+/// a root; a popped id must not keep its object alive.
+pub fn gcRootsScanOk() {
+    let roots = gcRootPush([], 7)
+    roots = gcRootPush(roots, 9)
+    if len(roots) != 2 {
+        return false
+    }
+    roots = gcRootPop(roots)
+    if len(roots) != 1 {
+        return false
+    }
+    if gcIsMarked(roots, 7) == false {
+        return false
+    }
+    return gcIsMarked(roots, 9) == false
+}

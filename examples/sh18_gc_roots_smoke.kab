@@ -1,0 +1,10 @@
+import "kab/gc/gc_roots"
+
+if len(gcRootPop([])) != 0 {
+    return false
+}
+let roots = gcRootPop(gcRootPush(gcRootPush([], 5), 6))
+if len(roots) != 1 || roots[0] != 5 {
+    return false
+}
+return gcRootsScanOk()

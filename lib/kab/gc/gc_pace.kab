@@ -1,0 +1,32 @@
+// SH18 deepen 4: GC pacing — nursery cap grows when survival stays high.
+// import "kab/gc/gc_pace"
+// Do not grow gc.kab. liveBytes*100 >= cap*highWaterPct doubles cap (bounded
+// by maxCap); below the watermark the cap is unchanged.
+
+import "kab/gc"
+
+/// Post-cycle pacing: at/above the survival watermark the nursery doubles,
+/// bounded by maxCap; below it the cap holds.
+pub fn gcPaceGrow(cap, liveBytes, highWaterPct, maxCap) {
+    if liveBytes * 100 < cap * highWaterPct {
+        return cap
+    }
+    let next = cap * 2
+    if next > maxCap {
+        return maxCap
+    }
+    return next
+}
+
+/// Gate: 90% survival (59000/65536) doubles the cap; ~61% (40000) holds it;
+/// growth is bounded by maxCap.
+pub fn gcPaceOk() {
+    let cap = gcNurseryCap()
+    if gcPaceGrow(cap, 59000, 80, cap * 8) != cap * 2 {
+        return false
+    }
+    if gcPaceGrow(cap, 40000, 80, cap * 8) != cap {
+        return false
+    }
+    return gcPaceGrow(cap * 8, cap * 8, 80, cap * 8) == cap * 8
+}

@@ -1,0 +1,41 @@
+// SH18 deepen 4: weak references — a weak ref does not keep its target alive;
+// after mark+sweep a ref to a white object reads as cleared (-1).
+// import "kab/gc/gc_weak"
+// Do not grow gc_member.kab. Weak targets are never added to the mark set.
+
+import "kab/gc/gc_member"
+
+/// Read through a weak ref after mark: a marked (live) target returns its id,
+/// a white (dead) target is cleared to -1.
+pub fn gcWeakGet(weak, marked) {
+    if gcIsMarked(marked, weak) {
+        return weak
+    }
+    return -1
+}
+
+/// Clear every weak ref whose target is dead; returns the weak list with dead
+/// entries replaced by -1.
+pub fn gcWeakSweep(weaks, marked) {
+    let out = []
+    let i = 0
+    while i < len(weaks) {
+        out = push(out, gcWeakGet(weaks[i], marked))
+        i = i + 1
+    }
+    return out
+}
+
+/// Gate: weak [9] points at live 7 and stays; weak [8] points at dead 8 and
+/// clears — neither added anything to the mark set.
+pub fn gcWeakOk() {
+    let marked = [7]
+    let weaks = gcWeakSweep([7, 8], marked)
+    if weaks[0] != 7 {
+        return false
+    }
+    if weaks[1] != -1 {
+        return false
+    }
+    return len(marked) == 1
+}

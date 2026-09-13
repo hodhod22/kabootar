@@ -1,0 +1,24 @@
+// SH18 deepen 4: rollup gc_deep3 + shadow-stack roots + pacing + weak refs.
+// import "kab/gc/gc_deep4"
+// Do not grow gc_deep3.kab. gcHostDeleteOk stays false.
+
+import "kab/gc/gc_deep3"
+import "kab/gc/gc_roots"
+import "kab/gc/gc_pace"
+import "kab/gc/gc_weak"
+
+/// Deep-4 chain: full gc_deep3 rollup plus shadow-stack roots (popped id is
+/// not live), pacing (90% survival doubles cap, bounded), and weak refs
+/// (dead target clears to -1 without marking).
+pub fn gcDeep4Ok() {
+    if gcDeep3Ok() == false {
+        return false
+    }
+    if gcRootsScanOk() == false {
+        return false
+    }
+    if gcPaceOk() == false {
+        return false
+    }
+    return gcWeakOk()
+}

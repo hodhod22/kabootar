@@ -59040,6 +59040,138 @@ fn sh18_gc_deep3_exec_smoke() {
         .expect("join");
 }
 
+/// SH18 deepen 4: shadow-stack roots stay in a tiny leaf (do not grow gc_mark).
+#[test]
+fn sh18_gc_roots_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/gc/gc_roots.kab")).expect("gc_roots.kab");
+    assert!(
+        r.contains("pub fn gcRootPush")
+            && r.contains("pub fn gcRootPop")
+            && r.contains("pub fn gcRootsScanOk"),
+        "SH18 Kab shadow-stack roots"
+    );
+}
+
+/// SH18 deepen 4: shadow-stack roots gate (eval).
+#[test]
+fn sh18_gc_roots_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_roots_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-roots-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc roots smoke");
+            let value = eval_program(&program, &mut env).expect("run gc roots smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 4: GC pacing/heap-growth stays in a tiny leaf (do not grow gc.kab).
+#[test]
+fn sh18_gc_pace_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/gc/gc_pace.kab")).expect("gc_pace.kab");
+    assert!(
+        p.contains("pub fn gcPaceGrow")
+            && p.contains("pub fn gcPaceOk"),
+        "SH18 Kab GC pacing"
+    );
+}
+
+/// SH18 deepen 4: GC pacing gate (eval).
+#[test]
+fn sh18_gc_pace_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_pace_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-pace-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc pace smoke");
+            let value = eval_program(&program, &mut env).expect("run gc pace smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 4: weak refs stay in a tiny leaf (do not grow gc_member).
+#[test]
+fn sh18_gc_weak_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let w = std::fs::read_to_string(root.join("lib/kab/gc/gc_weak.kab")).expect("gc_weak.kab");
+    assert!(
+        w.contains("pub fn gcWeakGet")
+            && w.contains("pub fn gcWeakSweep")
+            && w.contains("pub fn gcWeakOk"),
+        "SH18 Kab weak references"
+    );
+}
+
+/// SH18 deepen 4: weak refs gate (eval).
+#[test]
+fn sh18_gc_weak_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_weak_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-weak-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc weak smoke");
+            let value = eval_program(&program, &mut env).expect("run gc weak smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 4: rollup leaf chains deep-3 + roots/pace/weak.
+#[test]
+fn sh18_gc_deep4_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/gc/gc_deep4.kab")).expect("gc_deep4.kab");
+    assert!(
+        d.contains("pub fn gcDeep4Ok")
+            && d.contains("gcDeep3Ok")
+            && d.contains("gcRootsScanOk")
+            && d.contains("gcPaceOk")
+            && d.contains("gcWeakOk"),
+        "SH18 Kab deep-4 rollup"
+    );
+}
+
+/// SH18 deepen 4: full deep-4 capstone — chain + deep-4 leaves + gates closed (eval).
+#[test]
+fn sh18_gc_deep4_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_deep4_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-deep4-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc deep4 smoke");
+            let value = eval_program(&program, &mut env).expect("run gc deep4 smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 #[test]
 fn sh19_load_aot_capstone_exec_smoke() {
     let path = format!(
