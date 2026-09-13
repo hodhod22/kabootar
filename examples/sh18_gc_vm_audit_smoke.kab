@@ -20,4 +20,15 @@ let insts = [undefined, { "vmI": 1 }, { "vmI": 2 }, { "vmI": 3 }, { "vmI": 4 }]
 if gcVmAuditOk(insts, roots, 4, 0) {
     return false
 }
-return gcVmAuditOk(insts, roots, 3, 1)
+if gcVmAuditOk(insts, roots, 3, 1) == false {
+    return false
+}
+// Transitive: inst 4 is reachable only through rooted inst 1's field.
+let parent = { "vmI": 1 }
+parent.child = { "vmI": 4 }
+let insts2 = [undefined, parent, { "vmI": 2 }, { "vmI": 4 }, { "vmI": 5 }]
+let deep = gcVmTransitive([1], insts2)
+if len(deep) != 2 {
+    return false
+}
+return gcVmAuditOk(insts2, deep, 2, 2)

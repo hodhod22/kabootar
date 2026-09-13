@@ -59349,16 +59349,27 @@ fn sh18_gc_vm_audit_in_kab() {
     assert!(
         a.contains("pub fn gcVmValId")
             && a.contains("pub fn gcVmRoots")
-            && a.contains("pub fn gcVmAuditOk"),
+            && a.contains("pub fn gcVmAuditOk")
+            && a.contains("pub fn gcVmTransitive")
+            && a.contains("pub fn gcVmMarkMap"),
         "SH18 Kab VM audit leaf"
     );
-    let v = std::fs::read_to_string(root.join("self_host/vm_run_new_run.kab"))
-        .expect("vm_run_new_run.kab");
+    let v = std::fs::read_to_string(root.join("self_host/vm_s_stack.kab"))
+        .expect("vm_s_stack.kab");
     assert!(
         v.contains("pub fn vGcRootsAuditS")
             && v.contains("vGcRootsAuditS(S)")
-            && v.contains("vGcScanArrS"),
+            && v.contains("vGcScanArrS")
+            && v.contains("pub fn vGcSweepDeadS")
+            && v.contains("gcReclaimedN")
+            && v.contains("gcDeadBytes"),
         "SH18 Kab-VM root audit wired on nursery collect"
+    );
+    let sess = std::fs::read_to_string(root.join("self_host/vm_run_session.kab"))
+        .expect("vm_run_session.kab");
+    assert!(
+        sess.contains("pub fn vPublishGenS") && sess.contains("vNurseryCharge"),
+        "SH18 Kab-VM generator publish nursery charge"
     );
 }
 
