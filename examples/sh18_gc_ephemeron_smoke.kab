@@ -1,0 +1,11 @@
+import "kab/gc/gc_ephemeron"
+
+// Single-hop: live key marks its value; dead key does not.
+let m = gcEphMark([[1, 2]], [1])
+if len(m) != 2 {
+    return false
+}
+if len(gcEphMark([[9, 4]], [1])) != 1 {
+    return false
+}
+return gcEphOk()

@@ -1,0 +1,48 @@
+// SH18 deepen 5: SATB barrier — a store logs the overwritten (old) ref; the
+// mark-end drain keeps it live. import "kab/gc/gc_satb"
+// Do not grow gc_rem.kab. SATB records old refs; rem records dirty cards.
+
+import "kab/gc/gc_member"
+
+/// Write barrier: an overwrite of `oldRef` logs it for the mark-end drain.
+/// oldRef < 0 means no previous ref — nothing is logged. Deduped.
+pub fn gcSatbLog(log, oldRef) {
+    if oldRef < 0 {
+        return log
+    }
+    if gcIsMarked(log, oldRef) {
+        return log
+    }
+    return push(log, oldRef)
+}
+
+/// Mark end: every logged ref is marked — it was reachable at snapshot start.
+pub fn gcSatbDrain(log, marked) {
+    let i = 0
+    while i < len(log) {
+        if gcIsMarked(marked, log[i]) == false {
+            marked = push(marked, log[i])
+        }
+        i = i + 1
+    }
+    return marked
+}
+
+/// Gate: ref 5 unlinked mid-mark — the barrier logs it and the drain keeps it
+/// live; a no-old-ref store and a duplicate store log nothing new.
+pub fn gcSatbOk() {
+    let log = gcSatbLog([], 5)
+    log = gcSatbLog(log, -1)
+    if len(log) != 1 {
+        return false
+    }
+    log = gcSatbLog(log, 5)
+    if len(log) != 1 {
+        return false
+    }
+    let marked = gcSatbDrain(log, [1])
+    if len(marked) != 2 {
+        return false
+    }
+    return gcIsMarked(marked, 5)
+}

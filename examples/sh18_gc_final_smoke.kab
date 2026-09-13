@@ -1,0 +1,14 @@
+import "kab/gc/gc_final"
+
+// objects [1,2,3,4], live [2], finals [1,4] → queue [1,4], free = 3*64.
+let q = gcFinalQueue([1, 2, 3, 4], [2], [1, 4])
+if len(q) != 2 || q[0] != 1 || q[1] != 4 {
+    return false
+}
+if gcFinalOk([1, 2, 3, 4], [2], [1, 4], 64, 3, 192) {
+    return false
+}
+if gcFinalOk([1, 2, 3, 4], [2], [1, 4], 64, 2, 128) {
+    return false
+}
+return gcFinalOk([1, 2, 3, 4], [2], [1, 4], 64, 2, 192)
