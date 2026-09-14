@@ -59,9 +59,10 @@ pub fn merge_object_fields(from: &Value, into: &mut Value) {
     let Value::Object(dst) = into else {
         return;
     };
+    let dst = Value::object_make_mut(dst);
     for (k, v) in src.iter() {
         if !k.starts_with("__kab_") {
-            Rc::make_mut(dst).insert(k.clone(), v.clone());
+            dst.insert(k.clone(), v.clone());
         }
     }
 }

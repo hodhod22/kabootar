@@ -532,14 +532,19 @@ pub fn vGcScanFieldsS(st, heap, rid) {
     st["fieldsN"] = st["fieldsN"] + len(keys)
     let ki = 0
     while ki < len(keys) {
-        st = vGcScanValS(st, obj[keys[ki]])
+        let k = keys[ki]
+        if len(k) < 5 || str_slice(k, 0, 5) != "weak_" {
+            st = vGcScanValS(st, obj[k])
+        }
         ki = ki + 1
     }
     return st
 }
 
 /// Continue the in-progress collect: scan fields of at most `budget` marked
-/// insts. When the worklist drains, finish the cycle (count + sweep + pace).
+/// insts. When the worklist drains, dirty holders from the write log are
+/// rescanned (remembered-set semantics: a child stored into a scanned inst
+/// mid-cycle still gets marked). When both drain, finish the cycle.
 pub fn vGcMarkSliceS(S, budget) {
     if S["gcMarkActive"] != true {
         return
@@ -548,13 +553,30 @@ pub fn vGcMarkSliceS(S, budget) {
     let heap = S["insts"]
     let n = 0
     if typeof(heap) == "array" {
-        while st["wi"] < len(st["roots"]) && n < budget {
-            st = vGcScanFieldsS(st, heap, st["roots"][st["wi"]])
-            st["wi"] = st["wi"] + 1
+        while n < budget {
+            if st["wi"] < len(st["roots"]) {
+                st = vGcScanFieldsS(st, heap, st["roots"][st["wi"]])
+                st["wi"] = st["wi"] + 1
+            } else {
+                let wl = S["gcWriteLog"]
+                if typeof(wl) != "array" || len(wl) == 0 {
+                    break
+                }
+                let hid = wl[len(wl) - 1]
+                S["gcWriteLog"] = pop(wl)
+                let ws = S["gcWriteSeen"]
+                if typeof(ws) == "object" && ws != null {
+                    ws[" " + hid] = undefined
+                    S["gcWriteSeen"] = ws
+                }
+                st = vGcScanFieldsS(st, heap, hid)
+            }
             n = n + 1
         }
     }
-    if typeof(heap) != "array" || st["wi"] >= len(st["roots"]) {
+    let wl2 = S["gcWriteLog"]
+    let pending = typeof(wl2) == "array" && len(wl2) > 0
+    if typeof(heap) != "array" || (st["wi"] >= len(st["roots"]) && pending == false) {
         vGcFinishMarkS(S, st)
         S["gcMarkActive"] = false
         return
@@ -592,12 +614,13 @@ pub fn vGcFinishMarkS(S, st) {
     S["gcLiveN"] = live
     S["gcDeadN"] = dead
     S["gcDeadBytes"] = dead * gcInstShellBytes()
-    let wl = S["gcWriteLog"]
-    if typeof(wl) == "array" {
-        S["gcWriteN"] = len(wl)
+    let wc = S["gcWriteCycleN"]
+    if typeof(wc) == "number" {
+        S["gcWriteN"] = wc
     } else {
         S["gcWriteN"] = 0
     }
+    S["gcWriteCycleN"] = 0
     S["gcWriteLog"] = []
     S["gcWriteSeen"] = {}
     vGcSweepDeadS(S, seen, heap)
@@ -643,8 +666,42 @@ pub fn vGcSweepDeadS(S, seen, heap) {
         }
         i = i + 1
     }
+    // Weak refs: weak_* fields on live insts that point at swept ids are
+    // cleared in place (shared object — visible to every holder).
+    let wi2 = 0
+    while wi2 < len(heap) {
+        let obj = heap[wi2]
+        if typeof(obj) == "object" && obj != null {
+            let keys = object_keys(obj)
+            let ki = 0
+            while ki < len(keys) {
+                let k = keys[ki]
+                if len(k) >= 5 && str_slice(k, 0, 5) == "weak_" {
+                    let wid = vInstId(obj[k])
+                    if wid != undefined && seen[" " + wid] != true {
+                        obj[k] = undefined
+                    }
+                }
+                ki = ki + 1
+            }
+        }
+        wi2 = wi2 + 1
+    }
+    // Trim the trailing tombstone run so the id-indexed heap shrinks back;
+    // freed ids beyond the new tail would just re-pad it, so they drop.
+    while len(heap) > 0 && heap[len(heap) - 1] == undefined {
+        heap = pop(heap)
+    }
+    let pruned = []
+    let fi = 0
+    while fi < len(freeIds) {
+        if freeIds[fi] < len(heap) {
+            pruned = push(pruned, freeIds[fi])
+        }
+        fi = fi + 1
+    }
     S["insts"] = heap
-    S["gcFreeIds"] = freeIds
+    S["gcFreeIds"] = pruned
     S["gcReclaimedN"] = reclaimed
     S["gcReclaimedBytes"] = reclaimed * gcInstShellBytes()
     return
@@ -914,14 +971,19 @@ pub fn vGcLogWriteS(S, holder, val) {
         log = []
     }
     S["gcWriteLog"] = push(log, id)
+    let wc = S["gcWriteCycleN"]
+    if typeof(wc) != "number" {
+        wc = 0
+    }
+    S["gcWriteCycleN"] = wc + 1
     return
 }
 
 // --- vm_s_member_set_push ---
 pub fn vMemberSetPush(S, obj, key, val) {
     obj = vCanonicalInstS(S, obj)
-    vGcLogWriteS(S, obj, val)
     let updated = vPublishInstS(S, vMemberSet(obj, key, val))
+    vGcLogWriteS(S, updated, val)
     if vIsCurrentThisS(S, obj) {
         vWriteThisS(S, updated)
     }
@@ -932,8 +994,8 @@ pub fn vMemberSetPush(S, obj, key, val) {
 
 // --- vm_s_index_set_push ---
 pub fn vIndexSetPush(S, container, idx, val) {
-    vGcLogWriteS(S, container, val)
     let updated = vPublishInstS(S, vIndexSet(container, idx, val))
+    vGcLogWriteS(S, updated, val)
     if vIsCurrentThisS(S, container) {
         vWriteThisS(S, updated)
     }
