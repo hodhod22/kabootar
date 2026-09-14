@@ -59362,8 +59362,16 @@ fn sh18_gc_vm_audit_in_kab() {
             && v.contains("vGcScanArrS")
             && v.contains("pub fn vGcSweepDeadS")
             && v.contains("gcReclaimedN")
-            && v.contains("gcDeadBytes"),
-        "SH18 Kab-VM root audit wired on nursery collect"
+            && v.contains("gcDeadBytes")
+            && v.contains("pub fn vGcCollectBeginS")
+            && v.contains("pub fn vGcMarkSliceS")
+            && v.contains("pub fn vGcFinishMarkS")
+            && v.contains("pub fn vGcLogWriteS")
+            && v.contains("pub fn vHeapPutFreshS")
+            && v.contains("gcMarkActive")
+            && v.contains("gcLiveBytes")
+            && v.contains("gcPaceGrow"),
+        "SH18 Kab-VM incremental collect wired on nursery charge"
     );
     let sess = std::fs::read_to_string(root.join("self_host/vm_run_session.kab"))
         .expect("vm_run_session.kab");

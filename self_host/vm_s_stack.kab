@@ -1,6 +1,7 @@
 import "self_host/emit_defs"
 import "kab/gc"
 import "kab/gc/gc_alloc"
+import "kab/gc/gc_pace"
 
 // --- vm_s_caps ---
 // P6b: snap local caps from session S.
@@ -332,10 +333,15 @@ pub fn vHeapPut(S, obj) {
 
 /// Publish obj to the inst heap, charging the nursery only when the id slot
 /// is fresh (re-puts of an already-heaped inst are updates, not allocs).
+/// During an in-progress collect the fresh inst is allocated black so the
+/// in-flight cycle never sweeps a just-published object.
 pub fn vHeapPutFreshS(S, obj) {
     let id = vInstId(obj)
     if id != undefined && vHeapGet(S, id) == undefined {
         vNurseryCharge(S, gcInstShellBytes())
+        if S["gcMarkActive"] == true {
+            S["gcMarkSt"] = vGcMarkValS(S["gcMarkSt"], obj)
+        }
     }
     vHeapPut(S, obj)
 }
@@ -410,8 +416,10 @@ pub fn vWritebackInstanceS(S, updated) {
 }
 
 // --- vm_s_gc_charge ---
-/// Charge nursery bump for one heap publish; collect is promote-account plus
-/// a roots audit (host heap still skuld).
+/// Charge nursery bump for one heap publish. A full nursery begins an
+/// incremental collect; marking then proceeds in slices under the frame
+/// budget on every charge until the worklist drains, when the cycle settles
+/// gcUsed/gcCap to the live-bytes watermark (host heap still skuld).
 pub fn vNurseryCharge(S, n) {
     let cap = S["gcCap"]
     if cap == null {
@@ -423,13 +431,21 @@ pub fn vNurseryCharge(S, n) {
         used = 0
     }
     let next = gcAllocOrCollect(used, n, cap)
-    if next < used {
+    if next < used && S["gcMarkActive"] != true {
         let c = S["gcCollects"]
         if c == null {
             c = 0
         }
         S["gcCollects"] = c + 1
-        vGcRootsAuditS(S)
+        vGcCollectBeginS(S)
+    }
+    if S["gcMarkActive"] == true {
+        vGcMarkSliceS(S, vGcMarkSliceN())
+        if S["gcMarkActive"] == true {
+            S["gcUsed"] = next
+            return
+        }
+        return
     }
     S["gcUsed"] = next
 }
@@ -476,14 +492,17 @@ pub fn vGcScanValS(st, v) {
     return vGcMarkValS(st, v)
 }
 
-/// Collect: scan stack/locals/globals/thisStack for the root set, plus the
-/// single-value roots lastThis/result/classes/_args, then transitively mark
-/// insts reachable through rooted inst fields (BFS worklist over the root
-/// ids). Counts live (marked) vs dead insts in the heap, the reclaimable
-/// bytes, and sweeps dead inst slots to undefined in `S["insts"]`. The host
-/// heap remains skuld until gcHostDeleteOk.
-pub fn vGcRootsAuditS(S) {
-    let st = { "roots": [], "seen": {} }
+/// Incremental mark slice budget — inst fields scanned per charge keeps the
+/// pause inside the 16 ms frame budget (gcFrameBudgetMs).
+pub fn vGcMarkSliceN() {
+    return 64
+}
+
+/// Begin a collect: snapshot the root set (stack/locals/globals/thisStack
+/// plus lastThis/result/classes/_args) into S["gcMarkSt"] and mark it active.
+/// The transitive BFS then continues in slices via vGcMarkSliceS.
+pub fn vGcCollectBeginS(S) {
+    let st = { "roots": [], "seen": {}, "wi": 0 }
     st = vGcScanArrS(st, S["stack"])
     st = vGcScanArrS(st, S["locals"])
     st = vGcScanArrS(st, S["globals"])
@@ -493,26 +512,59 @@ pub fn vGcRootsAuditS(S) {
     st = vGcScanValS(st, S["classes"])
     st = vGcScanValS(st, S["_args"])
     S["gcRootsN"] = len(st["roots"])
+    S["gcMarkSt"] = st
+    S["gcMarkActive"] = true
+    return
+}
+
+/// Scan the fields of one marked inst (worklist step).
+pub fn vGcScanFieldsS(st, heap, rid) {
+    if typeof(rid) != "number" || rid < 0 || rid >= len(heap) {
+        return st
+    }
+    let obj = heap[rid]
+    if typeof(obj) != "object" || obj == null {
+        return st
+    }
+    let keys = object_keys(obj)
+    let ki = 0
+    while ki < len(keys) {
+        st = vGcScanValS(st, obj[keys[ki]])
+        ki = ki + 1
+    }
+    return st
+}
+
+/// Continue the in-progress collect: scan fields of at most `budget` marked
+/// insts. When the worklist drains, finish the cycle (count + sweep + pace).
+pub fn vGcMarkSliceS(S, budget) {
+    if S["gcMarkActive"] != true {
+        return
+    }
+    let st = S["gcMarkSt"]
     let heap = S["insts"]
+    let n = 0
     if typeof(heap) == "array" {
-        let wi = 0
-        while wi < len(st["roots"]) {
-            let rid = st["roots"][wi]
-            if typeof(rid) == "number" && rid >= 0 && rid < len(heap) {
-                let obj = heap[rid]
-                if typeof(obj) == "object" && obj != null {
-                    let keys = object_keys(obj)
-                    let ki = 0
-                    while ki < len(keys) {
-                        st = vGcScanValS(st, obj[keys[ki]])
-                        ki = ki + 1
-                    }
-                }
-            }
-            wi = wi + 1
+        while st["wi"] < len(st["roots"]) && n < budget {
+            st = vGcScanFieldsS(st, heap, st["roots"][st["wi"]])
+            st["wi"] = st["wi"] + 1
+            n = n + 1
         }
     }
+    if typeof(heap) != "array" || st["wi"] >= len(st["roots"]) {
+        vGcFinishMarkS(S, st)
+        S["gcMarkActive"] = false
+        return
+    }
+    S["gcMarkSt"] = st
+    return
+}
+
+/// Finish a collect: count live/dead, drain the write log, sweep dead slots,
+/// then settle nursery used to the live-bytes watermark and pace the cap.
+pub fn vGcFinishMarkS(S, st) {
     let seen = st["seen"]
+    let heap = S["insts"]
     S["gcMarkedN"] = len(st["roots"])
     if typeof(heap) != "array" {
         S["gcLiveN"] = 0
@@ -537,7 +589,29 @@ pub fn vGcRootsAuditS(S) {
     S["gcLiveN"] = live
     S["gcDeadN"] = dead
     S["gcDeadBytes"] = dead * gcInstShellBytes()
+    let wl = S["gcWriteLog"]
+    if typeof(wl) == "array" {
+        S["gcWriteN"] = len(wl)
+    } else {
+        S["gcWriteN"] = 0
+    }
+    S["gcWriteLog"] = []
+    S["gcWriteSeen"] = {}
     vGcSweepDeadS(S, seen, heap)
+    let liveBytes = live * gcInstShellBytes()
+    S["gcUsed"] = liveBytes
+    S["gcLiveBytes"] = liveBytes
+    S["gcCap"] = gcPaceGrow(S["gcCap"], liveBytes, 80, S["gcCap"] * 8)
+    return
+}
+
+/// Stop-the-world collect: begin + drain all slices in one call (used by the
+/// audit path and tests; the charge path slices under the frame budget).
+pub fn vGcRootsAuditS(S) {
+    vGcCollectBeginS(S)
+    while S["gcMarkActive"] == true {
+        vGcMarkSliceS(S, 1048576)
+    }
     return
 }
 
@@ -779,9 +853,42 @@ pub fn vEnumNsGet(obj, key) {
 pub let poolVal = poolVal
 pub let poolKey = poolKey
 
+// --- vm_s_gc_barrier ---
+/// Write barrier: when an inst field/element starts pointing at an inst,
+/// remember the holder's id in S["gcWriteLog"] (deduped via gcWriteSeen).
+/// Audit-only precursor for a remembered set — drained to gcWriteN at
+/// collect; nothing is promoted yet.
+pub fn vGcLogWriteS(S, holder, val) {
+    if vInstId(val) == undefined {
+        return
+    }
+    let id = vInstId(holder)
+    if id == undefined {
+        return
+    }
+    let seen = S["gcWriteSeen"]
+    if typeof(seen) != "object" || seen == null {
+        seen = {}
+    }
+    let k = " " + id
+    if seen[k] != undefined {
+        S["gcWriteSeen"] = seen
+        return
+    }
+    seen[k] = true
+    S["gcWriteSeen"] = seen
+    let log = S["gcWriteLog"]
+    if typeof(log) != "array" {
+        log = []
+    }
+    S["gcWriteLog"] = push(log, id)
+    return
+}
+
 // --- vm_s_member_set_push ---
 pub fn vMemberSetPush(S, obj, key, val) {
     obj = vCanonicalInstS(S, obj)
+    vGcLogWriteS(S, obj, val)
     let updated = vPublishInstS(S, vMemberSet(obj, key, val))
     if vIsCurrentThisS(S, obj) {
         vWriteThisS(S, updated)
@@ -793,6 +900,7 @@ pub fn vMemberSetPush(S, obj, key, val) {
 
 // --- vm_s_index_set_push ---
 pub fn vIndexSetPush(S, container, idx, val) {
+    vGcLogWriteS(S, container, val)
     let updated = vPublishInstS(S, vIndexSet(container, idx, val))
     if vIsCurrentThisS(S, container) {
         vWriteThisS(S, updated)
