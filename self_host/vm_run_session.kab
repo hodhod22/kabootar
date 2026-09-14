@@ -360,11 +360,7 @@ pub fn vRetargetGenMethodsS(oldg, g) {
 pub fn vPublishGenS(S, g) {
     let nid = vInstId(g)
     if nid == undefined {
-        nid = S["nextInstId"]
-        if nid == undefined {
-            nid = 1
-        }
-        S["nextInstId"] = nid + 1
+        nid = vGcTakeInstIdS(S)
         g["vmI"] = nid
         vNurseryCharge(S, gcInstShellBytes())
     }

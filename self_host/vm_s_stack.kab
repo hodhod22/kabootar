@@ -2,6 +2,7 @@ import "self_host/emit_defs"
 import "kab/gc"
 import "kab/gc/gc_alloc"
 import "kab/gc/gc_pace"
+import "kab/gc/gc_host"
 
 // --- vm_s_caps ---
 // P6b: snap local caps from session S.
@@ -502,7 +503,7 @@ pub fn vGcMarkSliceN() {
 /// plus lastThis/result/classes/_args) into S["gcMarkSt"] and mark it active.
 /// The transitive BFS then continues in slices via vGcMarkSliceS.
 pub fn vGcCollectBeginS(S) {
-    let st = { "roots": [], "seen": {}, "wi": 0 }
+    let st = { "roots": [], "seen": {}, "wi": 0, "fieldsN": 0 }
     st = vGcScanArrS(st, S["stack"])
     st = vGcScanArrS(st, S["locals"])
     st = vGcScanArrS(st, S["globals"])
@@ -512,6 +513,7 @@ pub fn vGcCollectBeginS(S) {
     st = vGcScanValS(st, S["classes"])
     st = vGcScanValS(st, S["_args"])
     S["gcRootsN"] = len(st["roots"])
+    S["gcCollectT0"] = date_now_ms()
     S["gcMarkSt"] = st
     S["gcMarkActive"] = true
     return
@@ -527,6 +529,7 @@ pub fn vGcScanFieldsS(st, heap, rid) {
         return st
     }
     let keys = object_keys(obj)
+    st["fieldsN"] = st["fieldsN"] + len(keys)
     let ki = 0
     while ki < len(keys) {
         st = vGcScanValS(st, obj[keys[ki]])
@@ -602,6 +605,14 @@ pub fn vGcFinishMarkS(S, st) {
     S["gcUsed"] = liveBytes
     S["gcLiveBytes"] = liveBytes
     S["gcCap"] = gcPaceGrow(S["gcCap"], liveBytes, 80, S["gcCap"] * 8)
+    S["gcHostReady"] = gcHostReadyOk(S["gcRootsN"], S["gcMarkedN"], live, dead, S["gcReclaimedN"])
+    S["gcMarkFieldsN"] = st["fieldsN"]
+    let t0 = S["gcCollectT0"]
+    if typeof(t0) == "number" {
+        let ms = date_now_ms() - t0
+        S["gcCollectMs"] = ms
+        S["gcOverBudget"] = ms > gcFrameBudgetMs()
+    }
     return
 }
 
@@ -615,24 +626,45 @@ pub fn vGcRootsAuditS(S) {
     return
 }
 
-/// Sweep: tombstone heap slots whose inst id was not marked, then account
-/// reclaimed insts/bytes. Only the Kab-VM inst heap is touched — the host
-/// heap remains skuld until gcHostDeleteOk.
+/// Sweep: tombstone heap slots whose inst id was not marked, collect the
+/// freed ids onto S["gcFreeIds"] for reuse, then account reclaimed
+/// insts/bytes. Only the Kab-VM inst heap is touched — the host heap
+/// remains skuld until gcHostDeleteOk.
 pub fn vGcSweepDeadS(S, seen, heap) {
     let reclaimed = 0
+    let freeIds = []
     let i = 0
     while i < len(heap) {
         let id = vInstId(heap[i])
         if id != undefined && seen[" " + id] != true {
             heap[i] = undefined
+            freeIds = push(freeIds, id)
             reclaimed = reclaimed + 1
         }
         i = i + 1
     }
     S["insts"] = heap
+    S["gcFreeIds"] = freeIds
     S["gcReclaimedN"] = reclaimed
     S["gcReclaimedBytes"] = reclaimed * gcInstShellBytes()
     return
+}
+
+/// Take an inst id for a fresh publish: reuse a swept slot first so the
+/// id-indexed heap stays dense, else bump nextInstId.
+pub fn vGcTakeInstIdS(S) {
+    let free = S["gcFreeIds"]
+    if typeof(free) == "array" && len(free) > 0 {
+        let id = free[len(free) - 1]
+        S["gcFreeIds"] = pop(free)
+        return id
+    }
+    let id = S["nextInstId"]
+    if id == null || id == undefined {
+        id = 1
+    }
+    S["nextInstId"] = id + 1
+    return id
 }
 
 pub fn vReplaceByVmI(arr, updated, id) {

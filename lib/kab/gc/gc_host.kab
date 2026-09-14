@@ -4,3 +4,18 @@
 pub fn gcHostDeleteOk() {
     return false
 }
+
+/// Readiness check toward deleting the host GC path: one collect cycle is
+/// internally consistent — every marked inst was counted live, every dead
+/// inst was reclaimed, and the root set is a subset of the marked set.
+/// The VM records this per cycle as S["gcHostReady"]; the delete gate stays
+/// false until the Kab path has held ready across real workloads.
+pub fn gcHostReadyOk(roots, marked, live, dead, reclaimed) {
+    if marked != live {
+        return false
+    }
+    if dead != reclaimed {
+        return false
+    }
+    return roots <= marked
+}
