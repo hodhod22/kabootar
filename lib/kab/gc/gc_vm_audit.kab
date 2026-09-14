@@ -83,7 +83,10 @@ pub fn gcVmTransitive(roots, insts) {
                 let keys = object_keys(obj)
                 let ki = 0
                 while ki < len(keys) {
-                    st = gcVmMarkVal(st, obj[keys[ki]])
+                    let k = keys[ki]
+                    if len(k) < 5 || str_slice(k, 0, 5) != "weak_" {
+                        st = gcVmMarkVal(st, obj[k])
+                    }
                     ki = ki + 1
                 }
             }
