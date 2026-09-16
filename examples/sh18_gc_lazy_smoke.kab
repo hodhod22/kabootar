@@ -1,0 +1,20 @@
+import "kab/gc/gc_lazy"
+import "kab/gc/gc_capstone"
+
+// Slice of 2 on [0,1,2,3] with only id 1 marked: slots 0–1 are visited —
+// unmarked 0 frees, marked 1 stays — and the cursor stops at 2.
+let st = gcLazyStep([0, 1, 2, 3], [1], 0, [], 2)
+if st[0] != 2 {
+    return false
+}
+if len(st[1]) != 1 || st[1][0] != 0 {
+    return false
+}
+// Bad budget rejects; a 2-slot sweep frees the unmarked in order.
+if gcLazyOk([0, 1, 2], [1], 0) {
+    return false
+}
+if gcLazyOk([0, 1, 2, 3, 4, 5], [1, 4], 2) == false {
+    return false
+}
+return gcCapstoneOk(2)

@@ -1,5 +1,6 @@
 import "self_host/vm_s_stack"
 import "self_host/vm_run_session"
+import "kab/gc/gc_alloc"
 // SH6: yield* throw/return ysdel.
 
 pub fn vIterStepGenS(S, it, pool, globals, functions) {
@@ -53,6 +54,7 @@ pub fn runOpDataConcat(S, name, arg, op, pool, globals, functions) {
             out = push(out, right[i])
             i = i + 1
         }
+        vNurseryCharge(S, gcInstShellBytes())
         vPushS(S, out)
         vBumpIpS(S)
         return 1
@@ -76,6 +78,7 @@ pub fn runOpDataDup(S, name, arg, op, pool, globals, functions) {
 // --- vm_ops_data_err ---
 pub fn runOpDataErr(S, name, arg, op, pool, globals, functions) {
     if name == "make_err" {
+        vNurseryCharge(S, gcInstShellBytes())
         vPushS(S, { "vmResult": "err", "v": vPopS(S) })
         vBumpIpS(S)
         return 1
@@ -124,6 +127,7 @@ pub fn runOpDataMakeArray(S, name, arg, op, pool, globals, functions) {
         let n = arg
         let raw = vPopNRaw(S, n)
         let arr = vReverseArr(raw, n)
+        vNurseryCharge(S, gcInstShellBytes())
         vPushS(S, arr)
         vBumpIpS(S)
         return 1
@@ -143,6 +147,7 @@ pub fn runOpDataMakeObject(S, name, arg, op, pool, globals, functions) {
             map["" + key] = val
             ci = ci + 1
         }
+        vNurseryCharge(S, gcInstShellBytes())
         vPushS(S, map)
         vBumpIpS(S)
         return 1
@@ -172,6 +177,7 @@ pub fn runOpDataMerge(S, name, arg, op, pool, globals, functions) {
 // --- vm_ops_data_ok ---
 pub fn runOpDataOk(S, name, arg, op, pool, globals, functions) {
     if name == "make_ok" {
+        vNurseryCharge(S, gcInstShellBytes())
         vPushS(S, { "vmResult": "ok", "v": vPopS(S) })
         vBumpIpS(S)
         return 1
@@ -182,6 +188,7 @@ pub fn runOpDataOk(S, name, arg, op, pool, globals, functions) {
 // --- vm_ops_data_option_arrow ---
 pub fn runOpDataOptionArrow(S, name, arg, op, pool, globals, functions) {
     if name == "make_arrow_fn" {
+        vNurseryCharge(S, gcInstShellBytes())
         vPushS(S, { "vmArrow": arg, "caps": vSnapCapsS(S), "arrowDef": S["arrows"][arg] })
         vBumpIpS(S)
         return 1
@@ -253,11 +260,13 @@ pub fn runOpDataOptionIter(S, name, arg, op, pool, globals, functions) {
 // --- vm_ops_data_option_some ---
 pub fn runOpDataOptionSome(S, name, arg, op, pool, globals, functions) {
     if name == "make_some" {
+        vNurseryCharge(S, gcInstShellBytes())
         vPushS(S, { "vmOption": "some", "v": vPopS(S) })
         vBumpIpS(S)
         return 1
     }
     if name == "make_none" {
+        vNurseryCharge(S, gcInstShellBytes())
         vPushS(S, { "vmOption": "none" })
         vBumpIpS(S)
         return 1

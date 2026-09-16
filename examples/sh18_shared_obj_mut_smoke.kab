@@ -1,0 +1,33 @@
+// SH18: shared object mutation — every binding of an object shares the
+// same underlying map, so a write through any alias is visible through all.
+// Regression gate for the call-writeback clone bug (merge_object_fields).
+fn setfalse(o) {
+    o["flag"] = false
+    return o
+}
+
+fn main() {
+    // Same-frame alias: let U = T shares the object.
+    let T = { "flag": true }
+    let U = T
+    U["flag"] = false
+    if T["flag"] != false {
+        return false
+    }
+    if U["flag"] != false {
+        return false
+    }
+
+    // Function-parameter mutation reaches the caller's binding.
+    let C = { "flag": true }
+    let r = setfalse(C)
+    if C["flag"] != false {
+        return false
+    }
+    if r["flag"] != false {
+        return false
+    }
+    return true
+}
+
+return main()

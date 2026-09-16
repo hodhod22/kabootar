@@ -10,6 +10,7 @@ import "kab/gc/gc_deep2"
 import "kab/gc/gc_deep3"
 import "kab/gc/gc_deep4"
 import "kab/gc/gc_deep5"
+import "kab/gc/gc_deep6"
 import "kab/gc/gc_host"
 
 pub fn gcChainLiveGray() {
@@ -79,4 +80,12 @@ pub fn gcChainDeep5Ok(live) {
         return false
     }
     return gcDeep5Ok()
+}
+
+/// Deep-6 chain: deep-5 chain + lazy-sweep/idle-mark/minor-collect leaves.
+pub fn gcChainDeep6Ok(live) {
+    if gcChainDeep5Ok(live) == false {
+        return false
+    }
+    return gcDeep6Ok()
 }

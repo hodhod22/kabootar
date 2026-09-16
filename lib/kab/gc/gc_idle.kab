@@ -1,0 +1,63 @@
+// SH18 deepen 6: idle-time marking — the mark advances only inside idle
+// slots so the mutator pause inside a frame stays at zero.
+// import "kab/gc/gc_idle"
+// Do not grow gc_incr.kab. A frame with no idle budget makes no GC progress
+// — the mutator never pays for the mark.
+
+/// Seed the gray worklist for an idle-mark run of nRoots roots.
+pub fn gcIdleStart(nRoots) {
+    let gray = []
+    let i = 0
+    while i < nRoots {
+        gray = push(gray, i)
+        i = i + 1
+    }
+    return gray
+}
+
+/// One idle slot: drain at most `slice` gray items from cursor `at`.
+pub fn gcIdleStep(gray, at, slice) {
+    let done = 0
+    while at < len(gray) {
+        if done >= slice {
+            return at
+        }
+        at = at + 1
+        done = done + 1
+    }
+    return at
+}
+
+/// Gate: nRoots gray items must drain across frames that each offer `idle`
+/// idle slots of `slice` items — within framesMax frames. A frame with zero
+/// idle budget makes no progress; false when the idle budget is too small
+/// to keep up.
+pub fn gcIdleOk(nRoots, idle, slice, framesMax) {
+    if nRoots <= 0 {
+        return false
+    }
+    if idle <= 0 {
+        return false
+    }
+    if slice <= 0 {
+        return false
+    }
+    if framesMax <= 0 {
+        return false
+    }
+    let gray = gcIdleStart(nRoots)
+    let at = 0
+    let frames = 0
+    while at < len(gray) {
+        if frames >= framesMax {
+            return false
+        }
+        let slot = 0
+        while slot < idle {
+            at = gcIdleStep(gray, at, slice)
+            slot = slot + 1
+        }
+        frames = frames + 1
+    }
+    return at == len(gray)
+}
