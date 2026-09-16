@@ -1,0 +1,7 @@
+import "kab/sci/sci_ndsub"
+
+let r = sciNdSub([44, 2], [2, 40])
+if r[0] == 42 {
+    return true
+}
+return false

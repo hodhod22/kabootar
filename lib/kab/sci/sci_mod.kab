@@ -1,0 +1,6 @@
+// SH26: mod kernel off sci_sgn.kab. import "kab/sci/sci_mod"
+// Do not grow sci_sgn.kab. Host GPU remains syscall skuld.
+
+pub fn sciMod(a, b) {
+    return a % b
+}

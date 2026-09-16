@@ -1,0 +1,6 @@
+// SH26: sqrt kernel off sci_mod.kab. import "kab/sci/sci_sqrt"
+// Do not grow sci_mod.kab. Host GPU remains syscall skuld.
+
+pub fn sciSqrt(a) {
+    return sqrt(a)
+}

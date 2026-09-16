@@ -1,0 +1,6 @@
+// SH26: log kernel off sci_exp.kab. import "kab/sci/sci_log"
+// Do not grow sci_exp.kab. Host GPU remains syscall skuld.
+
+pub fn sciLog(a) {
+    return log(a)
+}

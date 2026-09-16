@@ -1,0 +1,7 @@
+import "kab/sci/sci_tan"
+
+let n = sciTan(0) + 42
+if n == 42 {
+    return true
+}
+return false

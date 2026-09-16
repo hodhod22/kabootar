@@ -1,0 +1,7 @@
+import "kab/sci/sci_log"
+
+let n = sciLog(1) + 42
+if n == 42 {
+    return true
+}
+return false

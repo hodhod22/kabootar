@@ -1,0 +1,17 @@
+// SH26: nd elementwise sub kernel off sci_ndadd.kab. import "kab/sci/sci_ndsub"
+// Do not grow sci_ndadd.kab. Host GPU remains syscall skuld.
+
+pub fn sciNdSub(a, b) {
+    let n = len(a)
+    let nb = len(b)
+    if nb < n {
+        n = nb
+    }
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, a[i] - b[i])
+        i = i + 1
+    }
+    return out
+}

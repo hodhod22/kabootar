@@ -1,0 +1,7 @@
+import "kab/sci/sci_nddiv"
+
+let r = sciNdDiv([84, 42], [2, 1])
+if r[0] == 42 {
+    return true
+}
+return false

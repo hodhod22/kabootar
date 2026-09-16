@@ -1,0 +1,7 @@
+import "kab/sci/sci_gpu"
+
+let ok = sciGpuKernelOk("matmul")
+if ok == true {
+    return true
+}
+return false

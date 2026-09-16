@@ -1,0 +1,24 @@
+// SH26: GPU kernel dispatch gate off sci_ndmm.kab. import "kab/sci/sci_gpu"
+// Do not grow sci_ndmm.kab. Host GPU remains syscall skuld.
+
+pub fn sciGpuKernelOk(name) {
+    if name == "add" {
+        return true
+    }
+    if name == "sub" {
+        return true
+    }
+    if name == "mul" {
+        return true
+    }
+    if name == "div" {
+        return true
+    }
+    if name == "dot" {
+        return true
+    }
+    if name == "matmul" {
+        return true
+    }
+    return false
+}

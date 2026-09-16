@@ -1,0 +1,32 @@
+// SH26: nd matmul kernel off sci_ndsum.kab. import "kab/sci/sci_ndmm"
+// Do not grow sci_ndsum.kab. Host GPU remains syscall skuld.
+
+pub fn sciNdMatMul(a, b) {
+    let n = len(a)
+    let m = len(b[0])
+    let out = []
+    let i = 0
+    while i < n {
+        let row = a[i]
+        let nk = len(row)
+        let nb = len(b)
+        if nb < nk {
+            nk = nb
+        }
+        let orow = []
+        let j = 0
+        while j < m {
+            let s = 0
+            let k = 0
+            while k < nk {
+                s = s + row[k] * b[k][j]
+                k = k + 1
+            }
+            orow = push(orow, s)
+            j = j + 1
+        }
+        out = push(out, orow)
+        i = i + 1
+    }
+    return out
+}

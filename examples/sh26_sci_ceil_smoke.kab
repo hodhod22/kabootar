@@ -1,0 +1,7 @@
+import "kab/sci/sci_ceil"
+
+let n = sciCeil(41.1)
+if n == 42 {
+    return true
+}
+return false

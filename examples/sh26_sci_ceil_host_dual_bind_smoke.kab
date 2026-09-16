@@ -1,0 +1,14 @@
+import "kab/sci/sci_ceil"
+import "kab/sci/sci_floor"
+import "kab/sci/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciFloor(42.9) != 42 {
+    return false
+}
+if sciCeil(41.1) != 42 {
+    return false
+}
+return sciHostDeleteOk() == false

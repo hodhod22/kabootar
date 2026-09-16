@@ -1,0 +1,17 @@
+// SH26: nd elementwise div kernel off sci_ndmul.kab. import "kab/sci/sci_nddiv"
+// Do not grow sci_ndmul.kab. Host GPU remains syscall skuld.
+
+pub fn sciNdDiv(a, b) {
+    let n = len(a)
+    let nb = len(b)
+    if nb < n {
+        n = nb
+    }
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, a[i] / b[i])
+        i = i + 1
+    }
+    return out
+}

@@ -1,0 +1,14 @@
+import "kab/sci/sci_round"
+import "kab/sci/sci_ceil"
+import "kab/sci/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciCeil(41.1) != 42 {
+    return false
+}
+if sciRound(41.6) != 42 {
+    return false
+}
+return sciHostDeleteOk() == false

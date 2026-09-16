@@ -1,0 +1,13 @@
+// SH26: nd sum kernel off sci_nddot.kab. import "kab/sci/sci_ndsum"
+// Do not grow sci_nddot.kab. Host GPU remains syscall skuld.
+
+pub fn sciNdSum(a) {
+    let s = 0
+    let n = len(a)
+    let i = 0
+    while i < n {
+        s = s + a[i]
+        i = i + 1
+    }
+    return s
+}

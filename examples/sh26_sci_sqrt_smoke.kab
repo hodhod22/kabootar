@@ -1,0 +1,7 @@
+import "kab/sci/sci_sqrt"
+
+let n = sciSqrt(1764)
+if n == 42 {
+    return true
+}
+return false

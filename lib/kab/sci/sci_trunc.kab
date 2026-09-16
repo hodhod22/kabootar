@@ -1,0 +1,6 @@
+// SH26: trunc kernel off sci_round.kab. import "kab/sci/sci_trunc"
+// Do not grow sci_round.kab. Host GPU remains syscall skuld.
+
+pub fn sciTrunc(a) {
+    return trunc(a)
+}

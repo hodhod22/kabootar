@@ -1,0 +1,14 @@
+import "kab/sci/sci_ndsum"
+import "kab/sci/sci_nddot"
+import "kab/sci/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciNdDot([21, 0], [2, 42]) != 42 {
+    return false
+}
+if sciNdSum([40, 2]) != 42 {
+    return false
+}
+return sciHostDeleteOk() == false

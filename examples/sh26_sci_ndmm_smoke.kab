@@ -1,0 +1,7 @@
+import "kab/sci/sci_ndmm"
+
+let r = sciNdMatMul([[21, 0], [0, 0]], [[2, 0], [0, 0]])
+if r[0][0] == 42 {
+    return true
+}
+return false

@@ -1,0 +1,6 @@
+// SH26: ceil kernel off sci_floor.kab. import "kab/sci/sci_ceil"
+// Do not grow sci_floor.kab. Host GPU remains syscall skuld.
+
+pub fn sciCeil(a) {
+    return ceil(a)
+}
