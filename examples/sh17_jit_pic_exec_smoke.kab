@@ -1,0 +1,56 @@
+import "kab/jit/jit_pic"
+
+// F2: poly site (2..4 shapes), hit rate ≥90, hot → compile a PIC.
+if jitPicOk(3, 92, 9) == false {
+    return false
+}
+if jitIcState(1) != 0 {
+    return false
+}
+if jitIcState(3) != 1 {
+    return false
+}
+if jitIcState(9) != 2 {
+    return false
+}
+if jitPicCap() != 4 {
+    return false
+}
+
+// Slot machine: learn shapes, hit returns slot index.
+let slots = []
+slots = jitPicLearn(slots, "point")
+slots = jitPicLearn(slots, "rect")
+if len(slots) != 2 {
+    return false
+}
+if jitPicFind(slots, "point") != 0 {
+    return false
+}
+if jitPicFind(slots, "rect") != 1 {
+    return false
+}
+if jitPicFind(slots, "circle") != -1 {
+    return false
+}
+
+// Duplicate learn is a no-op (no slot growth).
+slots = jitPicLearn(slots, "rect")
+if len(slots) != 2 {
+    return false
+}
+
+// Fill to cap, then a fifth shape goes megamorphic (no growth).
+slots = jitPicLearn(slots, "circle")
+slots = jitPicLearn(slots, "tri")
+if jitPicFull(slots) == false {
+    return false
+}
+slots = jitPicLearn(slots, "star")
+if len(slots) != jitPicCap() {
+    return false
+}
+if jitPicMega(slots, "star") == false {
+    return false
+}
+return true

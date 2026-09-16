@@ -1,0 +1,76 @@
+// FT F2 deepen: 4-way polymorphic inline cache for the Kab JIT. import "kab/jit/jit_pic"
+// Do not grow jit_ic.kab. V8 model: mono stub → PIC ≤4 → megamorphic fallback.
+// A PIC never grows past jitPicCap(); a miss on a full PIC goes megamorphic.
+
+import "kab/ic"
+import "kab/ic_pl"
+import "kab/ic_mg"
+import "kab/ic_ht"
+import "kab/jit/jit_ic"
+import "kab/jit/jit_hot"
+
+/// Max polymorphic slots — V8-style PIC cap. Beyond this the site is megamorphic.
+pub fn jitPicCap() {
+    return 4
+}
+
+/// IC state for a site: 0 = monomorphic stub, 1 = polymorphic (PIC-able),
+/// 2 = megamorphic fallback.
+pub fn jitIcState(nShapes) {
+    if icIsMono(nShapes) {
+        return 0
+    }
+    if icIsMega(nShapes) {
+        return 2
+    }
+    return 1
+}
+
+/// True when a site should compile a PIC: polymorphic (2..cap), good hit rate,
+/// hot enough. Mono sites use the mono stub via jitIcOk; mega stays megamorphic.
+pub fn jitPicOk(nShapes, pct, hits) {
+    if icIsPoly(nShapes) == false {
+        return false
+    }
+    if icHitOk(pct) == false {
+        return false
+    }
+    return jitHotOk(hits)
+}
+
+/// PIC slot lookup: slot index 0..cap-1 for shape, or -1 on miss.
+pub fn jitPicFind(slots, shape) {
+    let i = 0
+    while i < len(slots) {
+        if slots[i] == shape {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+/// True when the PIC is full (cap reached — no more slots to learn into).
+pub fn jitPicFull(slots) {
+    return len(slots) >= jitPicCap()
+}
+
+/// Learn a shape into the PIC. Duplicate shapes are a no-op; a full PIC does
+/// not grow — the site falls back megamorphic (see jitPicMega).
+pub fn jitPicLearn(slots, shape) {
+    if jitPicFind(slots, shape) >= 0 {
+        return slots
+    }
+    if jitPicFull(slots) {
+        return slots
+    }
+    return push(slots, shape)
+}
+
+/// True when a miss on a full PIC goes megamorphic (PIC stops growing).
+pub fn jitPicMega(slots, shape) {
+    if jitPicFull(slots) == false {
+        return false
+    }
+    return jitPicFind(slots, shape) < 0
+}

@@ -9506,9 +9506,8 @@ fn_op 47 add
 fn_op 47 return
 fn_arrows 47 0
 arrows=0
-imports=2
+imports=1
 import 0 self_host/ast_defs
-import 1 self_host/emit_sym
 pub_imports=0
 exports=48
 export 0 tryEmitArrayPushAssign
@@ -9591,5 +9590,5 @@ store_local 11
 halt
 
 source=self_host/emit_stmt_body.kab
-statements=62
-fingerprint=3b2a0199988fd049
+statements=61
+fingerprint=f420a750ae815360
