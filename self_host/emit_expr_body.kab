@@ -1,5 +1,4 @@
 import "self_host/ast_defs"
-import "self_host/emit_sym"
 // SH6: yield* forwards g.next(v) via it.next(send).
 
 pub fn dropCallCallee(E) {

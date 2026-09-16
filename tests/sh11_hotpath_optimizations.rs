@@ -64,8 +64,8 @@ fn sh11_optimizations_design_correctness() {
 
 #[test]
 fn sh11_ownership_optimizations() {
-    let ownership_file = std::fs::read_to_string("self_host/ownership.kab")
-        .expect("ownership.kab should exist");
+    let ownership_file = std::fs::read_to_string("self_host/compile.kab")
+        .expect("compile.kab should exist (ownership merged in, SH5)");
     
     // Verify ownership checker has optimization hooks
     assert!(ownership_file.contains("oPairIndex"), "should have optimized pair index");

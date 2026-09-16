@@ -1,0 +1,29 @@
+import "kab/jit/jit_pic"
+
+// Reject: mono site is not a PIC site (mono stub via jitIcOk instead).
+if jitPicOk(1, 92, 9) {
+    return false
+}
+// Reject: megamorphic site (>4 shapes) never compiles a PIC.
+if jitPicOk(5, 92, 9) {
+    return false
+}
+// Reject: poor hit rate stays interpreted.
+if jitPicOk(3, 50, 9) {
+    return false
+}
+// Reject: cold site stays interpreted.
+if jitPicOk(3, 92, 7) {
+    return false
+}
+// Reject: miss on a non-full PIC is not megamorphic (room to learn).
+let slots = jitPicLearn([], "point")
+if jitPicMega(slots, "rect") {
+    return false
+}
+// Reject: hit on a full PIC is not megamorphic.
+let full = jitPicLearn(jitPicLearn(jitPicLearn(jitPicLearn([], "a"), "b"), "c"), "d")
+if jitPicMega(full, "a") {
+    return false
+}
+return true

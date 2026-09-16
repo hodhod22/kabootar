@@ -30,8 +30,8 @@ fn sh11_parser_session_reuse() {
 
 #[test]
 fn sh11_emit_session_reuse() {
-    let emit_file = std::fs::read_to_string("self_host/emit_exec.kab")
-        .expect("emit_exec.kab should exist");
+    let emit_file = std::fs::read_to_string("self_host/compile.kab")
+        .expect("compile.kab should exist (emit_exec merged in, SH5)");
     
     // Verify emit uses session reuse (SH2/SH13)
     assert!(emit_file.contains("eMakeSession"), "should have session maker");

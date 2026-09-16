@@ -33,7 +33,7 @@ fn sh0_self_host_compile_dag_snapshot() {
         inv.vm_files
     );
     assert!(
-        inv.compile_dag.len() >= 12,
+        inv.compile_dag.len() >= 9,
         "compile.kab DAG should stay a real pipeline, got {}",
         inv.compile_dag.len()
     );
@@ -408,8 +408,8 @@ fn sh3a_self_host_push_len_nested() {
 fn sh1_warm_full_compile_dag() {
     let n = kabootar_lib::compile::write_compiler_dag_seeds().expect("warm dag");
     eprintln!("SH1 warm wrote {n} seed/dag files");
-    // SH5's documented densification plateau is a 12-file compile DAG.
-    assert!(n >= 12, "compile DAG should stay a pipeline, wrote {n}");
+    // SH5's documented densification plateau is a 9-file compile DAG.
+    assert!(n >= 9, "compile DAG should stay a pipeline, wrote {n}");
 }
 
 #[test]
@@ -1041,9 +1041,9 @@ fn sh6_vm_policy_in_kab() {
         "SH6: self-host two id specializations id$Number / id$String"
     );
     let emit_sym = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/emit_sym.kab"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/ast_defs.kab"),
     )
-    .expect("emit_sym.kab");
+    .expect("ast_defs.kab (emit_sym merged in, SH5)");
     assert!(
         emit_sym.contains("emitInferNestedCall")
             && emit_sym.contains("emitInferTypeArgsFrom")
@@ -24896,6 +24896,70 @@ fn sh17_jit_ic_exec_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile jit ic smoke");
             let value = eval_program(&program, &mut env).expect("run jit ic smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// FT F2 deepen: 4-way PIC — state dispatch + compile gate + slot machine.
+#[test]
+fn sh17_jit_pic_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/jit/jit_pic.kab")).expect("jit_pic.kab");
+    assert!(
+        p.contains("pub fn jitPicCap")
+            && p.contains("pub fn jitIcState")
+            && p.contains("pub fn jitPicOk")
+            && p.contains("pub fn jitPicFind")
+            && p.contains("pub fn jitPicLearn")
+            && p.contains("pub fn jitPicMega")
+            && p.contains("icIsPoly")
+            && p.contains("icIsMega")
+            && p.contains("icHitOk")
+            && p.contains("jitHotOk"),
+        "F2 Kab 4-way PIC (jit_pic.kab)"
+    );
+}
+
+/// FT F2 deepen: PIC exec — poly+hot+hit compiles, slot machine learns ≤4 (eval).
+#[test]
+fn sh17_jit_pic_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_pic_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-pic-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit pic exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit pic exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// FT F2 deepen: PIC rejects — mono/mega/cold/low-hit sites and mega boundary (eval).
+#[test]
+fn sh17_jit_pic_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_pic_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-pic-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit pic reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit pic reject smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")
@@ -59375,8 +59439,26 @@ fn sh18_gc_vm_audit_in_kab() {
             && v.contains("gcFreeIds")
             && v.contains("gcCollectMs")
             && v.contains("gcMarkFieldsN")
-            && v.contains("gcHostReady"),
-        "SH18 Kab-VM incremental collect wired on nursery charge"
+            && v.contains("gcHostReady")
+            && v.contains("pub fn vGcSweepSliceS")
+            && v.contains("pub fn vGcSweepSliceN")
+            && v.contains("pub fn vGcWeakClearObjS")
+            && v.contains("gcSweepActive")
+            && v.contains("gcSweepAt")
+            && v.contains("gcSweepSeen")
+            && v.contains("gcSweepMinNew")
+            && v.contains("gcSweepFreshN")
+            && v.contains("pub fn vGcAllocBlackS")
+            && v.contains("pub fn vGcIdleS")
+            && v.contains("pub fn vGcMajorOk")
+            && v.contains("gcOldId")
+            && v.contains("gcOldBytes")
+            && v.contains("gcMinor")
+            && v.contains("gcRemIds")
+            && v.contains("pub fn vGcMajorSurvPct")
+            && v.contains("gcMajorDue")
+            && v.contains("pub fn vMergeInstInPlace"),
+        "SH18 Kab-VM incremental collect + lazy sweep + minor/major generations + survival pacing wired on nursery charge"
     );
     let sess = std::fs::read_to_string(root.join("self_host/vm_run_session.kab"))
         .expect("vm_run_session.kab");
@@ -59401,6 +59483,206 @@ fn sh18_gc_vm_audit_exec_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile gc vm audit smoke");
             let value = eval_program(&program, &mut env).expect("run gc vm audit smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 6: lazy sweep gate — hand-built VM session runs begin/mark/
+/// slice/settle for real: dead slot tombstoned, weak ref cleared, freelist
+/// locked mid-sweep, post-mark publish kept via the id watermark (eval).
+#[test]
+fn sh18_gc_lazy_sweep_vm_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_lazy_sweep_vm_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-lazy-sweep-vm".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc lazy sweep vm smoke");
+            let value = eval_program(&program, &mut env).expect("run gc lazy sweep vm smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 7: generational minor collect + idle drain + alloc-black +
+/// literal-alloc charge — a hand-built VM session runs minor (rem-set
+/// rescue, young-only sweep), major (watermark move, rem prune), a
+/// mid-mark alloc-black publish, an idle-drained cycle, and literal-op
+/// nursery charges for real (eval).
+#[test]
+fn sh18_gc_vm_minor_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_vm_minor_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-vm-minor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc vm minor smoke");
+            let value = eval_program(&program, &mut env).expect("run gc vm minor smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 6: lazy sweep slice lives in gc_lazy.kab.
+#[test]
+fn sh18_gc_lazy_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_lazy.kab")).expect("gc_lazy.kab");
+    assert!(
+        s.contains("pub fn gcLazyStep")
+            && s.contains("pub fn gcLazyOk")
+            && s.contains("gcIsMarked")
+            && s.contains("budget")
+            && !s.contains("Rc::"),
+        "SH18 Kab lazy sweep slices"
+    );
+}
+
+/// SH18 deepen 6: lazy sweep gate (eval).
+#[test]
+fn sh18_gc_lazy_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_lazy_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-lazy-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc lazy smoke");
+            let value = eval_program(&program, &mut env).expect("run gc lazy smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 6: idle-time mark lives in gc_idle.kab.
+#[test]
+fn sh18_gc_idle_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_idle.kab")).expect("gc_idle.kab");
+    assert!(
+        s.contains("pub fn gcIdleStart")
+            && s.contains("pub fn gcIdleStep")
+            && s.contains("pub fn gcIdleOk")
+            && s.contains("idle")
+            && !s.contains("Rc::"),
+        "SH18 Kab idle-time mark"
+    );
+}
+
+/// SH18 deepen 6: idle mark gate (eval).
+#[test]
+fn sh18_gc_idle_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_idle_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-idle-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc idle smoke");
+            let value = eval_program(&program, &mut env).expect("run gc idle smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 6: minor collect lives in gc_minor.kab.
+#[test]
+fn sh18_gc_minor_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kab/gc/gc_minor.kab")).expect("gc_minor.kab");
+    assert!(
+        s.contains("pub fn gcMinorShade")
+            && s.contains("pub fn gcMinorMark")
+            && s.contains("pub fn gcMinorOk")
+            && s.contains("gcIsMarked")
+            && s.contains("rem")
+            && !s.contains("Rc::"),
+        "SH18 Kab minor collect via remembered set"
+    );
+}
+
+/// SH18 deepen 6: minor collect gate (eval).
+#[test]
+fn sh18_gc_minor_exec_smoke() {
+    let path = format!("{}/examples/sh18_gc_minor_smoke.kab", env!("CARGO_MANIFEST_DIR"));
+    std::thread::Builder::new()
+        .name("sh18-gc-minor-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc minor smoke");
+            let value = eval_program(&program, &mut env).expect("run gc minor smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen 6: rollup leaf chains deep-5 + lazy/idle/minor.
+#[test]
+fn sh18_gc_deep6_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/gc/gc_deep6.kab")).expect("gc_deep6.kab");
+    assert!(
+        d.contains("pub fn gcDeep6Ok")
+            && d.contains("gcDeep5Ok")
+            && d.contains("gcLazyOk")
+            && d.contains("gcIdleOk")
+            && d.contains("gcMinorOk"),
+        "SH18 Kab deep-6 rollup"
+    );
+    let c = std::fs::read_to_string(root.join("lib/kab/gc/gc_chain.kab")).expect("gc_chain.kab");
+    assert!(
+        c.contains("pub fn gcChainDeep6Ok") && c.contains("gcChainDeep5Ok") && c.contains("gcDeep6Ok"),
+        "SH18 Kab chain deep-6 rollup"
+    );
+    let p = std::fs::read_to_string(root.join("lib/kab/gc/gc_capstone.kab")).expect("gc_capstone.kab");
+    assert!(
+        p.contains("pub fn gcCapstoneDeep6Ok") && p.contains("gcChainDeep6Ok"),
+        "SH18 Kab capstone deep-6 rollup"
+    );
+}
+
+/// SH18 deepen 6: full deep-6 capstone — chain + deep-6 leaves + gates closed (eval).
+#[test]
+fn sh18_gc_deep6_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_deep6_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-deep6-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc deep6 smoke");
+            let value = eval_program(&program, &mut env).expect("run gc deep6 smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")
@@ -66023,6 +66305,481 @@ fn sh26_sci_sgn_host_dual_bind_in_kab() {
             && s.contains("sciSign")
             && s.contains("27"),
         "SH26 Kab sci sign host dual-bind"
+    );
+}
+
+/// SH26 deepen: mod kernel lives off sci_sgn.kab.
+#[test]
+fn sh26_sci_mod_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/sci/sci_mod.kab")).expect("sci_mod.kab");
+    assert!(
+        m.contains("pub fn sciMod") && m.contains("a % b"),
+        "SH26 Kab sciMod"
+    );
+}
+
+/// SH26 deepen: mod dual-bind to host delete gate.
+#[test]
+fn sh26_sci_mod_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_mod_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_mod_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciMod")
+            && s.contains("42"),
+        "SH26 Kab sci mod host dual-bind"
+    );
+}
+
+/// SH26 deepen: sqrt kernel lives off sci_mod.kab.
+#[test]
+fn sh26_sci_sqrt_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let q = std::fs::read_to_string(root.join("lib/kab/sci/sci_sqrt.kab")).expect("sci_sqrt.kab");
+    assert!(
+        q.contains("pub fn sciSqrt") && q.contains("sqrt(a)"),
+        "SH26 Kab sciSqrt"
+    );
+}
+
+/// SH26 deepen: sqrt dual-bind to host delete gate.
+#[test]
+fn sh26_sci_sqrt_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_sqrt_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_sqrt_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciSqrt")
+            && s.contains("42"),
+        "SH26 Kab sci sqrt host dual-bind"
+    );
+}
+
+/// SH26 deepen: floor kernel lives off sci_sqrt.kab.
+#[test]
+fn sh26_sci_floor_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let f = std::fs::read_to_string(root.join("lib/kab/sci/sci_floor.kab")).expect("sci_floor.kab");
+    assert!(
+        f.contains("pub fn sciFloor") && f.contains("floor(a)"),
+        "SH26 Kab sciFloor"
+    );
+}
+
+/// SH26 deepen: floor dual-bind to host delete gate.
+#[test]
+fn sh26_sci_floor_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_floor_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_floor_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciFloor")
+            && s.contains("42"),
+        "SH26 Kab sci floor host dual-bind"
+    );
+}
+
+/// SH26 deepen: ceil kernel lives off sci_floor.kab.
+#[test]
+fn sh26_sci_ceil_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/sci/sci_ceil.kab")).expect("sci_ceil.kab");
+    assert!(
+        c.contains("pub fn sciCeil") && c.contains("ceil(a)"),
+        "SH26 Kab sciCeil"
+    );
+}
+
+/// SH26 deepen: ceil dual-bind to host delete gate.
+#[test]
+fn sh26_sci_ceil_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_ceil_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_ceil_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciCeil")
+            && s.contains("42"),
+        "SH26 Kab sci ceil host dual-bind"
+    );
+}
+
+/// SH26 deepen: round kernel lives off sci_ceil.kab.
+#[test]
+fn sh26_sci_round_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kab/sci/sci_round.kab")).expect("sci_round.kab");
+    assert!(
+        r.contains("pub fn sciRound") && r.contains("round(a)"),
+        "SH26 Kab sciRound"
+    );
+}
+
+/// SH26 deepen: round dual-bind to host delete gate.
+#[test]
+fn sh26_sci_round_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_round_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_round_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciRound")
+            && s.contains("42"),
+        "SH26 Kab sci round host dual-bind"
+    );
+}
+
+/// SH26 deepen: trunc kernel lives off sci_round.kab.
+#[test]
+fn sh26_sci_trunc_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/sci/sci_trunc.kab")).expect("sci_trunc.kab");
+    assert!(
+        t.contains("pub fn sciTrunc") && t.contains("trunc(a)"),
+        "SH26 Kab sciTrunc"
+    );
+}
+
+/// SH26 deepen: trunc dual-bind to host delete gate.
+#[test]
+fn sh26_sci_trunc_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_trunc_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_trunc_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciTrunc")
+            && s.contains("42"),
+        "SH26 Kab sci trunc host dual-bind"
+    );
+}
+
+/// SH26 deepen: exp kernel lives off sci_trunc.kab.
+#[test]
+fn sh26_sci_exp_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let e = std::fs::read_to_string(root.join("lib/kab/sci/sci_exp.kab")).expect("sci_exp.kab");
+    assert!(
+        e.contains("pub fn sciExp") && e.contains("exp(a)"),
+        "SH26 Kab sciExp"
+    );
+}
+
+/// SH26 deepen: exp dual-bind to host delete gate.
+#[test]
+fn sh26_sci_exp_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_exp_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_exp_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciExp")
+            && s.contains("42"),
+        "SH26 Kab sci exp host dual-bind"
+    );
+}
+
+/// SH26 deepen: log kernel lives off sci_exp.kab.
+#[test]
+fn sh26_sci_log_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/sci/sci_log.kab")).expect("sci_log.kab");
+    assert!(
+        l.contains("pub fn sciLog") && l.contains("log(a)"),
+        "SH26 Kab sciLog"
+    );
+}
+
+/// SH26 deepen: log dual-bind to host delete gate.
+#[test]
+fn sh26_sci_log_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_log_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_log_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciLog")
+            && s.contains("42"),
+        "SH26 Kab sci log host dual-bind"
+    );
+}
+
+/// SH26 deepen: sin kernel lives off sci_log.kab.
+#[test]
+fn sh26_sci_sin_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let g = std::fs::read_to_string(root.join("lib/kab/sci/sci_sin.kab")).expect("sci_sin.kab");
+    assert!(
+        g.contains("pub fn sciSin") && g.contains("sin(a)"),
+        "SH26 Kab sciSin"
+    );
+}
+
+/// SH26 deepen: sin dual-bind to host delete gate.
+#[test]
+fn sh26_sci_sin_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_sin_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_sin_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciSin")
+            && s.contains("42"),
+        "SH26 Kab sci sin host dual-bind"
+    );
+}
+
+/// SH26 deepen: cos kernel lives off sci_sin.kab.
+#[test]
+fn sh26_sci_cos_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kab/sci/sci_cos.kab")).expect("sci_cos.kab");
+    assert!(
+        c.contains("pub fn sciCos") && c.contains("cos(a)"),
+        "SH26 Kab sciCos"
+    );
+}
+
+/// SH26 deepen: cos dual-bind to host delete gate.
+#[test]
+fn sh26_sci_cos_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_cos_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_cos_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciCos")
+            && s.contains("42"),
+        "SH26 Kab sci cos host dual-bind"
+    );
+}
+
+/// SH26 deepen: tan kernel lives off sci_cos.kab.
+#[test]
+fn sh26_sci_tan_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kab/sci/sci_tan.kab")).expect("sci_tan.kab");
+    assert!(
+        t.contains("pub fn sciTan") && t.contains("tan(a)"),
+        "SH26 Kab sciTan"
+    );
+}
+
+/// SH26 deepen: tan dual-bind to host delete gate.
+#[test]
+fn sh26_sci_tan_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_tan_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_tan_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciTan")
+            && s.contains("42"),
+        "SH26 Kab sci tan host dual-bind"
+    );
+}
+
+/// SH26 deepen: nd elementwise add kernel lives off sci_nd.kab.
+#[test]
+fn sh26_sci_ndadd_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let a = std::fs::read_to_string(root.join("lib/kab/sci/sci_ndadd.kab")).expect("sci_ndadd.kab");
+    assert!(
+        a.contains("pub fn sciNdAdd") && a.contains("a[i] + b[i]"),
+        "SH26 Kab sciNdAdd"
+    );
+}
+
+/// SH26 deepen: nd add dual-bind to host delete gate.
+#[test]
+fn sh26_sci_ndadd_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_ndadd_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_ndadd_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciNdAdd")
+            && s.contains("42"),
+        "SH26 Kab sci nd add host dual-bind"
+    );
+}
+
+/// SH26 deepen: nd elementwise sub kernel lives off sci_ndadd.kab.
+#[test]
+fn sh26_sci_ndsub_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let u = std::fs::read_to_string(root.join("lib/kab/sci/sci_ndsub.kab")).expect("sci_ndsub.kab");
+    assert!(
+        u.contains("pub fn sciNdSub") && u.contains("a[i] - b[i]"),
+        "SH26 Kab sciNdSub"
+    );
+}
+
+/// SH26 deepen: nd sub dual-bind to host delete gate.
+#[test]
+fn sh26_sci_ndsub_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_ndsub_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_ndsub_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciNdSub")
+            && s.contains("42"),
+        "SH26 Kab sci nd sub host dual-bind"
+    );
+}
+
+/// SH26 deepen: nd elementwise mul kernel lives off sci_ndsub.kab.
+#[test]
+fn sh26_sci_ndmul_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/sci/sci_ndmul.kab")).expect("sci_ndmul.kab");
+    assert!(
+        m.contains("pub fn sciNdMul") && m.contains("a[i] * b[i]"),
+        "SH26 Kab sciNdMul"
+    );
+}
+
+/// SH26 deepen: nd mul dual-bind to host delete gate.
+#[test]
+fn sh26_sci_ndmul_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_ndmul_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_ndmul_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciNdMul")
+            && s.contains("42"),
+        "SH26 Kab sci nd mul host dual-bind"
+    );
+}
+
+/// SH26 deepen: nd elementwise div kernel lives off sci_ndmul.kab.
+#[test]
+fn sh26_sci_nddiv_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/sci/sci_nddiv.kab")).expect("sci_nddiv.kab");
+    assert!(
+        d.contains("pub fn sciNdDiv") && d.contains("a[i] / b[i]"),
+        "SH26 Kab sciNdDiv"
+    );
+}
+
+/// SH26 deepen: nd div dual-bind to host delete gate.
+#[test]
+fn sh26_sci_nddiv_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_nddiv_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_nddiv_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciNdDiv")
+            && s.contains("42"),
+        "SH26 Kab sci nd div host dual-bind"
+    );
+}
+
+/// SH26 deepen: nd dot kernel lives off sci_nddiv.kab.
+#[test]
+fn sh26_sci_nddot_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kab/sci/sci_nddot.kab")).expect("sci_nddot.kab");
+    assert!(
+        d.contains("pub fn sciNdDot") && d.contains("a[i] * b[i]"),
+        "SH26 Kab sciNdDot"
+    );
+}
+
+/// SH26 deepen: nd dot dual-bind to host delete gate.
+#[test]
+fn sh26_sci_nddot_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_nddot_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_nddot_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciNdDot")
+            && s.contains("42"),
+        "SH26 Kab sci nd dot host dual-bind"
+    );
+}
+
+/// SH26 deepen: nd sum kernel lives off sci_nddot.kab.
+#[test]
+fn sh26_sci_ndsum_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let u = std::fs::read_to_string(root.join("lib/kab/sci/sci_ndsum.kab")).expect("sci_ndsum.kab");
+    assert!(
+        u.contains("pub fn sciNdSum") && u.contains("s + a[i]"),
+        "SH26 Kab sciNdSum"
+    );
+}
+
+/// SH26 deepen: nd sum dual-bind to host delete gate.
+#[test]
+fn sh26_sci_ndsum_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_ndsum_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_ndsum_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciNdSum")
+            && s.contains("42"),
+        "SH26 Kab sci nd sum host dual-bind"
+    );
+}
+
+/// SH26 deepen: nd matmul kernel lives off sci_ndsum.kab.
+#[test]
+fn sh26_sci_ndmm_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kab/sci/sci_ndmm.kab")).expect("sci_ndmm.kab");
+    assert!(
+        m.contains("pub fn sciNdMatMul") && m.contains("row[k] * b[k][j]"),
+        "SH26 Kab sciNdMatMul"
+    );
+}
+
+/// SH26 deepen: nd matmul dual-bind to host delete gate.
+#[test]
+fn sh26_sci_ndmm_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_ndmm_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_ndmm_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciNdMatMul")
+            && s.contains("42"),
+        "SH26 Kab sci nd matmul host dual-bind"
+    );
+}
+
+/// SH26 deepen: GPU kernel dispatch gate lives off sci_ndmm.kab.
+#[test]
+fn sh26_sci_gpu_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let g = std::fs::read_to_string(root.join("lib/kab/sci/sci_gpu.kab")).expect("sci_gpu.kab");
+    assert!(
+        g.contains("pub fn sciGpuKernelOk") && g.contains("matmul"),
+        "SH26 Kab sciGpuKernelOk"
+    );
+}
+
+/// SH26 deepen: GPU kernel gate dual-bind to host delete gate.
+#[test]
+fn sh26_sci_gpu_host_dual_bind_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh26_sci_gpu_host_dual_bind_smoke.kab"))
+        .expect("sh26_sci_gpu_host_dual_bind_smoke.kab");
+    assert!(
+        s.contains("sciHostDeleteOk")
+            && s.contains("sciGpuKernelOk")
+            && s.contains("42"),
+        "SH26 Kab sci gpu kernel host dual-bind"
     );
 }
 
@@ -82122,7 +82879,7 @@ return o["n"]
 fn sh2_parser_emit_exec_are_per_call_session() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host");
     let parser = std::fs::read_to_string(root.join("parser_exec.kab")).expect("parser_exec");
-    let emit = std::fs::read_to_string(root.join("emit_exec.kab")).expect("emit_exec");
+    let emit = std::fs::read_to_string(root.join("compile.kab")).expect("compile.kab (emit_exec merged in, SH5)");
     assert!(
         !parser.lines().any(|l| l.starts_with("let sess = pMakeSession()")),
         "SH2: parser_exec must not keep a module-global sess"

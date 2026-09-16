@@ -395,20 +395,20 @@ fn o5_compile_wires_ownership_checker() {
     let compile_src = std::fs::read_to_string(self_host_path("compile.kab"))
         .expect("read self_host/compile.kab");
     assert!(
-        compile_src.contains("import \"self_host/ownership\""),
-        "compile.kab must import ownership"
+        compile_src.contains("pub fn checkOwnership"),
+        "compile.kab must define checkOwnership (ownership merged in, SH5)"
     );
     assert!(
         compile_src.contains("checkOwnership") && compile_src.contains("sourceIsManual"),
         "compile.kab must gate @manual through checkOwnership"
     );
     let body = compile_src
-        .split("pub fn compile")
+        .split("fn guardAndPreprocess")
         .nth(1)
-        .expect("pub fn compile");
+        .expect("guardAndPreprocess");
     assert!(
         body.contains("checkOwnership"),
-        "compile() body must call checkOwnership"
+        "guardAndPreprocess must call checkOwnership"
     );
 }
 
@@ -6512,8 +6512,8 @@ fn p6b_emit_if_hotpath_progress() {
 #[test]
 fn p6b_emit_symindex_map_progress() {
     let src = self_host_concat(&[
-        "emit_exec.kab",
-        "emit_sym.kab",
+        "compile.kab",
+        "ast_defs.kab",
         "emit_sym_index.kab",
     ]);
     assert!(
@@ -6636,7 +6636,7 @@ fn p6b_len_index_cheap_path_progress() {
 /// P6b: emit Call/block/obj/arr loops use depth counters (avoid len(stack) clones).
 #[test]
 fn p6b_emit_call_block_depth_progress() {
-    let src = self_host_concat(&["emit_exec.kab", "emit_expr_body.kab", "emit_stmt_body.kab", "emit_main_fn.kab"]);
+    let src = self_host_concat(&["compile.kab", "emit_expr_body.kab", "emit_stmt_body.kab", "emit_main_fn.kab"]);
     assert!(
         src.contains("E[\"eCalleeDepth\"] = 0") && src.contains("E[\"eBlockDepth\"] = 0"),
         "eCalleeDepth/eBlockDepth required for Call/block hotpaths"

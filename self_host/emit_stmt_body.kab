@@ -1,5 +1,4 @@
 import "self_host/ast_defs"
-import "self_host/emit_sym"
 
 pub fn tryEmitArrayPushAssign(E, sym, rhs) {
     if rhs.kind != AST_CALL {
