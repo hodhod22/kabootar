@@ -1,0 +1,7 @@
+import "kab/sci/sci_mod"
+
+let n = sciMod(142, 100)
+if n == 42 {
+    return true
+}
+return false

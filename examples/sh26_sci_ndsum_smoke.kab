@@ -1,0 +1,7 @@
+import "kab/sci/sci_ndsum"
+
+let s = sciNdSum([40, 2])
+if s == 42 {
+    return true
+}
+return false

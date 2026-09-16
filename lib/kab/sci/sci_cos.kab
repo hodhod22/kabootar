@@ -1,0 +1,6 @@
+// SH26: cos kernel off sci_sin.kab. import "kab/sci/sci_cos"
+// Do not grow sci_sin.kab. Host GPU remains syscall skuld.
+
+pub fn sciCos(a) {
+    return cos(a)
+}

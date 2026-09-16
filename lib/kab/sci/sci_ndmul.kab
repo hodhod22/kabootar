@@ -1,0 +1,17 @@
+// SH26: nd elementwise mul kernel off sci_ndsub.kab. import "kab/sci/sci_ndmul"
+// Do not grow sci_ndsub.kab. Host GPU remains syscall skuld.
+
+pub fn sciNdMul(a, b) {
+    let n = len(a)
+    let nb = len(b)
+    if nb < n {
+        n = nb
+    }
+    let out = []
+    let i = 0
+    while i < n {
+        out = push(out, a[i] * b[i])
+        i = i + 1
+    }
+    return out
+}

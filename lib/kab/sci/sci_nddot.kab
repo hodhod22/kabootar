@@ -1,0 +1,17 @@
+// SH26: nd dot kernel off sci_nddiv.kab. import "kab/sci/sci_nddot"
+// Do not grow sci_nddiv.kab. Host GPU remains syscall skuld.
+
+pub fn sciNdDot(a, b) {
+    let n = len(a)
+    let nb = len(b)
+    if nb < n {
+        n = nb
+    }
+    let s = 0
+    let i = 0
+    while i < n {
+        s = s + a[i] * b[i]
+        i = i + 1
+    }
+    return s
+}

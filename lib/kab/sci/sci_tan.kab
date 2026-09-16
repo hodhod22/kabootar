@@ -1,0 +1,6 @@
+// SH26: tan kernel off sci_cos.kab. import "kab/sci/sci_tan"
+// Do not grow sci_cos.kab. Host GPU remains syscall skuld.
+
+pub fn sciTan(a) {
+    return tan(a)
+}

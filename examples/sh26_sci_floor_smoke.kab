@@ -1,0 +1,7 @@
+import "kab/sci/sci_floor"
+
+let n = sciFloor(42.9)
+if n == 42 {
+    return true
+}
+return false

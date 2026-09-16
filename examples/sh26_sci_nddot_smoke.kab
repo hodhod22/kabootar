@@ -1,0 +1,7 @@
+import "kab/sci/sci_nddot"
+
+let s = sciNdDot([21, 0], [2, 42])
+if s == 42 {
+    return true
+}
+return false

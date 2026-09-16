@@ -1,0 +1,6 @@
+// SH26: sin kernel off sci_log.kab. import "kab/sci/sci_sin"
+// Do not grow sci_log.kab. Host GPU remains syscall skuld.
+
+pub fn sciSin(a) {
+    return sin(a)
+}

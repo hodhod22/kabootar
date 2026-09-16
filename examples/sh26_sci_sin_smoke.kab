@@ -1,0 +1,7 @@
+import "kab/sci/sci_sin"
+
+let n = sciSin(0) + 42
+if n == 42 {
+    return true
+}
+return false

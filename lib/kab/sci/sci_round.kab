@@ -1,0 +1,6 @@
+// SH26: round kernel off sci_ceil.kab. import "kab/sci/sci_round"
+// Do not grow sci_ceil.kab. Host GPU remains syscall skuld.
+
+pub fn sciRound(a) {
+    return round(a)
+}

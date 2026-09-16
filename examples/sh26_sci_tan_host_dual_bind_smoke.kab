@@ -1,0 +1,14 @@
+import "kab/sci/sci_tan"
+import "kab/sci/sci_cos"
+import "kab/sci/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciCos(0) * 42 != 42 {
+    return false
+}
+if sciTan(0) + 42 != 42 {
+    return false
+}
+return sciHostDeleteOk() == false

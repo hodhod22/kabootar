@@ -1,0 +1,7 @@
+import "kab/sci/sci_round"
+
+let n = sciRound(41.6)
+if n == 42 {
+    return true
+}
+return false

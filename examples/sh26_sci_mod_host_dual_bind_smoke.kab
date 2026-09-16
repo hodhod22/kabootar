@@ -1,0 +1,14 @@
+import "kab/sci/sci_mod"
+import "kab/sci/sci_sgn"
+import "kab/sci/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciSign(27) != 1 {
+    return false
+}
+if sciMod(142, 100) != 42 {
+    return false
+}
+return sciHostDeleteOk() == false

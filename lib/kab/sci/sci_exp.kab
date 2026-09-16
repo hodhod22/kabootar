@@ -1,0 +1,6 @@
+// SH26: exp kernel off sci_trunc.kab. import "kab/sci/sci_exp"
+// Do not grow sci_trunc.kab. Host GPU remains syscall skuld.
+
+pub fn sciExp(a) {
+    return exp(a)
+}

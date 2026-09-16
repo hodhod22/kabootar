@@ -1,0 +1,14 @@
+import "kab/sci/sci_floor"
+import "kab/sci/sci_sqrt"
+import "kab/sci/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+if sciSqrt(1764) != 42 {
+    return false
+}
+if sciFloor(42.9) != 42 {
+    return false
+}
+return sciHostDeleteOk() == false

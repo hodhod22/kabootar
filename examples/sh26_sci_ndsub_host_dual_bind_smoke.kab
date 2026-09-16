@@ -1,0 +1,16 @@
+import "kab/sci/sci_ndsub"
+import "kab/sci/sci_ndadd"
+import "kab/sci/sci_host"
+
+if sciHostDeleteOk() != false {
+    return false
+}
+let a = sciNdAdd([40, 2], [2, 40])
+if a[0] != 42 {
+    return false
+}
+let r = sciNdSub([44, 2], [2, 40])
+if r[0] != 42 {
+    return false
+}
+return sciHostDeleteOk() == false
