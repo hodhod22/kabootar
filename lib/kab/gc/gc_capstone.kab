@@ -69,3 +69,12 @@ pub fn gcCapstoneDeep5Ok(live) {
     }
     return gcCapstoneGatesClosed()
 }
+
+/// Full GC capstone including the deep-6 leaves (lazy/idle/minor)
+/// — host delete gates still closed.
+pub fn gcCapstoneDeep6Ok(live) {
+    if gcChainDeep6Ok(live) == false {
+        return false
+    }
+    return gcCapstoneGatesClosed()
+}

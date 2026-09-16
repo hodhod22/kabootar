@@ -1,0 +1,81 @@
+import "self_host/vm_run_session"
+import "self_host/vm_s_stack"
+import "kab/gc/gc_alloc"
+
+// Hand-built VM session: heap [_, a, b, c]; roots hold a + c; b dies.
+// a holds weak_b -> b, cleared in place when b sweeps.
+let S = vMakeSession()
+let a = { "vmC": 0 }
+a["vmI"] = vGcTakeInstIdS(S)
+let b = { "vmC": 0 }
+b["vmI"] = vGcTakeInstIdS(S)
+let c = { "vmC": 0 }
+c["vmI"] = vGcTakeInstIdS(S)
+a["weak_b"] = b
+vHeapPut(S, a)
+vHeapPut(S, b)
+vHeapPut(S, c)
+S["stack"] = [a, c]
+
+vGcCollectBeginS(S)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+// Mark done → lazy sweep armed, not finished.
+if S["gcSweepActive"] != true {
+    return false
+}
+if S["gcMarkedN"] != 2 {
+    return false
+}
+// One slice: slot 0 (pad) only — the sweep is incremental.
+vGcSweepSliceS(S, 1)
+if S["gcSweepAt"] != 1 {
+    return false
+}
+// Freelist is locked mid-sweep: a fresh publish bumps past gcSweepMinNew.
+let d = { "vmC": 0 }
+d["vmI"] = vGcTakeInstIdS(S)
+if d["vmI"] < S["gcSweepMinNew"] {
+    return false
+}
+vHeapPut(S, d)
+// Drain the remaining slots one at a time.
+let guard = 0
+while S["gcSweepActive"] == true {
+    vGcSweepSliceS(S, 1)
+    guard = guard + 1
+    if guard > 64 {
+        return false
+    }
+}
+// a + c lived, b was reclaimed, d survived as post-mark fresh.
+if S["gcLiveN"] != 2 {
+    return false
+}
+if S["gcDeadN"] != 1 {
+    return false
+}
+if S["gcReclaimedN"] != 1 {
+    return false
+}
+if S["gcSweepFreshN"] != 1 {
+    return false
+}
+if S["gcHostReady"] != true {
+    return false
+}
+if a["weak_b"] != undefined {
+    return false
+}
+if vHeapGet(S, 2) != undefined {
+    return false
+}
+if vHeapGet(S, 4) == undefined {
+    return false
+}
+// Settle: used = (live + fresh) * shellBytes; freed slot 2 is reusable.
+if S["gcUsed"] != 3 * gcInstShellBytes() {
+    return false
+}
+return vGcTakeInstIdS(S) == 2

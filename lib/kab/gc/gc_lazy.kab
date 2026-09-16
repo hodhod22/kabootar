@@ -1,0 +1,65 @@
+// SH18 deepen 6: lazy sweep — dead heap slots are tombstoned in
+// budget-sized slices instead of one stop-the-world pass.
+// import "kab/gc/gc_lazy"
+// Do not grow gc_sweep.kab. Freed ids reach the free list slice by slice;
+// a slot below the cursor is reusable before the pass completes.
+
+import "kab/gc/gc_member"
+
+/// One lazy-sweep slice: visit at most `budget` heap slots from cursor `at`.
+/// A slot holds an object id (>= 0) or -1 for empty; unmarked occupied ids
+/// are pushed onto `freed` (tombstoned). Returns [cursor, freed].
+pub fn gcLazyStep(heap, marked, at, freed, budget) {
+    let done = 0
+    while at < len(heap) {
+        if done >= budget {
+            return [at, freed]
+        }
+        let id = heap[at]
+        if id >= 0 {
+            if gcIsMarked(marked, id) == false {
+                freed = push(freed, id)
+            }
+        }
+        at = at + 1
+        done = done + 1
+    }
+    return [at, freed]
+}
+
+/// Gate: a lazy sweep of `heap` in `budget`-sized slices frees exactly the
+/// unmarked ids — the same ordered result as one eager pass.
+pub fn gcLazyOk(heap, marked, budget) {
+    if budget <= 0 {
+        return false
+    }
+    let at = 0
+    let freed = []
+    while at < len(heap) {
+        let st = gcLazyStep(heap, marked, at, freed, budget)
+        at = st[0]
+        freed = st[1]
+    }
+    let want = []
+    let i = 0
+    while i < len(heap) {
+        let id = heap[i]
+        if id >= 0 {
+            if gcIsMarked(marked, id) == false {
+                want = push(want, id)
+            }
+        }
+        i = i + 1
+    }
+    if len(freed) != len(want) {
+        return false
+    }
+    let j = 0
+    while j < len(want) {
+        if freed[j] != want[j] {
+            return false
+        }
+        j = j + 1
+    }
+    return true
+}

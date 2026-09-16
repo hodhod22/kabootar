@@ -1,0 +1,215 @@
+import "self_host/vm_run_session"
+import "self_host/vm_s_stack"
+import "self_host/vm_ops_data_a"
+import "kab/gc/gc_alloc"
+
+// --- minor collect: nursery-only mark+sweep; rem-set rescues old->young ---
+let S = vMakeSession()
+S["gcOldId"] = 3
+S["gcOldBytes"] = 2 * gcInstShellBytes()
+
+let oldA = { "vmC": 0 }
+oldA["vmI"] = vGcTakeInstIdS(S)
+let oldB = { "vmC": 0 }
+oldB["vmI"] = vGcTakeInstIdS(S)
+let yLive = { "vmC": 0 }
+yLive["vmI"] = vGcTakeInstIdS(S)
+let yDead = { "vmC": 0 }
+yDead["vmI"] = vGcTakeInstIdS(S)
+let yRem = { "vmC": 0 }
+yRem["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, oldA)
+vHeapPut(S, oldB)
+vHeapPut(S, yLive)
+vHeapPut(S, yDead)
+vHeapPut(S, yRem)
+
+// old holder -> young target: the write barrier records it in gcRemIds.
+oldB["kid"] = yRem
+vGcLogWriteS(S, oldB, yRem)
+if len(S["gcRemIds"]) != 1 || S["gcRemIds"][0] != 2 {
+    return false
+}
+
+S["stack"] = [oldA, yLive]
+
+vGcCollectBeginS(S, true)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+while S["gcSweepActive"] == true {
+    vGcSweepSliceS(S, 8)
+}
+// Seeds: young root 3 + young child 5 of rem-holder 2 → rootsN=2.
+if S["gcRootsN"] != 2 || S["gcMarkedN"] != 2 {
+    return false
+}
+if S["gcLiveN"] != 2 || S["gcDeadN"] != 1 {
+    return false
+}
+if S["gcHostReady"] != true {
+    return false
+}
+if vHeapGet(S, 4) != undefined {
+    return false
+}
+if vHeapGet(S, 2) == undefined {
+    return false
+}
+if S["gcOldId"] != 3 {
+    return false
+}
+if S["gcUsed"] != 4 * gcInstShellBytes() {
+    return false
+}
+// Survival pacing: 2 of 3 young survived (>= 50%) → a major is due even
+// though the cadence would run minors.
+if S["gcMajorDue"] != true {
+    return false
+}
+if vGcMajorOk(S, 2) != true {
+    return false
+}
+
+// --- major collect: full mark; survivors promote (gcOldId moves); rem
+// holders that died drop out of the remembered set ---
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+while S["gcSweepActive"] == true {
+    vGcSweepSliceS(S, 8)
+}
+if S["gcMarkedN"] != 2 || S["gcDeadN"] != 2 {
+    return false
+}
+if S["gcOldId"] != 6 {
+    return false
+}
+if S["gcOldBytes"] != 2 * gcInstShellBytes() {
+    return false
+}
+if len(S["gcRemIds"]) != 0 {
+    return false
+}
+if vHeapGet(S, 5) != undefined {
+    return false
+}
+if S["gcUsed"] != 2 * gcInstShellBytes() {
+    return false
+}
+// The major ran — pacing debt is paid.
+if S["gcMajorDue"] != false {
+    return false
+}
+
+// --- alloc-black: publish mid-mark on the direct path stays shaded ---
+vGcCollectBeginS(S, false)
+vGcMarkSliceS(S, 1)
+let e = { "vmC": 0 }
+e["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, e)
+vGcAllocBlackS(S, e)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+while S["gcSweepActive"] == true {
+    vGcSweepSliceS(S, 8)
+}
+if S["gcMarkedN"] != 3 || S["gcLiveN"] != 3 {
+    return false
+}
+if vHeapGet(S, e["vmI"]) == undefined {
+    return false
+}
+
+// --- idle drain: a collect advances only inside vGcIdleS calls ---
+vGcCollectBeginS(S, false)
+let steps = 0
+while vGcIdleS(S, 1) == true {
+    steps = steps + 1
+    if steps > 64 {
+        return false
+    }
+}
+if S["gcMarkActive"] == true || S["gcSweepActive"] == true {
+    return false
+}
+// e was unrooted — the idle-drained collect reclaimed it.
+if S["gcDeadN"] != 1 || S["gcLiveN"] != 2 {
+    return false
+}
+
+// --- merge barrier: an in-place field merge on an old inst hits the
+// remembered set, so a minor keeps the young target ---
+S["stack"] = []
+let oldM = { "vmC": 0 }
+oldM["vmI"] = vGcTakeInstIdS(S)
+let yMerge = { "vmC": 0 }
+yMerge["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, oldM)
+vHeapPut(S, yMerge)
+vMergeInstInPlace(S, oldM, { "kid": yMerge })
+if len(S["gcRemIds"]) != 1 || S["gcRemIds"][0] != oldM["vmI"] {
+    return false
+}
+vGcCollectBeginS(S, true)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+while S["gcSweepActive"] == true {
+    vGcSweepSliceS(S, 8)
+}
+if S["gcMarkedN"] != 1 || S["gcLiveN"] != 1 {
+    return false
+}
+if vHeapGet(S, yMerge["vmI"]) == undefined {
+    return false
+}
+
+// --- missed roots: curGen + genClose keep suspended-generator insts ---
+let g2 = { "vmGen": 1 }
+g2["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, g2)
+S["curGen"] = g2
+let gv = { "vmC": 0 }
+gv["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, gv)
+S["genClose"] = { "5": { "c": 1, "v": gv } }
+vGcCollectBeginS(S, true)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+while S["gcSweepActive"] == true {
+    vGcSweepSliceS(S, 8)
+}
+if S["gcMarkedN"] != 3 || S["gcLiveN"] != 3 {
+    return false
+}
+if vHeapGet(S, g2["vmI"]) == undefined {
+    return false
+}
+if vHeapGet(S, gv["vmI"]) == undefined {
+    return false
+}
+S["curGen"] = null
+S["genClose"] = undefined
+
+// --- charge coverage: literal ops charge the nursery ---
+let S2 = vMakeSession()
+S2["stack"] = [1, 2, 3]
+runOpDataMakeArray(S2, "make_array", 3, {}, [], [], [])
+if S2["gcUsed"] != gcInstShellBytes() {
+    return false
+}
+S2["stack"] = [1, "k"]
+runOpDataMakeObject(S2, "make_object", 1, {}, [], [], [])
+if S2["gcUsed"] != 2 * gcInstShellBytes() {
+    return false
+}
+S2["stack"] = [7]
+runOpDataOk(S2, "make_ok", 0, {}, [], [], [])
+if S2["gcUsed"] != 3 * gcInstShellBytes() {
+    return false
+}
+return true

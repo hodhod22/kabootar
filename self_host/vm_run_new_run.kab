@@ -49,6 +49,7 @@ pub fn vAllocInstShell(S, classIdx, argc) {
     let id = vGcTakeInstIdS(S)
     let inst = { "vmC": classIdx, "vmI": id, "__kab_oid": id }
     vNurseryCharge(S, gcInstShellBytes())
+    vGcAllocBlackS(S, inst)
     vHeapPut(S, inst)
     return {
         "inst": inst,
@@ -99,6 +100,7 @@ pub fn vNewInstanceFromArrayS(S, classIdx, pool, globals, functions) {
     let id = vGcTakeInstIdS(S)
     let inst = { "vmC": classIdx, "vmI": id, "__kab_oid": id }
     vNurseryCharge(S, gcInstShellBytes())
+    vGcAllocBlackS(S, inst)
     vHeapPut(S, inst)
     let info = {
         "inst": inst,

@@ -1,0 +1,16 @@
+import "kab/gc/gc_idle"
+import "kab/gc/gc_capstone"
+
+// One idle slot of 2 on 4 gray items advances the cursor to 2.
+if gcIdleStep([0, 1, 2, 3], 0, 2) != 2 {
+    return false
+}
+// Zero idle budget means no progress — the mark cannot finish.
+if gcIdleOk(6, 0, 2, 4) {
+    return false
+}
+// 6 roots, 2 idle slots of 2 per frame, 4 frames: drains exactly.
+if gcIdleOk(6, 2, 2, 4) == false {
+    return false
+}
+return gcCapstoneOk(2)

@@ -1,0 +1,18 @@
+import "kab/gc/gc_minor"
+import "kab/gc/gc_capstone"
+
+// Young 0 roots young 1 through kids; young 2 unreachable dies.
+let young = [1, 1, 1]
+let kids = [[1], [], []]
+let marked = gcMinorMark([0], [], kids, young)
+if len(marked) != 2 {
+    return false
+}
+// An old root outside the remembered set does not seed its young child.
+let young2 = [1, 1]
+let kids2 = [[], [], [1]]
+let marked2 = gcMinorMark([2], [], kids2, young2)
+if len(marked2) != 0 {
+    return false
+}
+return gcMinorOk()

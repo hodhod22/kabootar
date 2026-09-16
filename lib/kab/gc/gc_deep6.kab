@@ -1,0 +1,26 @@
+// SH18 deepen 6: rollup gc_deep5 + lazy sweep + idle mark + minor collect.
+// import "kab/gc/gc_deep6"
+// Do not grow gc_deep5.kab. gcHostDeleteOk stays false.
+
+import "kab/gc/gc_deep5"
+import "kab/gc/gc_lazy"
+import "kab/gc/gc_idle"
+import "kab/gc/gc_minor"
+
+/// Deep-6 chain: full gc_deep5 rollup plus lazy sweep (dead slots tombstone
+/// in budget slices — same ordered free list as the eager pass), idle-time
+/// mark (progress only inside idle slots; a zero-idle frame makes none),
+/// and minor collect (nursery-only mark via the remembered set; old space
+/// is never scanned).
+pub fn gcDeep6Ok() {
+    if gcDeep5Ok() == false {
+        return false
+    }
+    if gcLazyOk([0, 1, 2, 3, 4, 5], [1, 4], 2) == false {
+        return false
+    }
+    if gcIdleOk(6, 2, 2, 4) == false {
+        return false
+    }
+    return gcMinorOk()
+}
