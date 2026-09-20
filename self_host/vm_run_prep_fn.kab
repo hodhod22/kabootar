@@ -23,6 +23,8 @@ pub fn vPrepFnNames(S, fnDef) {
     if S["localNames"] == undefined {
         S["localNames"] = []
     }
+    // Fn-frame locals never alias globals — clear the module-frame map.
+    S["localGMap"] = []
     let tr = fnDef["tryRegions"]
     if tr == undefined {
         tr = []

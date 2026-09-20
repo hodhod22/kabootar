@@ -12,7 +12,6 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
 
@@ -172,7 +171,7 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
     let _cwd_guard = PackageRootGuard::enter();
 
     // Force host VM while running the self-host toolchain (avoid Kab meta-eval).
-    let prev_exec = KAB_VM_EXEC_ACTIVE.swap(true, Ordering::AcqRel);
+    let prev_exec = kab_vm_exec_set(true);
     let compiled = (|| {
         let t_import = std::time::Instant::now();
         let mut env = SELF_HOST_TOOLCHAIN.with(|slot| slot.borrow_mut().take());
@@ -228,7 +227,7 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
             memory_mode: module.memory_mode,
         })
     })();
-    KAB_VM_EXEC_ACTIVE.store(prev_exec, Ordering::Release);
+    kab_vm_exec_set(prev_exec);
     compiled
 }
 
@@ -337,7 +336,24 @@ pub fn compile_file_prefer(
 }
 
 static PARSE_CACHE: OnceLock<Mutex<HashMap<String, CachedProgram>>> = OnceLock::new();
-static KAB_VM_EXEC_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+thread_local! {
+    /// "This thread's eval is inside a Kab-VM run" — nested loads may use the
+    /// host engine. Per-thread: a global flag let parallel evals clobber each
+    /// other's mark (a nested import then re-entered the Kab VM and produced
+    /// empty module exports — the flaky "Undefined variable"/"unsupported
+    /// opcode" failures in parallel test runs).
+    static KAB_VM_EXEC_ACTIVE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn kab_vm_exec_active() -> bool {
+    KAB_VM_EXEC_ACTIVE.with(|c| c.get())
+}
+
+/// Set the mark, returning the previous value for save/restore.
+fn kab_vm_exec_set(v: bool) -> bool {
+    KAB_VM_EXEC_ACTIVE.with(|c| c.replace(v))
+}
 
 thread_local! {
     static SELF_HOST_TOOLCHAIN: std::cell::RefCell<Option<crate::value::Environment>> =
@@ -363,7 +379,7 @@ pub fn reset_self_host_toolchain_cache() {
 
 fn kab_vm_run_enabled() -> bool {
     // Nested Kab eval / self-host toolchain stays on host (the Kab VM runs there).
-    if KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
+    if kab_vm_exec_active() {
         return false;
     }
     // SH6: kab-only is default (`vmPrefer=kab`, `vmAppHostFallback=false`).
@@ -373,7 +389,7 @@ fn kab_vm_run_enabled() -> bool {
 
 #[allow(dead_code)]
 fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String> {
-    KAB_VM_EXEC_ACTIVE.store(true, Ordering::Release);
+    let prev_exec = kab_vm_exec_set(true);
     let result = (|| {
         modules::import_module("kab/vm", env)?;
         // When Kab VM path is selected, run kab-only — no soft host bytecode_run_kbc.
@@ -392,12 +408,12 @@ fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String
         drain_all_microtasks(env)?;
         Ok(v)
     })();
-    KAB_VM_EXEC_ACTIVE.store(false, Ordering::Release);
+    kab_vm_exec_set(prev_exec);
     result
 }
 
 fn eval_kbcb_view_via_kab_vm(view: Value, env: &mut Environment) -> Result<Value, String> {
-    KAB_VM_EXEC_ACTIVE.store(true, Ordering::Release);
+    let prev_exec = kab_vm_exec_set(true);
     let result = (|| {
         modules::import_module("kab/vm", env)?;
         let f = env
@@ -407,7 +423,7 @@ fn eval_kbcb_view_via_kab_vm(view: Value, env: &mut Environment) -> Result<Value
         drain_all_microtasks(env)?;
         Ok(v)
     })();
-    KAB_VM_EXEC_ACTIVE.store(false, Ordering::Release);
+    kab_vm_exec_set(prev_exec);
     result
 }
 
@@ -629,7 +645,7 @@ fn compile_file_prefer_cached_src(
         std::env::var("KABOOTAR_VM").as_deref(),
         Ok("kab-only") | Ok("only") | Ok("kab_only")
     ) && prefer != CompilePrefer::Rust
-        && !KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire)
+        && !kab_vm_exec_active()
     {
         let source = fs::read_to_string(path).unwrap_or_default();
         if !should_attempt_self_host(path, &source) {
@@ -667,7 +683,7 @@ pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<
             }
             if kab_vm_only_mode() {
                 // Nested loads while evaluating via Kab (imports of kab/vm deps) may use host.
-                if !KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
+                if !kab_vm_exec_active() {
                     return Err("Kab VM only: host bytecode VM disabled".into());
                 }
             }
@@ -689,7 +705,7 @@ pub fn load_program_for_file(path: &str, source: &str) -> Result<CompiledProgram
     // (`compile_file_prefer_cached`). Force Rust while the self-host toolchain or
     // Kab VM is already active so nested loads cannot recurse into another
     // full self-host compile of the compiler.
-    let prefer = if KAB_VM_EXEC_ACTIVE.load(Ordering::Acquire) {
+    let prefer = if kab_vm_exec_active() {
         CompilePrefer::Rust
     } else {
         CompilePrefer::from_args_and_env(&[])
@@ -842,6 +858,38 @@ fn cache_path_kbcb_ca(base: &Path, fingerprint: &str) -> PathBuf {
         .join(format!("v{COMPILER_IMAGE_VERSION}_{fingerprint}.kbcb"))
 }
 
+/// Write `contents` to `dest` atomically: sibling temp file then rename, so
+/// parallel compile-cache readers never observe a half-written `.kbc`/`.kbcb`
+/// (a torn read maps/deserializes garbage and surfaces as "Undefined
+/// variable" or "unsupported opcode" in unrelated tests). Temp name carries
+/// the pid so concurrent writers don't clobber each other's temp file;
+/// last rename wins, which is fine — contents are identical per fingerprint.
+fn write_atomic(dest: &Path, contents: &[u8]) -> Result<(), String> {
+    let tmp = dest.with_extension(format!(
+        "tmp{}",
+        std::process::id()
+    ));
+    fs::write(&tmp, contents).map_err(|e| format!("write {}: {e}", tmp.display()))?;
+    match fs::rename(&tmp, dest) {
+        Ok(()) => Ok(()),
+        Err(_) => {
+            // Windows rename fails when dest exists — remove and retry once.
+            let _ = fs::remove_file(dest);
+            match fs::rename(&tmp, dest) {
+                Ok(()) => Ok(()),
+                Err(_) => {
+                    // Dest may be pinned by a concurrent mmap reader — fall
+                    // back to a direct write (previous behavior) rather than
+                    // fail a compile that would have succeeded.
+                    let _ = fs::remove_file(&tmp);
+                    fs::write(dest, contents)
+                        .map_err(|e| format!("write {}: {e}", dest.display()))
+                }
+            }
+        }
+    }
+}
+
 fn deserialize_kbcb_file(path: &Path) -> Result<BytecodeModule, String> {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -885,12 +933,12 @@ pub fn write_compile_marker_at(
         ));
         let kbcb = serialize_kbcb(program.bytecode.as_ref().unwrap());
         let kbcb_path = cache_path_kbcb(base, path);
-        let _ = fs::write(&kbcb_path, &kbcb);
+        let _ = write_atomic(&kbcb_path, &kbcb);
         let ca = cache_path_kbcb_ca(base, &fp);
         if let Some(parent) = ca.parent() {
             let _ = fs::create_dir_all(parent);
         }
-        let _ = fs::write(&ca, &kbcb);
+        let _ = write_atomic(&ca, &kbcb);
         text
     } else {
         let source = fs::read_to_string(path).unwrap_or_default();
@@ -900,7 +948,8 @@ pub fn write_compile_marker_at(
             program.stmt_count
         )
     };
-    fs::write(marker, content).map_err(|e| format!("Failed to write cache marker: {e}"))
+    write_atomic(&marker, content.as_bytes())
+        .map_err(|e| format!("Failed to write cache marker: {e}"))
 }
 
 pub fn read_bytecode_cache(path: &str, source_mtime: SystemTime) -> Result<Option<BytecodeModule>, String> {

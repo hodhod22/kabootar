@@ -16,7 +16,7 @@ pub fn runOpMemAccAddGlobal(S, name, arg, op, pool, globals, functions) {
 pub fn runOpMemAccAddLocal(S, name, arg, op, pool, globals, functions) {
     if name == "acc_add_local" {
         let rhs = vPopS(S)
-        S["locals"][arg] = S["locals"][arg] + rhs
+        vLocalSetS(S, arg, vLocalGetS(S, arg) + rhs)
         vBumpIpS(S)
         return 1
     }
@@ -38,8 +38,8 @@ pub fn runOpMemArrayPopGlobal(S, name, arg, op, pool, globals, functions) {
 // --- vm_ops_mem_array_pop_local ---
 pub fn runOpMemArrayPopLocal(S, name, arg, op, pool, globals, functions) {
     if name == "array_pop_local" {
-        let arr = S["locals"][arg]
-        S["locals"][arg] = pop(arr)
+        let arr = vLocalGetS(S, arg)
+        vLocalSetS(S, arg, pop(arr))
         vPushS(S, null)
         vBumpIpS(S)
         return 1
@@ -83,7 +83,7 @@ pub fn runOpMemArrayPushLocal(S, name, arg, op, pool, globals, functions) {
         let item = vPopS(S)
         let arr = vPopS(S)
         let next = bytecode_array_push(arr, item)
-        S["locals"][arg] = next
+        vLocalSetS(S, arg, next)
         vPushS(S, len(next))
         vBumpIpS(S)
         return 1
@@ -116,7 +116,7 @@ pub fn runOpMemIndexGetGlobal(S, name, arg, op, pool, globals, functions) {
 pub fn runOpMemIndexGetLocal(S, name, arg, op, pool, globals, functions) {
     if name == "index_get_local" {
         let idx = vPopS(S)
-        vPushS(S, S["locals"][arg][idx])
+        vPushS(S, vLocalGetS(S, arg)[idx])
         vBumpIpS(S)
         return 1
     }
@@ -128,7 +128,7 @@ pub fn runOpMemIndexGetLocal(S, name, arg, op, pool, globals, functions) {
 
 pub fn runOpMemLen(S, name, arg, op, pool, globals, functions) {
     if name == "len_local" {
-        vPushS(S, len(S["locals"][arg]))
+        vPushS(S, len(vLocalGetS(S, arg)))
         vBumpIpS(S)
         return 1
     }
@@ -153,7 +153,8 @@ pub fn runOpMemLoadGlobal(S, name, arg, op, pool, globals, functions) {
 // --- vm_ops_mem_load_local ---
 pub fn runOpMemLoadLocal(S, name, arg, op, pool, globals, functions) {
     if name == "load_local" {
-        vPushS(S, vCanonicalInstS(S, S["locals"][arg]))
+        let lv = vCanonicalInstS(S, vLocalGetS(S, arg))
+        vPushS(S, lv)
         vBumpIpS(S)
         return 1
     }
@@ -189,7 +190,7 @@ pub fn runOpMemStoreGlobal(S, name, arg, op, pool, globals, functions) {
 pub fn runOpMemStoreLocal(S, name, arg, op, pool, globals, functions) {
     if name == "store_local" {
         let v = vPopS(S)
-        S["locals"][arg] = vCanonicalInstS(S, v)
+        vLocalSetS(S, arg, vCanonicalInstS(S, v))
         vBumpIpS(S)
         return 1
     }
@@ -211,8 +212,8 @@ pub fn runOpMemTakeGlobal(S, name, arg, op, pool, globals, functions) {
 // --- vm_ops_mem_take_local ---
 pub fn runOpMemTakeLocal(S, name, arg, op, pool, globals, functions) {
     if name == "take_local" {
-        let arr = S["locals"][arg]
-        S["locals"][arg] = undefined
+        let arr = vLocalGetS(S, arg)
+        vLocalSetS(S, arg, undefined)
         vPushS(S, arr)
         vBumpIpS(S)
         return 1

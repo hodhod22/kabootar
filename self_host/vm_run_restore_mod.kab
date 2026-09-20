@@ -11,6 +11,7 @@ pub fn vRestoreFnData(S, fr) {
     S["stack"] = fr["stack"]
     S["locals"] = fr["locals"]
     S["localNames"] = fr["localNames"]
+    S["localGMap"] = fr["localGMap"]
     S["tryRegions"] = fr["tryRegions"]
     let fa = fr["arrows"]
     if fa != undefined {
@@ -37,26 +38,90 @@ pub fn vRestoreModData(S, fr) {
     S["arrows"] = fr["arrows"]
     S["tryRegions"] = fr["tryRegions"]
     S["localNames"] = fr["localNames"]
+    S["localGMap"] = fr["localGMap"]
+}
+
+// --- vm_run_saved_frames ---
+/// A saved frame lives in a VM-side local between save and restore — outside
+/// every S root the collect scans — so the frame is pushed onto
+/// S["savedFrames"] and tagged with a unique sfSeq for exact-match removal.
+/// Entries left behind by a thrown call over-retain (safe direction: the
+/// cycle never sweeps a frame that is still suspended).
+pub fn vPushSavedFrameS(S, fr) {
+    let sq = S["sfSeq"]
+    if typeof(sq) != "number" {
+        sq = 0
+    }
+    sq = sq + 1
+    S["sfSeq"] = sq
+    if typeof(fr) == "object" && fr != null {
+        fr["sfSeq"] = sq
+    }
+    let sf = S["savedFrames"]
+    if typeof(sf) == "array" {
+        S["savedFrames"] = push(sf, fr)
+    }
+    return fr
+}
+
+/// Remove one saved frame by its sfSeq tag (search from the top — saves and
+/// restores pair LIFO in practice).
+pub fn vDropSavedFrameS(S, fr) {
+    if typeof(fr) != "object" || fr == null {
+        return
+    }
+    let target = fr["sfSeq"]
+    if target == undefined {
+        return
+    }
+    let sf = S["savedFrames"]
+    if typeof(sf) != "array" {
+        return
+    }
+    let i = len(sf) - 1
+    let found = -1
+    while i >= 0 {
+        let e = sf[i]
+        if typeof(e) == "object" && e != null && e["sfSeq"] == target {
+            found = i
+            i = -1
+        }
+        i = i - 1
+    }
+    if found < 0 {
+        return
+    }
+    let out = []
+    let j = 0
+    while j < len(sf) {
+        if j != found {
+            out = push(out, sf[j])
+        }
+        j = j + 1
+    }
+    S["savedFrames"] = out
+    return
 }
 
 // --- vm_run_save_fn ---
 pub fn vSaveFnFrame(S) {
-    return {
+    return vPushSavedFrameS(S, {
         "stack": S["stack"],
         "locals": S["locals"],
         "localNames": S["localNames"],
+        "localGMap": S["localGMap"],
         "tryRegions": S["tryRegions"],
         "ip": S["ip"],
         "done": S["done"],
         "result": S["result"],
         "unsupported": S["unsupported"],
         "arrows": S["arrows"]
-    }
+    })
 }
 
 // --- vm_run_save_mod ---
 pub fn vSaveModuleFrame(S) {
-    return {
+    return vPushSavedFrameS(S, {
         "stack": S["stack"],
         "locals": S["locals"],
         "globals": S["globals"],
@@ -64,23 +129,26 @@ pub fn vSaveModuleFrame(S) {
         "arrows": S["arrows"],
         "tryRegions": S["tryRegions"],
         "localNames": S["localNames"],
+        "localGMap": S["localGMap"],
         "thisStack": S["thisStack"],
         "lastThis": S["lastThis"],
         "ip": S["ip"],
         "done": S["done"],
         "result": S["result"],
         "unsupported": S["unsupported"]
-    }
+    })
 }
 
 // --- vm_run_restore_fn ---
 pub fn vRestoreFnFrame(S, fr) {
+    vDropSavedFrameS(S, fr)
     vRestoreFnData(S, fr)
     vRestoreFnCtrl(S, fr)
 }
 
 // --- vm_run_restore_mod ---
 pub fn vRestoreModuleFrame(S, fr) {
+    vDropSavedFrameS(S, fr)
     vRestoreModData(S, fr)
     vRestoreModCtrl(S, fr)
 }
