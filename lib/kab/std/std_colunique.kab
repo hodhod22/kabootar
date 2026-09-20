@@ -1,18 +1,39 @@
 // SH20: collections unique off std_colflat.kab. import "kab/std/std_colunique"
 // Do not grow std_colflat.kab. stdHostDeleteOk stays false.
+// Hash-seen for primitives; stdColContains scan for the rest (== semantics kept).
 
 import "kab/std/std_colcontains"
 
+fn stdColUKey(x, t) {
+    if t == "number" {
+        return "n|" + (x + 0)
+    }
+    if t == "bigint" {
+        return "n|" + x
+    }
+    return t + "|" + x
+}
+
 pub fn stdColUnique(p) {
-    let out = []
+    let out = { "a": [] }
+    let seen = {}
     let n = len(p)
     let i = 0
     while i < n {
         let x = p[i]
-        if stdColContains(out, x) == false {
-            out = push(out, x)
+        let t = typeof(x)
+        if x == x && (t == "number" || t == "string" || t == "boolean" || t == "bigint") {
+            let k = stdColUKey(x, t)
+            if seen[k] == undefined {
+                seen[k] = true
+                object_array_push(out, "a", x)
+            }
+        } else {
+            if stdColContains(out["a"], x) == false {
+                object_array_push(out, "a", x)
+            }
         }
         i = i + 1
     }
-    return out
+    return out["a"]
 }
