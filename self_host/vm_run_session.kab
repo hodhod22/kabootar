@@ -13,6 +13,29 @@ pub fn vAllocGlobals(S, n) {
     }
 }
 
+// --- vm_run_local_gmap ---
+// Module-level `let` slots appear in both localNames and globals (host env
+// parity): main ops use the local slot while fn frames address the global
+// slot. Build the local idx → global idx map for the module frame.
+pub fn vBuildLocalGMap(S, globals) {
+    let m = []
+    let li = 0
+    while li < len(S["localNames"]) {
+        let lname = S["localNames"][li]
+        let gi = -1
+        let gj = 0
+        while gj < len(globals) {
+            if globals[gj] == lname {
+                gi = gj
+            }
+            gj = gj + 1
+        }
+        m = push(m, gi)
+        li = li + 1
+    }
+    S["localGMap"] = m
+}
+
 // --- vm_run_alloc_locals ---
 pub fn vAllocLocals(S, n) {
     S["locals"] = []
@@ -105,12 +128,21 @@ pub fn vBindEnums(S, globals, enums) {
 }
 
 // --- vm_run_hook_fn ---
+// The previous _args array sits in a VM-side local while the inner call
+// runs — invisible to the collect's root scan — so it is rooted on
+// S["savedFrames"] for the duration (pop skipped on throw: over-retains,
+// never premature-sweeps).
 pub fn vCallRunFn(S, fnDef, pool, globals, functions, callArgs, caps) {
     let prevA = S["_args"]
     let prevK = S["_hook"]
     S["_hook"] = 1
     S["_args"] = [fnDef, pool, globals, functions, callArgs, caps]
+    vPushSavedFrameS(S, prevA)
     let out = S["runFnBody"]()
+    let sfPop = S["savedFrames"]
+    if typeof(sfPop) == "array" && len(sfPop) > 0 {
+        S["savedFrames"] = pop(sfPop)
+    }
     S["_args"] = prevA
     S["_hook"] = prevK
     return out
@@ -122,7 +154,12 @@ pub fn vCallRunMeth(S, meth, pool, globals, functions, recv, callArgs) {
     let prevK = S["_hook"]
     S["_hook"] = 2
     S["_args"] = [meth, pool, globals, functions, recv, callArgs]
+    vPushSavedFrameS(S, prevA)
     let out = S["runMethodBody"]()
+    let sfPop = S["savedFrames"]
+    if typeof(sfPop) == "array" && len(sfPop) > 0 {
+        S["savedFrames"] = pop(sfPop)
+    }
     S["_args"] = prevA
     S["_hook"] = prevK
     return out
@@ -134,7 +171,12 @@ pub fn vCallRunOps(S, ops, pool, globals, functions) {
     let prevK = S["_hook"]
     S["_hook"] = 0
     S["_args"] = [ops, pool, globals, functions]
+    vPushSavedFrameS(S, prevA)
     S["runOps"]()
+    let sfPop = S["savedFrames"]
+    if typeof(sfPop) == "array" && len(sfPop) > 0 {
+        S["savedFrames"] = pop(sfPop)
+    }
     S["_args"] = prevA
     S["_hook"] = prevK
 }
@@ -144,7 +186,12 @@ pub fn vCallThrowCatchFin(S, ops, pool, globals, functions) {
     let prevK = S["_hook"]
     S["_hook"] = 3
     S["_args"] = [ops, pool, globals, functions]
+    vPushSavedFrameS(S, prevA)
     S["runOps"]()
+    let sfPop = S["savedFrames"]
+    if typeof(sfPop) == "array" && len(sfPop) > 0 {
+        S["savedFrames"] = pop(sfPop)
+    }
     S["_args"] = prevA
     S["_hook"] = prevK
 }
@@ -155,7 +202,9 @@ pub fn vResetExec(S) {
     S["stack"] = []
     S["thisStack"] = []
     S["lastThis"] = null
-    S["insts"] = []
+    S["insts"] = {}
+    // savedFrames is root bookkeeping, not exec state — clearing it here
+    // would unroot the module frame vModEnterA just saved for this run.
     S["gcMarkActive"] = false
     S["gcSweepActive"] = false
     S["gcMinor"] = false
@@ -165,6 +214,7 @@ pub fn vResetExec(S) {
     S["unsupported"] = false
     S["ipEnd"] = -1
     S["yielded"] = 0
+    S["localGMap"] = []
 }
 
 // --- vm_run_session ---
@@ -177,10 +227,13 @@ pub fn vMakeSession() {
         "arrows": [],
         "tryRegions": [],
         "localNames": [],
+        "localGMap": [],
         "globalNames": [],
         "thisStack": [],
         "lastThis": null,
-        "insts": [],
+        "insts": {},
+        "savedFrames": [],
+        "sfSeq": 0,
         "nextInstId": 1,
         "gcUsed": 0,
         "gcCap": 65536,

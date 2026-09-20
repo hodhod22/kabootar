@@ -155,6 +155,43 @@ pub fn vResolveGlobalCached(S, globals, idx, name) {
     return host
 }
 
+// --- vm_s_local_gidx ---
+// Module-level `let` lives in both localNames and globals (host env parity):
+// main ops use the local slot, fn frames the global slot. S["localGMap"] maps
+// local idx → global idx for the module frame; fn frames keep it empty.
+pub fn vLocalGIdx(S, i) {
+    let m = S["localGMap"]
+    if typeof(m) != "array" {
+        return -1
+    }
+    if i >= len(m) {
+        return -1
+    }
+    return m[i]
+}
+
+// --- vm_s_local_get ---
+/// Read a local slot; mapped module-frame slots resolve through globals so a
+/// fn-side global write is visible (host env is the shared truth).
+pub fn vLocalGetS(S, i) {
+    let gi = vLocalGIdx(S, i)
+    if gi >= 0 {
+        return S["globals"][gi]
+    }
+    return S["locals"][i]
+}
+
+// --- vm_s_local_set ---
+/// Write a local slot; mapped slots also publish to globals so fn frames see
+/// the update.
+pub fn vLocalSetS(S, i, v) {
+    S["locals"][i] = v
+    let gi = vLocalGIdx(S, i)
+    if gi >= 0 {
+        S["globals"][gi] = v
+    }
+}
+
 // --- vm_s_rev_arr ---
 pub fn vReverseArr(raw, n) {
     let arr = []
@@ -310,29 +347,38 @@ pub fn vHeapGet(S, id) {
         return undefined
     }
     let heap = S["insts"]
-    if typeof(heap) != "array" {
+    if typeof(heap) != "object" || heap == null {
         return undefined
     }
-    if id < 0 || id >= len(heap) {
-        return undefined
-    }
-    return heap[id]
+    return heap[" " + id]
 }
 
+/// insts is an id-keyed map (" "+id -> inst), not an array — ids include
+/// host __kab_oid values that grow far beyond the inst count, so an
+/// id-indexed array would pad/copy quadratically per publish.
 pub fn vHeapPut(S, obj) {
     let id = vInstId(obj)
     if id == undefined {
         return
     }
     let heap = S["insts"]
-    if typeof(heap) != "array" {
-        heap = []
+    if typeof(heap) != "object" || heap == null {
+        heap = {}
     }
-    while len(heap) <= id {
-        heap = push(heap, undefined)
-    }
-    heap[id] = obj
+    heap[" " + id] = obj
     S["insts"] = heap
+    // A put past the post-mark watermark while the lazy sweep is armed is a
+    // fresh publish — count it here because the sweep key snapshot predates it.
+    if S["gcSweepActive"] == true {
+        let mn = S["gcSweepMinNew"]
+        if typeof(mn) == "number" && id >= mn {
+            let f = S["gcSweepFreshN"]
+            if typeof(f) != "number" {
+                f = 0
+            }
+            S["gcSweepFreshN"] = f + 1
+        }
+    }
     return
 }
 
@@ -362,7 +408,10 @@ pub fn vGcAllocBlackS(S, obj) {
 }
 
 pub fn vCanonicalInstS(S, v) {
-    let id = vInstId(v)
+    let id = vObjGet(v, "vmI")
+    if id == undefined {
+        id = vObjGet(v, "__kab_oid")
+    }
     let h = vHeapGet(S, id)
     if h != undefined {
         return h
@@ -459,39 +508,23 @@ pub fn vGcMajorOk(S, c) {
 /// cursor reaches the heap end (host heap still skuld).
 pub fn vNurseryCharge(S, n) {
     let cap = S["gcCap"]
-    if cap == null {
+    if typeof(cap) != "number" {
         cap = gcNurseryCap()
         S["gcCap"] = cap
     }
     let used = S["gcUsed"]
-    if used == null {
+    if typeof(used) != "number" {
         used = 0
     }
     let next = gcAllocOrCollect(used, n, cap)
-    if next < used && S["gcMarkActive"] != true && S["gcSweepActive"] != true {
-        let c = S["gcCollects"]
-        if c == null {
-            c = 0
-        }
-        c = c + 1
-        S["gcCollects"] = c
-        vGcCollectBeginS(S, vGcMajorOk(S, c) == false)
-    }
-    if S["gcMarkActive"] == true {
-        vGcMarkSliceS(S, vGcMarkSliceN())
-        if S["gcMarkActive"] == true {
-            S["gcUsed"] = next
-            return
-        }
-        return
-    }
-    if S["gcSweepActive"] == true {
-        vGcSweepSliceS(S, vGcSweepSliceN())
-        if S["gcSweepActive"] == true {
-            S["gcUsed"] = next
-            return
-        }
-        return
+    // The collect only ARMS here — vGcCollectBeginS runs at the next op
+    // boundary (drained in runOpsStepS). A mid-op begin would snapshot
+    // roots while operands sit in VM-side temporaries (popped args held in
+    // dispatch locals), sweeping live insts. Mark and sweep slices are
+    // deferred the same way: a mid-op sweep tombstones insts held only in
+    // dispatch temporaries — they drain in runOpsStepS too.
+    if next < used && S["gcMarkActive"] != true && S["gcSweepActive"] != true && S["gcCollectPending"] != true {
+        S["gcCollectPending"] = true
     }
     S["gcUsed"] = next
 }
@@ -501,9 +534,41 @@ pub fn vNurseryCharge(S, n) {
 /// `st` = { "roots": [...ids], "seen": {"id" -> true} }; the string-keyed
 /// seen map keeps membership O(1) instead of a linear scan over roots.
 /// (ids can be large host __kab_oid values — never index arrays by id.)
+/// Pointer identity via the host gc_obj_id native — 0 when the value has
+/// no identity or the native is absent from this env (typeof on an
+/// undeclared global is safe here).
+pub fn vGcObjIdS(v) {
+    if typeof(gc_obj_id) != "function" {
+        return 0
+    }
+    return gc_obj_id(v)
+}
+
 pub fn vGcMarkValS(st, v) {
     let id = vInstId(v)
     if id == undefined {
+        // Plain objects (no vmI/__kab_oid — make_object shells, wrappers,
+        // arrow closures) still need field scans: inst children reachable
+        // only through them die unmarked otherwise. Pointer identity gives
+        // per-cycle dedup that mutates nothing and keeps the object outside
+        // inst-id space (no heap-aliasing surface); without it, pushes stay
+        // bounded by the roots cap so cyclic graphs still terminate.
+        if typeof(v) != "object" || v == null {
+            return st
+        }
+        let oid = vGcObjIdS(v)
+        if oid != 0 && oid != undefined {
+            let mk = "p" + oid
+            let mseen = st["seen"]
+            if mseen[mk] != undefined {
+                return st
+            }
+            mseen[mk] = true
+            st["seen"] = mseen
+        }
+        if len(st["roots"]) < 65536 {
+            st["roots"] = push(st["roots"], v)
+        }
         return st
     }
     if st["minor"] == true {
@@ -519,20 +584,47 @@ pub fn vGcMarkValS(st, v) {
     }
     seen[k] = true
     st["seen"] = seen
-    st["roots"] = push(st["roots"], id)
+    // Push the value itself, not just the id: a marked inst that has no
+    // heap slot yet (never passed vHeapPut) still needs its fields
+    // scanned or its inst-valued children die unmarked.
+    st["roots"] = push(st["roots"], v)
     return st
 }
 
-/// Deduped inst ids (vmI/__kab_oid) found in one value array.
+/// Deduped inst ids (vmI/__kab_oid) found in one value array. Elements that
+/// are themselves arrays are descended into — a nested array in a root
+/// (stack/locals/_args/caps) holds live insts that id-only marking missed.
+/// Array identity comes from gc_obj_id (pointer) — an Rc-cyclic array
+/// (a[i] = a) dedups on it; st["arrD"] caps descent depth as a fallback
+/// when the native is absent.
 pub fn vGcScanArrS(st, arr) {
     if typeof(arr) != "array" {
         return st
     }
+    let aid = vGcObjIdS(arr)
+    if aid != 0 && aid != undefined {
+        let ak = "a" + aid
+        let aseen = st["seen"]
+        if aseen[ak] != undefined {
+            return st
+        }
+        aseen[ak] = true
+        st["seen"] = aseen
+    }
+    let d = st["arrD"]
+    if typeof(d) != "number" {
+        d = 0
+    }
+    if d >= 512 {
+        return st
+    }
+    st["arrD"] = d + 1
     let i = 0
     while i < len(arr) {
-        st = vGcMarkValS(st, arr[i])
+        st = vGcScanValS(st, arr[i])
         i = i + 1
     }
+    st["arrD"] = d
     return st
 }
 
@@ -559,7 +651,7 @@ pub fn vGcMarkSliceN() {
 /// remembered set (gcRemIds) plus this cycle's write log. Old-space
 /// liveness is not decided here.
 pub fn vGcCollectBeginS(S, minor) {
-    let st = { "roots": [], "seen": {}, "wi": 0, "fieldsN": 0 }
+    let st = { "roots": [], "seen": {}, "wi": 0, "fieldsN": 0, "arrD": 0 }
     if minor == true {
         st["minor"] = true
         let y = S["gcOldId"]
@@ -577,6 +669,18 @@ pub fn vGcCollectBeginS(S, minor) {
     st = vGcScanValS(st, S["classes"])
     st = vGcScanValS(st, S["_args"])
     st = vGcScanValS(st, S["curGen"])
+    // lastMemObj holds the last get_member receiver across ops — an inst
+    // reachable only through it must not be swept under the app.
+    st = vGcScanValS(st, S["lastMemObj"])
+    // savedFrames roots suspended frames (caller stack/locals saved by
+    // vSaveFnFrame/vSaveModuleFrame into VM-side locals) and previous _args
+    // arrays parked by the run hooks — insts reachable only through a
+    // suspended frame would otherwise sweep mid-call.
+    st = vGcScanArrS(st, S["savedFrames"])
+    // yieldVal/ysdel hold the last yielded value and yield* delegate across
+    // op boundaries inside generator protocol steps.
+    st = vGcScanValS(st, S["yieldVal"])
+    st = vGcScanValS(st, S["ysdel"])
     // genClose holds closing return values inside {c,v} wrappers — scan
     // each recorded "v" so a generator's close value keeps its insts
     // alive while it is suspended.
@@ -594,7 +698,7 @@ pub fn vGcCollectBeginS(S, minor) {
     }
     if minor == true {
         let heap = S["insts"]
-        if typeof(heap) == "array" {
+        if typeof(heap) == "object" && heap != null {
             let rem = S["gcRemIds"]
             if typeof(rem) == "array" {
                 let ri = 0
@@ -613,7 +717,7 @@ pub fn vGcCollectBeginS(S, minor) {
             }
         }
     }
-    S["gcRootsN"] = len(st["roots"])
+    S["gcRootsN"] = vGcHeapMarkedN(S["insts"], st["roots"])
     S["gcCollectT0"] = date_now_ms()
     S["gcMarkSt"] = st
     S["gcMarkActive"] = true
@@ -621,12 +725,27 @@ pub fn vGcCollectBeginS(S, minor) {
     return
 }
 
-/// Scan the fields of one marked inst (worklist step).
+/// Scan the fields of one marked inst (worklist step). `rid` is either an
+/// inst id (write-log/rem-set entries — resolved through the heap) or the
+/// marked value itself (roots pushed by vGcMarkValS — needed because a
+/// marked inst can exist without a heap slot). A heaped id resolves to the
+/// canonical heap copy so non-canonical duplicates don't diverge.
 pub fn vGcScanFieldsS(st, heap, rid) {
-    if typeof(rid) != "number" || rid < 0 || rid >= len(heap) {
-        return st
+    let obj = rid
+    if typeof(rid) == "number" {
+        if typeof(heap) != "object" || heap == null {
+            return st
+        }
+        obj = heap[" " + rid]
+    } else {
+        let hid = vInstId(obj)
+        if hid != undefined && typeof(heap) == "object" && heap != null {
+            let hv = heap[" " + hid]
+            if typeof(hv) == "object" && hv != null {
+                obj = hv
+            }
+        }
     }
-    let obj = heap[rid]
     if typeof(obj) != "object" || obj == null {
         return st
     }
@@ -654,7 +773,7 @@ pub fn vGcMarkSliceS(S, budget) {
     let st = S["gcMarkSt"]
     let heap = S["insts"]
     let n = 0
-    if typeof(heap) == "array" {
+    if typeof(heap) == "object" && heap != null {
         while n < budget {
             if st["wi"] < len(st["roots"]) {
                 st = vGcScanFieldsS(st, heap, st["roots"][st["wi"]])
@@ -668,7 +787,21 @@ pub fn vGcMarkSliceS(S, budget) {
                 S["gcWriteLog"] = pop(wl)
                 let ws = S["gcWriteSeen"]
                 if typeof(ws) == "object" && ws != null {
-                    ws[" " + hid] = undefined
+                    // Write-log entries are holder inst ids or marked plain
+                    // objects — key the seen-unmark the way vGcLogWriteS did.
+                    let wk = " " + hid
+                    if typeof(hid) == "object" && hid != null {
+                        let hoid = vInstId(hid)
+                        if hoid != undefined {
+                            wk = " " + hoid
+                        } else {
+                            let poid = vGcObjIdS(hid)
+                            if poid != 0 && poid != undefined {
+                                wk = "p" + poid
+                            }
+                        }
+                    }
+                    ws[wk] = undefined
                     S["gcWriteSeen"] = ws
                 }
                 st = vGcScanFieldsS(st, heap, hid)
@@ -678,7 +811,7 @@ pub fn vGcMarkSliceS(S, budget) {
     }
     let wl2 = S["gcWriteLog"]
     let pending = typeof(wl2) == "array" && len(wl2) > 0
-    if typeof(heap) != "array" || (st["wi"] >= len(st["roots"]) && pending == false) {
+    if typeof(heap) != "object" || heap == null || (st["wi"] >= len(st["roots"]) && pending == false) {
         vGcFinishMarkS(S, st)
         S["gcMarkActive"] = false
         return
@@ -692,15 +825,39 @@ pub fn vGcMarkSliceS(S, budget) {
 /// vGcSweepSliceS slices on later charges so the pause stays inside the
 /// frame budget. gcSweepMinNew is the id watermark: the freelist stays
 /// locked while sweeping, so every post-mark publish gets an id above it.
+/// Count marked roots that resolve to a heap slot. The kab-GC cycle only
+/// accounts heap insts: a marked-but-unheaped object (e.g. a host-side
+/// wrapper that picked up a __kab_oid by mutation) is host-managed and must
+/// not enter the marked/live identity the readiness check compares.
+pub fn vGcHeapMarkedN(heap, roots) {
+    if typeof(heap) != "object" || heap == null || typeof(roots) != "array" {
+        return 0
+    }
+    let n = 0
+    let i = 0
+    while i < len(roots) {
+        let rid = vInstId(roots[i])
+        if rid != undefined && heap[" " + rid] != undefined {
+            n = n + 1
+        }
+        i = i + 1
+    }
+    return n
+}
+
 pub fn vGcFinishMarkS(S, st) {
     let heap = S["insts"]
-    S["gcMarkedN"] = len(st["roots"])
-    if typeof(heap) != "array" {
+    S["gcMarkedN"] = vGcHeapMarkedN(heap, st["roots"])
+    if typeof(heap) != "object" || heap == null {
         S["gcLiveN"] = 0
         S["gcDeadN"] = 0
         S["gcDeadBytes"] = 0
         return
     }
+    // insts is an id-keyed map — the lazy sweep walks a key snapshot so a
+    // post-mark publish (id >= gcSweepMinNew, counted fresh in vHeapPut)
+    // never needs a slot visit.
+    S["gcSweepKeys"] = object_keys(heap)
     let wc = S["gcWriteCycleN"]
     if typeof(wc) == "number" {
         S["gcWriteN"] = wc
@@ -768,9 +925,17 @@ pub fn vGcSweepSliceS(S, budget) {
         return
     }
     let heap = S["insts"]
-    if typeof(heap) != "array" {
+    if typeof(heap) != "object" || heap == null {
         S["gcSweepActive"] = false
         return
+    }
+    // The heap is an id-keyed map; the sweep walks the key list snapshotted
+    // at mark finish. Post-mark publishes land outside the snapshot and are
+    // counted fresh by vHeapPut.
+    let keys = S["gcSweepKeys"]
+    if typeof(keys) != "array" {
+        keys = object_keys(heap)
+        S["gcSweepKeys"] = keys
     }
     let seen = S["gcSweepSeen"]
     if typeof(seen) != "object" || seen == null {
@@ -806,19 +971,20 @@ pub fn vGcSweepSliceS(S, budget) {
         oldId = 1
     }
     let n = 0
-    while at < len(heap) && n < budget {
-        let id = vInstId(heap[at])
+    while at < len(keys) && n < budget {
+        let k = keys[at]
+        let obj = heap[k]
+        let id = vInstId(obj)
         if id != undefined {
             if id >= mn {
-                fresh = fresh + 1
-                vGcWeakClearObjS(heap[at], seen, mn)
+                vGcWeakClearObjS(obj, seen, mn)
             } else if minor && id < oldId {
                 // old-space slot — a minor collect leaves it alone
             } else if seen[" " + id] == true {
                 live = live + 1
-                vGcWeakClearObjS(heap[at], seen, mn)
+                vGcWeakClearObjS(obj, seen, mn)
             } else {
-                heap[at] = undefined
+                heap[k] = undefined
                 freeIds = push(freeIds, id)
                 dead = dead + 1
             }
@@ -832,23 +998,40 @@ pub fn vGcSweepSliceS(S, budget) {
     S["gcSweepLiveN"] = live
     S["gcSweepDeadN"] = dead
     S["gcSweepFreshN"] = fresh
-    if at < len(heap) {
+    if at < len(keys) {
         return
     }
-    // Cursor reached the heap end: trim the tombstone tail, drop freed ids
-    // that would just re-pad the heap, then settle the cycle counters.
-    while len(heap) > 0 && heap[len(heap) - 1] == undefined {
-        heap = pop(heap)
+    // Cursor reached the end of the key snapshot: rebuild the id map without
+    // tombstones — fresh post-mark publishes keep their entries — then
+    // settle the cycle counters.
+    let keep = {}
+    let kk = object_keys(heap)
+    let ki = 0
+    let maxId = 0
+    while ki < len(kk) {
+        let kv = heap[kk[ki]]
+        if kv != undefined {
+            keep[kk[ki]] = kv
+            let kvid = vInstId(kv)
+            if kvid != undefined && kvid > maxId {
+                maxId = kvid
+            }
+        }
+        ki = ki + 1
     }
+    // Freelist pruning mirrors the trimmed-array rule: a swept id at or past
+    // the live frontier is not reusable (it would sit above gcOldId-sized
+    // generation boundaries and alias young/old classification).
+    let bound = maxId + 1
     let pruned = []
     let fi = 0
     while fi < len(freeIds) {
-        if freeIds[fi] < len(heap) {
+        if freeIds[fi] < bound {
             pruned = push(pruned, freeIds[fi])
         }
         fi = fi + 1
     }
-    S["insts"] = heap
+    S["insts"] = keep
     S["gcFreeIds"] = pruned
     S["gcLiveN"] = live
     S["gcDeadN"] = dead
@@ -1193,17 +1376,56 @@ pub let poolKey = poolKey
 /// minor collect; dead holders are pruned at each major settle.
 pub fn vGcLogWriteS(S, holder, val) {
     let vid = vInstId(val)
+    // Composite vals without an inst id (plain objects, arrays) can still
+    // hold insts — an old holder gaining one must reach the remembered set
+    // or a minor collect never finds the young child inside it.
     if vid == undefined {
-        return
+        let vt = typeof(val)
+        if (vt != "object" && vt != "array") || val == null {
+            return
+        }
     }
     let id = vInstId(holder)
     if id == undefined {
+        // Plain-object holder: re-found via reachability each collect so no
+        // remembered-set record — but while a mark is in flight it needs the
+        // write log or an inst child stored post-scan stays unmarked. The
+        // object itself is logged; the drain resolves it by pointer identity.
+        if S["gcMarkActive"] != true || typeof(holder) != "object" || holder == null {
+            return
+        }
+        let hmid = vGcObjIdS(holder)
+        if hmid == 0 || hmid == undefined {
+            return
+        }
+        let hseen = S["gcWriteSeen"]
+        if typeof(hseen) != "object" || hseen == null {
+            hseen = {}
+        }
+        let hk = "p" + hmid
+        if hseen[hk] != undefined {
+            S["gcWriteSeen"] = hseen
+            return
+        }
+        hseen[hk] = true
+        S["gcWriteSeen"] = hseen
+        let hlog = S["gcWriteLog"]
+        if typeof(hlog) != "array" {
+            hlog = []
+        }
+        S["gcWriteLog"] = push(hlog, holder)
+        let hwc = S["gcWriteCycleN"]
+        if typeof(hwc) != "number" {
+            hwc = 0
+        }
+        S["gcWriteCycleN"] = hwc + 1
         return
     }
     // Remembered set: old holder -> young target survives minors only via
-    // this record (young holders are covered by normal reachability).
+    // this record (young holders are covered by normal reachability). An
+    // id-less composite val counts as potentially-young — it may nest one.
     let oldId = S["gcOldId"]
-    if typeof(oldId) == "number" && id < oldId && vid >= oldId {
+    if typeof(oldId) == "number" && id < oldId && (vid == undefined || vid >= oldId) {
         let rseen = S["gcRemSeen"]
         if typeof(rseen) != "object" || rseen == null {
             rseen = {}

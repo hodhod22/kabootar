@@ -1,0 +1,32 @@
+class Cell {
+    n: number
+    fn init() {
+        this.n = 7
+    }
+}
+
+// Plain object (make_object shell — no vmI/__kab_oid) holding a live inst.
+// Pre-deep-10 the GC mark skipped id-less objects entirely, so the inst
+// reachable only through `holder` was swept under the app: holder.cell.n
+// then read as undefined and `undefined + 1` crashed the op.
+let holder = {}
+holder.cell = Cell()
+
+// Cyclic plain objects must also survive and terminate the mark.
+let cycA = {}
+let cycB = {}
+cycA.b = cycB
+cycB.a = cycA
+cycB.cell = Cell()
+
+// ~1500 shell charges > 65536-byte nursery cap — forces at least one collect.
+fn churn() {
+    let i = 0
+    while i < 1500 {
+        let x = Cell()
+        i = i + 1
+    }
+}
+
+churn()
+return holder.cell.n + cycB.cell.n

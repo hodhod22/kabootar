@@ -7,6 +7,7 @@ use crate::runtime::stdlib::proxy;
 use crate::value::{Environment, Value};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const WEAKREF_MARKER: &str = "__kab_weakref";
@@ -570,6 +571,24 @@ pub fn register_weak(env: &mut Environment) {
     env.set(
         "gc_frame_stats".to_string(),
         Value::NativeFunction(|_args, _env| Ok(gc_frame_stats_value())),
+    );
+    // Pointer identity for kab-GC mark dedup: plain objects and arrays have
+    // no inst id (vmI/__kab_oid) and no Kab-visible identity primitive, so
+    // the mark worklist could not dedup them — cyclic graphs grew the
+    // worklist unboundedly. Rc::as_ptr is stable while the value is alive
+    // (all mark-reachable values are), mutates nothing, and never stamps a
+    // __kab_oid — the value stays outside inst-id space so no heap aliasing
+    // surface is created. 0 means "no identity" (primitives).
+    env.set(
+        "gc_obj_id".to_string(),
+        Value::NativeFunction(|args, _env| {
+            let n = match args.first() {
+                Some(Value::Object(m)) => Rc::as_ptr(m) as usize as i64,
+                Some(Value::Array(a)) => Rc::as_ptr(a) as usize as i64,
+                _ => 0,
+            };
+            Ok(Value::Number(n))
+        }),
     );
     env.set(
         "gc_set_frame_budget".to_string(),

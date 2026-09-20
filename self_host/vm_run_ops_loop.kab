@@ -126,11 +126,32 @@ pub fn runOpsStepRawS(S, ops, pool, globals, functions) {
 pub fn runOpsStepS(S, ops, pool, globals, functions) {
     let r = runOpsStepRawS(S, ops, pool, globals, functions)
     let st = r["st"]
-    if st == 2 {
-        return 2
-    }
     if st == 0 {
         throw "vm unsupported opcode: " + r["name"]
+    }
+    // Collect armed by a mid-op charge begins only at an op boundary: the
+    // root snapshot then sees the operand stack complete (temporaries
+    // re-pushed or consumed) instead of VM-side dispatch locals. Mark and
+    // sweep slices drain here for the same reason — a mid-op slice would
+    // mark or tombstone around operands still held in dispatch locals.
+    if S["gcCollectPending"] == true {
+        S["gcCollectPending"] = false
+        let c = S["gcCollects"]
+        if typeof(c) != "number" {
+            c = 0
+        }
+        c = c + 1
+        S["gcCollects"] = c
+        vGcCollectBeginS(S, vGcMajorOk(S, c) == false)
+    }
+    if S["gcMarkActive"] == true {
+        vGcMarkSliceS(S, vGcMarkSliceN())
+    }
+    if S["gcSweepActive"] == true {
+        vGcSweepSliceS(S, vGcSweepSliceN())
+    }
+    if st == 2 {
+        return 2
     }
     return 1
 }

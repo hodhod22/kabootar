@@ -1,6 +1,8 @@
 //! SH0/SH1 — self_host import DAG inventory and committed compiler-image seeds.
 
-use super::{compile_file, extract_kab_imports, source_fingerprint, CompiledProgram};
+use super::{
+    compile_file, extract_kab_imports, source_fingerprint, write_atomic, CompiledProgram,
+};
 use crate::bytecode::{deserialize, serialize, BytecodeModule, FORMAT_HEADER};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
@@ -517,7 +519,8 @@ pub fn write_seed_dag_file(path: &str, program: &CompiledProgram) -> Result<Path
         "\nsource={rel}\nstatements={}\nfingerprint={fp}\n",
         program.stmt_count
     ));
-    fs::write(&dest, text).map_err(|e| format!("write {}: {e}", dest.display()))?;
+    write_atomic(&dest, text.as_bytes())
+        .map_err(|e| format!("write {}: {e}", dest.display()))?;
     Ok(dest)
 }
 
