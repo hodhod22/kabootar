@@ -102,6 +102,11 @@ pub fn writeback_object_args(
         let Some(updated) = local_vals.get(idx) else {
             continue;
         };
+        // Prefer the binding that still holds the exact passed map: a bare
+        // oid match can alias a distinct same-oid object (e.g. a CoW snapshot
+        // clone that kept `__kab_oid`) and merge stale fields into it.
+        let mut oid_fallback: Option<(String, Value)> = None;
+        let mut done = false;
         for name in env.all_binding_names() {
             let Some(live) = env.get(&name) else {
                 continue;
@@ -109,11 +114,22 @@ pub fn writeback_object_args(
             let Value::Object(live_map) = &live else {
                 continue;
             };
-            if object_oid_of(live_map) == Some(oid) {
+            if Rc::ptr_eq(live_map, arg_map) {
                 let mut merged = live.clone();
                 merge_object_fields(updated, &mut merged);
                 let _ = env.assign(&name, merged);
+                done = true;
                 break;
+            }
+            if oid_fallback.is_none() && object_oid_of(live_map) == Some(oid) {
+                oid_fallback = Some((name, live));
+            }
+        }
+        if !done {
+            if let Some((name, live)) = oid_fallback {
+                let mut merged = live;
+                merge_object_fields(updated, &mut merged);
+                let _ = env.assign(&name, merged);
             }
         }
     }
