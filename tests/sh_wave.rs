@@ -1506,6 +1506,50 @@ fn sh6_default_eval_class_method_ok() {
     assert_eq!(formatted, "1");
 }
 
+/// SH6: repeated `new_instance` of a class with a declared field + ctor must
+/// not corrupt the VM session. Inst shells used to force `__kab_oid = vmI`,
+/// which collided with host-stamped object oids (e.g. the session object `S`)
+/// inside the oid-keyed env writeback (`writeback_object_args`): a nested call
+/// could merge one object's stale field snapshot into the other, reverting
+/// `S["stack"]`/`S["ip"]` mid-op and underflowing the vm stack.
+#[test]
+fn sh6_repeated_new_instance_field_init_ok() {
+    use kabootar_lib::compile::{compile_source, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let program = compile_source(
+        "class Cell {\n\
+            n: number\n\
+            fn init() {\n\
+                this.n = 7\n\
+            }\n\
+        }\n\
+        let a = Cell()\n\
+        let b = Cell()\n\
+        let c = Cell()\n\
+        let d = Cell()\n\
+        let e = Cell()\n\
+        return a.n + b.n + c.n + d.n + e.n\n",
+    )
+    .expect("compile repeated new_instance");
+    let formatted = std::thread::Builder::new()
+        .name("sh6-rep-new-inst".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let mut env = create_global_env();
+            eval_program(&program, &mut env).map(|v| kabootar_lib::value::format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("repeated new_instance field init");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "35");
+}
+
 /// SH6: default eval runs `super.tag()` on Kab VM (not only under KABOOTAR_VM=kab-only).
 #[test]
 fn sh6_default_eval_super_method_ok() {

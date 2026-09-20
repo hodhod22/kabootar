@@ -47,7 +47,7 @@ pub fn vAllocInstShell(S, classIdx, argc) {
     let classDef = S["classes"][classIdx]
     let ordered = vPopOrderedArgs(S, argc)
     let id = vGcTakeInstIdS(S)
-    let inst = { "vmC": classIdx, "vmI": id, "__kab_oid": id }
+    let inst = { "vmC": classIdx, "vmI": id }
     vNurseryCharge(S, gcInstShellBytes())
     vGcAllocBlackS(S, inst)
     vHeapPut(S, inst)
@@ -98,7 +98,7 @@ pub fn vNewInstanceFromArrayS(S, classIdx, pool, globals, functions) {
     }
     let classDef = S["classes"][classIdx]
     let id = vGcTakeInstIdS(S)
-    let inst = { "vmC": classIdx, "vmI": id, "__kab_oid": id }
+    let inst = { "vmC": classIdx, "vmI": id }
     vNurseryCharge(S, gcInstShellBytes())
     vGcAllocBlackS(S, inst)
     vHeapPut(S, inst)
