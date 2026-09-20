@@ -3,6 +3,16 @@
 
 import "kab/std/std_colcount"
 
+fn stdColModeKey(x, t) {
+    if t == "number" {
+        return "n|" + (x + 0)
+    }
+    if t == "bigint" {
+        return "n|" + x
+    }
+    return t + "|" + x
+}
+
 pub fn stdColMode(p) {
     let n = len(p)
     if n == 0 {
@@ -10,10 +20,35 @@ pub fn stdColMode(p) {
     }
     let best = p[0]
     let bc = stdColCount(p, best)
-    let i = 1
+    let cnt = {}
+    let i = 0
     while i < n {
         let x = p[i]
-        let c = stdColCount(p, x)
+        let t = typeof(x)
+        if x == x && (t == "number" || t == "string" || t == "boolean" || t == "bigint") {
+            let k = stdColModeKey(x, t)
+            let c = cnt[k]
+            if c == undefined {
+                cnt[k] = 1
+            } else {
+                cnt[k] = c + 1
+            }
+        }
+        i = i + 1
+    }
+    i = 0
+    while i < n {
+        let x = p[i]
+        let t = typeof(x)
+        let c = 0
+        if x == x && (t == "number" || t == "string" || t == "boolean" || t == "bigint") {
+            c = cnt[stdColModeKey(x, t)]
+            if c == undefined {
+                c = 0
+            }
+        } else {
+            c = stdColCount(p, x)
+        }
         if c > bc {
             best = x
             bc = c

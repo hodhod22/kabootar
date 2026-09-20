@@ -1,50 +1,41 @@
 // SH20: JSON parse/stringify in Kab. import "kab/std/std_json_codec"
 // Do not grow std_json.kab. Host json_parse remains skuld.
+// Strings slice whole runs between escapes — no per-char concat.
 
 fn jpSkip(st) {
     let s = st["s"]
     let i = st["i"]
     let n = len(s)
+    let i0 = i
     while i < n {
         let c = char_code_at(s, i)
-        if c == 32 {
+        if c == 32 || c == 9 || c == 10 || c == 13 {
             i = i + 1
         } else {
-            if c == 9 {
-                i = i + 1
-            } else {
-                if c == 10 {
-                    i = i + 1
-                } else {
-                    if c == 13 {
-                        i = i + 1
-                    } else {
-                        st["i"] = i
-                        return
-                    }
-                }
-            }
+            break
         }
     }
-    st["i"] = i
+    if i != i0 {
+        st["i"] = i
+    }
 }
 
 fn jpNeed(st, ch) {
     jpSkip(st)
     let s = st["s"]
-    if st["i"] >= len(s) {
+    let i = st["i"]
+    if i >= len(s) {
         throw "stdJsonParse truncated"
     }
-    if char_code_at(s, st["i"]) != ch {
+    if char_code_at(s, i) != ch {
         throw "stdJsonParse expected char"
     }
-    st["i"] = st["i"] + 1
+    st["i"] = i + 1
 }
 
 fn jpNull(st) {
-    let s = st["s"]
     let i = st["i"]
-    if str_slice(s, i, i + 4) != "null" {
+    if str_slice(st["s"], i, i + 4) != "null" {
         throw "stdJsonParse null"
     }
     st["i"] = i + 4
@@ -52,9 +43,8 @@ fn jpNull(st) {
 }
 
 fn jpTrue(st) {
-    let s = st["s"]
     let i = st["i"]
-    if str_slice(s, i, i + 4) != "true" {
+    if str_slice(st["s"], i, i + 4) != "true" {
         throw "stdJsonParse true"
     }
     st["i"] = i + 4
@@ -62,9 +52,8 @@ fn jpTrue(st) {
 }
 
 fn jpFalse(st) {
-    let s = st["s"]
     let i = st["i"]
-    if str_slice(s, i, i + 5) != "false" {
+    if str_slice(st["s"], i, i + 5) != "false" {
         throw "stdJsonParse false"
     }
     st["i"] = i + 5
@@ -73,8 +62,8 @@ fn jpFalse(st) {
 
 fn jpNum(st) {
     let s = st["s"]
-    let i = st["i"]
     let n = len(s)
+    let i = st["i"]
     let start = i
     if char_code_at(s, i) == 45 {
         i = i + 1
@@ -83,18 +72,12 @@ fn jpNum(st) {
         throw "stdJsonParse number"
     }
     let d = char_code_at(s, i)
-    if d < 48 {
-        throw "stdJsonParse number"
-    }
-    if d > 57 {
+    if d < 48 || d > 57 {
         throw "stdJsonParse number"
     }
     while i < n {
         d = char_code_at(s, i)
-        if d < 48 {
-            break
-        }
-        if d > 57 {
+        if d < 48 || d > 57 {
             break
         }
         i = i + 1
@@ -104,75 +87,83 @@ fn jpNum(st) {
 }
 
 fn jpStr(st) {
-    let s = st["s"]
     jpNeed(st, 34)
-    let i = st["i"]
+    let s = st["s"]
     let n = len(s)
+    let i = st["i"]
+    let q = from_char_code(34)
+    let bs = from_char_code(92)
     let out = ""
-    while i < n {
-        let c = char_code_at(s, i)
-        if c == 34 {
-            st["i"] = i + 1
-            return out
+    let run = i
+    while true {
+        let qpos = str_index_of(s, q, i)
+        let bpos = str_index_of(s, bs, i)
+        if qpos < 0 {
+            throw "stdJsonParse string"
         }
-        if c == 92 {
-            i = i + 1
-            if i >= n {
+        if bpos < 0 || qpos < bpos {
+            st["i"] = qpos + 1
+            return out + str_slice(s, run, qpos)
+        }
+        out = out + str_slice(s, run, bpos)
+        let e = bpos + 1
+        if e >= n {
+            throw "stdJsonParse string escape"
+        }
+        let ec = char_code_at(s, e)
+        if ec == 34 {
+            out = out + q
+        } else {
+            if ec == 92 {
+                out = out + bs
+            } else {
                 throw "stdJsonParse string escape"
             }
-            let e = char_code_at(s, i)
-            if e == 34 {
-                out = out + from_char_code(34)
-            } else {
-                if e == 92 {
-                    out = out + from_char_code(92)
-                } else {
-                    throw "stdJsonParse string escape"
-                }
-            }
-            i = i + 1
-        } else {
-            out = out + str_slice(s, i, i + 1)
-            i = i + 1
         }
+        i = e + 1
+        run = i
     }
-    throw "stdJsonParse string"
 }
 
 fn jpArr(st) {
     jpNeed(st, 91)
     jpSkip(st)
-    let acc = []
-    if st["i"] < len(st["s"]) {
-        if char_code_at(st["s"], st["i"]) == 93 {
+    let s = st["s"]
+    let n = len(s)
+    let acc = { "a": [] }
+    if st["i"] < n {
+        if char_code_at(s, st["i"]) == 93 {
             st["i"] = st["i"] + 1
-            return acc
+            return acc["a"]
         }
     }
     while true {
-        acc = push(acc, jpVal(st))
+        object_array_push(acc, "a", jpVal(st))
         jpSkip(st)
-        if st["i"] >= len(st["s"]) {
+        let i = st["i"]
+        if i >= n {
             throw "stdJsonParse array"
         }
-        let c = char_code_at(st["s"], st["i"])
+        let c = char_code_at(s, i)
         if c == 93 {
-            st["i"] = st["i"] + 1
-            return acc
+            st["i"] = i + 1
+            return acc["a"]
         }
         if c != 44 {
             throw "stdJsonParse array comma"
         }
-        st["i"] = st["i"] + 1
+        st["i"] = i + 1
     }
 }
 
 fn jpObj(st) {
     jpNeed(st, 123)
     jpSkip(st)
+    let s = st["s"]
+    let n = len(s)
     let o = {}
-    if st["i"] < len(st["s"]) {
-        if char_code_at(st["s"], st["i"]) == 125 {
+    if st["i"] < n {
+        if char_code_at(s, st["i"]) == 125 {
             st["i"] = st["i"] + 1
             return o
         }
@@ -182,28 +173,39 @@ fn jpObj(st) {
         jpNeed(st, 58)
         o[k] = jpVal(st)
         jpSkip(st)
-        if st["i"] >= len(st["s"]) {
+        let i = st["i"]
+        if i >= n {
             throw "stdJsonParse object"
         }
-        let c = char_code_at(st["s"], st["i"])
+        let c = char_code_at(s, i)
         if c == 125 {
-            st["i"] = st["i"] + 1
+            st["i"] = i + 1
             return o
         }
         if c != 44 {
             throw "stdJsonParse object comma"
         }
-        st["i"] = st["i"] + 1
+        st["i"] = i + 1
         jpSkip(st)
     }
 }
 
 fn jpVal(st) {
     jpSkip(st)
-    if st["i"] >= len(st["s"]) {
+    let s = st["s"]
+    if st["i"] >= len(s) {
         throw "stdJsonParse eof"
     }
-    let c = char_code_at(st["s"], st["i"])
+    let c = char_code_at(s, st["i"])
+    if c == 34 {
+        return jpStr(st)
+    }
+    if c == 123 {
+        return jpObj(st)
+    }
+    if c == 91 {
+        return jpArr(st)
+    }
     if c == 110 {
         return jpNull(st)
     }
@@ -212,15 +214,6 @@ fn jpVal(st) {
     }
     if c == 102 {
         return jpFalse(st)
-    }
-    if c == 34 {
-        return jpStr(st)
-    }
-    if c == 91 {
-        return jpArr(st)
-    }
-    if c == 123 {
-        return jpObj(st)
     }
     return jpNum(st)
 }
@@ -237,23 +230,37 @@ pub fn stdJsonParse(s) {
 
 fn jqStr(s) {
     let q = from_char_code(34)
-    let out = q
+    let bs = from_char_code(92)
+    let src = "" + s
+    let n = len(src)
     let i = 0
-    let n = len("" + s)
+    let run = 0
+    let parts = { "a": [q] }
     while i < n {
-        let c = char_code_at(s, i)
-        if c == 34 {
-            out = out + from_char_code(92) + q
-        } else {
-            if c == 92 {
-                out = out + from_char_code(92) + from_char_code(92)
-            } else {
-                out = out + str_slice(s, i, i + 1)
-            }
+        let qpos = str_index_of(src, q, i)
+        let bpos = str_index_of(src, bs, i)
+        let nxt = n
+        if qpos >= 0 {
+            nxt = qpos
         }
-        i = i + 1
+        if bpos >= 0 && bpos < nxt {
+            nxt = bpos
+        }
+        if nxt == n {
+            break
+        }
+        object_array_push(parts, "a", str_slice(src, run, nxt))
+        if qpos == nxt {
+            object_array_push(parts, "a", bs + q)
+        } else {
+            object_array_push(parts, "a", bs + bs)
+        }
+        i = nxt + 1
+        run = i
     }
-    return out + q
+    object_array_push(parts, "a", str_slice(src, run, n))
+    object_array_push(parts, "a", q)
+    return array_join(parts["a"], "")
 }
 
 pub fn stdJsonStringify(v) {
@@ -266,35 +273,42 @@ pub fn stdJsonStringify(v) {
     if v == false {
         return "false"
     }
-    if typeof(v) == "number" {
+    let t = typeof(v)
+    if t == "number" {
         return "" + v
     }
-    if typeof(v) == "string" {
+    if t == "string" {
         return jqStr(v)
     }
-    if typeof(v) == "array" {
-        let out = "["
+    if t == "array" {
+        let parts = { "a": ["["] }
         let i = 0
-        while i < len(v) {
+        let n = len(v)
+        while i < n {
             if i > 0 {
-                out = out + ","
+                object_array_push(parts, "a", ",")
             }
-            out = out + stdJsonStringify(v[i])
+            object_array_push(parts, "a", stdJsonStringify(v[i]))
             i = i + 1
         }
-        return out + "]"
+        object_array_push(parts, "a", "]")
+        return array_join(parts["a"], "")
     }
     let ks = keys(v)
-    let out = "{"
+    let parts = { "a": ["{"] }
     let i = 0
-    while i < len(ks) {
+    let n = len(ks)
+    while i < n {
         if i > 0 {
-            out = out + ","
+            object_array_push(parts, "a", ",")
         }
-        out = out + jqStr(ks[i]) + ":" + stdJsonStringify(v[ks[i]])
+        object_array_push(parts, "a", jqStr(ks[i]))
+        object_array_push(parts, "a", ":")
+        object_array_push(parts, "a", stdJsonStringify(v[ks[i]]))
         i = i + 1
     }
-    return out + "}"
+    object_array_push(parts, "a", "}")
+    return array_join(parts["a"], "")
 }
 
 /// Parse object JSON, add into field, stringify+parse still holds the original field.

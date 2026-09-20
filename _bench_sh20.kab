@@ -1,0 +1,91 @@
+// SH20 perf bench — scratch, not a product gate.
+import "kab/std/std_json_codec"
+import "kab/std/std_colsort"
+import "kab/std/std_colmed"
+import "kab/std/std_colunique"
+import "kab/std/std_colmode"
+
+fn benchJson() {
+    let n = 300
+    let src = "["
+    let i = 0
+    while i < n {
+        if i > 0 {
+            src = src + ","
+        }
+        src = src + "{\"id\":" + i + ",\"name\":\"item" + i + "\",\"ok\":true,\"tags\":[\"a\",\"bb\",\"ccc\"],\"val\":" + i * 7 + "}"
+        i = i + 1
+    }
+    src = src + "]"
+    let t0 = date_now_ms()
+    let v = stdJsonParse(src)
+    let t1 = date_now_ms()
+    let s = stdJsonStringify(v)
+    let t2 = date_now_ms()
+    println("json parse_ms=" + (t1 - t0) + " stringify_ms=" + (t2 - t1) + " srclen=" + len(src) + " outlen=" + len(s))
+}
+
+fn benchSort() {
+    let n = 1500
+    let p = []
+    let i = 0
+    while i < n {
+        p = push(p, (n - i) * 37 % 997)
+        i = i + 1
+    }
+    let t0 = date_now_ms()
+    let s = stdColSort(p)
+    let t1 = date_now_ms()
+    println("sort_ms=" + (t1 - t0) + " n=" + len(s) + " first=" + s[0])
+}
+
+fn benchMedian() {
+    let n = 1000
+    let p = []
+    let i = 0
+    while i < n {
+        p = push(p, i * 31 % 641)
+        i = i + 1
+    }
+    let t0 = date_now_ms()
+    let m = stdColMedian(p)
+    let t1 = date_now_ms()
+    println("median_ms=" + (t1 - t0) + " med=" + m)
+}
+
+fn benchUnique() {
+    let n = 1500
+    let p = []
+    let i = 0
+    while i < n {
+        p = push(p, i % 300)
+        i = i + 1
+    }
+    let t0 = date_now_ms()
+    let u = stdColUnique(p)
+    let t1 = date_now_ms()
+    println("unique_ms=" + (t1 - t0) + " n=" + len(u))
+}
+
+fn benchMode() {
+    let n = 1000
+    let p = []
+    let i = 0
+    while i < n {
+        p = push(p, i % 97)
+        i = i + 1
+    }
+    p = push(p, 5)
+    p = push(p, 5)
+    let t0 = date_now_ms()
+    let m = stdColMode(p)
+    let t1 = date_now_ms()
+    println("mode_ms=" + (t1 - t0) + " mode=" + m)
+}
+
+benchJson()
+benchSort()
+benchMedian()
+benchUnique()
+benchMode()
+return true

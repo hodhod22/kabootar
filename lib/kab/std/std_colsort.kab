@@ -1,32 +1,48 @@
 // SH20: collections sort off std_colmode.kab. import "kab/std/std_colsort"
 // Do not grow std_colmode.kab. stdHostDeleteOk stays false.
-// Rebuild via push; do not assign through index slots.
+// Merge sort O(n log n). object_array_push builds in place — bare push() copies.
 
-pub fn stdColSort(p) {
-    let n = len(p)
-    let sorted = []
+fn msMerge(a, b) {
+    let out = { "a": [] }
     let i = 0
-    while i < n {
-        let x = p[i]
-        let placed = 0
-        let ns = []
-        let j = 0
-        let m = len(sorted)
-        while j < m {
-            if placed == 0 {
-                if x < sorted[j] {
-                    ns = push(ns, x)
-                    placed = 1
-                }
-            }
-            ns = push(ns, sorted[j])
+    let j = 0
+    let na = len(a)
+    let nb = len(b)
+    while i < na && j < nb {
+        if b[j] < a[i] {
+            object_array_push(out, "a", b[j])
             j = j + 1
+        } else {
+            object_array_push(out, "a", a[i])
+            i = i + 1
         }
-        if placed == 0 {
-            ns = push(ns, x)
-        }
-        sorted = ns
+    }
+    while i < na {
+        object_array_push(out, "a", a[i])
         i = i + 1
     }
+    while j < nb {
+        object_array_push(out, "a", b[j])
+        j = j + 1
+    }
+    return out["a"]
+}
+
+fn msSortRange(p, lo, hi) {
+    if hi - lo <= 1 {
+        let out = { "a": [] }
+        if hi > lo {
+            object_array_push(out, "a", p[lo])
+        }
+        return out["a"]
+    }
+    let mid = lo + (hi - lo) / 2
+    let left = msSortRange(p, lo, mid)
+    let right = msSortRange(p, mid, hi)
+    return msMerge(left, right)
+}
+
+pub fn stdColSort(p) {
+    let sorted = msSortRange(p, 0, len(p))
     return sorted
 }
