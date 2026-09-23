@@ -1,11 +1,13 @@
 //! Multi-OS navigation — Kabootar VFS, host filesystem, and HTTP.
 
+use crate::value::Environment;
 use crate::runtime::kabootar_dom::assign_ids;
 use crate::runtime::kabootar_dom::DomNode;
 use crate::runtime::kv8::{parse_kv8_module, Kv8Module};
 use crate::runtime::os::OsHandle;
 use crate::runtime::kstyle::Stylesheet;
 use crate::kml::parse_kml;
+use crate::value::Value;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,23 +113,28 @@ pub fn os_info_map(os: Option<&OsHandle>, mode: BrowserOsMode) -> HashMap<String
     m
 }
 
+/// `home`/`title` are Kab product-policy providers (`theme.homePage`,
+/// `load_policy.titleFromUrl`); when absent the bootstrap placeholder is used
+/// (pre-Kab boots, raw `kb_navigate`).
 pub fn load_page(
     url: &str,
     os: Option<&OsHandle>,
     mode: BrowserOsMode,
-    fallback_home: fn(&str) -> DomNode,
+    env: &mut Environment,
+    home: Option<&Value>,
+    title: Option<&Value>,
 ) -> LoadedPage {
     let effective = effective_mode(url, mode);
-    if let Ok(page) = try_load(url, os, effective) {
+    if let Ok(page) = try_load(url, os, effective, env, title) {
         return page;
     }
     if effective != BrowserOsMode::Auto {
-        if let Ok(page) = try_load(url, os, BrowserOsMode::Auto) {
+        if let Ok(page) = try_load(url, os, BrowserOsMode::Auto, env, title) {
             return page;
         }
     }
     LoadedPage {
-        document: fallback_home(url),
+        document: super::home_fallback(url, env, home),
         kv8_script: None,
         kv8_css: None,
         kv8_parsed_stylesheet: None,
@@ -155,9 +162,15 @@ fn effective_mode(url: &str, mode: BrowserOsMode) -> BrowserOsMode {
     }
 }
 
-fn try_load(url: &str, os: Option<&OsHandle>, mode: BrowserOsMode) -> Result<LoadedPage, String> {
+fn try_load(
+    url: &str,
+    os: Option<&OsHandle>,
+    mode: BrowserOsMode,
+    env: &mut Environment,
+    title: Option<&Value>,
+) -> Result<LoadedPage, String> {
     let (content, source) = fetch_content(url, os, mode)?;
-    parse_content(&content, url, source)
+    parse_content(&content, url, source, env, title)
 }
 
 fn normalize_vfs_path(path: &str) -> String {
@@ -263,7 +276,13 @@ fn fetch_http(url: &str) -> Result<(String, String), String> {
     }
 }
 
-fn parse_content(content: &str, url: &str, source: String) -> Result<LoadedPage, String> {
+fn parse_content(
+    content: &str,
+    url: &str,
+    source: String,
+    env: &mut Environment,
+    title: Option<&Value>,
+) -> Result<LoadedPage, String> {
     let kv8_script = None;
     let kv8_css = None;
     let kv8_parsed_stylesheet = None;
@@ -303,7 +322,7 @@ fn parse_content(content: &str, url: &str, source: String) -> Result<LoadedPage,
 
     if let Ok(mut node) = parse_kml(&format!(
         "<html><body style=\"padding:16px;background:#292a2d;color:#e8eaed;\"><h1>{}</h1><pre>{}</pre></body></html>",
-        title_from_url(url),
+        super::page_title(url, env, title),
         xml_escape(content)
     )) {
         assign_ids(&mut node);
@@ -334,7 +353,8 @@ fn page_from_kv8(module: Kv8Module, source: String) -> Result<LoadedPage, String
     })
 }
 
-fn title_from_url(url: &str) -> String {
+/// Last-path-segment title — host default when no Kab provider is installed.
+pub(super) fn title_from_url(url: &str) -> String {
     url.rsplit('/').next().unwrap_or(url).to_string()
 }
 

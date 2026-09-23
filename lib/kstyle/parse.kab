@@ -70,9 +70,14 @@ fn parseVarDecl(src) {
 
 fn resolveVars(val, vars) {
     let resolved = val
+    let keys = object_keys(vars)
     let i = 0
-    while i < len(vars) {
-        let k = vars[i]
+    while i < len(keys) {
+        let k = keys[i]
+        if k == "__oid" || k == "__kab_oid" {
+            i = i + 1
+            continue
+        }
         let v = vars[k]
         let varPattern = "var(" + k + ")"
         let varIdx = str_index_of(resolved, varPattern)

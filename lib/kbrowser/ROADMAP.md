@@ -13,7 +13,7 @@ Docs: [README.md](README.md). kOS: [../kos/README.md](../kos/README.md). Web-API
 ```
 lib/kbrowser.kab          — import "kbrowser" → core
 lib/kbrowser/
-  core.kab, nav.kab, history.kab, load_policy.kab
+  core.kab, nav.kab, history.kab, session.kab, load_policy.kab
   bookmarks.kab, theme.kab
   desktop_chrome.kab, mobile_chrome.kab
 ```
@@ -23,6 +23,7 @@ lib/kbrowser/
 | `kbrowser` / `kbrowser/core` | mount/render/paint-orchestration |
 | `kbrowser/nav` | back/forward/tabs (Kab; inga `kb_back`-natives) |
 | `kbrowser/history` | sessionshistorik |
+| `kbrowser/session` | session persist → `/session/tabs` via `kos/vfs` |
 | `kbrowser/mobile_chrome` | adressfält, tillbaka, flikar (mobil) |
 | `kbrowser/desktop_chrome` | desktop-chrome |
 
@@ -60,9 +61,27 @@ Samma pipeline på kOS-skrivbord och på host-OS. Chrome (flikar, historik, PWA)
 
 **Nästa (kärna):**
 
-- [ ] Bookmarks + load_policy som enda lastväg (ingen Rust-URL-policy)
-- [ ] Flikar/session persist i VFS (`/session/tabs`) via `kos/vfs`
-- [ ] Delete-gate: öppna → navigera → back/forward → stäng flik utan native chrome
+- [x] Bookmarks + load_policy som enda lastväg (ingen Rust-URL-policy) — `core.kab`-delegationen var bruten (`bookmarksAdd`/`bookmarksRemove`/`bookmarksList` saknades → `Undefined variable`); core exponerar nu `bookmarks*` som delegerar till `bookmarks.kab`s `addBookmark`/`removeBookmark`/`listBookmarks`
+- [x] Flikar/session persist i VFS (`/session/tabs`) via `kos/vfs` — `kbrowser/session` (`saveSession`/`loadSession`/`resumeSession`/`clearSession`/`sessionPersistOk`, JSON-roundtrip); `nav.kab` write-through på varje mutation + `bootNav` återställer (`sh27_session_persist_smoke`, `sh27_session_persist_in_kab`)
+- [x] Delete-gate-prep: öppna → navigera → back/forward → stäng flik utan native chrome — hela rundan via `kbrowser/nav` + `history` + `session` (`kb_navigate` = bara load/paint); `sh27_delete_gate_smoke` + `sh27_delete_gate_in_kab`. `uiHostDeleteOk()` fortfarande `false` — host-chrome tas bort först när Kab-ytan faktiskt ersätter den.
+
+**Host-inventering (`src/runtime/kabootar_browser/`) efter prep — vad som återstår innan `uiHostDeleteOk` kan flippas:**
+
+| Rust-host äger | Kab-motsvarighet | Status |
+|---|---|---|
+| `tabs`/`active`/`next_id` i `BrowserInner` | `history.kab`/`nav.kab`-session + `/session/tabs` | ✅ bort — `BrowserInner.tab` = en render-slot; tabell/indexering Kab-ägd |
+| `default_home_document` | `theme.kab::homePage` via `kb_set_home_provider` | ✅ — `home_fallback` anropar providern (live-resolve); Rust-DOM = bootstrap utan Kab |
+| `title_from_url`/`tab.title` | `load_policy.kab::titleFromUrl` via `kb_set_title_provider`; `history.kab` spårar `tab["title"]` | ✅ — döda `tab.title`-fältet bort; fallback-h1 går via provider |
+| `kbrowser`-handle per env | — | ✅ — `SHARED_BROWSER` thread-local: modul-env och main-env delar samma render-slot (lagade split: `kb_theme` i modul-env vs `kb_paint` i main-env) |
+| `default_chrome_theme_css`/`set_theme_css` | `theme.kab::applyBrowserTheme` → `kb_theme(css)` | ✅ bridgat — Kab-tema når nu `inner.stylesheet`/paint |
+| `stylesheet`-merge i `paint()` | `kstyle_*`/`__kstyle` | via `kb_theme`; kDOM-paint läser `__kstyle` direkt |
+| `load_page`/`host_nav` (VFS/file/http I/O) | — | host-capability, stannar |
+| `paint`/RenderEngine/`frame_buffer` | — | host-capability, stannar |
+| viewport/safe_area/user_agent | `mobile_chrome`/`desktop_chrome` policynivå | host device-state, stannar |
+| `os_mode`/`effective_mode` mirror | `load_policy.kab::effectiveMode` → `nav.navApplyMode` → `kb_set_os_mode` | ✅ Kab beslutar per-URL på produktvägen; Rust-mirror = fallback i `load_page` |
+| `/session/tabs` endast in-memory VFS | `session_disk.kab` mountar `/session` → host-katalog (`os_mount`) | ✅ — writes streamar till äkta disk, överlever reboot (`mountSessionDisk`/`unmountSessionDisk`/`sessionDiskPersistOk`; `SHARED_OS` = samma env-split-fix som `SHARED_BROWSER`) |
+| `click_at`/`touch_at`/input | — | host-capability, stannar |
+| `run_kv8_script` | — | host-capability, stannar |
 
 ---
 
@@ -72,9 +91,10 @@ Samma pipeline på kOS-skrivbord och på host-OS. Chrome (flikar, historik, PWA)
 
 | Mål | Renderingsväg | Smoke | Status |
 |-----|---------------|-------|--------|
-| **kOS** | VFS (`kabootar://`), compositor | `kbrowser_kos_smoke` | ✅ subset |
-| **Windows/Linux/macOS** | Native shell / pixels | `kbrowser_native_smoke` | ✅ subset |
-| **WASM** | `kabootar-shell.html` + canvas | `kbrowser_wasm_smoke` | ✅ subset |
+| **kOS** | VFS (`kabootar://`), compositor | `kbrowser_kos_smoke` | ✅ subset — via `kbrowser/core`+`nav` (navApplyMode auto väljer mode) |
+| **Windows/Linux/macOS** | Native shell / pixels | `kbrowser_native_smoke` | ✅ subset — via `kbrowser/core` (`sync`/`info`/`paint`) |
+| **WASM** | `kabootar-shell.html` + canvas | `kbrowser_wasm_smoke` | ✅ subset — via `kbrowser/core` |
+| **Mobil** | viewport/safe-area/touch | `kbrowser_mobile_smoke`, `kbrowser_mobile_shell_smoke` | ✅ subset — via `kbrowser/mobile_chrome` |
 
 Krav (landat subset):
 
@@ -110,7 +130,7 @@ Samma `kb_*` på Android och iPhone.
 |-----|-----|--------|
 | **H6c** | Chrome = `.kab`; Rust = window/pixels/input | ✅ |
 | **KB-H1** | Ingen ny `kb_*` produkt-API i Rust | pågående |
-| **KB-H2** | Navigate/load-policy 100 % Kab | `load_policy` deepen |
+| **KB-H2** | Navigate/load-policy 100 % Kab | ✅ deepen — `nav.navApplyMode` sätter `kb_set_os_mode(effectiveMode(url, navModePref))` före varje `kb_navigate` (auto per-URL eller pin via `navSetMode`); `loadPlan(url)` buntar mode+kind+title+virtualHome (`sh27_load_policy_smoke`, `sh27_load_policy_in_kab`) |
 
 ---
 

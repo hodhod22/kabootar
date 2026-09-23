@@ -1,0 +1,50 @@
+// SH27 game-deepen — Kab-owned paced frame loop (kab/ui/ui_loop) driving a
+// real sprite: input → move → draw → present each frame; uiTickMs/uiFpsOk own
+// the 16ms budget, host only provides clock/yield/input/surface/present.
+// Receiver sugar works on native method objects: ctx.fillRect(...) binds the
+// receiver like host maybe_bind_native_method (bracket form stays raw:
+// ctx["fillRect"](ctx, ...)).
+import "game/physics"
+import "game/input"
+import "kab/ui/ui_loop"
+
+fn setFill(ctx, color) {
+    canvas_set_fill_style(ctx, color)
+}
+fn fillRect(ctx, x, y, w, h) {
+    ctx.fillRect(x, y, w, h)
+}
+fn presentSurf(surf) {
+    surf.present()
+}
+
+platform_use("kabootar")
+let surf = game_surface_create(240, 160)
+let ctx = surf["ctx"]
+
+let player = { x: 40.0, y: 80.0, w: 16.0, h: 16.0 }
+let actions = createActions({ right: ["ArrowRight"] })
+
+input_key_down("ArrowRight")
+let loop = uiLoopCreate()
+let i = 0
+while i < 4 {
+    let dt = uiFrameBegin(loop)
+    if actionPressed(actions, "right") {
+        player["x"] = player["x"] + 4.0
+    }
+    setFill(ctx, "#0a1520")
+    fillRect(ctx, 0, 0, 240, 160)
+    setFill(ctx, "#40c080")
+    fillRect(ctx, player["x"], player["y"], player["w"], player["h"])
+    presentSurf(surf)
+    uiFrameEnd(loop)
+    i = i + 1
+}
+input_key_up("ArrowRight")
+
+let moved = player["x"] > 40.0
+// missed is informational here: native-bridge calls per frame exceed 16ms on
+// the interpreted Kab VM; uiLoopOk still gates the accounting on noop frames.
+println("sh27 game-loop frames=" + loop["frames"] + " missed=" + loop["missed"] + " moved=" + moved)
+return moved && loop["frames"] == 4 && uiLoopOk()

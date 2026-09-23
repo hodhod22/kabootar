@@ -21,6 +21,9 @@ pub fn vModEnterB(S, n) {
     S["tryRegions"] = n["tryRegions"]
     S["localNames"] = n["localNames"]
     S["globalNames"] = n["globals"]
+    S["bcFns"] = n["functions"]
+    S["bcPool"] = n["pool"]
+    S["bcGlobals"] = n["globals"]
     vBindFns(S, n["globals"], n["functions"])
     vAllocLocals(S, len(n["localNames"]))
     vResetExec(S)

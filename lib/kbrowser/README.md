@@ -97,6 +97,8 @@ kb_os_info()
 
 Mount av host-katalog via kOS: `os_mount("/host", "C:/…")` sedan `kabootar://vfs/host/…`.
 
+Session till disk: `kbrowser/session_disk` — `mountSessionDisk(hostDir)` mountar `/session` mot en host-katalog så `/session/tabs` skrivs till äkta disk och överlever omstart. `sessionDiskPersistOk()` = reboot-simulering (save → unmount → remount → resume).
+
 ## Plattformar
 
 Samma `kb_*` överallt.

@@ -1,0 +1,36 @@
+// SH27 session disk persist: /session mounted on a host dir — tab session
+// survives a simulated reboot (unmount+remount; VFS memory never held it).
+// cargo run --bin kabootar -- examples/sh27_session_disk_smoke.kab
+
+import "kbrowser/session"
+import "kbrowser/session_disk"
+import "kbrowser/nav"
+import "kos/vfs"
+import "kos/mount"
+
+let hostDir = ".kabootar/session_disk_smoke"
+
+// full self-contained round-trip gate first (mounts and unmounts internally)
+let gate = sessionDiskPersistOk(hostDir)
+
+// manual nav round: write-through streams session JSON to the host dir
+let mounted = mountSessionDisk(hostDir)
+clearSession()
+bootNav("kabootar://home")
+navOpenTab("kabootar://vfs/apps/a.kml")
+
+// "reboot": drop the mount — /session/tabs was never in VFS memory
+unmount("/session")
+let gone = exists("/session/tabs") == false
+
+// next boot: remount → resume reads the host file
+mount("/session", hostDir)
+let s = resumeSession("kabootar://new")
+let resumed = s != null && len(s["tabs"]) == 2
+    && s["tabs"][1]["url"] == "kabootar://vfs/apps/a.kml"
+
+clearSession()
+unmount("/session")
+
+println("sh27 session-disk mounted=" + mounted + " gone=" + gone + " resumed=" + resumed + " gate=" + gate)
+return mounted == true && gone == true && resumed == true && gate == true

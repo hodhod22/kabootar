@@ -423,6 +423,7 @@ const BUILTINS: &[&str] = &[
     "console_error",
     "sleep_ticks",
     "sleep_ms",
+    "sleep_sync",
     "set_timeout",
     "clear_timeout",
     "set_interval",

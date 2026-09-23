@@ -278,7 +278,7 @@ fn eval_file_module(source: &str, path: &std::path::Path, importer: &mut Environ
             url,
             path: path_str,
         },
-        || crate::compile::eval_program(&program, &mut module_env),
+        || crate::compile::eval_program_for_import(&program, &mut module_env),
     )?;
     let imported = export_module_bindings(&module_env, importer);
     if let Some(mtime) = source_mtime {

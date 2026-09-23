@@ -1,0 +1,44 @@
+// SH27 delete-gate prep: open → navigate → back/forward → close tab, no native chrome.
+// Chrome policy lives in kbrowser/nav+history+session; kb_navigate = load/paint only.
+// cargo run --bin kabootar -- examples/sh27_delete_gate_smoke.kab
+
+import "kbrowser/nav"
+import "kbrowser/session"
+import "kbrowser/load_policy"
+import "kos/vfs"
+
+clearSession()
+
+// open: boot + second tab (Kab nav only — no chrome mount calls)
+bootNav("kabootar://home")
+navOpenTab("kabootar://vfs/apps/a.kml")
+let openOk = len(navListTabs()) == 2 && navUrl() == "kabootar://vfs/apps/a.kml"
+
+// navigate inside active tab
+navGo("kabootar://vfs/apps/b.kml")
+let navOk = navUrl() == "kabootar://vfs/apps/b.kml"
+
+// back / forward through Kab session history
+let backOk = navBack() == true && navUrl() == "kabootar://vfs/apps/a.kml"
+let fwdOk = navForward() == true && navUrl() == "kabootar://vfs/apps/b.kml"
+
+// close active tab → remaining tab becomes active at its url
+navCloseTab(1)
+let closeOk = len(navListTabs()) == 1 && navUrl() == "kabootar://home"
+
+// /session/tabs tracked the whole round (item 1 write-through)
+let disk = json_parse(read("/session/tabs"))
+let persistOk = disk != null && len(disk["tabs"]) == 1
+    && disk["tabs"][0]["url"] == "kabootar://home"
+
+// item 3: Kab product hooks own home DOM + titles on the host render slot
+let hooksOk = kb_product_hooks() == true
+navGo("kabootar://home")
+let homeHtml = kb_render()
+let homeOk = str_includes(homeHtml, "Kabootar Browser") && str_includes(homeHtml, "Welcome — kabootar://home")
+
+let policyOk = loadPolicyOk()
+clearSession()
+
+println("sh27 delete-gate open=" + openOk + " nav=" + navOk + " back=" + backOk + " fwd=" + fwdOk + " close=" + closeOk + " persist=" + persistOk + " hooks=" + hooksOk + " home=" + homeOk + " policy=" + policyOk)
+return openOk && navOk && backOk && fwdOk && closeOk && persistOk && hooksOk && homeOk && policyOk

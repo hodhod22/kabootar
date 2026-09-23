@@ -1339,7 +1339,30 @@ pub fn vMemberGetS(S, obj, key) {
             return { "vmGenThrow": 1, "vmR": vCanonicalInstS(S, obj) }
         }
     }
-    return obj[key]
+    let v = obj[key]
+    // SH27: receiver sugar — mirror host maybe_bind_native_method: native-method
+    // host objects (__kab_ctx/__kab_gl_ctx/__kab_gl_tex/__kab_host_canvas/
+    // __kab_game_surface/__kab_mo) bind NativeFunction fields to the receiver so
+    // `ctx.fillRect(a,b)` works like `ctx["fillRect"](ctx,a,b)`. Bracket access
+    // stays raw (same as host read_index).
+    if typeof(v) == "function" && bytecode_host_is_native(v) && vWantsBoundNative(obj) {
+        return { "vmHostM": v, "vmR": obj }
+    }
+    return v
+}
+
+// SH27: the __kab_* markers host opt.rs::object_wants_bound_native checks.
+pub fn vWantsBoundNative(obj) {
+    if typeof(obj) != "object" || obj == null {
+        return false
+    }
+    if vObjGet(obj, "__kab_ctx") == true { return true }
+    if vObjGet(obj, "__kab_gl_ctx") == true { return true }
+    if vObjGet(obj, "__kab_gl_tex") == true { return true }
+    if vObjGet(obj, "__kab_host_canvas") == true { return true }
+    if vObjGet(obj, "__kab_game_surface") == true { return true }
+    if vObjGet(obj, "__kab_mo") == true { return true }
+    return false
 }
 
 pub fn vEnumNsGet(obj, key) {

@@ -2511,6 +2511,48 @@ fn call_bytecode_sync(
     Ok((result, wbs))
 }
 
+thread_local! {
+    /// SH27: active Kab VM session bridge. `eval_kbc*_via_kab_vm` pushes the
+    /// vm image's `kabVmHostCallValue` export for the duration of a session so
+    /// host-side `call_value` can re-enter `{vmFn}`/`{vmArrow}` function
+    /// values (module callbacks, rAF/timer/promise style APIs).
+    static KAB_VM_CALL_BRIDGE: RefCell<Vec<Value>> = RefCell::new(Vec::new());
+}
+
+pub fn kab_vm_call_bridge_push(bridge: Value) {
+    KAB_VM_CALL_BRIDGE.with(|s| s.borrow_mut().push(bridge));
+}
+
+pub fn kab_vm_call_bridge_pop() {
+    KAB_VM_CALL_BRIDGE.with(|s| {
+        s.borrow_mut().pop();
+    });
+}
+
+fn kab_vm_call_bridge() -> Option<Value> {
+    KAB_VM_CALL_BRIDGE.with(|s| s.borrow().last().cloned())
+}
+
+/// Marker fields the Kab VM puts on callable sentinel objects — mirrors
+/// `vClassifyCallee`/`vClassifyFnArrow`/`vClassifyMethHost` in
+/// self_host/vm_run_call.kab.
+fn kab_vm_callable_marker(map: &HashMap<String, Value>) -> bool {
+    const MARKERS: [&str; 11] = [
+        "vmFn",
+        "vmArrow",
+        "vmM",
+        "vmHostM",
+        "vmEnumCtor",
+        "vmInstof",
+        "vmGenNext",
+        "vmGenReturn",
+        "vmGenThrow",
+        "vmIterBegin",
+        "vmIterClose",
+    ];
+    MARKERS.iter().any(|k| map.contains_key(*k))
+}
+
 pub fn call_value(
     callee: Value,
     args: Vec<Value>,
@@ -2667,6 +2709,22 @@ pub fn call_value(
             variant,
             arity,
         } => crate::class::invoke_enum_ctor(&type_name, &variant, arity, args),
+        Value::Object(map) if kab_vm_callable_marker(&map) => {
+            // SH27: Kab VM function value — re-enter the live session via the
+            // vm image's bridge (vHostCallVmValue) instead of failing here.
+            match kab_vm_call_bridge() {
+                Some(bridge) if !matches!(bridge, Value::Undefined | Value::Null) => call_value(
+                    bridge,
+                    vec![Value::Object(map), Value::from_array(args)],
+                    &[],
+                    &[],
+                    &[],
+                    &[],
+                    env,
+                ),
+                _ => Err(format!("Not a function: {:?}", Value::Object(map))),
+            }
+        }
         other => Err(format!("Not a function: {other:?}")),
     }
 }

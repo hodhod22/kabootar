@@ -1,0 +1,13 @@
+// SH27: receiver sugar on native method objects.
+platform_use("kabootar")
+let surf = game_surface_create(64, 48)
+let ctx = surf["ctx"]
+canvas_set_fill_style(ctx, "#40c080")
+ctx.fillRect(0, 0, 64, 48)
+ctx.fillRect(4, 4, 8, 8)
+surf.present()
+ctx["fillRect"](ctx, 20, 20, 4, 4)
+let w = ctx["width"]
+let idOk = ctx["id"] > 0
+println "host-method-sugar w=" + w + " id=" + ctx["id"]
+return w == 64 && idOk

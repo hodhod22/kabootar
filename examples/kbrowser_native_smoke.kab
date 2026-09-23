@@ -1,7 +1,14 @@
-// G11 native/host smoke — platform sync + paint (no megabundle).
-platform_use("hybrid");
-let sync = kb_sync_platform();
-let info = kb_os_info();
-kb_viewport(1280, 720);
-let frame = kb_paint();
-print("mode=" + sync.mode + " host=" + info.host_os + " layers=" + len(frame.layers));
+// G11 native/host smoke — platform sync + paint via the kbrowser Kab surface.
+import "kbrowser/core"
+
+fn layerCount(frame) {
+    return len(frame["layers"])
+}
+
+platform_use("hybrid")
+let syncInfo = sync()
+let osInfo = info()
+kb_viewport(1280, 720)
+let frame = paint()
+println("mode=" + syncInfo["mode"] + " host=" + osInfo["host_os"] + " layers=" + layerCount(frame))
+return frame

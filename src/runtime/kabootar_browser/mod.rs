@@ -23,7 +23,6 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug, Clone)]
 pub struct BrowserTab {
     pub id: u64,
-    pub title: String,
     pub url: String,
     pub document: DomNode,
     // H6c delete-gate: tab/history session lives in Kab (`kbrowser/nav`).
@@ -37,7 +36,6 @@ impl BrowserTab {
     fn new(id: u64, url: &str) -> Self {
         Self {
             id,
-            title: "New Tab".into(),
             url: url.to_string(),
             document: default_home_document(url),
             kv8_script: None,
@@ -46,14 +44,28 @@ impl BrowserTab {
         }
     }
 
-    fn navigate(&mut self, url: &str, os: Option<&OsHandle>, mode: BrowserOsMode) {
+    fn navigate(
+        &mut self,
+        url: &str,
+        os: Option<&OsHandle>,
+        mode: BrowserOsMode,
+        env: &mut Environment,
+        home: Option<&Value>,
+        title: Option<&Value>,
+    ) {
         self.url = url.to_string();
-        self.reload_document(os, mode);
-        self.title = title_from_url(url);
+        self.reload_document(os, mode, env, home, title);
     }
 
-    fn reload_document(&mut self, os: Option<&OsHandle>, mode: BrowserOsMode) {
-        let page = load_page(&self.url, os, mode, default_home_document);
+    fn reload_document(
+        &mut self,
+        os: Option<&OsHandle>,
+        mode: BrowserOsMode,
+        env: &mut Environment,
+        home: Option<&Value>,
+        title: Option<&Value>,
+    ) {
+        let page = load_page(&self.url, os, mode, env, home, title);
         self.document = page.document;
         self.kv8_script = page.kv8_script;
         self.kv8_css = page.kv8_css;
@@ -61,6 +73,9 @@ impl BrowserTab {
     }
 }
 
+/// Bootstrap placeholder document — the initial `kabootar://home` tab is built
+/// before any Kab code can run, so this is host capability, not product policy.
+/// On the product path `theme.homePage` is consulted instead (provider hook).
 fn default_home_document(url: &str) -> DomNode {
     let mut h1 = DomNode::element("h1");
     h1.append(DomNode::text_node("Kabootar Browser"));
@@ -77,8 +92,51 @@ fn default_home_document(url: &str) -> DomNode {
     root
 }
 
-fn title_from_url(url: &str) -> String {
-    url.rsplit('/').next().unwrap_or(url).to_string()
+/// Home-page fallback: Kab `theme.homePage` when a provider is registered
+/// (product path), else the bootstrap placeholder. Providers must not call
+/// `kb_*` browser natives (the render-slot lock is held during the call).
+fn home_fallback(
+    url: &str,
+    env: &mut Environment,
+    provider: Option<&Value>,
+) -> DomNode {
+    if let Some(f) = provider {
+        if let Ok(Value::KabootarDom(node)) = crate::bytecode::call_value(
+            f.clone(),
+            vec![Value::String(url.to_string())],
+            &[],
+            &[],
+            &[],
+            &[],
+            env,
+        ) {
+            // kdom_* writes through to the live registry by id; the returned
+            // Value is the pre-append snapshot — resolve to the live tree.
+            return crate::runtime::kabootar_dom::live_resolve(node);
+        }
+    }
+    default_home_document(url)
+}
+
+/// Page-title policy: Kab `load_policy.titleFromUrl` when a provider is
+/// registered, else the host last-path-segment default.
+fn page_title(url: &str, env: &mut Environment, provider: Option<&Value>) -> String {
+    if let Some(f) = provider {
+        if let Ok(Value::String(s)) = crate::bytecode::call_value(
+            f.clone(),
+            vec![Value::String(url.to_string())],
+            &[],
+            &[],
+            &[],
+            &[],
+            env,
+        ) {
+            if !s.is_empty() {
+                return s;
+            }
+        }
+    }
+    host_nav::title_from_url(url)
 }
 
 #[derive(Debug, Clone)]
@@ -88,9 +146,14 @@ pub struct KabootarBrowser {
 
 #[derive(Debug)]
 struct BrowserInner {
-    tabs: Vec<BrowserTab>,
-    active: usize,
-    next_id: u64,
+    // H6c delete-gate: tab/history session lives in Kab (`kbrowser/nav`).
+    // Rust keeps exactly one render slot — the document currently loaded for
+    // paint. Tab enumeration/indexing/ordering is Kab-owned.
+    tab: BrowserTab,
+    // Product-policy hooks installed by Kab (`nav.kab`/`theme.kab`):
+    // home(url) -> KabootarDom, title(url) -> string. None = host fallback.
+    home_provider: Option<Value>,
+    title_provider: Option<Value>,
     user_agent: String,
     viewport_w: f64,
     viewport_h: f64,
@@ -105,12 +168,23 @@ struct BrowserInner {
     os_mode: BrowserOsMode,
 }
 
+thread_local! {
+    /// One browser per thread: module envs and the main program env each get a
+    /// clone of this Arc, so `kb_*` calls from any env share render state
+    /// (same model as the DOM registry / event queue / frame buffer).
+    static SHARED_BROWSER: KabootarBrowser = KabootarBrowser::new();
+}
+
+fn shared_browser() -> KabootarBrowser {
+    SHARED_BROWSER.with(|b| b.clone())
+}
+
 impl KabootarBrowser {
     pub fn new() -> Self {
-        let mut inner = BrowserInner {
-            tabs: Vec::new(),
-            active: 0,
-            next_id: 1,
+        let inner = BrowserInner {
+            tab: BrowserTab::new(1, "kabootar://home"),
+            home_provider: None,
+            title_provider: None,
             user_agent: format!(
                 "KabootarBrowser/{} (KHTML, like Chrome) Kabootar/{}",
                 env!("CARGO_PKG_VERSION"),
@@ -128,8 +202,6 @@ impl KabootarBrowser {
             last_layers: Vec::new(),
             os_mode: BrowserOsMode::Auto,
         };
-        inner.tabs.push(BrowserTab::new(1, "kabootar://home"));
-        inner.next_id = 2;
         Self {
             inner: Arc::new(Mutex::new(inner)),
         }
@@ -146,12 +218,41 @@ impl KabootarBrowser {
         f(&mut g)
     }
 
-    pub fn navigate(&self, url: &str, os: Option<&OsHandle>) -> Result<(), String> {
+    pub fn navigate(
+        &self,
+        url: &str,
+        os: Option<&OsHandle>,
+        env: &mut Environment,
+    ) -> Result<(), String> {
         self.with_mut(|inner| {
             let mode = inner.os_mode;
-            let tab = inner.tabs.get_mut(inner.active).ok_or("No active tab")?;
-            tab.navigate(url, os, mode);
+            let home = inner.home_provider.clone();
+            let title = inner.title_provider.clone();
+            inner
+                .tab
+                .navigate(url, os, mode, env, home.as_ref(), title.as_ref());
             Ok(())
+        })
+    }
+
+    pub fn set_home_provider(&self, f: Value) -> Result<(), String> {
+        self.with_mut(|inner| {
+            inner.home_provider = Some(f);
+            Ok(())
+        })
+    }
+
+    pub fn set_title_provider(&self, f: Value) -> Result<(), String> {
+        self.with_mut(|inner| {
+            inner.title_provider = Some(f);
+            Ok(())
+        })
+    }
+
+    /// Whether Kab product-policy hooks are installed (delete-gate probe).
+    pub fn product_hooks_installed(&self) -> Result<bool, String> {
+        self.with_mut(|inner| {
+            Ok(inner.home_provider.is_some() && inner.title_provider.is_some())
         })
     }
 
@@ -166,46 +267,36 @@ impl KabootarBrowser {
         self.with_mut(|inner| Ok(inner.os_mode))
     }
 
-    pub fn reload(&self, os: Option<&OsHandle>) -> Result<(), String> {
+    pub fn reload(&self, os: Option<&OsHandle>, env: &mut Environment) -> Result<(), String> {
         self.with_mut(|inner| {
             let mode = inner.os_mode;
-            let tab = inner.tabs.get_mut(inner.active).ok_or("No active tab")?;
-            tab.reload_document(os, mode);
+            let home = inner.home_provider.clone();
+            let title = inner.title_provider.clone();
+            inner
+                .tab
+                .reload_document(os, mode, env, home.as_ref(), title.as_ref());
             Ok(())
         })
     }
 
     pub fn location(&self) -> Result<String, String> {
-        self.with_mut(|inner| {
-            inner
-                .tabs
-                .get(inner.active)
-                .map(|t| t.url.clone())
-                .ok_or_else(|| "No active tab".into())
-        })
+        self.with_mut(|inner| Ok(inner.tab.url.clone()))
     }
 
     pub fn active_document(&self) -> Result<DomNode, String> {
-        self.with_mut(|inner| {
-            inner
-                .tabs
-                .get(inner.active)
-                .map(|t| t.document.clone())
-                .ok_or_else(|| "No active tab".into())
-        })
+        self.with_mut(|inner| Ok(inner.tab.document.clone()))
     }
 
     pub fn set_document(&self, node: DomNode) -> Result<(), String> {
         self.with_mut(|inner| {
-            let tab = inner.tabs.get_mut(inner.active).ok_or("No active tab")?;
-            tab.document = node;
+            inner.tab.document = node;
             Ok(())
         })
     }
 
     pub fn run_kv8_script(&self, _os: Option<&OsHandle>) -> Result<Value, String> {
         self.with_mut(|inner| {
-            let tab = inner.tabs.get_mut(inner.active).ok_or("No active tab")?;
+            let tab = &mut inner.tab;
             let script = tab.kv8_script.clone().unwrap_or_default();
             if script.is_empty() {
                 return Ok(Value::Null);
@@ -228,7 +319,7 @@ impl KabootarBrowser {
 
     pub fn paint(&self, os: Option<&OsHandle>) -> Result<HashMap<String, Value>, String> {
         self.with_mut(|inner| {
-            let tab = inner.tabs.get(inner.active).ok_or("No active tab")?;
+            let tab = &inner.tab;
             let mut engine = RenderEngine::with_viewport(inner.viewport_w, inner.viewport_h);
             let mut sheet = parse_stylesheet(&inner.stylesheet);
             if let Some(extra) = &tab.kv8_parsed_stylesheet {
@@ -314,13 +405,7 @@ impl KabootarBrowser {
     }
 
     pub fn active_tab_id(&self) -> Result<u64, String> {
-        self.with_mut(|inner| {
-            inner
-                .tabs
-                .get(inner.active)
-                .map(|t| t.id)
-                .ok_or_else(|| "No active tab".into())
-        })
+        self.with_mut(|inner| Ok(inner.tab.id))
     }
 
     pub fn user_agent(&self) -> Result<String, String> {
@@ -413,8 +498,32 @@ fn get_os_opt(env: &Environment) -> Option<OsHandle> {
 
 fn kb_navigate_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let url = expect_str(args, 0, "kb_navigate()")?;
-    get_browser(env)?.navigate(&url, get_os_opt(env).as_ref())?;
+    let browser = get_browser(env)?;
+    let os = get_os_opt(env);
+    browser.navigate(&url, os.as_ref(), env)?;
     Ok(Value::Null)
+}
+
+fn kb_set_home_provider_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let f = args
+        .first()
+        .cloned()
+        .ok_or("kb_set_home_provider() expects a function")?;
+    get_browser(env)?.set_home_provider(f)?;
+    Ok(Value::Bool(true))
+}
+
+fn kb_set_title_provider_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let f = args
+        .first()
+        .cloned()
+        .ok_or("kb_set_title_provider() expects a function")?;
+    get_browser(env)?.set_title_provider(f)?;
+    Ok(Value::Bool(true))
+}
+
+fn kb_product_hooks_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Bool(get_browser(env)?.product_hooks_installed()?))
 }
 
 fn kb_run_kv8_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -541,7 +650,7 @@ fn kb_theme_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
 
 fn kb_reload_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let os = get_os_opt(env);
-    get_browser(env)?.reload(os.as_ref())?;
+    get_browser(env)?.reload(os.as_ref(), env)?;
     Ok(Value::Bool(true))
 }
 
@@ -735,8 +844,11 @@ fn expect_str(args: &[Value], i: usize, name: &str) -> Result<String, String> {
 }
 
 pub fn kabootar_browser_globals(env: &mut Environment) {
-    env.set("kbrowser".into(), Value::KabootarBrowser(KabootarBrowser::new()));
+    env.set("kbrowser".into(), Value::KabootarBrowser(shared_browser()));
     env.set("kb_navigate".into(), Value::NativeFunction(kb_navigate_native));
+    env.set("kb_set_home_provider".into(), Value::NativeFunction(kb_set_home_provider_native));
+    env.set("kb_set_title_provider".into(), Value::NativeFunction(kb_set_title_provider_native));
+    env.set("kb_product_hooks".into(), Value::NativeFunction(kb_product_hooks_native));
     env.set("kb_run_kv8".into(), Value::NativeFunction(kb_run_kv8_native));
     env.set("kb_location".into(), Value::NativeFunction(kb_location_native));
     env.set("kb_render".into(), Value::NativeFunction(kb_render_native));

@@ -2250,6 +2250,32 @@ fn self_host_len_of_call_expr_compile_run() {
     assert_eq!(format_value(&v), "2");
 }
 
+/// Header directives (`@version`, `@manual`, …) are toolchain metadata — the
+/// self-host lexer must not see them (cold-cache `@version` lib modules used to
+/// fail SH16 with `{"type":"@"}` at line 1).
+#[test]
+fn self_host_compile_strips_version_directive() {
+    use kabootar_lib::bytecode::{deserialize, run_module};
+    use kabootar_lib::compile::compile_source_self_host;
+    use kabootar_lib::evaluator::create_global_env;
+    use kabootar_lib::value::format_value;
+
+    let src = "@version \"1.0.0\"\n\n// comment before first stmt\nreturn 42";
+    let program = std::thread::Builder::new()
+        .name("sh-version".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || compile_source_self_host(src).expect("self-host compile @version"))
+        .expect("spawn")
+        .join()
+        .expect("join");
+    let bc = program.bytecode.expect("bytecode");
+    let kbc = kabootar_lib::bytecode::serialize(&bc);
+    let module = deserialize(&kbc).expect("deserialize");
+    let mut env = create_global_env();
+    let v = run_module(&module, &mut env).expect("run");
+    assert_eq!(format_value(&v), "42");
+}
+
 /// Self-host parser+emit `match` (const + wildcard) — SH16 apps cannot use Rust-emit.
 #[test]
 fn self_host_match_const_wildcard_compile_run() {

@@ -3,6 +3,7 @@
 import "self_host/vm_run_session"
 import "self_host/vm_run_tramp"
 import "self_host/vm_run_mod_run"
+import "self_host/vm_run_call"
 // SH6: yield* throw delegate.
 
 let S = vMakeSession()
@@ -17,4 +18,15 @@ S["runMethodBody"] = tramp
 
 pub fn runModuleImplBodyCore(bc) {
     return vModRun(S, bc)
+}
+
+// SH27: host→session callback bridge. Host `call_value` routes {vmFn}/
+// {vmArrow}/… sentinel objects here so module-side callbacks re-enter this
+// session's own function tables (bcFns/bcPool/bcGlobals stash per module run).
+pub fn vHostCallVmValue(callee, ordered) {
+    let c = vClassifyCallee(callee)
+    if c["kind"] == "bad" {
+        return undefined
+    }
+    return vApplyCalleeS(S, c, ordered, S["bcPool"], S["bcGlobals"], S["bcFns"])
 }
