@@ -141,7 +141,7 @@ global 1 char_at
 global 2 serEscStr
 global 3 KAB_UNDEF_CONST
 global 4 typeof
-global 5 floor
+global 5 is_float
 global 6 serConstLine
 global 7 OP_NEW_INSTANCE
 global 8 serIrOpNewInstance
@@ -362,10 +362,8 @@ fn_op 2 acc_add_local 2
 fn_op 2 load_local 2
 fn_op 2 return
 fn_op 2 load_local 1
-fn_op 2 load_local 1
 fn_op 2 load_global 5
 fn_op 2 call 1
-fn_op 2 ne
 fn_op 2 jump_if_false 8
 fn_op 2 const 27
 fn_op 2 acc_add_local 2
@@ -2612,4 +2610,4 @@ halt
 
 source=self_host/serialize_sections.kab
 statements=50
-fingerprint=365ce145657b8e8f
+fingerprint=96713793730527f3

@@ -8,14 +8,16 @@ import "kbrowser/history"
 import "kbrowser/session"
 import "kbrowser/load_policy"
 import "kbrowser/theme"
+import "kdom/markup"
 
 let navSession = null
 
 // SH27 delete-gate: install Kab product-policy hooks on the host render slot —
-// home-page DOM via theme.homePage, page titles via load_policy.titleFromUrl.
-// Host keeps fetch/parse/paint; these decide content, not how to fetch it.
+// home-page DOM via theme.homePage, page titles via load_policy.titleFromUrl,
+// markup→DOM via kdom/markup.parseMarkup (kml stays host fallback).
 kb_set_home_provider(homePage)
 kb_set_title_provider(titleFromUrl)
+kb_set_document_provider(parseMarkup)
 
 // Requested fetch-mode preference ("auto" | "kabootar" | "host") — Kab owns the
 // preference; load_policy.effectiveMode resolves the per-URL fetch mode.

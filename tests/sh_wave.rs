@@ -78275,6 +78275,241 @@ fn sh27_session_disk_persist() {
     );
 }
 
+/// SH27 deepen / KB-H1: the Rust `kb_*` native surface is frozen to the
+/// audited set — host capability (fetch/paint/input/platform) plus the
+/// provider-registration hooks Kab uses to install product policy. Any NEW
+/// `env.set("kb_*", …)` in Rust fails this gate until audited and added here —
+/// product policy must live in `lib/kbrowser/*.kab`, not grow new Rust APIs.
+#[test]
+fn sh27_kb_h1_frozen_native_surface() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("src/runtime/kabootar_browser/mod.rs"))
+        .expect("kabootar_browser/mod.rs");
+    let mut found: Vec<String> = Vec::new();
+    for part in m.split("env.set(\"").skip(1) {
+        if let Some(name) = part.split('"').next() {
+            if name.starts_with("kb_") {
+                found.push(name.to_string());
+            }
+        }
+    }
+    found.sort();
+    let audited: Vec<&str> = vec![
+        // fetch / render / paint — host I/O capability
+        "kb_navigate",
+        "kb_reload",
+        "kb_render",
+        "kb_paint",
+        "kb_composite",
+        "kb_location",
+        // surface / framebuffer / viewport — host display capability
+        "kb_mount",
+        "kb_pixels",
+        "kb_viewport",
+        "kb_safe_area",
+        // input — host event capability
+        "kb_click",
+        "kb_touch_at",
+        "kb_poll_events",
+        "kb_poll_hotplug",
+        // platform identity / fetch-mode hint / backend — host capability
+        "kb_backend",
+        "kb_set_backend",
+        "kb_gpu_info",
+        "kb_os_info",
+        "kb_os_mode",
+        "kb_set_os_mode",
+        "kb_sync_platform",
+        "kb_host_sync",
+        "kb_user_agent",
+        "kb_run_kv8",
+        // css → paint bridge
+        "kb_theme",
+        // provider hooks — Kab installs home/title/markup policy (mechanism,
+        // not policy)
+        "kb_set_home_provider",
+        "kb_set_title_provider",
+        "kb_set_document_provider",
+        "kb_product_hooks",
+    ];
+    let mut expected: Vec<String> = audited.iter().map(|s| s.to_string()).collect();
+    expected.sort();
+    assert_eq!(
+        found, expected,
+        "KB-H1: new kb_* native in Rust — product policy belongs in lib/kbrowser; \
+         extend the allowlist only for genuine host capability"
+    );
+}
+
+/// SH27 deepen: closure-capture fix — a `let` whose init arrow body holds an
+/// assign stmt used to corrupt the outer binding twice: the parser stored the
+/// inner assign target into the let's `sym` (shared `sess["pBindSym"]` clobbered
+/// by nested stmt parses), and the emitter re-read a clobbered `E["eAssignSym"]`
+/// after emitting the init. `f` stored to `hits`'s slot → callers saw Undefined.
+#[test]
+fn sh27_closure_capture_let_sym() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = r#"
+let hits = 0
+let f = (dt) => {
+    hits = hits + 1
+    return dt * 2
+}
+fn applyTwice(cb, x) {
+    return cb(x) + cb(x)
+}
+let r = applyTwice(f, 7)
+if r != 28 { return "bad-r" }
+if hits != 2 { return "bad-hits" }
+return "ok"
+"#;
+    let formatted = std::thread::Builder::new()
+        .name("sh27-closure-capture".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program = compile_source_self_host(src)
+                .map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !(kbc.contains("global 0 hits") && kbc.contains("global 1 f") && kbc.contains("store_global 1")) {
+                return Err(format!(
+                    "expected f as global 1 stored via store_global 1, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("closure capture let sym");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "ok");
+}
+
+/// SH27 subset→full: markup→DOM parsed in Kab on the product path —
+/// `kb_set_document_provider` installs `kdom/markup.parseMarkup`; navigation
+/// builds KabootarDom without Rust `parse_kml`. Elements append at CLOSE
+/// (bottom-up): `kdom_append` stores a child snapshot inside the parent, so
+/// top-down appends leave ancestors stale.
+#[test]
+fn sh27_markup_parse_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kdom/markup.kab")).expect("markup.kab");
+    assert!(
+        m.contains("pub fn parseMarkup")
+            && m.contains("pub fn markupParseOk")
+            && m.contains("mkCloseTo")
+            && m.contains("kdom_set_attr")
+            && m.contains("kdom_text"),
+        "SH27 markup: Kab markup→KabootarDom parser"
+    );
+    let n = std::fs::read_to_string(root.join("lib/kbrowser/nav.kab")).expect("nav.kab");
+    assert!(
+        n.contains("import \"kdom/markup\"") && n.contains("kb_set_document_provider(parseMarkup)"),
+        "SH27 markup: nav installs the Kab document provider"
+    );
+    let b = std::fs::read_to_string(root.join("src/runtime/kabootar_browser/host_nav.rs"))
+        .expect("host_nav.rs");
+    assert!(
+        b.contains("doc: Option<&Value>") && b.contains("live_resolve"),
+        "SH27 markup: load path consults the Kab document provider"
+    );
+}
+
+/// SH27 subset→full smoke: navigate a VFS page and prove the Kab parser ran
+/// (`data-kb-tag="document"` root only the Kab parser emits).
+#[test]
+fn sh27_markup_parse_smoke() {
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let out = std::thread::Builder::new()
+        .name("sh27-markup-smoke".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+            kabootar_lib::cli::run_file(
+                root.join("examples/kbrowser_markup_parse_smoke.kab")
+                    .to_str()
+                    .expect("utf8"),
+            )
+            .map(|v| kabootar_lib::value::format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(
+        out.expect("markup parse smoke run"),
+        "true",
+        "SH27 markup: Kab-parsed document must render through navigation"
+    );
+}
+
+/// SH27 deepen: integral float literals keep their Float tag through
+/// serialize. `serConstLine` keyed on `val != floor(val)` so `1.0` emitted
+/// `const number 1` → deserialized as `i64` → `1.0/60.0` was integer
+/// division (0) — `createFixed(1.0/60.0)` hung. New `is_float` native reads
+/// the real type tag (typeof/`is_integer` cannot split Float(1.0) from 1).
+#[test]
+fn sh27_float_const_serialize() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = r#"
+let dt = 1.0 / 60.0
+if dt <= 0.0 { return "bad-dt" }
+let whole = 2.0 + 0.5
+if whole != 2.5 { return "bad-whole" }
+return "ok"
+"#;
+    let formatted = std::thread::Builder::new()
+        .name("sh27-float-const".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program = compile_source_self_host(src)
+                .map_err(|e| format!("self-host compile: {e}"))?;
+            let bc = program
+                .bytecode
+                .as_ref()
+                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
+            let kbc = kabootar_lib::bytecode::serialize(bc);
+            if !(kbc.contains("float 1") && kbc.contains("float 60")) {
+                return Err(format!(
+                    "expected `const N float 1`/`float 60`, snippet:\n{}",
+                    kbc.chars().take(1200).collect::<String>()
+                ));
+            }
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("float const serialize");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "ok");
+}
+
 /// SH28: zero product-Rust is policy in Kab; host src/ is not deleted yet.
 #[test]
 fn sh28_noll_plan_in_kab() {

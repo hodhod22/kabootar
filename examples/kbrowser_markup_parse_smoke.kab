@@ -1,0 +1,29 @@
+// SH27 subset→full: markup → DOM parsed in Kab (kdom/markup) on the product
+// path — kb_set_document_provider installs parseMarkup, so a navigated page
+// builds its KabootarDom without Rust parse_kml.
+// cargo run --bin kabootar -- examples/kbrowser_markup_parse_smoke.kab
+
+import "kbrowser/nav"
+import "kbrowser/session"
+import "kdom/markup"
+import "kos/vfs"
+
+clearSession()
+
+// direct parser gate (nesting, attrs, entities, comments, voids)
+let parseOk = markupParseOk()
+
+// provider installed by nav.kab import
+let hooksOk = kb_product_hooks()
+
+// navigate a VFS page — fetch hits host I/O, markup→DOM is Kab-owned
+write("/tmp_markup_parse.kml", "<html><body><h1 class=\"t\">Via Kab parser</h1><p>A&nbsp;B</p><br><p>C</p></body></html>")
+bootNav("kabootar://vfs/tmp_markup_parse.kml")
+let html = kb_render()
+
+// Kab parser roots the tree in <document>; the Rust fallback does not
+let kabPath = str_includes(html, "data-kb-tag=\"document\"")
+let contentOk = str_includes(html, "Via Kab parser")
+
+println("kb markup parse=" + parseOk + " hooks=" + hooksOk + " kabPath=" + kabPath + " content=" + contentOk)
+return parseOk && hooksOk && kabPath && contentOk

@@ -113,9 +113,10 @@ pub fn os_info_map(os: Option<&OsHandle>, mode: BrowserOsMode) -> HashMap<String
     m
 }
 
-/// `home`/`title` are Kab product-policy providers (`theme.homePage`,
-/// `load_policy.titleFromUrl`); when absent the bootstrap placeholder is used
-/// (pre-Kab boots, raw `kb_navigate`).
+/// `home`/`title`/`doc` are Kab product-policy providers (`theme.homePage`,
+/// `load_policy.titleFromUrl`, `kdom/markup.parseMarkup`); when absent the
+/// bootstrap placeholder / Rust parse path is used (pre-Kab boots, raw
+/// `kb_navigate`).
 pub fn load_page(
     url: &str,
     os: Option<&OsHandle>,
@@ -123,13 +124,14 @@ pub fn load_page(
     env: &mut Environment,
     home: Option<&Value>,
     title: Option<&Value>,
+    doc: Option<&Value>,
 ) -> LoadedPage {
     let effective = effective_mode(url, mode);
-    if let Ok(page) = try_load(url, os, effective, env, title) {
+    if let Ok(page) = try_load(url, os, effective, env, title, doc) {
         return page;
     }
     if effective != BrowserOsMode::Auto {
-        if let Ok(page) = try_load(url, os, BrowserOsMode::Auto, env, title) {
+        if let Ok(page) = try_load(url, os, BrowserOsMode::Auto, env, title, doc) {
             return page;
         }
     }
@@ -168,9 +170,10 @@ fn try_load(
     mode: BrowserOsMode,
     env: &mut Environment,
     title: Option<&Value>,
+    doc: Option<&Value>,
 ) -> Result<LoadedPage, String> {
     let (content, source) = fetch_content(url, os, mode)?;
-    parse_content(&content, url, source, env, title)
+    parse_content(&content, url, source, env, title, doc)
 }
 
 fn normalize_vfs_path(path: &str) -> String {
@@ -282,6 +285,7 @@ fn parse_content(
     source: String,
     env: &mut Environment,
     title: Option<&Value>,
+    doc: Option<&Value>,
 ) -> Result<LoadedPage, String> {
     let kv8_script = None;
     let kv8_css = None;
@@ -290,6 +294,33 @@ fn parse_content(
     if url.ends_with(".kv8") || content.contains("---kml---") {
         if let Ok(module) = parse_kv8_module(content) {
             return page_from_kv8(module, source);
+        }
+    }
+
+    // Kab document provider (`kdom/markup.parseMarkup`) owns markup parsing on
+    // the product path — kdom_* writes land in the live registry by id, so the
+    // returned Value is resolved to the live tree (same as home provider).
+    if let Some(f) = doc {
+        if let Ok(Value::KabootarDom(node)) = crate::bytecode::call_value(
+            f.clone(),
+            vec![Value::String(content.to_string())],
+            &[],
+            &[],
+            &[],
+            &[],
+            env,
+        ) {
+            let document = crate::runtime::kabootar_dom::live_resolve(node);
+            // Empty parse (non-markup content) → keep the styled fallback pages.
+            if !document.children.is_empty() {
+                return Ok(LoadedPage {
+                    document,
+                    kv8_script,
+                    kv8_css,
+                    kv8_parsed_stylesheet,
+                    source,
+                });
+            }
         }
     }
 

@@ -149,15 +149,17 @@ pub fn emitStmt_assign(E) {
     if E["eNode"].kind != AST_ASSIGN {
         return false
     }
-        E["eAssignSym"] = E["eNode"]["sym"]
-        if tryEmitArrayPushAssign(E, E["eAssignSym"], E["eNode"]["rhs"]) {
+        let aSym = E["eNode"]["sym"]
+        let aRhs = E["eNode"]["rhs"]
+        E["eAssignSym"] = aSym
+        if tryEmitArrayPushAssign(E, aSym, aRhs) {
             return true
         }
-        if tryEmitAccAddAssign(E, E["eAssignSym"], E["eNode"]["rhs"]) {
+        if tryEmitAccAddAssign(E, aSym, aRhs) {
             return true
         }
-        eCallExpr(E, E["eNode"]["rhs"])
-        emitSym(E, 1,E["eAssignSym"])
+        eCallExpr(E, aRhs)
+        emitSym(E, 1,aSym)
         return true
     return true
 }
@@ -1871,6 +1873,7 @@ pub fn emitStmt_let(E) {
     if E["eNode"].kind != AST_LET {
         return false
     }
+
     let letPat = E["eNode"]["pat"]
     if letPat != undefined && letPat["kind"] == "array" {
         emitStmt_letArray(E, letPat["items"])
@@ -1880,22 +1883,24 @@ pub fn emitStmt_let(E) {
         emitStmt_letObject(E, letPat["fields"])
         return true
     }
-    E["eAssignSym"] = E["eNode"]["sym"]
+    let letSym = E["eNode"]["sym"]
+    let letPub = E["eStmtNode"]["isPub"]
+    let letInit = E["eNode"]["init"]
+    E["eAssignSym"] = letSym
     emitStmt_letBind(E)
-    eCallExpr(E, E["eNode"]["init"])
+    eCallExpr(E, letInit)
     if E["eInFn"] == 1 {
-        eCallRet = symIndex(E, "local", E["eAssignSym"])
+        eCallRet = symIndex(E, "local", letSym)
         E["eIdx"] = eCallRet
         emitOp(E, OP_STORE_LOCAL, eCallRet)
     } else {
-        eCallRet = symIndex(E, "global", E["eAssignSym"])
+        eCallRet = symIndex(E, "global", letSym)
         E["eIdx"] = eCallRet
         emitOp(E, OP_STORE_GLOBAL, eCallRet)
     }
     if E["eInFn"] != 1 {
-        let eLetPub = E["eStmtNode"]["isPub"]
-        if eLetPub {
-            eCallRet = ("" + E["eAssignSym"]) + ""
+        if letPub {
+            eCallRet = ("" + letSym) + ""
             object_array_push(E, "eExports", eCallRet)
         }
     }

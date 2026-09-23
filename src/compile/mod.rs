@@ -298,6 +298,7 @@ pub fn compile_file_self_host(path: &str) -> Result<CompiledProgram, String> {
                 path.to_string(),
                 CachedProgram {
                     mtime: t,
+                    tc: toolchain_fingerprint(),
                     program: program.clone(),
                 },
             );
@@ -492,21 +493,10 @@ fn cached_kbcb_path_for_eval(path: &str) -> Option<PathBuf> {
         if kbcb_file_ok_for_kab_vm(&kbcb_path) {
             let marker = cache_path_for(&base, path);
             if let Ok(text) = fs::read_to_string(&marker) {
-                if let Some(line) = text.lines().find(|l| l.starts_with("fingerprint=")) {
-                    let got = line.trim_start_matches("fingerprint=");
-                    if got != fp {
-                        return None;
-                    }
-                }
-                let norm = |p: &str| p.replace('\\', "/");
-                if let Some(line) = text.lines().find(|l| l.starts_with("source=")) {
-                    let cached_src = line.trim_start_matches("source=");
-                    if norm(cached_src) != norm(path) {
-                        return None;
-                    }
+                if marker_matches(&text, path, &fp) {
+                    return Some(kbcb_path);
                 }
             }
-            return Some(kbcb_path);
         }
     }
     None
@@ -536,6 +526,9 @@ fn try_mmap_cached_kbcb(path: &str, env: &mut Environment) -> Result<Option<Valu
 #[derive(Debug, Clone)]
 struct CachedProgram {
     mtime: SystemTime,
+    /// Toolchain fingerprint at insert — a compiler image regen invalidates
+    /// in-memory entries even when the source file mtime is unchanged.
+    tc: String,
     program: CompiledProgram,
 }
 
@@ -556,6 +549,7 @@ pub fn compile_file(path: &str) -> Result<CompiledProgram, String> {
                 path.to_string(),
                 CachedProgram {
                     mtime: t,
+                    tc: toolchain_fingerprint(),
                     program: program.clone(),
                 },
             );
@@ -570,7 +564,7 @@ pub fn compile_file_cached(path: &str) -> Result<CompiledProgram, String> {
         .and_then(|m| m.modified().ok());
     if let (Some(t), Ok(map)) = (mtime, cache().lock()) {
         if let Some(cached) = map.get(path) {
-            if cached.mtime == t {
+            if cached.mtime == t && cached.tc == toolchain_fingerprint() {
                 return Ok(cached.program.clone());
             }
         }
@@ -596,7 +590,7 @@ fn compile_file_prefer_cached_src(
         .and_then(|m| m.modified().ok());
     if let (Some(t), Ok(map)) = (mtime, cache().lock()) {
         if let Some(cached) = map.get(path) {
-            if cached.mtime == t {
+            if cached.mtime == t && cached.tc == toolchain_fingerprint() {
                 return Ok((cached.program.clone(), "cache"));
             }
         }
@@ -619,6 +613,7 @@ fn compile_file_prefer_cached_src(
                         path.to_string(),
                         CachedProgram {
                             mtime: t,
+                            tc: toolchain_fingerprint(),
                             program: program.clone(),
                         },
                     );
@@ -640,6 +635,7 @@ fn compile_file_prefer_cached_src(
                 path.to_string(),
                 CachedProgram {
                     mtime: t,
+                    tc: toolchain_fingerprint(),
                     program: program.clone(),
                 },
             );
@@ -889,11 +885,97 @@ fn cache_path_kbcb(base: &Path, path: &str) -> PathBuf {
     cache_path_for(base, path).with_extension("kbcb")
 }
 
+/// Toolchain identity for app-level caches. The packed compiler image
+/// (`seed/compiler.kbcb`) embeds every DAG leaf fingerprint, so hashing its
+/// bytes captures emitter/parser/serializer changes — `COMPILER_IMAGE_VERSION`
+/// alone is a manual constant that does not move on toolchain edits. Cached by
+/// (mtime, len) so a mid-process image regen still invalidates. When the image
+/// is absent (live-source toolchain) the `seed/dag` dir listing is hashed.
+fn toolchain_fingerprint() -> String {
+    static FP: OnceLock<Mutex<(u64, u64, String)>> = OnceLock::new();
+    let path = compiler_image_path();
+    let (mt, len) = fs::metadata(&path)
+        .ok()
+        .and_then(|m| m.modified().ok().map(|t| (t, m.len())))
+        .map(|(t, l)| {
+            (
+                t.duration_since(SystemTime::UNIX_EPOCH)
+                    .map(|d| d.as_nanos() as u64)
+                    .unwrap_or(0),
+                l,
+            )
+        })
+        .unwrap_or((0, 0));
+    let slot = FP.get_or_init(|| Mutex::new((u64::MAX, 0, String::new())));
+    if let Ok(map) = slot.lock() {
+        if map.0 == mt && map.1 == len && !map.2.is_empty() {
+            return map.2.clone();
+        }
+    }
+    let mut hasher = DefaultHasher::new();
+    if mt != 0 {
+        if let Ok(bytes) = fs::read(&path) {
+            bytes.hash(&mut hasher);
+        }
+    } else if let Some(dir) = path.parent().map(|p| p.join("dag")) {
+        if let Ok(rd) = fs::read_dir(&dir) {
+            let mut ents: Vec<_> = rd.flatten().collect();
+            ents.sort_by_key(|e| e.file_name());
+            for e in ents {
+                e.file_name().hash(&mut hasher);
+                if let Ok(m) = e.metadata() {
+                    m.len().hash(&mut hasher);
+                    if let Ok(t) = m.modified() {
+                        t.duration_since(SystemTime::UNIX_EPOCH)
+                            .map(|d| d.as_nanos() as u64)
+                            .unwrap_or(0)
+                            .hash(&mut hasher);
+                    }
+                }
+            }
+        }
+    }
+    let fp = format!("{:016x}", hasher.finish());
+    if let Ok(mut map) = slot.lock() {
+        *map = (mt, len, fp.clone());
+    }
+    fp
+}
+
 fn cache_path_kbcb_ca(base: &Path, fingerprint: &str) -> PathBuf {
     base.join(".kabootar")
         .join("cache")
         .join("ca")
-        .join(format!("v{COMPILER_IMAGE_VERSION}_{fingerprint}.kbcb"))
+        .join(format!(
+            "v{COMPILER_IMAGE_VERSION}_{}_{fingerprint}.kbcb",
+            toolchain_fingerprint()
+        ))
+}
+
+/// Marker `compiler=` line — fingerprint of the toolchain that produced the
+/// artifact. Missing line = pre-toolchain-keyed marker = treat as stale.
+fn marker_compiler_fp(text: &str) -> Option<&str> {
+    text.lines()
+        .find(|l| l.starts_with("compiler="))
+        .map(|l| l.trim_start_matches("compiler="))
+}
+
+/// Marker gates a path-keyed artifact: fingerprint, source path and compiler
+/// toolchain must all match — an orphan `.kbcb` without a marker is stale.
+fn marker_matches(text: &str, path: &str, fp: &str) -> bool {
+    let fp_ok = text
+        .lines()
+        .find(|l| l.starts_with("fingerprint="))
+        .map(|l| l.trim_start_matches("fingerprint=") == fp)
+        .unwrap_or(false);
+    let tc_ok = marker_compiler_fp(text) == Some(toolchain_fingerprint().as_str());
+    let norm = |p: &str| p.replace('\\', "/");
+    let src_ok = text
+        .lines()
+        .find(|l| l.starts_with("source="))
+        .map(|l| norm(l.trim_start_matches("source=")) == norm(path))
+        .unwrap_or(false);
+    fp_ok && tc_ok && src_ok
 }
 
 /// Write `contents` to `dest` atomically: sibling temp file then rename, so
@@ -966,8 +1048,9 @@ pub fn write_compile_marker_at(
         let source = fs::read_to_string(path).unwrap_or_default();
         let fp = source_fingerprint(path, &source);
         text.push_str(&format!(
-            "\nsource={path}\nstatements={}\nfingerprint={fp}\n",
-            program.stmt_count
+            "\nsource={path}\nstatements={}\nfingerprint={fp}\ncompiler={}\n",
+            program.stmt_count,
+            toolchain_fingerprint()
         ));
         let kbcb = serialize_kbcb(program.bytecode.as_ref().unwrap());
         let kbcb_path = cache_path_kbcb(base, path);
@@ -982,8 +1065,9 @@ pub fn write_compile_marker_at(
         let source = fs::read_to_string(path).unwrap_or_default();
         let fp = source_fingerprint(path, &source);
         format!(
-            "kabootar-compile-cache/1\nsource={path}\nstatements={}\nfingerprint={fp}\n",
-            program.stmt_count
+            "kabootar-compile-cache/1\nsource={path}\nstatements={}\nfingerprint={fp}\ncompiler={}\n",
+            program.stmt_count,
+            toolchain_fingerprint()
         )
     };
     write_atomic(&marker, content.as_bytes())
@@ -1024,23 +1108,12 @@ pub fn read_bytecode_cache_at(
             if let Ok(source) = fs::read_to_string(path) {
                 let expected = source_fingerprint(path, &source);
                 if let Ok(text) = fs::read_to_string(&marker) {
-                    if let Some(line) = text.lines().find(|l| l.starts_with("fingerprint=")) {
-                        let got = line.trim_start_matches("fingerprint=");
-                        if got != expected {
-                            return Ok(None);
-                        }
-                    }
-                    let norm = |p: &str| p.replace('\\', "/");
-                    if let Some(line) = text.lines().find(|l| l.starts_with("source=")) {
-                        let cached_src = line.trim_start_matches("source=");
-                        if norm(cached_src) != norm(path) {
-                            return Ok(None);
+                    if marker_matches(&text, path, &expected) {
+                        if let Ok(m) = deserialize_kbcb_file(&kbcb_path) {
+                            return Ok(Some(m));
                         }
                     }
                 }
-            }
-            if let Ok(m) = deserialize_kbcb_file(&kbcb_path) {
-                return Ok(Some(m));
             }
         }
     }
@@ -1059,24 +1132,12 @@ pub fn read_bytecode_cache_at(
             return Ok(None);
         }
     }
-    // Reject basename-collision leftovers (e.g. kv8 lexer cached as lexer.kab.kbc).
-    let norm = |p: &str| p.replace('\\', "/");
-    if let Some(line) = text.lines().find(|l| l.starts_with("source=")) {
-        let cached_src = line.trim_start_matches("source=");
-        if norm(cached_src) != norm(path) {
-            return Ok(None);
-        }
-    }
-    // G8: content + import fingerprint — invalidate when source/imports change without mtime bump.
+    // Reject basename-collision leftovers (e.g. kv8 lexer cached as lexer.kab.kbc),
+    // stale toolchain output (compiler= mismatch) and source/import drift
+    // (fingerprint= mismatch) — marker must carry all three fields.
     if let Ok(source) = fs::read_to_string(path) {
         let expected = source_fingerprint(path, &source);
-        if let Some(line) = text.lines().find(|l| l.starts_with("fingerprint=")) {
-            let got = line.trim_start_matches("fingerprint=");
-            if got != expected {
-                return Ok(None);
-            }
-        } else {
-            // Old cache entries without fingerprint are unsafe across path collisions.
+        if !marker_matches(&text, path, &expected) {
             return Ok(None);
         }
     }
@@ -1085,7 +1146,10 @@ pub fn read_bytecode_cache_at(
 
 /// Hash of file bytes plus mtimes of `import "…"` deps (incremental self-host cache key).
 pub fn source_fingerprint(path: &str, source: &str) -> String {
-    static FP: OnceLock<Mutex<HashMap<String, (u64, String)>>> = OnceLock::new();
+    // Memo keyed on (mtime, source-hash): mtime alone goes stale when a file is
+    // rewritten without a mtime bump — or when metadata is missing (key 0),
+    // which made two different sources for one path share a fingerprint.
+    static FP: OnceLock<Mutex<HashMap<String, (u64, u64, String)>>> = OnceLock::new();
     let cache = FP.get_or_init(|| Mutex::new(HashMap::new()));
     let mtime_key = fs::metadata(path)
         .ok()
@@ -1093,9 +1157,14 @@ pub fn source_fingerprint(path: &str, source: &str) -> String {
         .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
         .map(|d| d.as_nanos() as u64)
         .unwrap_or(0);
+    let src_key = {
+        let mut h = DefaultHasher::new();
+        source.hash(&mut h);
+        h.finish()
+    };
     if let Ok(map) = cache.lock() {
-        if let Some((mt, fp)) = map.get(path) {
-            if *mt == mtime_key {
+        if let Some((mt, sk, fp)) = map.get(path) {
+            if *mt == mtime_key && *sk == src_key {
                 return fp.clone();
             }
         }
@@ -1121,7 +1190,7 @@ pub fn source_fingerprint(path: &str, source: &str) -> String {
     }
     let fp = format!("{:x}", hasher.finish());
     if let Ok(mut map) = cache.lock() {
-        map.insert(path.to_string(), (mtime_key, fp.clone()));
+        map.insert(path.to_string(), (mtime_key, src_key, fp.clone()));
     }
     fp
 }
@@ -1189,6 +1258,52 @@ mod tests {
             miss.is_none(),
             "SH15 image-version mismatch must not hit CA"
         );
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn sh27_toolchain_fp_invalidates_cache() {
+        let tmp = std::env::temp_dir().join(format!("kab_sh27tc_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp).expect("tmp");
+        let path = tmp.join("hit.kab");
+        let src = "return 40 + 2\n";
+        fs::write(&path, src).expect("write kab");
+        let path_s = path.to_str().expect("utf8 path");
+        let prog = compile_source(src).expect("compile");
+        write_compile_marker_at(&tmp, path_s, &prog).expect("marker");
+        let fp = source_fingerprint(path_s, src);
+        // Drop CA so the path-keyed marker+kbcb branch is what must reject.
+        let _ = fs::remove_file(cache_path_kbcb_ca(&tmp, &fp));
+        let marker = cache_path_for(&tmp, path_s);
+        let mtime = fs::metadata(&path).unwrap().modified().unwrap();
+        let hit = read_bytecode_cache_at(&tmp, path_s, mtime).expect("read");
+        assert!(hit.is_some(), "fresh marker+kbcb must hit");
+        // Toolchain changed (compiler= mismatch) → stale artifacts rejected.
+        let text = fs::read_to_string(&marker).unwrap();
+        let forged: String = text
+            .lines()
+            .map(|l| {
+                if l.starts_with("compiler=") {
+                    "compiler=0000deadbeef"
+                } else {
+                    l
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&marker, forged).unwrap();
+        let miss = read_bytecode_cache_at(&tmp, path_s, mtime).expect("read stale");
+        assert!(miss.is_none(), "compiler= mismatch must invalidate cache");
+        // Pre-toolchain markers (no compiler= line) are stale too.
+        let stripped: String = text
+            .lines()
+            .filter(|l| !l.starts_with("compiler="))
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&marker, stripped).unwrap();
+        let miss = read_bytecode_cache_at(&tmp, path_s, mtime).expect("read old");
+        assert!(miss.is_none(), "marker without compiler= must be stale");
         let _ = fs::remove_dir_all(&tmp);
     }
 }
