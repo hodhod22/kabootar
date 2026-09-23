@@ -38,14 +38,14 @@ pub fn openTab(url) {
     return navOpenTab(url)
 }
 
-pub fn addBookmark(url, title) {
-    return bookmarksAdd(url, title)
+pub fn bookmarksAdd(url, title) {
+    return addBookmark(url, title)
 }
 
-pub fn removeBookmark(url) {
-    return bookmarksRemove(url)
+pub fn bookmarksRemove(url) {
+    return removeBookmark(url)
 }
 
-pub fn listBookmarks() {
-    return bookmarksList()
+pub fn bookmarksList() {
+    return listBookmarks()
 }

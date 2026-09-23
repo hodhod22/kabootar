@@ -1,0 +1,24 @@
+// SH27 deepen: bookmarks + load_policy is the only Kab URL-policy path.
+// core bookmarksAdd/bookmarksList/bookmarksRemove delegate to bookmarks.kab
+// addBookmark/listBookmarks/removeBookmark; both paths share one bookmark store.
+// cargo run --bin kabootar -- examples/sh27_bookmarks_smoke.kab
+
+import "kbrowser/core"
+import "kbrowser/bookmarks"
+import "kbrowser/load_policy"
+
+bookmarksAdd("kabootar://vfs/apps/k4.kml", "")
+let list = bookmarksList()
+let bmOk = is_array(list)
+    && len(list) == 1
+    && list[0]["url"] == "kabootar://vfs/apps/k4.kml"
+    && list[0]["title"] == "k4.kml"
+addBookmark("kabootar://vfs/apps/k4.kml", "Dup")
+let dedupOk = len(bookmarksList()) == 1
+bookmarksRemove("kabootar://vfs/apps/k4.kml")
+let rmOk = len(bookmarksList()) == 0 && hasBookmark("kabootar://vfs/apps/k4.kml") == false
+
+let policyOk = loadPolicyOk()
+
+println("sh27 bookmarks bm=" + bmOk + " dedup=" + dedupOk + " rm=" + rmOk + " policy=" + policyOk)
+return bmOk && dedupOk && rmOk && policyOk

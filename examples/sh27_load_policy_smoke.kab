@@ -1,0 +1,20 @@
+// SH27 KB-H2 — Kab load_policy drives fetch mode on the product nav path:
+// effectiveMode resolves per URL (auto), navSetMode pins, loadPlan bundles
+// mode+kind+title+virtualHome in one decision.
+
+import "kbrowser/nav"
+import "kbrowser/load_policy"
+
+bootNav("kabootar://vfs/apps/demo.kml")
+let modeKab = kb_os_info()["mode"] == "kabootar"
+navGo("file:///tmp/x.kml")
+let modeHost = kb_os_info()["mode"] == "host"
+navGo("kabootar://home")
+let modeBack = kb_os_info()["mode"] == "kabootar"
+navSetMode("kabootar")
+let modePin = kb_os_info()["mode"] == "kabootar"
+let plan = loadPlan("https://a.b/c.kml")
+let planOk = plan["mode"] == "host" && plan["kind"] == "kml" && plan["title"] == "c.kml" && plan["virtualHome"] == false
+
+println("sh27 load-policy kab=" + modeKab + " host=" + modeHost + " back=" + modeBack + " pin=" + modePin + " plan=" + planOk + " gate=" + loadPolicyOk())
+return modeKab && modeHost && modeBack && modePin && planOk && loadPolicyOk()

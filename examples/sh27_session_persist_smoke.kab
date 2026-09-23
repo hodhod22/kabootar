@@ -1,0 +1,38 @@
+// SH27 session persist: /session/tabs via kos/vfs; nav write-through + resume.
+// cargo run --bin kabootar -- examples/sh27_session_persist_smoke.kab
+
+import "kbrowser/nav"
+import "kbrowser/session"
+import "kos/vfs"
+
+clearSession()
+
+let gate = sessionPersistOk()
+
+bootNav("kabootar://home")
+navGo("kabootar://vfs/apps/x.kml")
+navGo("kabootar://vfs/apps/z.kml")
+
+navBack()
+let backDisk = json_parse(read("/session/tabs"))
+let backPersisted = backDisk["pos"] == 1
+    && backDisk["tabs"][0]["url"] == "kabootar://vfs/apps/x.kml"
+
+navOpenTab("kabootar://vfs/apps/y.kml")
+let openDisk = json_parse(read("/session/tabs"))
+let openPersisted = len(openDisk["tabs"]) == 2
+    && openDisk["tabs"][1]["url"] == "kabootar://vfs/apps/y.kml"
+    && openDisk["active"] == 1
+
+navCloseTab(1)
+let closeDisk = json_parse(read("/session/tabs"))
+let closePersisted = len(closeDisk["tabs"]) == 1
+
+let resumed = resumeSession("kabootar://new")
+let resumeOk = len(resumed["tabs"]) == 1 && resumed["tabs"][0]["url"] == "kabootar://vfs/apps/x.kml"
+
+clearSession()
+let cleared = loadSession() == null
+
+println("sh27 session gate=" + gate + " back=" + backPersisted + " open=" + openPersisted + " close=" + closePersisted + " resume=" + resumeOk + " clear=" + cleared)
+return gate && backPersisted && openPersisted && closePersisted && resumeOk && cleared

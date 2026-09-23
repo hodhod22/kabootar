@@ -1,0 +1,51 @@
+@version "1.0.0"
+
+// SH27: /session → real disk via host mount (survives process restarts).
+// Without a mount the VFS is per-process; with mountSessionDisk the same
+// session.kab save/load/clear calls stream to a host directory.
+// import "kbrowser/session_disk"
+
+import "kbrowser/session"
+import "kbrowser/history"
+import "kos/vfs"
+import "kos/mount"
+
+/// Mount /session onto a host directory — session writes go to real disk.
+pub fn mountSessionDisk(hostDir) {
+    mount("/session", hostDir)
+    let ms = mounts()
+    let i = 0
+    while i < len(ms) {
+        if ms[i]["vfs"] == "/session" {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+/// Drop the disk mount (VFS /session goes back to per-process memory).
+pub fn unmountSessionDisk() {
+    unmount("/session")
+    return true
+}
+
+/// Gate: mount /session to hostDir, save, drop the mount (simulates reboot —
+/// the in-memory VFS never held the file), remount and resume. The returned
+/// tabs can only have come from the host file.
+pub fn sessionDiskPersistOk(hostDir) {
+    let mounted = mountSessionDisk(hostDir)
+    let s = sessionOpenTab(createSession("kabootar://home"), "kabootar://vfs/apps/x.kml")
+    let saved = saveSession(s)
+    unmount("/session")
+    let gone = exists("/session/tabs") == false
+    mount("/session", hostDir)
+    let back = loadSession()
+    let ok = mounted == true && saved == true && gone == true
+        && back != null && len(back["tabs"]) == 2
+        && back["tabs"][1]["url"] == "kabootar://vfs/apps/x.kml"
+        && back["active"] == 1
+    clearSession()
+    unmount("/session")
+    return ok
+}

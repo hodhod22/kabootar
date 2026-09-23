@@ -167,6 +167,15 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
     use crate::evaluator::create_module_env;
     use crate::value::Value;
 
+    // Header directives (`@version`, `@manual`, `@gc`, …) are toolchain metadata,
+    // not language — strip only those lines before the self-host lexer sees them
+    // (no comptime/html/actor expansion: sources without directives must reach the
+    // self-host compiler verbatim, as before).
+    let meta = crate::lang_preprocess::scan_header_directives(source);
+    let source = crate::lang_preprocess::strip_header_directives(source);
+    let (_, source) = crate::project::version::strip_version_directive(&source);
+    let memory_mode = meta.memory_mode();
+
     // Module resolution is cwd-relative; prefer the package root when available.
     let _cwd_guard = PackageRootGuard::enter();
 
@@ -192,7 +201,7 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
         let t_pipe = std::time::Instant::now();
         let result = call_value(
             compile_fn,
-            vec![Value::String(source.to_string())],
+            vec![Value::String(source.clone())],
             &[],
             &[],
             &[],
@@ -223,8 +232,8 @@ pub fn compile_source_self_host(source: &str) -> Result<CompiledProgram, String>
         Ok(CompiledProgram {
             stmts: Vec::new(),
             bytecode: Some(module.clone()),
-            stmt_count: rough_stmt_count(source),
-            memory_mode: module.memory_mode,
+            stmt_count: rough_stmt_count(&source),
+            memory_mode,
         })
     })();
     kab_vm_exec_set(prev_exec);
@@ -396,7 +405,11 @@ fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String
         let f = env
             .get("evalKbcKabOnly")
             .ok_or("kab/vm: missing evalKbcKabOnly")?;
-        let v = call_value(
+        let bridge = env
+            .get("kabVmHostCallValue")
+            .unwrap_or(Value::Undefined);
+        crate::bytecode::kab_vm_call_bridge_push(bridge);
+        let out = call_value(
             f,
             vec![Value::String(kbc.to_string())],
             &[],
@@ -404,7 +417,9 @@ fn eval_kbc_via_kab_vm(kbc: &str, env: &mut Environment) -> Result<Value, String
             &[],
             &[],
             env,
-        )?;
+        );
+        crate::bytecode::kab_vm_call_bridge_pop();
+        let v = out?;
         drain_all_microtasks(env)?;
         Ok(v)
     })();
@@ -419,7 +434,13 @@ fn eval_kbcb_view_via_kab_vm(view: Value, env: &mut Environment) -> Result<Value
         let f = env
             .get("evalKbcKabOnly")
             .ok_or("kab/vm: missing evalKbcKabOnly")?;
-        let v = call_value(f, vec![view], &[], &[], &[], &[], env)?;
+        let bridge = env
+            .get("kabVmHostCallValue")
+            .unwrap_or(Value::Undefined);
+        crate::bytecode::kab_vm_call_bridge_push(bridge);
+        let out = call_value(f, vec![view], &[], &[], &[], &[], env);
+        crate::bytecode::kab_vm_call_bridge_pop();
+        let v = out?;
         drain_all_microtasks(env)?;
         Ok(v)
     })();
@@ -659,6 +680,23 @@ fn compile_file_prefer_cached_src(
         let _ = write_compile_marker(path, &program);
     }
     Ok((program, backend))
+}
+
+/// Module import into a host env: evaluate on the host engine. The Kab VM keeps
+/// globals/exports inside its own session (`S`), so routing a module through
+/// `eval_program`'s Kab-VM branch can never populate the importer's bindings or
+/// `exported_names` — top-level `import` from host eval (REPL/tests) produced
+/// empty module exports ("Undefined variable"). Nested loads already take this
+/// path via the KAB_VM_EXEC_ACTIVE mark; this applies the same mark for the
+/// import-binding eval only (the caller's main program still uses Kab VM).
+pub(crate) fn eval_program_for_import(
+    program: &CompiledProgram,
+    env: &mut Environment,
+) -> Result<Value, String> {
+    let prev = kab_vm_exec_set(true);
+    let result = eval_program(program, env);
+    kab_vm_exec_set(prev);
+    result
 }
 
 pub fn eval_program(program: &CompiledProgram, env: &mut Environment) -> Result<Value, String> {

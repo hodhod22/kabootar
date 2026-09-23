@@ -1706,6 +1706,34 @@ return p.x + p.y
     assert_eq!(formatted, "7");
 }
 
+/// SH6 fix gate: file-module `import` from host eval under the kab-only default
+/// must bind the module's exports. The import-binding eval uses the host engine
+/// (the Kab VM keeps globals in its own session and cannot populate the
+/// importer's env — re-entering it produced empty exports → "Undefined variable").
+#[test]
+fn sh6_import_binds_exports_ok() {
+    use kabootar_lib::evaluator::eval_source;
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let formatted = std::thread::Builder::new()
+        .name("sh6-import-exports".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let mut env = create_global_env();
+            eval_source("import \"kab/ui/ui_div\"\nuiIsDiv(\"div\")", &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("import binds exports");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "true");
+}
+
 /// SH6: product self-host `let [a, ...rest]` via `array_slice_rest` + Kab VM.
 #[test]
 fn sh6_self_host_let_array_rest_ok() {
@@ -77871,6 +77899,379 @@ fn sh27_ui_mesh_host_dual_bind_in_kab() {
             && s.contains("uiIsSolidColor")
             && s.contains("\"mesh\""),
         "SH27 Kab ui mesh host dual-bind"
+    );
+}
+
+/// SH27 deepen: bookmarks module owns the add/remove/list/has/clear fns and is
+/// pure Kab URL-policy (no kb_* host I/O).
+#[test]
+fn sh27_bookmarks_policy_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let b = std::fs::read_to_string(root.join("lib/kbrowser/bookmarks.kab"))
+        .expect("bookmarks.kab");
+    assert!(
+        b.contains("pub fn addBookmark")
+            && b.contains("pub fn removeBookmark")
+            && b.contains("pub fn listBookmarks")
+            && b.contains("pub fn hasBookmark")
+            && b.contains("pub fn clearBookmarks")
+            && !b.contains("kb_"),
+        "SH27 Kab bookmarks exports, no host I/O"
+    );
+}
+
+/// SH27 deepen: core bookmark delegation resolves to bookmarks.kab fns.
+#[test]
+fn sh27_bookmarks_core_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let c = std::fs::read_to_string(root.join("lib/kbrowser/core.kab")).expect("core.kab");
+    assert!(
+        c.contains("pub fn bookmarksAdd")
+            && c.contains("pub fn bookmarksRemove")
+            && c.contains("pub fn bookmarksList")
+            && c.contains("return addBookmark(")
+            && c.contains("return removeBookmark(")
+            && c.contains("return listBookmarks(")
+            && c.contains("import \"kbrowser/bookmarks\""),
+        "SH27 Kab core delegates bookmarks*"
+    );
+}
+
+/// SH27 deepen: bookmarks + load-policy smoke exists.
+#[test]
+fn sh27_bookmarks_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_bookmarks_smoke.kab"))
+        .expect("sh27_bookmarks_smoke.kab");
+    assert!(
+        s.contains("import \"kbrowser/core\"")
+            && s.contains("import \"kbrowser/bookmarks\"")
+            && s.contains("bookmarksAdd")
+            && s.contains("bookmarksList")
+            && s.contains("bookmarksRemove")
+            && s.contains("loadPolicyOk"),
+        "SH27 Kab bookmarks smoke"
+    );
+}
+
+/// SH27 deepen: session.kab persists tab/session state to /session/tabs via
+/// kos/vfs (JSON roundtrip), and nav.kab writes through on every mutation.
+#[test]
+fn sh27_session_persist_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("lib/kbrowser/session.kab"))
+        .expect("session.kab");
+    assert!(
+        s.contains("import \"kos/vfs\"")
+            && s.contains("\"/session/tabs\"")
+            && s.contains("pub fn saveSession")
+            && s.contains("pub fn loadSession")
+            && s.contains("pub fn resumeSession")
+            && s.contains("pub fn clearSession")
+            && s.contains("pub fn sessionPersistOk")
+            && s.contains("json_stringify")
+            && s.contains("json_parse"),
+        "SH27 Kab session persist via kos/vfs at /session/tabs"
+    );
+    let n = std::fs::read_to_string(root.join("lib/kbrowser/nav.kab")).expect("nav.kab");
+    assert!(
+        n.contains("import \"kbrowser/session\"")
+            && n.contains("resumeSession(url)")
+            && n.contains("saveSession(navSession)"),
+        "SH27 Kab nav write-through to /session/tabs"
+    );
+}
+
+/// SH27 deepen: session persist smoke exists and exercises nav + VFS restore.
+#[test]
+fn sh27_session_smoke_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("examples/sh27_session_persist_smoke.kab"))
+        .expect("sh27_session_persist_smoke.kab");
+    assert!(
+        s.contains("import \"kbrowser/session\"")
+            && s.contains("import \"kos/vfs\"")
+            && s.contains("sessionPersistOk")
+            && s.contains("/session/tabs")
+            && s.contains("resumeSession")
+            && s.contains("navBack")
+            && s.contains("navCloseTab"),
+        "SH27 Kab session persist smoke"
+    );
+}
+
+/// SH27 deepen: delete-gate prep — open → navigate → back/forward → close tab
+/// via Kab nav/session; no chrome natives (kb_back/kb_forward/kb_tab_open/kb_tabs)
+/// and no native chrome mount in the smoke.
+#[test]
+fn sh27_delete_gate_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kbrowser/nav.kab")).expect("nav.kab");
+    assert!(
+        !n.contains("kb_back")
+            && !n.contains("kb_forward")
+            && !n.contains("kb_tab_open")
+            && !n.contains("kb_tabs"),
+        "SH27 Kab nav owns back/forward/tabs — no chrome natives"
+    );
+    let s = std::fs::read_to_string(root.join("examples/sh27_delete_gate_smoke.kab"))
+        .expect("sh27_delete_gate_smoke.kab");
+    assert!(
+        s.contains("navOpenTab")
+            && s.contains("navGo")
+            && s.contains("navBack")
+            && s.contains("navForward")
+            && s.contains("navCloseTab")
+            && s.contains("loadPolicyOk")
+            && !s.contains("mountDesktopChrome")
+            && !s.contains("mountChrome")
+            && !s.contains("kb_back")
+            && !s.contains("kb_tab_open"),
+        "SH27 Kab delete-gate smoke: open→nav→back/fwd→close, no native chrome"
+    );
+}
+
+/// SH27 deepen: delete-gate prep — Kab theme must reach the browser stylesheet
+/// via `kb_theme(css)` (else paint() still uses Rust default_chrome_theme_css).
+#[test]
+fn sh27_theme_bridge_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let t = std::fs::read_to_string(root.join("lib/kbrowser/theme.kab")).expect("theme.kab");
+    assert!(
+        t.contains("pub fn applyBrowserTheme")
+            && t.contains("kss(css)")
+            && t.contains("kb_theme(css)")
+            && t.contains("pub fn homePage"),
+        "SH27 Kab applyBrowserTheme bridges to kb_theme for chrome paint"
+    );
+}
+
+/// SH27 deepen: KB-H2 — Kab load_policy drives fetch mode on the product nav
+/// path (navApplyMode → kb_set_os_mode(effectiveMode)), loadPlan bundles the
+/// decision; the host effective_mode mirror stays as fallback only.
+#[test]
+fn sh27_load_policy_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kbrowser/load_policy.kab"))
+        .expect("load_policy.kab");
+    assert!(
+        p.contains("pub fn effectiveMode")
+            && p.contains("pub fn sniffKind")
+            && p.contains("pub fn loadPlan")
+            && p.contains("planOk"),
+        "SH27 Kab load_policy owns mode/sniff/title/loadPlan decisions"
+    );
+    let n = std::fs::read_to_string(root.join("lib/kbrowser/nav.kab")).expect("nav.kab");
+    assert!(
+        n.contains("import \"kbrowser/load_policy\"")
+            && n.contains("navApplyMode")
+            && n.contains("effectiveMode(url, navModePref)")
+            && n.contains("kb_set_os_mode")
+            && n.contains("pub fn navSetMode"),
+        "SH27 Kab nav applies load_policy.effectiveMode before every kb_navigate"
+    );
+    let s = std::fs::read_to_string(root.join("examples/sh27_load_policy_smoke.kab"))
+        .expect("sh27_load_policy_smoke.kab");
+    assert!(
+        s.contains("kb_os_info")
+            && s.contains("navSetMode")
+            && s.contains("loadPlan")
+            && s.contains("loadPolicyOk"),
+        "SH27 load-policy smoke verifies per-URL mode routing + loadPlan"
+    );
+}
+
+/// SH27 deepen: game loop in Kab — ui_loop owns dt/pacing/miss accounting on
+/// uiTickMs/uiFpsOk; host only provides clock/yield/input/surface/present.
+#[test]
+fn sh27_game_loop_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_loop.kab")).expect("ui_loop.kab");
+    assert!(
+        l.contains("pub fn uiLoopCreate")
+            && l.contains("pub fn uiFrameBegin")
+            && l.contains("pub fn uiFrameEnd")
+            && l.contains("pub fn uiLoopOk")
+            && l.contains("uiTickMs")
+            && l.contains("uiFpsOk")
+            && l.contains("Date_now")
+            && l.contains("sleep_ms")
+            && !l.contains("kb_on_frame")
+            && !l.contains("requestAnimationFrame"),
+        "SH27 Kab frame loop: uiTickMs pacing + uiFpsOk budget, no host rAF pump"
+    );
+    let s = std::fs::read_to_string(root.join("examples/sh27_game_loop_smoke.kab"))
+        .expect("sh27_game_loop_smoke.kab");
+    assert!(
+        s.contains("uiLoopCreate")
+            && s.contains("uiFrameBegin")
+            && s.contains("uiFrameEnd")
+            && s.contains("uiLoopOk")
+            && s.contains("game_surface_create")
+            && s.contains("input_key_down"),
+        "SH27 game-loop smoke: paced loop drives input+draw+present"
+    );
+}
+
+/// SH27 deepen: vmFn callback bridge — host `call_value` re-enters the live
+/// Kab VM session for {vmFn}/{vmArrow} sentinel objects (module callbacks,
+/// rAF/timer/promise style APIs). Rust pushes the vm image's
+/// `kabVmHostCallValue` export while a session runs; `vHostCallVmValue`
+/// classifies + applies via the session's own bcFns/bcPool/bcGlobals stash.
+#[test]
+fn sh27_vm_fn_callback_bridge() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let v = std::fs::read_to_string(root.join("src/bytecode/vm.rs")).expect("vm.rs");
+    assert!(
+        v.contains("KAB_VM_CALL_BRIDGE")
+            && v.contains("kab_vm_call_bridge_push")
+            && v.contains("kab_vm_callable_marker"),
+        "SH27 vmFn bridge: thread-local session bridge + callable markers in call_value"
+    );
+    let c = std::fs::read_to_string(root.join("src/compile/mod.rs")).expect("compile/mod.rs");
+    assert!(
+        c.contains("kabVmHostCallValue") && c.contains("kab_vm_call_bridge_push"),
+        "SH27 vmFn bridge: eval_kbc*_via_kab_vm pushes the bridge export"
+    );
+    let e = std::fs::read_to_string(root.join("self_host/vm_run_exec_core.kab"))
+        .expect("vm_run_exec_core.kab");
+    assert!(
+        e.contains("pub fn vHostCallVmValue") && e.contains("vClassifyCallee"),
+        "SH27 vmFn bridge: session-side classify+apply entry"
+    );
+    let m = std::fs::read_to_string(root.join("self_host/vm_run_mod_run.kab"))
+        .expect("vm_run_mod_run.kab");
+    assert!(
+        m.contains("S[\"bcFns\"]") && m.contains("S[\"bcPool\"]") && m.contains("S[\"bcGlobals\"]"),
+        "SH27 vmFn bridge: module entry stashes active bytecode context"
+    );
+    let s = std::fs::read_to_string(root.join("examples/vm_fn_callback_smoke.kab"))
+        .expect("vm_fn_callback_smoke.kab");
+    assert!(
+        s.contains("fixedTick") && s.contains("(dt) =>"),
+        "SH27 vmFn callback smoke: vmFn + vmArrow cross the host boundary"
+    );
+}
+
+/// SH27 deepen: receiver sugar — `vMemberGetS` binds NativeFunction fields on
+/// __kab_* marker objects to their receiver ({vmHostM}/{vmR} sentinel),
+/// mirroring host maybe_bind_native_method; `vApplyMethHostS` applies the
+/// "hostMethod" kind via vCallHost(meth, [recv]+args). Bracket access stays raw.
+#[test]
+fn sh27_host_method_receiver_sugar() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let s = std::fs::read_to_string(root.join("self_host/vm_s_stack.kab"))
+        .expect("vm_s_stack.kab");
+    assert!(
+        s.contains("vmHostM")
+            && s.contains("vWantsBoundNative")
+            && s.contains("bytecode_host_is_native"),
+        "SH27 receiver sugar: vMemberGetS wraps native fields on __kab_* objects"
+    );
+    let c = std::fs::read_to_string(root.join("self_host/vm_run_call.kab"))
+        .expect("vm_run_call.kab");
+    assert!(
+        c.contains("hostMethod") && c.contains("vmHostM"),
+        "SH27 receiver sugar: vClassifyMethHost/vApplyMethHostS handle vmHostM"
+    );
+    let e = std::fs::read_to_string(root.join("src/evaluator.rs")).expect("evaluator.rs");
+    assert!(
+        e.contains("bytecode_host_is_native"),
+        "SH27 receiver sugar: host exposes bytecode_host_is_native predicate"
+    );
+    let smoke = std::fs::read_to_string(root.join("examples/vm_host_method_sugar_smoke.kab"))
+        .expect("vm_host_method_sugar_smoke.kab");
+    assert!(
+        smoke.contains("ctx.fillRect") && smoke.contains("surf.present()"),
+        "SH27 receiver-sugar smoke uses dot-call on native method objects"
+    );
+}
+
+/// SH27 deepen: product hooks — Kab installs home/title providers on the host
+/// render slot; Rust keeps a single render tab (no tabs/active/next_id mirror,
+/// no tab.title). The browser is a thread-local singleton so module-env and
+/// main-env `kb_*` calls share render state.
+#[test]
+fn sh27_product_hooks_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let n = std::fs::read_to_string(root.join("lib/kbrowser/nav.kab")).expect("nav.kab");
+    assert!(
+        n.contains("kb_set_home_provider(homePage)")
+            && n.contains("kb_set_title_provider(titleFromUrl)")
+            && n.contains("import \"kbrowser/theme\""),
+        "SH27 product hooks: nav.kab installs Kab home/title providers"
+    );
+    let h = std::fs::read_to_string(root.join("lib/kbrowser/history.kab")).expect("history.kab");
+    assert!(
+        h.contains("titleFromUrl(u)") && !h.contains("\"title\": \"Tab\""),
+        "SH27 product hooks: Kab session tracks real tab titles"
+    );
+    let m = std::fs::read_to_string(root.join("src/runtime/kabootar_browser/mod.rs"))
+        .expect("kabootar_browser/mod.rs");
+    assert!(
+        !m.contains("tabs: Vec<BrowserTab>")
+            && !m.contains("next_id")
+            && !m.contains("title: \"New Tab\"")
+            && m.contains("home_provider")
+            && m.contains("title_provider")
+            && m.contains("SHARED_BROWSER")
+            && m.contains("live_resolve"),
+        "SH27 product hooks: single render slot + provider hooks + shared browser"
+    );
+    let nav = std::fs::read_to_string(root.join("src/runtime/kabootar_browser/host_nav.rs"))
+        .expect("host_nav.rs");
+    assert!(
+        nav.contains("super::home_fallback") && nav.contains("super::page_title"),
+        "SH27 product hooks: load_page consults Kab providers, Rust = I/O only"
+    );
+}
+
+/// SH27 deepen: sleep_sync — blocking wall-clock sleep for sync pacing.
+/// `sleep_ms` stays async (promise resolved at scheduler drain); a bare call
+/// in sync code never paces, so ui_loop must use sleep_sync.
+#[test]
+fn sh27_sleep_sync_pacing() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let e = std::fs::read_to_string(root.join("src/evaluator.rs")).expect("evaluator.rs");
+    assert!(
+        e.contains("fn sleep_sync_native")
+            && e.contains("thread::sleep")
+            && e.contains("env.set(\"sleep_sync\""),
+        "SH27 sleep_sync: blocking native registered"
+    );
+    let l = std::fs::read_to_string(root.join("lib/kab/ui/ui_loop.kab")).expect("ui_loop.kab");
+    assert!(
+        l.contains("sleep_sync(budget - cost)") && !l.contains("sleep_ms(budget"),
+        "SH27 sleep_sync: ui_loop paces with blocking sleep, not async sleep_ms"
+    );
+}
+
+/// SH27 deepen: /session → real disk via host mount — `session_disk.kab`
+/// mounts `/session` to a host dir so save/load stream to disk (survives
+/// process restarts); `SHARED_OS` thread-local keeps VFS/mounts coherent
+/// across module-env and main-env `os_*` calls.
+#[test]
+fn sh27_session_disk_persist() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/kbrowser/session_disk.kab"))
+        .expect("session_disk.kab");
+    assert!(
+        d.contains("mountSessionDisk")
+            && d.contains("unmountSessionDisk")
+            && d.contains("sessionDiskPersistOk")
+            && d.contains("mount(\"/session\", hostDir)"),
+        "SH27 session-disk: /session host-mount + reboot-simulation gate"
+    );
+    let o = std::fs::read_to_string(root.join("src/runtime/os/mod.rs")).expect("os/mod.rs");
+    assert!(
+        o.contains("SHARED_OS") && o.contains("shared_os()"),
+        "SH27 session-disk: OS handle is a thread-local singleton across envs"
+    );
+    let s = std::fs::read_to_string(root.join("examples/sh27_session_disk_smoke.kab"))
+        .expect("sh27_session_disk_smoke.kab");
+    assert!(
+        s.contains("unmount(\"/session\")") && s.contains("resumeSession"),
+        "SH27 session-disk smoke simulates reboot via unmount+remount"
     );
 }
 

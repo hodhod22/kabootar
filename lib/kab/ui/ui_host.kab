@@ -1,5 +1,8 @@
 // SH27: host browser/game delete policy off ui.kab. import "kab/ui/ui_host"
 // Do not grow ui.kab. Do not delete runtime/browser* until smoke is complete.
+// Product logic is Kab-owned (nav/session/load_policy/theme hooks); what
+// remains in Rust is render-slot + host capability (I/O, paint, input) —
+// uiHostDeleteOk flips when a Kab render path can replace those too.
 
 pub fn uiHostDeleteOk() {
     return false

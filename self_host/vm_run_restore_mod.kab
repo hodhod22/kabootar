@@ -39,6 +39,9 @@ pub fn vRestoreModData(S, fr) {
     S["tryRegions"] = fr["tryRegions"]
     S["localNames"] = fr["localNames"]
     S["localGMap"] = fr["localGMap"]
+    S["bcFns"] = fr["bcFns"]
+    S["bcPool"] = fr["bcPool"]
+    S["bcGlobals"] = fr["bcGlobals"]
 }
 
 // --- vm_run_saved_frames ---
@@ -130,6 +133,9 @@ pub fn vSaveModuleFrame(S) {
         "tryRegions": S["tryRegions"],
         "localNames": S["localNames"],
         "localGMap": S["localGMap"],
+        "bcFns": S["bcFns"],
+        "bcPool": S["bcPool"],
+        "bcGlobals": S["bcGlobals"],
         "thisStack": S["thisStack"],
         "lastThis": S["lastThis"],
         "ip": S["ip"],

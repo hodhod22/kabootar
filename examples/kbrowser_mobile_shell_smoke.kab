@@ -1,18 +1,18 @@
-// G7-rest mobil shell-UI — chrome + back + tabs.
+// G7-rest mobil shell-UI — chrome + back + tabs via kbrowser/mobile_chrome.
+// go() → navGo → navApplyMode auto-picks "kabootar" for kabootar:// URLs.
 import "kbrowser/mobile_chrome"
 
-applyPhoneViewport();
-applySafeArea();
-mountChrome("kabootar://home");
-kb_paint();
+applyPhoneViewport()
+applySafeArea()
+mountChrome("kabootar://home")
+kb_paint()
 
-os_mkdir("/apps");
-os_write("/apps/m1.kml", "<html><body><h1>Page One</h1></body></html>");
-os_write("/apps/m2.kml", "<html><body><h1>Page Two</h1></body></html>");
-kb_set_os_mode("kabootar");
-kb_navigate("kabootar://vfs/apps/m1.kml");
-kb_navigate("kabootar://vfs/apps/m2.kml");
-let went = goBack();
-let tabs = listTabs();
-print("back=" + went + " tabs=" + len(tabs));
-went;
+os_mkdir("/apps")
+os_write("/apps/m1.kml", "<html><body><h1>Page One</h1></body></html>")
+os_write("/apps/m2.kml", "<html><body><h1>Page Two</h1></body></html>")
+go("kabootar://vfs/apps/m1.kml")
+go("kabootar://vfs/apps/m2.kml")
+let went = goBack()
+let tabs = listTabs()
+println("back=" + went + " tabs=" + len(tabs))
+return went

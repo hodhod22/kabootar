@@ -1,0 +1,28 @@
+// SH27: vmFn callback bridge — a main-program fn value ({vmFn: N}) or arrow
+// ({vmArrow: N, caps}) passed to a host-evaluated module fn must be invocable.
+// Pre-bridge this errored with "Not a function: {__kab_oid, vmFn}".
+import "game/time"
+
+let hits = { "n": 0, "dtSum": 0 }
+
+fn onStep(dt) {
+    hits["n"] = hits["n"] + 1
+    hits["dtSum"] = hits["dtSum"] + dt
+}
+
+let st = { "acc": 0, "step": 16 }
+let ticks = fixedTick(st, 50, onStep)
+println "vmfn-callback ticks=" + ticks + " hits=" + hits["n"] + " dtSum=" + hits["dtSum"]
+
+// Arrow values ({vmArrow}) cross the same bridge — pure arrow body.
+// (Captured-var writes inside nested fn calls have a separate pre-existing
+// Kab VM frame bug — see self_host/README SH27 notes.)
+let st2 = { "acc": 0, "step": 10 }
+let dtSum2 = { "v": 0 }
+let ticks2 = fixedTick(st2, 25, (dt) => {
+    dtSum2["v"] = dtSum2["v"] + dt
+    return dt
+})
+println "vmarrow-callback ticks=" + ticks2 + " dtSum2=" + dtSum2["v"]
+
+return ticks == 3 && hits["n"] == 3 && hits["dtSum"] == 48 && ticks2 == 2 && dtSum2["v"] == 20

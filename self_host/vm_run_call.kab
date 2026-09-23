@@ -117,6 +117,16 @@ pub fn vApplyMethHostS(S, c, ordered, pool, globals, functions) {
         vWritebackAfterMethodS(S, c["recv"], S["lastThis"])
         return out
     }
+    if kind == "hostMethod" {
+        // Bound native (BoundNative parity): receiver prepended to args.
+        let full = [c["recv"]]
+        let ai = 0
+        while ai < len(ordered) {
+            full = push(full, ordered[ai])
+            ai = ai + 1
+        }
+        return vCallHost(c["meth"], full)
+    }
     if kind == "enumCtor" {
         return vApplyEnumCtor(c["ctor"], ordered)
     }
@@ -223,6 +233,10 @@ pub fn vClassifyMethHost(callee) {
     let vmM = vObjGet(callee, "vmM")
     if vmM != undefined {
         return { "kind": "method", "meth": vmM, "recv": vObjGet(callee, "vmR") }
+    }
+    let vmHostM = vObjGet(callee, "vmHostM")
+    if vmHostM != undefined {
+        return { "kind": "hostMethod", "meth": vmHostM, "recv": vObjGet(callee, "vmR") }
     }
     if vObjGet(callee, "vmEnumCtor") == 1 {
         return { "kind": "enumCtor", "ctor": callee }

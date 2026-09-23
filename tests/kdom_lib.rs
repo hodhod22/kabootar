@@ -67,6 +67,20 @@ len(rules) == 2 && len(rules[0]["items"]) == 1 && rules[1]["selector"] == ".card
 }
 
 #[test]
+fn kstyle_kabootar_parse_resolves_vars() {
+    let code = r##"
+import "kstyle/parse"
+let rules = parseSheet(":root { --brand: #fff; } body { color: var(--brand); }")
+len(rules) == 1
+    && rules[0]["selector"] == "body"
+    && rules[0]["items"][0]["value"] == "#fff"
+"##;
+    let mut env = kabootar_lib::evaluator::create_global_env();
+    let v = kabootar_lib::evaluator::eval_source(code, &mut env).unwrap();
+    assert!(matches!(v, Value::Bool(true)), "got {v:?}");
+}
+
+#[test]
 fn kstyle_kabootar_parse_matches_native_count() {
     let code = r#"
 import "kstyle/parse"

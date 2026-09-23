@@ -106,7 +106,7 @@ fn live_propagate_to_ancestors(child_id: u64) {
     });
 }
 
-fn live_resolve(node: DomNode) -> DomNode {
+pub(crate) fn live_resolve(node: DomNode) -> DomNode {
     LIVE_NODES.with(|m| {
         m.borrow()
             .get(&node.id)

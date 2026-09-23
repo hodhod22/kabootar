@@ -1,0 +1,67 @@
+@version "1.0.0"
+
+// SH27: tab/session persist to VFS (/session/tabs) via kos/vfs. import "kbrowser/session"
+// Session JSON is Kab-owned product state; Rust keeps no browser session.
+// Disk persist lives in kbrowser/session_disk (host mount of /session).
+// KEEP <=~7 top-level fn.
+
+import "kbrowser/history"
+import "kos/vfs"
+
+let SESSION_DIR = "/session"
+let SESSION_TABS_PATH = "/session/tabs"
+
+/// Persist a history.kab session object to /session/tabs (JSON).
+pub fn saveSession(session) {
+    if session == null || session == undefined {
+        return false
+    }
+    if !exists(SESSION_DIR) {
+        mkdir(SESSION_DIR)
+    }
+    write(SESSION_TABS_PATH, json_stringify(session))
+    return exists(SESSION_TABS_PATH)
+}
+
+/// Load persisted session; null when absent/unreadable.
+pub fn loadSession() {
+    if !exists(SESSION_TABS_PATH) {
+        return null
+    }
+    let body = read(SESSION_TABS_PATH)
+    if body == null || body == undefined || len("" + body) == 0 {
+        return null
+    }
+    return json_parse(body)
+}
+
+/// Restore-or-create: persisted session wins, else fresh createSession(url).
+pub fn resumeSession(url) {
+    let s = loadSession()
+    if s != null && s["tabs"] != undefined && is_array(s["tabs"]) && len(s["tabs"]) > 0 {
+        return s
+    }
+    return createSession(url)
+}
+
+/// Drop persisted state (new-profile policy).
+pub fn clearSession() {
+    if exists(SESSION_TABS_PATH) {
+        remove(SESSION_TABS_PATH)
+    }
+    return !exists(SESSION_TABS_PATH)
+}
+
+/// Gate: write+read roundtrip preserves tabs/active across save/load.
+pub fn sessionPersistOk() {
+    let s = sessionOpenTab(createSession("kabootar://home"), "kabootar://vfs/apps/x.kml")
+    let ok = saveSession(s)
+    let back = loadSession()
+    clearSession()
+    return ok == true
+        && back != null
+        && len(back["tabs"]) == 2
+        && back["tabs"][1]["url"] == "kabootar://vfs/apps/x.kml"
+        && back["active"] == 1
+        && back["pos"] == 0
+}

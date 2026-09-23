@@ -66,6 +66,11 @@ pub fn kabVmRunEnabled() {
     return kabVmRunOk
 }
 
+/// SH27: host→Kab callback bridge — re-exported by alias (no wrapping fn,
+/// same reentrancy rule as `runModule`). Host `call_value` pushes this while
+/// a Kab VM session runs so {vmFn}/{vmArrow} values are host-callable.
+pub let kabVmHostCallValue = vmHostCallValue
+
 /// Kab-only `.kbc` text, kbcb v2 Number array, or Uint8Array — no host VM fallback.
 pub fn evalKbcKabOnly(kbc) {
     if typeof(kbc) == "array" {

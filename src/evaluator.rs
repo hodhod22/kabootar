@@ -116,6 +116,7 @@ pub fn create_global_env() -> Environment {
     env.set("object_keys".to_string(), Value::NativeFunction(keys_native));
     env.set("sleep_ticks".to_string(), Value::NativeFunction(sleep_ticks_native));
     env.set("sleep_ms".to_string(), Value::NativeFunction(sleep_ms_native));
+    env.set("sleep_sync".to_string(), Value::NativeFunction(sleep_sync_native));
     env.set("set_timeout".to_string(), Value::NativeFunction(set_timeout_native));
     env.set("clear_timeout".to_string(), Value::NativeFunction(clear_timeout_native));
     env.set("set_interval".to_string(), Value::NativeFunction(set_interval_native));
@@ -153,6 +154,10 @@ pub fn create_global_env() -> Environment {
     env.set(
         "bytecode_host_call".to_string(),
         Value::NativeFunction(bytecode_host_call_native),
+    );
+    env.set(
+        "bytecode_host_is_native".to_string(),
+        Value::NativeFunction(bytecode_host_is_native_native),
     );
     env.set(
         "bytecode_host_import".to_string(),
@@ -457,6 +462,19 @@ fn sleep_ms_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
     schedule_sleep_ms(args, env, None)
 }
 
+/// Blocking wall-clock sleep — precise pacing for synchronous code (game
+/// loops). `sleep_ms` stays async (promise resolved at scheduler drain);
+/// a bare `sleep_ms(n)` in sync code is fire-and-forget and does not pace.
+fn sleep_sync_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ms = match args.first() {
+        Some(Value::Number(n)) if *n >= 0 => *n as u64,
+        Some(Value::Float(f)) if *f >= 0.0 => *f as u64,
+        _ => return Err("sleep_sync expects a non-negative delay in ms".into()),
+    };
+    std::thread::sleep(std::time::Duration::from_millis(ms));
+    Ok(Value::Null)
+}
+
 fn set_timeout_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let func = args.first().ok_or("set_timeout(fn, delay_ms)")?.clone();
     let delay = args.get(1).ok_or("set_timeout(fn, delay_ms)")?;
@@ -650,6 +668,13 @@ fn bytecode_host_map_get_native(args: &[Value], _env: &mut Environment) -> Resul
         Some(Value::Object(map)) => Ok(map.get(key).cloned().unwrap_or(Value::Undefined)),
         _ => Ok(Value::Undefined),
     }
+}
+
+/// SH27: `true` when the value is a host `NativeFunction` — lets the Kab VM
+/// mirror `maybe_bind_native_method` (which binds only NativeFunction fields,
+/// not AST `Function`s, on __kab_* host objects).
+fn bytecode_host_is_native_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Bool(matches!(args.first(), Some(Value::NativeFunction(_)))))
 }
 
 /// H6e Kab VM: call a host callable (native / bytecode fn) with an args array.

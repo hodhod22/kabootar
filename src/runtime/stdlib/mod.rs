@@ -121,6 +121,7 @@ fn std_info_native(_args: &[Value], _env: &mut Environment) -> Result<Value, Str
         "date_format",
         "date_iso",
         "sleep_ms",
+        "sleep_sync",
         "set_timeout",
         "clear_timeout",
         "object_keys",

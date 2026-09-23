@@ -50,6 +50,16 @@ pub fn isVirtualHome(url) {
     return u == "kabootar://home" || u == "kabootar://new"
 }
 
+/// Full load decision for `url` in one pass (KB-H2: Kab owns the policy tuple).
+pub fn loadPlan(url) {
+    return {
+        "mode": effectiveMode(url, "auto"),
+        "kind": sniffKind(url, ""),
+        "title": titleFromUrl(url),
+        "virtualHome": isVirtualHome(url)
+    }
+}
+
 pub fn loadPolicyOk() {
     let m1 = effectiveMode("kabootar://vfs/x", "auto") == "kabootar"
     let m2 = effectiveMode("https://ex.com", "auto") == "host"
@@ -58,5 +68,7 @@ pub fn loadPolicyOk() {
     let k2 = sniffKind("a.kml", "<html></html>") == "kml"
     let k3 = sniffKind("a.txt", "plain") == "text"
     let t = titleFromUrl("kabootar://vfs/apps/demo.kml") == "demo.kml"
-    return m1 && m2 && m3 && k1 && k2 && k3 && t && isVirtualHome("kabootar://home")
+    let p = loadPlan("file:///tmp/a.kml")
+    let planOk = p["mode"] == "host" && p["kind"] == "kml" && p["title"] == "a.kml" && p["virtualHome"] == false
+    return m1 && m2 && m3 && k1 && k2 && k3 && t && planOk && isVirtualHome("kabootar://home")
 }

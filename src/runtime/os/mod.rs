@@ -1672,8 +1672,19 @@ pub fn spawn_process(env: &mut Environment, name: &str) -> Result<u64, String> {
     get_os(env)?.spawn(name)
 }
 
+thread_local! {
+    /// One OS per thread: module envs and the main program env share the same
+    /// VFS/process table/windows (same model as SHARED_BROWSER). Host mounts
+    /// and VFS writes are visible across env boundaries.
+    static SHARED_OS: OsHandle = OsHandle::new();
+}
+
+fn shared_os() -> OsHandle {
+    SHARED_OS.with(|o| o.clone())
+}
+
 pub fn os_globals(env: &mut Environment) {
-    env.set("os".to_string(), Value::OsHandle(OsHandle::new()));
+    env.set("os".to_string(), Value::OsHandle(shared_os()));
     env.set("os_info".to_string(), Value::NativeFunction(os_info_native));
     env.set("os_caps".to_string(), Value::NativeFunction(os_caps_native));
     env.set("os_read".to_string(), Value::NativeFunction(os_read_native));

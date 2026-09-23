@@ -1,6 +1,9 @@
-// G11 WASM-class smoke — same kb_* surface (runs on any host; wasm CI optional).
-platform_use("hybrid");
-let sync = kb_sync_platform();
-kb_viewport(960, 540);
-kb_paint();
-print("wasm-class mode=" + sync.mode + " schemes=" + len(sync.schemes));
+// G11 WASM-class smoke — same surface via kbrowser/core (runs on any host; wasm CI optional).
+import "kbrowser/core"
+
+platform_use("hybrid")
+let syncInfo = sync()
+kb_viewport(960, 540)
+paint()
+println("wasm-class mode=" + syncInfo["mode"] + " schemes=" + len(syncInfo["schemes"]))
+return syncInfo["mode"]

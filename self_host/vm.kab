@@ -5,3 +5,4 @@
 import "self_host/vm_run_exec_core"
 
 pub let runModule = runModuleImplBodyCore
+pub let vmHostCallValue = vHostCallVmValue

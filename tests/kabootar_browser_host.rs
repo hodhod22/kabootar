@@ -138,14 +138,102 @@ fn g7_mobile_shell_chrome_back_tabs() {
     assert!(matches!(out, Value::Bool(true)), "got {out:?}");
 }
 
+/// Kab-VM smokes recurse deep inside the host eval — run them on a wide-stack
+/// thread (same as h6c) so the default 2 MiB test stack doesn't cap them.
+fn run_example_bool(path: String) -> bool {
+    std::thread::Builder::new()
+        .name("kab-smoke".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || {
+            matches!(
+                kabootar_lib::cli::run_file(&path).expect("smoke should run"),
+                Value::Bool(true)
+            )
+        })
+        .expect("spawn smoke thread")
+        .join()
+        .expect("smoke thread join")
+}
+
 #[test]
 fn k4_kbrowser_tabs_smoke() {
     let path = format!(
         "{}/examples/kbrowser_k4_tabs_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
-    let out = kabootar_lib::cli::run_file(&path).expect("k4 tabs smoke should run");
-    assert!(matches!(out, Value::Bool(true)), "got {out:?}");
+    assert!(run_example_bool(path));
+}
+
+#[test]
+fn sh27_bookmarks_core_smoke() {
+    let path = format!(
+        "{}/examples/sh27_bookmarks_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    assert!(run_example_bool(path));
+}
+
+#[test]
+fn sh27_session_persist_smoke() {
+    let path = format!(
+        "{}/examples/sh27_session_persist_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    assert!(run_example_bool(path));
+}
+
+#[test]
+fn sh27_session_disk_smoke() {
+    let path = format!(
+        "{}/examples/sh27_session_disk_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    assert!(run_example_bool(path));
+}
+
+#[test]
+fn sh27_delete_gate_smoke() {
+    let path = format!(
+        "{}/examples/sh27_delete_gate_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    assert!(run_example_bool(path));
+}
+
+#[test]
+fn sh27_load_policy_smoke() {
+    let path = format!(
+        "{}/examples/sh27_load_policy_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    assert!(run_example_bool(path));
+}
+
+#[test]
+fn sh27_game_loop_smoke() {
+    let path = format!(
+        "{}/examples/sh27_game_loop_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    assert!(run_example_bool(path));
+}
+
+#[test]
+fn sh27_vm_fn_callback_smoke() {
+    let path = format!(
+        "{}/examples/vm_fn_callback_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    assert!(run_example_bool(path));
+}
+
+#[test]
+fn sh27_host_method_sugar_smoke() {
+    let path = format!(
+        "{}/examples/vm_host_method_sugar_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    assert!(run_example_bool(path));
 }
 
 #[test]

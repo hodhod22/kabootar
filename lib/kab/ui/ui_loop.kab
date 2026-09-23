@@ -1,0 +1,54 @@
+@version "1.0.0"
+
+// SH27 game-deepen: paced frame loop in Kab on uiTickMs/uiFpsOk.
+// Scheduling, dt, budget pacing and miss accounting are Kab policy — the
+// caller's `while` IS the loop (no fn-value callbacks: the Kab VM cannot pass
+// fn objects through host natives). The host only provides clock (Date_now),
+// blocking yield (sleep_sync — sleep_ms is async promise-based and does not
+// pace sync code), input and surface/present.
+// import "kab/ui/ui_loop"
+
+import "kab/ui"
+import "kab/ui/ui_fps"
+
+/// Fresh loop state — {"last": last-frame ms, "t0": frame-work start ms,
+/// "frames": ran, "missed": over-budget count}.
+pub fn uiLoopCreate() {
+    return { "last": Date_now(), "t0": 0, "frames": 0, "missed": 0 }
+}
+
+/// Frame start: returns real dt in ms since the previous frame.
+pub fn uiFrameBegin(loop) {
+    let now = Date_now()
+    let dt = now - loop["last"]
+    loop["last"] = now
+    loop["t0"] = now
+    return dt
+}
+
+/// Frame end: measures the frame's work cost against uiTickMs, sleeps the
+/// remainder of the budget (blocking sleep_sync — sleep_ms's promise would
+/// never be drained mid-loop on sync call sites), and counts the frame
+/// (miss when over budget).
+pub fn uiFrameEnd(loop) {
+    let cost = Date_now() - loop["t0"]
+    let budget = uiTickMs()
+    if cost < budget {
+        sleep_sync(budget - cost)
+    }
+    loop["frames"] = loop["frames"] + 1
+    if uiFpsOk(cost) == false {
+        loop["missed"] = loop["missed"] + 1
+    }
+    return loop
+}
+
+/// Gate leaf: a real paced loop runs frames without missing the budget.
+pub fn uiLoopOk() {
+    let l = uiLoopCreate()
+    uiFrameBegin(l)
+    uiFrameEnd(l)
+    uiFrameBegin(l)
+    uiFrameEnd(l)
+    return l["frames"] == 2 && l["missed"] == 0 && uiTickMs() == 16
+}
