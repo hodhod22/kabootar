@@ -129,8 +129,9 @@ Samma `kb_*` på Android och iPhone.
 | Fas | Mål | Status |
 |-----|-----|--------|
 | **H6c** | Chrome = `.kab`; Rust = window/pixels/input | ✅ |
-| **KB-H1** | Ingen ny `kb_*` produkt-API i Rust | pågående |
+| **KB-H1** | Ingen ny `kb_*` produkt-API i Rust | ✅ gate `sh27_kb_h1_frozen_native_surface` — `mod.rs` registreringen fryst till den auditerade 28-namns-ytan (host-capability + provider-hooks); ny `kb_*` i Rust failar testet |
 | **KB-H2** | Navigate/load-policy 100 % Kab | ✅ deepen — `nav.navApplyMode` sätter `kb_set_os_mode(effectiveMode(url, navModePref))` före varje `kb_navigate` (auto per-URL eller pin via `navSetMode`); `loadPlan(url)` buntar mode+kind+title+virtualHome (`sh27_load_policy_smoke`, `sh27_load_policy_in_kab`) |
+| **KB-H3** | Markup→DOM i Kab | ✅ `kdom/markup.parseMarkup` (element/attr/text/comments/void/entiteter, bottom-up-append mot live-registret) installerad via `kb_set_document_provider` i `nav.kab` — navigerade sidor byggs utan Rust `parse_kml` (`sh27_markup_parse_in_kab`, `sh27_markup_parse_smoke`); kvar i Rust = kv8-modul-parse + fetch/paint-capability |
 
 ---
 

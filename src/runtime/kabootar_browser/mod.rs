@@ -52,9 +52,10 @@ impl BrowserTab {
         env: &mut Environment,
         home: Option<&Value>,
         title: Option<&Value>,
+        doc: Option<&Value>,
     ) {
         self.url = url.to_string();
-        self.reload_document(os, mode, env, home, title);
+        self.reload_document(os, mode, env, home, title, doc);
     }
 
     fn reload_document(
@@ -64,8 +65,9 @@ impl BrowserTab {
         env: &mut Environment,
         home: Option<&Value>,
         title: Option<&Value>,
+        doc: Option<&Value>,
     ) {
-        let page = load_page(&self.url, os, mode, env, home, title);
+        let page = load_page(&self.url, os, mode, env, home, title, doc);
         self.document = page.document;
         self.kv8_script = page.kv8_script;
         self.kv8_css = page.kv8_css;
@@ -151,9 +153,11 @@ struct BrowserInner {
     // paint. Tab enumeration/indexing/ordering is Kab-owned.
     tab: BrowserTab,
     // Product-policy hooks installed by Kab (`nav.kab`/`theme.kab`):
-    // home(url) -> KabootarDom, title(url) -> string. None = host fallback.
+    // home(url) -> KabootarDom, title(url) -> string, doc(markup) -> KabootarDom.
+    // None = host fallback.
     home_provider: Option<Value>,
     title_provider: Option<Value>,
+    document_provider: Option<Value>,
     user_agent: String,
     viewport_w: f64,
     viewport_h: f64,
@@ -185,6 +189,7 @@ impl KabootarBrowser {
             tab: BrowserTab::new(1, "kabootar://home"),
             home_provider: None,
             title_provider: None,
+            document_provider: None,
             user_agent: format!(
                 "KabootarBrowser/{} (KHTML, like Chrome) Kabootar/{}",
                 env!("CARGO_PKG_VERSION"),
@@ -228,9 +233,10 @@ impl KabootarBrowser {
             let mode = inner.os_mode;
             let home = inner.home_provider.clone();
             let title = inner.title_provider.clone();
+            let doc = inner.document_provider.clone();
             inner
                 .tab
-                .navigate(url, os, mode, env, home.as_ref(), title.as_ref());
+                .navigate(url, os, mode, env, home.as_ref(), title.as_ref(), doc.as_ref());
             Ok(())
         })
     }
@@ -249,10 +255,19 @@ impl KabootarBrowser {
         })
     }
 
+    pub fn set_document_provider(&self, f: Value) -> Result<(), String> {
+        self.with_mut(|inner| {
+            inner.document_provider = Some(f);
+            Ok(())
+        })
+    }
+
     /// Whether Kab product-policy hooks are installed (delete-gate probe).
     pub fn product_hooks_installed(&self) -> Result<bool, String> {
         self.with_mut(|inner| {
-            Ok(inner.home_provider.is_some() && inner.title_provider.is_some())
+            Ok(inner.home_provider.is_some()
+                && inner.title_provider.is_some()
+                && inner.document_provider.is_some())
         })
     }
 
@@ -272,9 +287,10 @@ impl KabootarBrowser {
             let mode = inner.os_mode;
             let home = inner.home_provider.clone();
             let title = inner.title_provider.clone();
+            let doc = inner.document_provider.clone();
             inner
                 .tab
-                .reload_document(os, mode, env, home.as_ref(), title.as_ref());
+                .reload_document(os, mode, env, home.as_ref(), title.as_ref(), doc.as_ref());
             Ok(())
         })
     }
@@ -519,6 +535,15 @@ fn kb_set_title_provider_native(args: &[Value], env: &mut Environment) -> Result
         .cloned()
         .ok_or("kb_set_title_provider() expects a function")?;
     get_browser(env)?.set_title_provider(f)?;
+    Ok(Value::Bool(true))
+}
+
+fn kb_set_document_provider_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let f = args
+        .first()
+        .cloned()
+        .ok_or("kb_set_document_provider() expects a function")?;
+    get_browser(env)?.set_document_provider(f)?;
     Ok(Value::Bool(true))
 }
 
@@ -848,6 +873,7 @@ pub fn kabootar_browser_globals(env: &mut Environment) {
     env.set("kb_navigate".into(), Value::NativeFunction(kb_navigate_native));
     env.set("kb_set_home_provider".into(), Value::NativeFunction(kb_set_home_provider_native));
     env.set("kb_set_title_provider".into(), Value::NativeFunction(kb_set_title_provider_native));
+    env.set("kb_set_document_provider".into(), Value::NativeFunction(kb_set_document_provider_native));
     env.set("kb_product_hooks".into(), Value::NativeFunction(kb_product_hooks_native));
     env.set("kb_run_kv8".into(), Value::NativeFunction(kb_run_kv8_native));
     env.set("kb_location".into(), Value::NativeFunction(kb_location_native));

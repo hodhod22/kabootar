@@ -38,8 +38,8 @@ const 34 string eIfJmpStack
 const 35 string eIfSkipStack
 const 36 string eJmp
 const 37 string eIdx
-const 38 string eAssignSym
-const 39 string rhs
+const 38 string rhs
+const 39 string eAssignSym
 const 40 string body
 const 41 string emit\sblock\snull\sstmt\sat\s
 const 42 string 
@@ -1031,7 +1031,7 @@ fn_op 4 return
 fn_arrows 4 0
 fn 5 emitStmt_assign
 fn_params 5 E
-fn_locals 5 E,__kab_a0
+fn_locals 5 E,aSym,aRhs,__kab_a0
 fn_op 5 load_local 0
 fn_op 5 get_member 30
 fn_op 5 get_member 0
@@ -1045,45 +1045,42 @@ fn_op 5 get_member 30
 fn_op 5 get_member 5
 fn_op 5 store_local 1
 fn_op 5 load_local 0
-fn_op 5 const 38
+fn_op 5 get_member 30
+fn_op 5 get_member 38
+fn_op 5 store_local 2
 fn_op 5 load_local 1
+fn_op 5 store_local 3
+fn_op 5 load_local 0
+fn_op 5 const 39
+fn_op 5 load_local 3
 fn_op 5 index_set
 fn_op 5 swap
 fn_op 5 store_local 0
 fn_op 5 pop
 fn_op 5 load_local 0
-fn_op 5 load_local 0
-fn_op 5 get_member 38
-fn_op 5 load_local 0
-fn_op 5 get_member 30
-fn_op 5 get_member 39
+fn_op 5 load_local 1
+fn_op 5 load_local 2
 fn_op 5 load_global 11
 fn_op 5 call 3
 fn_op 5 jump_if_false 2
 fn_op 5 const 10
 fn_op 5 return
 fn_op 5 load_local 0
-fn_op 5 load_local 0
-fn_op 5 get_member 38
-fn_op 5 load_local 0
-fn_op 5 get_member 30
-fn_op 5 get_member 39
+fn_op 5 load_local 1
+fn_op 5 load_local 2
 fn_op 5 load_global 15
 fn_op 5 call 3
 fn_op 5 jump_if_false 2
 fn_op 5 const 10
 fn_op 5 return
 fn_op 5 load_local 0
-fn_op 5 load_local 0
-fn_op 5 get_member 30
-fn_op 5 get_member 39
+fn_op 5 load_local 2
 fn_op 5 load_global 5
 fn_op 5 call 2
 fn_op 5 pop
 fn_op 5 load_local 0
 fn_op 5 const 9
-fn_op 5 load_local 0
-fn_op 5 get_member 38
+fn_op 5 load_local 1
 fn_op 5 load_global 27
 fn_op 5 call 3
 fn_op 5 pop
@@ -5036,7 +5033,7 @@ fn_params 22 E
 fn_locals 22 E,iaRhs,left,chain,cur,base,n,tNames,iNames,ti,d,slot,vName,maTmp
 fn_op 22 load_local 0
 fn_op 22 get_member 30
-fn_op 22 get_member 39
+fn_op 22 get_member 38
 fn_op 22 store_local 1
 fn_op 22 load_local 1
 fn_op 22 get_member 0
@@ -5432,7 +5429,7 @@ fn_op 23 get_member 157
 fn_op 23 store_local 2
 fn_op 23 load_local 0
 fn_op 23 get_member 30
-fn_op 23 get_member 39
+fn_op 23 get_member 38
 fn_op 23 store_local 3
 fn_op 23 load_local 0
 fn_op 23 load_global 109
@@ -6302,7 +6299,7 @@ fn_op 25 pop
 fn_op 25 load_local 0
 fn_op 25 get_member 169
 fn_op 25 load_local 0
-fn_op 25 get_member 38
+fn_op 25 get_member 39
 fn_op 25 load_global 49
 fn_op 25 call 2
 fn_op 25 store_local 10
@@ -6400,7 +6397,7 @@ fn_op 26 jump_if_false 37
 fn_op 26 load_local 0
 fn_op 26 get_member 169
 fn_op 26 load_local 0
-fn_op 26 get_member 38
+fn_op 26 get_member 39
 fn_op 26 load_global 49
 fn_op 26 call 2
 fn_op 26 store_local 5
@@ -6472,7 +6469,7 @@ fn_op 27 get_member 45
 fn_op 27 store_local 2
 fn_op 27 load_local 0
 fn_op 27 get_member 30
-fn_op 27 get_member 39
+fn_op 27 get_member 38
 fn_op 27 store_local 3
 fn_op 27 load_local 0
 fn_op 27 load_local 3
@@ -8493,7 +8490,7 @@ fn_op 39 jump_if_false 27
 fn_op 39 load_local 0
 fn_op 39 get_member 169
 fn_op 39 load_local 0
-fn_op 39 get_member 38
+fn_op 39 get_member 39
 fn_op 39 load_global 49
 fn_op 39 call 2
 fn_op 39 store_local 2
@@ -8526,7 +8523,7 @@ fn_op 39 jump_if_false 27
 fn_op 39 load_local 0
 fn_op 39 get_member 169
 fn_op 39 load_local 0
-fn_op 39 get_member 38
+fn_op 39 get_member 39
 fn_op 39 load_global 49
 fn_op 39 call 2
 fn_op 39 store_local 4
@@ -9023,7 +9020,7 @@ fn_op 45 return
 fn_arrows 45 0
 fn 46 emitStmt_let
 fn_params 46 E
-fn_locals 46 E,letPat,__kab_a0,__kab_a1,__kab_a2,eLetPub
+fn_locals 46 E,letPat,letSym,letPub,letInit,__kab_a0,__kab_a1,__kab_a2
 fn_op 46 load_local 0
 fn_op 46 get_member 30
 fn_op 46 get_member 0
@@ -9079,8 +9076,18 @@ fn_op 46 get_member 30
 fn_op 46 get_member 5
 fn_op 46 store_local 2
 fn_op 46 load_local 0
-fn_op 46 const 38
+fn_op 46 get_member 200
+fn_op 46 get_member 115
+fn_op 46 store_local 3
+fn_op 46 load_local 0
+fn_op 46 get_member 30
+fn_op 46 get_member 48
+fn_op 46 store_local 4
 fn_op 46 load_local 2
+fn_op 46 store_local 5
+fn_op 46 load_local 0
+fn_op 46 const 39
+fn_op 46 load_local 5
 fn_op 46 index_set
 fn_op 46 swap
 fn_op 46 store_local 0
@@ -9090,9 +9097,7 @@ fn_op 46 load_global 142
 fn_op 46 call 1
 fn_op 46 pop
 fn_op 46 load_local 0
-fn_op 46 load_local 0
-fn_op 46 get_member 30
-fn_op 46 get_member 48
+fn_op 46 load_local 4
 fn_op 46 load_global 5
 fn_op 46 call 2
 fn_op 46 pop
@@ -9100,21 +9105,20 @@ fn_op 46 load_local 0
 fn_op 46 get_member 16
 fn_op 46 const 9
 fn_op 46 eq
-fn_op 46 jump_if_false 25
+fn_op 46 jump_if_false 24
 fn_op 46 load_local 0
 fn_op 46 const 90
-fn_op 46 load_local 0
-fn_op 46 get_member 38
+fn_op 46 load_local 2
 fn_op 46 load_global 8
 fn_op 46 call 3
 fn_op 46 dup
 fn_op 46 store_global 16
 fn_op 46 pop
 fn_op 46 load_global 16
-fn_op 46 store_local 3
+fn_op 46 store_local 6
 fn_op 46 load_local 0
 fn_op 46 const 37
-fn_op 46 load_local 3
+fn_op 46 load_local 6
 fn_op 46 index_set
 fn_op 46 swap
 fn_op 46 store_local 0
@@ -9125,21 +9129,20 @@ fn_op 46 load_global 16
 fn_op 46 load_global 4
 fn_op 46 call 3
 fn_op 46 pop
-fn_op 46 jump 24
+fn_op 46 jump 23
 fn_op 46 load_local 0
 fn_op 46 const 11
-fn_op 46 load_local 0
-fn_op 46 get_member 38
+fn_op 46 load_local 2
 fn_op 46 load_global 8
 fn_op 46 call 3
 fn_op 46 dup
 fn_op 46 store_global 16
 fn_op 46 pop
 fn_op 46 load_global 16
-fn_op 46 store_local 4
+fn_op 46 store_local 7
 fn_op 46 load_local 0
 fn_op 46 const 37
-fn_op 46 load_local 4
+fn_op 46 load_local 7
 fn_op 46 index_set
 fn_op 46 swap
 fn_op 46 store_local 0
@@ -9154,16 +9157,11 @@ fn_op 46 load_local 0
 fn_op 46 get_member 16
 fn_op 46 const 9
 fn_op 46 ne
-fn_op 46 jump_if_false 21
-fn_op 46 load_local 0
-fn_op 46 get_member 200
-fn_op 46 get_member 115
-fn_op 46 store_local 5
-fn_op 46 load_local 5
-fn_op 46 jump_if_false 15
+fn_op 46 jump_if_false 16
+fn_op 46 load_local 3
+fn_op 46 jump_if_false 14
 fn_op 46 const 42
-fn_op 46 load_local 0
-fn_op 46 get_member 38
+fn_op 46 load_local 2
 fn_op 46 add
 fn_op 46 const 42
 fn_op 46 add
@@ -9591,4 +9589,4 @@ halt
 
 source=self_host/emit_stmt_body.kab
 statements=61
-fingerprint=f420a750ae815360
+fingerprint=d65bb2495a6f1e1f

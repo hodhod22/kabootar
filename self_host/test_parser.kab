@@ -570,6 +570,27 @@ fn assert_kind(node, kind, msg) {
     assert_eq(ast.body[0].sym, "x", "let program sym")
 }
 
+// -- let sym not clobbered by assign inside arrow-body init --------
+{
+    let ast = parseTokens(tokenize("let h = (x) => { y = y + 1; return x }"))
+    assert_kind(ast.body[0], AST_LET, "let arrow stmt")
+    assert_eq(ast.body[0].sym, "h", "let sym survives arrow-body assign")
+    assert_kind(ast.body[0].init, AST_ARROW, "let init arrow")
+    assert_kind(ast.body[0].init.body.body[0], AST_ASSIGN, "arrow-body assign")
+    assert_eq(ast.body[0].init.body.body[0].sym, "y", "inner assign sym")
+}
+{
+    let ast = parseTokens(tokenize("pub let h = (x) => { y = y + 1; return x }"))
+    assert_kind(ast.body[0], AST_LET, "pub let arrow stmt")
+    assert_eq(ast.body[0].sym, "h", "pub let sym survives arrow-body assign")
+    assert_eq(ast.body[0].isPub, 1, "pub flag survives arrow-body stmts")
+}
+{
+    let ast = parseTokens(tokenize("x = (a) => { b = 1; return a }"))
+    assert_kind(ast.body[0], AST_ASSIGN, "assign arrow stmt")
+    assert_eq(ast.body[0].sym, "x", "assign sym survives arrow-body assign")
+}
+
 // -- Report --------------------------------------------------------
 println("")
 println("Self-hosted parser tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")

@@ -75,7 +75,7 @@ pub fn serConstLine(idx, val) {
         line = line + serEscStr(val)
         return line
     }
-    if val != floor(val) {
+    if is_float(val) {
         line = line + "float "
         line = line + ("" + val)
         return line

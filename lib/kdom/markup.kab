@@ -1,0 +1,254 @@
+@version "1.0.0"
+
+// Markup → KabootarDom, in Kab. import "kdom/markup"
+// Covers the browser load path: elements, attrs (dq/sq/bare), text nodes,
+// comments, <!DOCTYPE/<?xml skips, self-close + void tags, entity decode.
+// The browser consults this via `kb_set_document_provider` — the Rust
+// `parse_kml` path remains the bootstrap fallback for raw kb_navigate calls.
+//
+// kdom_append stores the child value inside the parent — a node is only
+// complete once its subtree is done, so elements append at CLOSE (bottom-up),
+// not at open. Text/void/self-close nodes are complete at once and append
+// immediately.
+
+fn mkIsVoid(tag) {
+    return tag == "br" || tag == "hr" || tag == "img" || tag == "input"
+        || tag == "meta" || tag == "link" || tag == "area" || tag == "base"
+        || tag == "col" || tag == "embed" || tag == "source" || tag == "track"
+        || tag == "wbr" || tag == "frame" || tag == "param"
+}
+
+fn mkDecode(s) {
+    let out = s
+    out = replace(out, "&lt;", "<")
+    out = replace(out, "&gt;", ">")
+    out = replace(out, "&quot;", "\"")
+    out = replace(out, "&#39;", "'")
+    out = replace(out, "&nbsp;", " ")
+    out = replace(out, "&amp;", "&")
+    return out
+}
+
+fn mkSkipWs(src, i, n) {
+    while i < n {
+        let c = char_at(src, i)
+        if c == " " || c == "\n" || c == "\r" || c == "\t" {
+            i = i + 1
+        } else {
+            break
+        }
+    }
+    return i
+}
+
+// Parse the inside of `<…>`: tag name, attrs, self-close flag.
+fn mkTag(inner) {
+    let n = len(inner)
+    let i = mkSkipWs(inner, 0, n)
+    let selfClose = i < n && char_at(inner, n - 1) == "/"
+    let end = n
+    if selfClose {
+        end = n - 1
+    }
+    let nameStart = i
+    while i < end {
+        let c = char_at(inner, i)
+        if c == " " || c == "\t" || c == "\r" || c == "\n" {
+            break
+        }
+        i = i + 1
+    }
+    let tag = str_slice(inner, nameStart, i)
+    let attrs = {}
+    while i < end {
+        i = mkSkipWs(inner, i, end)
+        if i >= end {
+            break
+        }
+        let keyStart = i
+        while i < end {
+            let c = char_at(inner, i)
+            if c == "=" || c == " " || c == "\t" || c == "\r" || c == "\n" {
+                break
+            }
+            i = i + 1
+        }
+        let key = str_slice(inner, keyStart, i)
+        i = mkSkipWs(inner, i, end)
+        if i < end && char_at(inner, i) == "=" {
+            i = mkSkipWs(inner, i + 1, end)
+            if i < end && (char_at(inner, i) == "\"" || char_at(inner, i) == "'") {
+                let q = char_at(inner, i)
+                let vStart = i + 1
+                let vEnd = str_index_of(inner, q, vStart)
+                if vEnd < 0 {
+                    if len(key) > 0 {
+                        attrs[key] = mkDecode(str_slice(inner, vStart, end))
+                    }
+                    break
+                }
+                if len(key) > 0 {
+                    attrs[key] = mkDecode(str_slice(inner, vStart, vEnd))
+                }
+                i = vEnd + 1
+            } else {
+                let vStart = i
+                while i < end {
+                    let c = char_at(inner, i)
+                    if c == " " || c == "\t" || c == "\r" || c == "\n" {
+                        break
+                    }
+                    i = i + 1
+                }
+                if len(key) > 0 {
+                    attrs[key] = mkDecode(str_slice(inner, vStart, i))
+                }
+            }
+        } else {
+            if len(key) > 0 {
+                attrs[key] = ""
+            }
+        }
+    }
+    return { "tag": tag, "attrs": attrs, "selfClose": selfClose }
+}
+
+// Index in `stack` whose tag `name` closes (deepest match), -1 if none.
+// Index 0 is the implicit root and never closes.
+fn mkCloses(stack, name) {
+    let i = len(stack) - 1
+    while i > 0 {
+        if stack[i]["tag"] == name {
+            return i
+        }
+        i = i - 1
+    }
+    return -1
+}
+
+// Drop stack entries from index `at` upward (rebuild — Kab arrays have no pop).
+fn mkTruncate(stack, at) {
+    let out = []
+    let i = 0
+    while i < at {
+        out = push(out, stack[i])
+        i = i + 1
+    }
+    return out
+}
+
+// Pop stack entries down to `at`, appending each completed subtree into its
+// parent — the child resolves live inside kdom_append, so parents always
+// receive a complete subtree.
+fn mkCloseTo(stack, at) {
+    let k = len(stack) - 1
+    while k >= at {
+        let entry = stack[k]
+        stack = mkTruncate(stack, k)
+        kdom_append(stack[len(stack) - 1]["node"], entry["node"])
+        k = k - 1
+    }
+    return stack
+}
+
+fn mkAppendText(stack, text) {
+    let t = mkDecode(trim(text))
+    if len(t) > 0 {
+        kdom_append(stack[len(stack) - 1]["node"], kdom_text(t))
+    }
+    return stack
+}
+
+pub fn parseMarkup(src) {
+    let root = kdom_create("document")
+    let stack = [{ "node": root, "tag": "#document" }]
+    let i = 0
+    let n = len(src)
+    while i < n {
+        let lt = str_index_of(src, "<", i)
+        if lt < 0 {
+            stack = mkAppendText(stack, str_slice(src, i, n))
+            break
+        }
+        if lt > i {
+            stack = mkAppendText(stack, str_slice(src, i, lt))
+        }
+        // comments + doctype + processing instructions
+        if str_slice(src, lt, lt + 4) == "<!--" {
+            let end = str_index_of(src, "-->", lt + 4)
+            if end < 0 {
+                i = n
+            } else {
+                i = end + 3
+            }
+            continue
+        }
+        let gt = str_index_of(src, ">", lt + 1)
+        if gt < 0 {
+            break
+        }
+        let inner = str_slice(src, lt + 1, gt)
+        if len(inner) == 0 {
+            i = gt + 1
+            continue
+        }
+        let c0 = char_at(inner, 0)
+        if c0 == "!" || c0 == "?" {
+            i = gt + 1
+            continue
+        }
+        if c0 == "/" {
+            let name = trim(str_slice(inner, 1, len(inner)))
+            let at = mkCloses(stack, name)
+            if at > 0 {
+                stack = mkCloseTo(stack, at)
+            }
+            i = gt + 1
+            continue
+        }
+        let t = mkTag(inner)
+        if len(t["tag"]) == 0 {
+            i = gt + 1
+            continue
+        }
+        let node = kdom_create(t["tag"])
+        for key of object_keys(t["attrs"]) {
+            if key != "__oid" && key != "__kab_oid" {
+                kdom_set_attr(node, key, t["attrs"][key])
+            }
+        }
+        if t["selfClose"] || mkIsVoid(t["tag"]) {
+            kdom_append(stack[len(stack) - 1]["node"], node)
+        } else {
+            stack = push(stack, { "node": node, "tag": t["tag"] })
+        }
+        i = gt + 1
+    }
+    // Implicit close at EOF: flush any still-open elements bottom-up.
+    stack = mkCloseTo(stack, 1)
+    return root
+}
+
+// Gate: parse a document with nesting, attrs, entities, comment, void tag —
+// verify through the live registry (returned node is a pre-append snapshot).
+pub fn markupParseOk() {
+    let src = "<html><body class=\"main\"><h1>Hi &amp; bye</h1><!-- c --><p id='x'>A<br>B</p><img src=\"i.png\"></body></html>"
+    let doc = parseMarkup(src)
+    let live = kdom_get_by_id(kdom_id(doc))
+    let kids = kdom_children(live)
+    if len(kids) != 1 {
+        return false
+    }
+    let body = kdom_query(live, "body")
+    if body == null || body == undefined {
+        return false
+    }
+    if kdom_get_attr(body, "class") != "main" {
+        return false
+    }
+    let p = kdom_query(live, "p")
+    if p == null || p == undefined || kdom_get_attr(p, "id") != "x" {
+        return false
+    }
+    return true
+}

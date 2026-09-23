@@ -156,6 +156,14 @@ fn is_nan_number_native(args: &[Value], _env: &mut Environment) -> Result<Value,
     Ok(Value::Bool(v.is_nan()))
 }
 
+/// `true` only for `Value::Float` — `typeof`/`is_integer` cannot split an
+/// integral float from a `Number`, but the bytecode serializer must (a Float
+/// const serialized as `number` deserializes as `i64` → `1.0/60.0` becomes
+/// integer division 0).
+fn is_float_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    Ok(Value::Bool(matches!(args.first(), Some(Value::Float(_)))))
+}
+
 fn number_to_string_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let v = args.first().ok_or("number_to_string(n)")?;
     Ok(Value::String(format_value(v)))
@@ -176,6 +184,7 @@ pub fn register_number(env: &mut Environment) {
         ("is_finite", is_finite_native),
         ("to_fixed", to_fixed_native),
         ("is_integer", is_integer_native),
+        ("is_float", is_float_native),
         ("number_is_integer", is_integer_native),
         ("to_exponential", to_exponential_native),
         ("to_precision", to_precision_native),

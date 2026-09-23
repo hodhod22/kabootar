@@ -1,0 +1,18 @@
+// Closure-capture regression: an arrow body containing an assign stmt
+// must not corrupt the enclosing `let` binding or the caller's result.
+// Parser: pBindSym is a shared session field — the arrow body's inner
+// assign (`hits = hits + 1`) used to clobber the outer let's sym, so `f`
+// stored to the wrong global slot. Emitter: eAssignSym was clobbered the
+// same way by nested stmt emission.
+let hits = 0
+let f = (dt) => {
+    hits = hits + 1
+    return dt * 2
+}
+fn applyTwice(cb, x) {
+    return cb(x) + cb(x)
+}
+let r = applyTwice(f, 7)
+assert r == 28
+assert hits == 2
+r
