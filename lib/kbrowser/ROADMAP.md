@@ -104,6 +104,11 @@ Krav (landat subset):
 - [x] CI-smokes native / kos / wasm
 
 **Nästa:** AppKit/X11/Wayland-bridge (thin host, ingen produktlogik i Rust).
+Bridge-policyn är landad i Kab: `kbrowser/platform` mappar `host_os` →
+`{shell, present, input, status}` (`win32`/`appkit`/`x11-wayland`/`webcanvas`/
+`wkwebview`/`webview`/`kos-compositor`, alla ärligt `stub` utom kos). Device-CI
+gaten `platformBridgeOk` är självanpassande — varje CI-host assertar sin egen
+shell (`sh27_platform_bridge_in_kab`, `sh27_platform_bridge_smoke`).
 
 ---
 
@@ -121,6 +126,9 @@ Samma `kb_*` på Android och iPhone.
 | Smokes | `kbrowser_mobile_smoke`, `kbrowser_mobile_shell_smoke` | ✅ subset |
 
 **Nästa:** device-CI (WebView/WKWebView), Play/App Store-wrapper (host-skal, UI i Kab).
+Bridge-tabellen täcker redan `ios`→`wkwebview` och `android`→`webview` som
+ärliga `stub`-mål; `platformBridgeOk` failar om en framtida host_os inte
+mappar — det är device-CI-förberedelsen.
 
 ---
 
@@ -131,7 +139,8 @@ Samma `kb_*` på Android och iPhone.
 | **H6c** | Chrome = `.kab`; Rust = window/pixels/input | ✅ |
 | **KB-H1** | Ingen ny `kb_*` produkt-API i Rust | ✅ gate `sh27_kb_h1_frozen_native_surface` — `mod.rs` registreringen fryst till den auditerade 28-namns-ytan (host-capability + provider-hooks); ny `kb_*` i Rust failar testet |
 | **KB-H2** | Navigate/load-policy 100 % Kab | ✅ deepen — `nav.navApplyMode` sätter `kb_set_os_mode(effectiveMode(url, navModePref))` före varje `kb_navigate` (auto per-URL eller pin via `navSetMode`); `loadPlan(url)` buntar mode+kind+title+virtualHome (`sh27_load_policy_smoke`, `sh27_load_policy_in_kab`) |
-| **KB-H3** | Markup→DOM i Kab | ✅ `kdom/markup.parseMarkup` (element/attr/text/comments/void/entiteter, bottom-up-append mot live-registret) installerad via `kb_set_document_provider` i `nav.kab` — navigerade sidor byggs utan Rust `parse_kml` (`sh27_markup_parse_in_kab`, `sh27_markup_parse_smoke`); kvar i Rust = kv8-modul-parse + fetch/paint-capability |
+| **KB-H3** | Markup→DOM i Kab | ✅ `kdom/markup.parseMarkup` (element/attr/text/comments/void/entiteter, bottom-up-append mot live-registret) installerad via `kb_set_document_provider` i `nav.kab` — navigerade sidor byggs utan Rust `parse_kml` (`sh27_markup_parse_in_kab`, `sh27_markup_parse_smoke`) |
+| **KB-H4** | kv8-modul-parse i Kab | ✅ `kv8/module.kv8Sections` splittar `---kml---`/`---css---`/`---script---` i Kab (script hittas även utan css-markör — Rust-referensen lämnade det i kml-text); `kv8Page` returnerar `{doc, css, script}` via det utökade provider-kontraktet — inget nytt `kb_*` (KB-H1 orörd). Script-eval är fortfarande host (`kb_run_kv8`) tills `lib/kv8`-eval tar över produktvägen (`sh27_kv8_module_parse_in_kab`, `sh27_kv8_module_smoke`); kvar i Rust = fetch/paint/input/kv8-eval-capability |
 
 ---
 

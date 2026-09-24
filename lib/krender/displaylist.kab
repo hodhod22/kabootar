@@ -1,0 +1,105 @@
+@version "1.0.0"
+
+// Kab-owned render stage: live DOM → display list. import "krender/displaylist"
+// The list is an array of draw ops consumed downstream (host rasterizer today).
+// Layout here is the first honest slice: block flow — children stack
+// vertically, text lines get line-height, element boxes get their style attrs.
+// Rasterization/window/framebuffer stay host capabilities (kb_paint/pixels).
+
+// Pull `prop:` out of an inline `style` attr string ("a:1;prop:x;b:2").
+fn dlStyleProp(style, prop) {
+    if style == null || style == undefined || style == "" {
+        return ""
+    }
+    let parts = split(style, ";")
+    let i = 0
+    let prefix = prop + ":"
+    while i < len(parts) {
+        let p = trim(parts[i])
+        if str_index_of(p, prefix) == 0 {
+            return str_slice(p, len(prefix), len(p))
+        }
+        i = i + 1
+    }
+    return ""
+}
+
+fn dlEmitNode(node, x, y, w, depth, ops) {
+    let tag = node.tag
+    let indent = depth * 12
+    if tag == "#text" {
+        let t = trim(node.text)
+        if t != "" {
+            ops = push(ops, {
+                "kind": "text", "tag": tag,
+                "x": x + indent, "y": y, "w": w - indent, "h": 20,
+                "color": "", "text": t
+            })
+        }
+        return { "ops": ops, "y": y + 20 }
+    }
+    let style = kdom_get_attr(node, "style")
+    if style == null || style == undefined {
+        style = ""
+    }
+    let hProp = dlStyleProp(style, "height")
+    let h = 24
+    if hProp != "" {
+        let hv = parse_float(replace(hProp, "px", ""))
+        if hv > 0 {
+            h = hv
+        }
+    }
+    ops = push(ops, {
+        "kind": "rect", "tag": tag,
+        "x": x + indent, "y": y, "w": w - indent, "h": h,
+        "color": dlStyleProp(style, "background"), "text": ""
+    })
+    let cy = y + h
+    let kids = kdom_children(node)
+    let i = 0
+    while i < len(kids) {
+        let r = dlEmitNode(kids[i], x, cy, w, depth + 1, ops)
+        ops = r["ops"]
+        cy = r["y"]
+        i = i + 1
+    }
+    return { "ops": ops, "y": cy }
+}
+
+// root: KabootarDom value (live tree resolved by kdom_* natives).
+// Returns display ops: [{kind:"rect"|"text", tag, x, y, w, h, color, text}].
+pub fn buildDisplayList(root, vpW, vpH) {
+    let r = dlEmitNode(root, 0, 0, vpW, 0, [])
+    return r["ops"]
+}
+
+// Gate: build a tree in the live registry, walk it, verify ops.
+pub fn displayListOk() {
+    let doc = kdom_create("document")
+    let body = kdom_create("body")
+    let h1 = kdom_create("h1")
+    kdom_set_text(h1, "Title")
+    kdom_append(h1, kdom_text("Hello"))
+    kdom_append(body, h1)
+    kdom_append(doc, body)
+    let live = kdom_get_by_id(kdom_id(doc))
+    let ops = buildDisplayList(live, 200, 200)
+    if len(ops) < 3 {
+        return false
+    }
+    let i = 0
+    let sawH1Rect = false
+    let sawText = false
+    while i < len(ops) {
+        if ops[i]["kind"] == "rect" && ops[i]["tag"] == "h1" {
+            sawH1Rect = true
+            if ops[i]["w"] != 176 { return false }
+        }
+        if ops[i]["kind"] == "text" && ops[i]["text"] == "Hello" {
+            sawText = true
+        }
+        i = i + 1
+    }
+    return sawH1Rect && sawText
+}

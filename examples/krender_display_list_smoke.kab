@@ -1,0 +1,32 @@
+// SH27 render-path smoke: the Kab-owned display-list stage walks the live
+// DOM (kdom_* read primitives + node.tag/.text) and its ops ride the paint
+// frame — rasterization stays a host capability for now.
+// cargo run --bin kabootar -- examples/krender_display_list_smoke.kab
+
+import "krender/displaylist"
+import "kdom/document"
+
+// direct gate: block layout, depth indent, text ops
+let gateOk = displayListOk()
+
+// product path: paint() frame carries the Kab display list
+let doc = kdom_create("document")
+let body = kdom_create("body")
+let h1 = kdom_create("h1")
+kdom_append(h1, kdom_text("Render Kab"))
+kdom_append(body, h1)
+kdom_append(doc, body)
+let frame = paint(kdom_get_by_id(kdom_id(doc)), 320, 240, "")
+let dl = frame["kabDisplayList"]
+let sawOps = len(dl) >= 4
+let sawText = false
+let i = 0
+while i < len(dl) {
+    if dl[i]["kind"] == "text" && dl[i]["text"] == "Render Kab" {
+        sawText = true
+    }
+    i = i + 1
+}
+
+println("krender dl=" + gateOk + " frameOps=" + sawOps + " text=" + sawText)
+return gateOk && sawOps && sawText

@@ -2,6 +2,7 @@
 
 // Kabootar kDOM - document tree (max ~7 fn; natives kdom_*, kml are syscalls).
 // import "kdom/document"
+import "krender/displaylist"
 
 import "kstyle/parse"
 import "kdom/query"
@@ -60,9 +61,18 @@ pub fn domExtra(mode, a, b) {
 }
 
 // css: pass "" to skip; non-empty uses Kabootar parseAndApply (H0)
+// The frame carries the Kab-owned display list (krender/displaylist) alongside
+// the host-rasterized layers — the incremental merge point where the raster
+// boundary can later consume Kab ops instead of re-walking the DOM in Rust.
 pub fn paint(node, width, height, css) {
     if css != "" {
         parseAndApply(css)
     }
-    return kdom_paint(node, width, height)
+    let frame = kdom_paint(node, width, height)
+    let live = kdom_get_by_id(kdom_id(node))
+    if live == null || live == undefined {
+        live = node
+    }
+    frame["kabDisplayList"] = buildDisplayList(live, width, height)
+    return frame
 }

@@ -1,0 +1,32 @@
+// SH27 kv8 module smoke: a navigated .kv8 page is split
+// (---kml---/---css---/---script---) by the Kab document provider
+// (kv8/module.kv8Page), not Rust parse_kv8_module — the script section
+// still reaches kb_run_kv8 and the css section reaches paint.
+// cargo run --bin kabootar -- examples/kbrowser_kv8_module_smoke.kab
+
+import "kbrowser/nav"
+import "kbrowser/session"
+import "kv8/module"
+import "kos/vfs"
+
+clearSession()
+
+// direct section-split gate (kml/css/script, bare markup, script-only)
+let moduleOk = kv8ModuleOk()
+let hooksOk = kb_product_hooks()
+
+write("/tmp_kv8_module.kv8", "---kml---\n<html><body><h1>Kv8 via Kab</h1></body></html>\n---css---\nh1 { color: red }\n---script---\nlet h = document.querySelector(\"h1\")\nh.style.color = \"rgb(1, 2, 3)\"")
+bootNav("kabootar://vfs/tmp_kv8_module.kv8")
+let html = kb_render()
+
+// Kab parser roots the tree in <document>; the Rust fallback does not
+let kabPath = str_includes(html, "data-kb-tag=\"document\"")
+let contentOk = str_includes(html, "Kv8 via Kab")
+
+// script section reached the host kv8 eval → h.style.color writes a
+// style:color attr that compute_style emits in the re-rendered inline css
+kb_run_kv8()
+let ranOk = str_includes(kb_render(), "color:rgb(1, 2, 3)")
+
+println("kb kv8 module=" + moduleOk + " hooks=" + hooksOk + " kabPath=" + kabPath + " content=" + contentOk + " scriptRan=" + ranOk)
+return moduleOk && hooksOk && kabPath && contentOk && ranOk

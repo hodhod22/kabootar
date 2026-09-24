@@ -1,0 +1,22 @@
+// SH27 platform-bridge smoke: Kab-owned shell-bridge policy maps the current
+// host_os to a thin host shell — the device-CI gate runs on every platform.
+// cargo run --bin kabootar -- examples/kbrowser_platform_bridge_smoke.kab
+
+import "kbrowser/platform"
+
+let b = bridgeInfo()
+let ok = platformBridgeOk()
+
+// every mapped field must be populated for the current host
+let fieldsOk = b["shell"] != "" && b["present"] != "" && b["input"] != "" && b["status"] != ""
+
+// all six known hosts map (table coverage — incl. WebView device shells)
+let tableOk = hostShell("windows")["shell"] == "win32"
+    && hostShell("macos")["shell"] == "appkit"
+    && hostShell("linux")["shell"] == "x11-wayland"
+    && hostShell("wasm")["shell"] == "webcanvas"
+    && hostShell("ios")["shell"] == "wkwebview"
+    && hostShell("android")["shell"] == "webview"
+
+println("kb platform bridge=" + ok + " fields=" + fieldsOk + " table=" + tableOk + " shell=" + b["shell"])
+return ok && fieldsOk && tableOk

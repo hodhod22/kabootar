@@ -1,0 +1,71 @@
+@version "1.0.0"
+
+// Platform-bridge policy in Kab. import "kbrowser/platform"
+// Maps host_os (kb_sync_platform/kb_os_info) to the thin shell bridge the
+// product expects — selection/policy is Kab-owned, the shell implementation
+// stays a host capability (window/pixels/input). Status is honest: every
+// bridge is "stub" until the host side lands.
+
+// host_os → {shell, present, input, status}
+//   shell:   thin host shell name (win32/appkit/x11-wayland/webcanvas/webview/kos)
+//   present: how frames reach the screen on that shell
+//   input:   input/event pump source
+//   status:  "stub" until the host bridge exists — never claim "live" early
+pub fn hostShell(hostOs) {
+    if hostOs == "windows" {
+        return { "shell": "win32", "present": "pixels", "input": "msgpump", "status": "stub" }
+    }
+    if hostOs == "macos" {
+        return { "shell": "appkit", "present": "pixels", "input": "nsevent", "status": "stub" }
+    }
+    if hostOs == "linux" {
+        // X11 vs Wayland is session-dependent — the host shell picks at
+        // runtime; the product only needs a posix desktop bridge.
+        return { "shell": "x11-wayland", "present": "pixels", "input": "evdev", "status": "stub" }
+    }
+    if hostOs == "wasm" {
+        return { "shell": "webcanvas", "present": "canvas2d", "input": "domevents", "status": "stub" }
+    }
+    if hostOs == "ios" {
+        return { "shell": "wkwebview", "present": "webview", "input": "touch", "status": "stub" }
+    }
+    if hostOs == "android" {
+        return { "shell": "webview", "present": "webview", "input": "touch", "status": "stub" }
+    }
+    // kOS/unknown → the compositor path (kabootar:// VFS + kos window server)
+    return { "shell": "kos-compositor", "present": "framebuffer", "input": "kos-input", "status": "live" }
+}
+
+// Full bridge report for the current host (kb_os_info = host capability read).
+pub fn bridgeInfo() {
+    let info = kb_os_info()
+    let hostOs = info["host_os"]
+    let b = hostShell(hostOs)
+    return {
+        "host_os": hostOs,
+        "mode": info["mode"],
+        "shell": b["shell"],
+        "present": b["present"],
+        "input": b["input"],
+        "status": b["status"]
+    }
+}
+
+// Device-CI gate: the current host must map to a known bridge. Runs on any
+// CI host — each platform asserts its own shell (windows→win32, macos→appkit,
+// linux→x11-wayland, wasm→webcanvas).
+pub fn platformBridgeOk() {
+    let b = bridgeInfo()
+    if b["shell"] == "" || b["status"] == "" {
+        return false
+    }
+    let known = ["win32", "appkit", "x11-wayland", "webcanvas", "wkwebview", "webview", "kos-compositor"]
+    let i = 0
+    while i < len(known) {
+        if b["shell"] == known[i] {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}

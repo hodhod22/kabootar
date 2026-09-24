@@ -1,0 +1,90 @@
+@version "1.0.0"
+
+// .kv8 module → {doc, css, script}, in Kab. import "kv8/module"
+// Mirrors src/runtime/kv8/vfs_module.rs parse_kv8_module: `---kml---`,
+// `---css---`, `---script---` section markers; bare markup is kml-only;
+// anything else is script-only with an empty page. Markup goes through
+// `kdom/markup.parseMarkup` so the whole document pipeline is Kab-owned.
+// Installed as the browser document provider via `kb_set_document_provider`.
+
+import "kdom/markup"
+
+// Section split: ---css--- then ---script--- in the remainder. Note: the
+// Kab path intentionally finds ---script--- even without ---css--- (the
+// Rust reference left it embedded in kml text — treated as a bug).
+pub fn kv8Sections(src) {
+    if str_includes(src, "---kml---") {
+        let afterKml = split(src, "---kml---")[1]
+        let cssParts = split(afterKml, "---css---")
+        let kml = trim(cssParts[0])
+        let css = ""
+        let script = ""
+        let rest = afterKml
+        if len(cssParts) > 1 {
+            rest = cssParts[1]
+        }
+        let scriptParts = split(rest, "---script---")
+        if len(cssParts) > 1 {
+            css = trim(scriptParts[0])
+        }
+        if len(scriptParts) > 1 {
+            script = trim(scriptParts[1])
+        }
+        return { "kml": kml, "css": css, "script": script }
+    }
+    if len(trim(src)) > 0 && char_at(trim(src), 0) == "<" {
+        return { "kml": src, "css": "", "script": "" }
+    }
+    return { "kml": "<html><body></body></html>", "css": "", "script": src }
+}
+
+// Document provider contract: `f(content, url) -> {doc, css, script} | null`.
+// null keeps the host fallback for content that is neither markup nor a .kv8
+// module (plain-text pages etc. stay on the Rust parse_kml path).
+pub fn kv8Page(src, url) {
+    let isModule = str_includes(src, "---kml---")
+        || str_index_of(url, ".kv8") == len(url) - 4
+    let looksMarkup = len(trim(src)) > 0 && char_at(trim(src), 0) == "<"
+    if isModule == false && looksMarkup == false {
+        return null
+    }
+    let m = kv8Sections(src)
+    return { "doc": parseMarkup(m["kml"]), "css": m["css"], "script": m["script"] }
+}
+
+// Gate: section split + markup through the Kab pipeline.
+pub fn kv8ModuleOk() {
+    let src = "---kml---\n<html><body><h1>kv8</h1></body></html>\n---css---\nh1 { color: red }\n---script---\n1 + 1"
+    let m = kv8Sections(src)
+    if str_includes(m["kml"], "<h1>") == false || str_includes(m["css"], "color") == false || str_includes(m["script"], "1 + 1") == false {
+        return false
+    }
+    let page = kv8Page(src, "kabootar://sites/app.kv8")
+    let live = kdom_get_by_id(kdom_id(page["doc"]))
+    let h1 = kdom_query(live, "h1")
+    if h1 == null || h1 == undefined {
+        return false
+    }
+    if page["script"] != "1 + 1" {
+        return false
+    }
+    // plain markup and script-only shapes
+    let bare = kv8Sections("<p>hi</p>")
+    if str_includes(bare["kml"], "<p>") == false || bare["script"] != "" {
+        return false
+    }
+    let scriptOnly = kv8Sections("x = 1")
+    if scriptOnly["script"] != "x = 1" || str_includes(scriptOnly["kml"], "<body>") == false {
+        return false
+    }
+    // plain text on a non-.kv8 URL → null → host fallback keeps the page
+    if kv8Page("plain text page", "kabootar://vfs/readme.txt") != null {
+        return false
+    }
+    // script-only .kv8 still claims the module path
+    let so = kv8Page("x = 1", "kabootar://vfs/tool.kv8")
+    if so == null || so["script"] != "x = 1" {
+        return false
+    }
+    return true
+}
