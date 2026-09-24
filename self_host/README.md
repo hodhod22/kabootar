@@ -697,8 +697,9 @@ kabootar compile self_host/sample.kab
 49. **nested call parse** — fn-lokaler `savedCallee`/`savedTypeArgs`.
 50. **generic call type args** — `savedTypeArgs` med call.
 51. **generic emit** — `eGenericTemplates`; ingen extra import från `emit.kab`.
-52. **parser sess-fält över nested parse** — aldrig `sess["pX"]` satt före `pCallCompare`/body-parse och läst efter: nested `parseStmt` clobbar dem (`let h = (x)=>{ y=y+1 }` satte `pBindSym`="y"). Hoista till `let` (som `snapSym` i `parseStmt_fn_body`). Gäller `pBindSym`/`pIsPub`/`pFnSym`/`pMethTypeParams`/`pMethWhere`; ännu öppet: klass/enum/iface-yttre fält (`pClassSym`/`pClassMethods`/`pTypeParams`/`pIfaceSym`/`pEnumSym`) clobbas av nested decls i medlems-bodyar — behöver save/restore runt medlems-parse.
+52. **parser sess-fält över nested parse** — aldrig `sess["pX"]` satt före `pCallCompare`/body-parse och läst efter: nested `parseStmt` clobbar dem (`let h = (x)=>{ y=y+1 }` satte `pBindSym`="y"). Hoista till `let` (som `snapSym` i `parseStmt_fn_body`). Gäller `pBindSym`/`pIsPub`/`pFnSym`/`pMethTypeParams`/`pMethWhere`.
 53. **emit sess-fält över eCallExpr/eCallStmt** — samma mönster: `E["eAssignSym"]`/`E["eNode"]`/`E["eStmtNode"]` clobbas av nested emit; hoista `letSym`/`letPub`/`letInit`/`aSym`/`aRhs` före rekursion.
+54. **nested decls i member-bodies** — `parseStmt_class`/`parseStmt_enum`/`parseStmt_iface` sparar ALLA `p*`-resultatfält via `pSaveDeclFields` vid entry och återställer via `pRestoreDeclFields` före return (en `class`/`enum`/`fn` i en metodbody clobbade annars yttre `pClassSym`/`pClassMethods`/`pTypeParams` m.fl.). Token-cursorn (`pCur`/`pPos`/`pToks`/`pToksLen`/`pNextTok`/`pEofTok`) återställs aldrig — nested parse ska flytta fram strömmen. Regressioner i `test_parser.kab` ("nested decl inside member body").
 
 ## Nästa milstolpar (Våg SH)
 

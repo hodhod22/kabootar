@@ -291,36 +291,67 @@ fn parse_content(
     let kv8_css = None;
     let kv8_parsed_stylesheet = None;
 
-    if url.ends_with(".kv8") || content.contains("---kml---") {
-        if let Ok(module) = parse_kv8_module(content) {
-            return page_from_kv8(module, source);
-        }
-    }
-
-    // Kab document provider (`kdom/markup.parseMarkup`) owns markup parsing on
-    // the product path — kdom_* writes land in the live registry by id, so the
-    // returned Value is resolved to the live tree (same as home provider).
+    // Kab document provider owns the document pipeline on the product path:
+    // `f(content, url) -> KabootarDom | {doc: KabootarDom, css, script} | null`
+    // — null keeps the host fallback (plain text, parse_kml edge cases).
+    // `kv8/module.kv8Page` splits ---kml---/---css---/---script--- and parses
+    // markup via `kdom/markup`. kdom_* writes land in the live registry by id,
+    // so the returned node is resolved to the live tree (same as home provider).
     if let Some(f) = doc {
-        if let Ok(Value::KabootarDom(node)) = crate::bytecode::call_value(
+        if let Ok(v) = crate::bytecode::call_value(
             f.clone(),
-            vec![Value::String(content.to_string())],
+            vec![
+                Value::String(content.to_string()),
+                Value::String(url.to_string()),
+            ],
             &[],
             &[],
             &[],
             &[],
             env,
         ) {
-            let document = crate::runtime::kabootar_dom::live_resolve(node);
-            // Empty parse (non-markup content) → keep the styled fallback pages.
-            if !document.children.is_empty() {
-                return Ok(LoadedPage {
-                    document,
-                    kv8_script,
-                    kv8_css,
-                    kv8_parsed_stylesheet,
-                    source,
-                });
+            let (dom, css, script) = match v {
+                Value::KabootarDom(node) => (Some(node), None, None),
+                Value::Object(map) => {
+                    let get = |k: &str| map.get(k);
+                    let dom = match get("doc") {
+                        Some(Value::KabootarDom(n)) => Some(n.clone()),
+                        _ => None,
+                    };
+                    let css = match get("css") {
+                        Some(Value::String(s)) if !s.is_empty() => Some(s.clone()),
+                        _ => None,
+                    };
+                    let script = match get("script") {
+                        Some(Value::String(s)) if !s.is_empty() => Some(s.clone()),
+                        _ => None,
+                    };
+                    (dom, css, script)
+                }
+                _ => (None, None, None),
+            };
+            if let Some(node) = dom {
+                let document = crate::runtime::kabootar_dom::live_resolve(node);
+                // Empty parse with nothing to run (non-markup content) → keep
+                // the styled fallback pages.
+                if !document.children.is_empty() || script.is_some() {
+                    return Ok(LoadedPage {
+                        document,
+                        kv8_script: script,
+                        // Rust parse_stylesheet is the style-engine capability —
+                        // paint re-parses kv8_css when kv8_parsed_stylesheet is None.
+                        kv8_css: css,
+                        kv8_parsed_stylesheet,
+                        source,
+                    });
+                }
             }
+        }
+    }
+
+    if url.ends_with(".kv8") || content.contains("---kml---") {
+        if let Ok(module) = parse_kv8_module(content) {
+            return page_from_kv8(module, source);
         }
     }
 

@@ -1424,11 +1424,101 @@ pub fn parseStmt_try(sess) {
     }
 }
 
+// Nested-decl guard: a class/enum/iface body can contain nested declarations
+// (a `fn`/`class`/`enum` inside a method body) that reuse the same shared
+// sess["p*"] result fields — the nested decl would overwrite the enclosing
+// decl's sym/typeParams/member accumulators. Snapshot the whole result set at
+// entry and restore it before returning; the token cursor (pCur/pPos/pToks/
+// pToksLen/pNextTok/pEofTok) is deliberately NOT restored — the nested parse
+// legitimately advances the stream.
+fn pSaveDeclFields(sess) {
+    return {
+        "pClassSym": sess["pClassSym"], "pTypeParams": sess["pTypeParams"],
+        "pExtends": sess["pExtends"], "pExtendsTypeArgs": sess["pExtendsTypeArgs"],
+        "pImplements": sess["pImplements"], "pClassWhere": sess["pClassWhere"],
+        "pClassFields": sess["pClassFields"], "pClassMethods": sess["pClassMethods"],
+        "pClassAssoc": sess["pClassAssoc"], "pIsStruct": sess["pIsStruct"],
+        "pEnumSym": sess["pEnumSym"], "pVariants": sess["pVariants"],
+        "pVariantSym": sess["pVariantSym"], "pVariantName": sess["pVariantName"],
+        "pVariantFields": sess["pVariantFields"],
+        "pIfaceSym": sess["pIfaceSym"], "pIfaceMethods": sess["pIfaceMethods"],
+        "pAssocTypes": sess["pAssocTypes"],
+        "pFnSym": sess["pFnSym"], "pFnPub": sess["pFnPub"], "pFnRest": sess["pFnRest"],
+        "pIsAsync": sess["pIsAsync"], "pIsGen": sess["pIsGen"],
+        "pParams": sess["pParams"], "pParamTypes": sess["pParamTypes"],
+        "pParamDefaults": sess["pParamDefaults"], "pParamType": sess["pParamType"],
+        "pReturnType": sess["pReturnType"],
+        "pMethParams": sess["pMethParams"], "pMethParamTypes": sess["pMethParamTypes"],
+        "pMethParamDefaults": sess["pMethParamDefaults"], "pMethRest": sess["pMethRest"],
+        "pMethTypeParams": sess["pMethTypeParams"], "pMethWhere": sess["pMethWhere"],
+        "pWhereClause": sess["pWhereClause"], "pWhereParam": sess["pWhereParam"],
+        "pWhereTrait": sess["pWhereTrait"],
+        "pBindSym": sess["pBindSym"], "pLetSym": sess["pLetSym"], "pInit": sess["pInit"],
+        "pVal": sess["pVal"], "pSave": sess["pSave"], "pSaveSym": sess["pSaveSym"],
+        "pIsPub": sess["pIsPub"], "pAssignLhs": sess["pAssignLhs"],
+        "pForAwait": sess["pForAwait"], "pFieldType": sess["pFieldType"],
+        "pFieldDefault": sess["pFieldDefault"], "pTok": sess["pTok"]
+    }
+}
+
+fn pRestoreDeclFields(sess, s) {
+    sess["pClassSym"] = s["pClassSym"]
+    sess["pTypeParams"] = s["pTypeParams"]
+    sess["pExtends"] = s["pExtends"]
+    sess["pExtendsTypeArgs"] = s["pExtendsTypeArgs"]
+    sess["pImplements"] = s["pImplements"]
+    sess["pClassWhere"] = s["pClassWhere"]
+    sess["pClassFields"] = s["pClassFields"]
+    sess["pClassMethods"] = s["pClassMethods"]
+    sess["pClassAssoc"] = s["pClassAssoc"]
+    sess["pIsStruct"] = s["pIsStruct"]
+    sess["pEnumSym"] = s["pEnumSym"]
+    sess["pVariants"] = s["pVariants"]
+    sess["pVariantSym"] = s["pVariantSym"]
+    sess["pVariantName"] = s["pVariantName"]
+    sess["pVariantFields"] = s["pVariantFields"]
+    sess["pIfaceSym"] = s["pIfaceSym"]
+    sess["pIfaceMethods"] = s["pIfaceMethods"]
+    sess["pAssocTypes"] = s["pAssocTypes"]
+    sess["pFnSym"] = s["pFnSym"]
+    sess["pFnPub"] = s["pFnPub"]
+    sess["pFnRest"] = s["pFnRest"]
+    sess["pIsAsync"] = s["pIsAsync"]
+    sess["pIsGen"] = s["pIsGen"]
+    sess["pParams"] = s["pParams"]
+    sess["pParamTypes"] = s["pParamTypes"]
+    sess["pParamDefaults"] = s["pParamDefaults"]
+    sess["pParamType"] = s["pParamType"]
+    sess["pReturnType"] = s["pReturnType"]
+    sess["pMethParams"] = s["pMethParams"]
+    sess["pMethParamTypes"] = s["pMethParamTypes"]
+    sess["pMethParamDefaults"] = s["pMethParamDefaults"]
+    sess["pMethRest"] = s["pMethRest"]
+    sess["pMethTypeParams"] = s["pMethTypeParams"]
+    sess["pMethWhere"] = s["pMethWhere"]
+    sess["pWhereClause"] = s["pWhereClause"]
+    sess["pWhereParam"] = s["pWhereParam"]
+    sess["pWhereTrait"] = s["pWhereTrait"]
+    sess["pBindSym"] = s["pBindSym"]
+    sess["pLetSym"] = s["pLetSym"]
+    sess["pInit"] = s["pInit"]
+    sess["pVal"] = s["pVal"]
+    sess["pSave"] = s["pSave"]
+    sess["pSaveSym"] = s["pSaveSym"]
+    sess["pIsPub"] = s["pIsPub"]
+    sess["pAssignLhs"] = s["pAssignLhs"]
+    sess["pForAwait"] = s["pForAwait"]
+    sess["pFieldType"] = s["pFieldType"]
+    sess["pFieldDefault"] = s["pFieldDefault"]
+    sess["pTok"] = s["pTok"]
+}
+
 // --- parser_stmt_class ---
 pub fn parseStmt_class(sess) {
     if !(sess["pCur"].type == TOKEN_CLASS || sess["pCur"].type == TOKEN_STRUCT) {
         return null
     }
+    let declSave = pSaveDeclFields(sess)
     sess["pIsStruct"] = 0
     if sess["pCur"].type == TOKEN_STRUCT {
         sess["pIsStruct"] = 1
@@ -1524,7 +1614,7 @@ pub fn parseStmt_class(sess) {
         }
     }
     bump(sess)
-    return {
+    let classResult = {
         "kind": AST_CLASS,
         "sym": sess["pClassSym"],
         "typeParams": sess["pTypeParams"],
@@ -1537,6 +1627,8 @@ pub fn parseStmt_class(sess) {
         "associatedTypes": sess["pClassAssoc"],
         "isStruct": sess["pIsStruct"]
     }
+    pRestoreDeclFields(sess, declSave)
+    return classResult
 }
 
 // --- parser_stmt_enum ---
@@ -1544,6 +1636,7 @@ pub fn parseStmt_enum(sess) {
     if !(sess["pCur"].type == TOKEN_ENUM) {
         return null
     }
+    let declSave = pSaveDeclFields(sess)
     bump(sess)
     sess["pTok"] = sess["pCur"]
     if sess["pTok"].type != TOKEN_IDENT {
@@ -1565,7 +1658,9 @@ pub fn parseStmt_enum(sess) {
         }
     }
     bump(sess)
-    return { "kind": AST_ENUM, "sym": sess["pEnumSym"], "typeParams": sess["pTypeParams"], "variants": sess["pVariants"] }
+    let enumResult = { "kind": AST_ENUM, "sym": sess["pEnumSym"], "typeParams": sess["pTypeParams"], "variants": sess["pVariants"] }
+    pRestoreDeclFields(sess, declSave)
+    return enumResult
 }
 
 // --- parser_stmt_fn ---
@@ -1583,6 +1678,7 @@ pub fn parseStmt_iface(sess) {
     if !(sess["pCur"].type == TOKEN_INTERFACE || sess["pCur"].type == TOKEN_TRAIT) {
         return null
     }
+    let declSave = pSaveDeclFields(sess)
     bump(sess)
     sess["pTok"] = sess["pCur"]
     if sess["pTok"].type != TOKEN_IDENT {
@@ -1604,13 +1700,15 @@ pub fn parseStmt_iface(sess) {
         }
     }
     bump(sess)
-    return {
+    let ifaceResult = {
         "kind": AST_INTERFACE,
         "sym": sess["pIfaceSym"],
         "typeParams": sess["pTypeParams"],
         "methods": sess["pIfaceMethods"],
         "associatedTypes": sess["pAssocTypes"]
     }
+    pRestoreDeclFields(sess, declSave)
+    return ifaceResult
 }
 
 // --- parser_stmt_dispatch_ctrl ---

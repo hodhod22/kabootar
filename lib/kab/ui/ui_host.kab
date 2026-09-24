@@ -2,10 +2,13 @@
 // Do not grow ui.kab. Do not delete runtime/browser* until smoke is complete.
 // Product logic is Kab-owned (nav/session/load_policy/theme hooks) and the
 // kb_* native surface is frozen (KB-H1 gate `sh27_kb_h1_frozen_native_surface`
-// audits mod.rs against the allowlist). What remains in Rust: document
-// parsers (kml/kv8/css in the load path) + host capability (fetch I/O,
-// paint/raster, input, framebuffer) — uiHostDeleteOk flips when Kab owns the
-// parsers and a Kab render path feeds the framebuffer.
+// audits mod.rs against the allowlist). Document pipeline is Kab-owned now:
+// kv8/module splits sections + kdom/markup builds the DOM via the provider
+// hook, and krender/displaylist produces draw ops in Kab on the paint frame.
+// What remains in Rust: kv8 script eval + host capability (fetch I/O,
+// rasterize→pixels, window/input pump, framebuffer present) —
+// uiHostDeleteOk flips when the Kab display list actually feeds the
+// framebuffer and kv8 eval runs on lib/kv8.
 
 pub fn uiHostDeleteOk() {
     return false

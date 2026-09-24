@@ -78417,8 +78417,8 @@ fn sh27_markup_parse_in_kab() {
     );
     let n = std::fs::read_to_string(root.join("lib/kbrowser/nav.kab")).expect("nav.kab");
     assert!(
-        n.contains("import \"kdom/markup\"") && n.contains("kb_set_document_provider(parseMarkup)"),
-        "SH27 markup: nav installs the Kab document provider"
+        n.contains("import \"kv8/module\"") && n.contains("kb_set_document_provider(kv8Page)"),
+        "SH27 markup: nav installs the Kab document provider (kv8 module-aware)"
     );
     let b = std::fs::read_to_string(root.join("src/runtime/kabootar_browser/host_nav.rs"))
         .expect("host_nav.rs");
@@ -78457,6 +78457,172 @@ fn sh27_markup_parse_smoke() {
         out.expect("markup parse smoke run"),
         "true",
         "SH27 markup: Kab-parsed document must render through navigation"
+    );
+}
+
+/// SH27 subset→full gate: .kv8 module sections (---kml---/---css---/
+/// ---script---) are split in Kab (`kv8/module`) and the document provider
+/// contract carries {doc, css, script} — no new kb_* product API.
+#[test]
+fn sh27_kv8_module_parse_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kv8/module.kab")).expect("module.kab");
+    assert!(
+        m.contains("pub fn kv8Sections")
+            && m.contains("pub fn kv8Page")
+            && m.contains("\"---kml---\"")
+            && m.contains("\"---css---\"")
+            && m.contains("\"---script---\"")
+            && m.contains("pub fn kv8ModuleOk"),
+        "SH27 kv8: Kab module splitter + provider page"
+    );
+    let b = std::fs::read_to_string(root.join("src/runtime/kabootar_browser/host_nav.rs"))
+        .expect("host_nav.rs");
+    assert!(
+        b.contains("Value::Object(map)") && b.contains("kv8_script: script"),
+        "SH27 kv8: provider contract carries doc/css/script"
+    );
+}
+
+/// SH27 subset→full smoke: navigate a .kv8 file, prove the Kab splitter +
+/// markup parser built the doc and the script section reached host kv8 eval.
+#[test]
+fn sh27_kv8_module_smoke() {
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let out = std::thread::Builder::new()
+        .name("sh27-kv8-module-smoke".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+            kabootar_lib::cli::run_file(
+                root.join("examples/kbrowser_kv8_module_smoke.kab")
+                    .to_str()
+                    .expect("utf8"),
+            )
+            .map(|v| kabootar_lib::value::format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(
+        out.expect("kv8 module smoke run"),
+        "true",
+        "SH27 kv8: Kab-split module must render + run its script through navigation"
+    );
+}
+
+/// SH27 render-path gate: Kab owns a display-list stage (DOM walk → draw ops)
+/// that rides the paint frame; rasterize/window/framebuffer stay host.
+#[test]
+fn sh27_kab_display_list_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let d = std::fs::read_to_string(root.join("lib/krender/displaylist.kab"))
+        .expect("displaylist.kab");
+    assert!(
+        d.contains("pub fn buildDisplayList") && d.contains("pub fn displayListOk"),
+        "SH27 render: Kab display-list builder"
+    );
+    let doc = std::fs::read_to_string(root.join("lib/kdom/document.kab")).expect("document.kab");
+    assert!(
+        doc.contains("import \"krender/displaylist\"")
+            && doc.contains("frame[\"kabDisplayList\"]"),
+        "SH27 render: paint() frame carries the Kab display list"
+    );
+    let ops = std::fs::read_to_string(root.join("src/ops.rs")).expect("ops.rs");
+    assert!(
+        ops.contains("\"text\" => Ok(Value::String(node.text.clone().unwrap_or_default()))"),
+        "SH27 render: KabootarDom exposes .text for the Kab walk"
+    );
+}
+
+/// SH27 render-path smoke: displayListOk + paint() frame carries ops.
+#[test]
+fn sh27_krender_display_list_smoke() {
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let out = std::thread::Builder::new()
+        .name("sh27-krender-smoke".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+            kabootar_lib::cli::run_file(
+                root.join("examples/krender_display_list_smoke.kab")
+                    .to_str()
+                    .expect("utf8"),
+            )
+            .map(|v| kabootar_lib::value::format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(
+        out.expect("display list smoke run"),
+        "true",
+        "SH27 render: Kab display-list ops must ride the paint frame"
+    );
+}
+
+/// SH27 platform-bridge gate: Kab owns host_os → thin-shell mapping policy;
+/// shell impls stay host capabilities and are honestly marked "stub".
+#[test]
+fn sh27_platform_bridge_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kbrowser/platform.kab"))
+        .expect("platform.kab");
+    for s in [
+        "pub fn hostShell",
+        "pub fn bridgeInfo",
+        "pub fn platformBridgeOk",
+        "win32",
+        "appkit",
+        "x11-wayland",
+        "webcanvas",
+        "wkwebview",
+        "webview",
+        "kos-compositor",
+        "\"stub\"",
+    ] {
+        assert!(p.contains(s), "SH27 platform: missing {s} in platform.kab");
+    }
+}
+
+/// SH27 platform-bridge smoke: current host maps to a known thin shell.
+#[test]
+fn sh27_platform_bridge_smoke() {
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let out = std::thread::Builder::new()
+        .name("sh27-platform-smoke".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+            kabootar_lib::cli::run_file(
+                root.join("examples/kbrowser_platform_bridge_smoke.kab")
+                    .to_str()
+                    .expect("utf8"),
+            )
+            .map(|v| kabootar_lib::value::format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(
+        out.expect("platform bridge smoke run"),
+        "true",
+        "SH27 platform: host must map to a known thin shell bridge"
     );
 }
 

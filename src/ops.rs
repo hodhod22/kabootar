@@ -353,6 +353,7 @@ pub fn read_member(
             "tag" => Ok(Value::String(node.tag.clone())),
             "id" => Ok(Value::Number(node.id as i64)),
             "childCount" => Ok(Value::Number(node.children.len() as i64)),
+            "text" => Ok(Value::String(node.text.clone().unwrap_or_default())),
             "layer" => Ok(Value::String("kabootar".into())),
             _ => Err(format!("Kabootar DOM node has no member {}", field)),
         },

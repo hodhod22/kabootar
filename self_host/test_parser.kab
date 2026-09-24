@@ -591,6 +591,45 @@ fn assert_kind(node, kind, msg) {
     assert_eq(ast.body[0].sym, "x", "assign sym survives arrow-body assign")
 }
 
+// -- nested decl inside member body must not clobber outer p* fields --
+{
+    let ast = parseTokens(tokenize("class Outer<T> { fn m() { enum Inner { A, B } } fn after() { } }"))
+    let cls = ast.body[0]
+    assert_kind(cls, AST_CLASS, "nested-decl outer class kind")
+    assert_eq(cls.sym, "Outer", "outer class sym survives nested enum")
+    assert_eq(len(cls.typeParams), 1, "outer typeParams survive nested enum")
+    assert_eq(cls.typeParams[0], "T", "outer typeParam T")
+    assert_eq(len(cls.methods), 2, "outer methods survive nested enum")
+    assert_eq(cls.methods[0].sym, "m", "outer method m sym")
+    assert_eq(cls.methods[1].sym, "after", "outer method after sym")
+    assert_kind(cls.methods[0].body.body[0], AST_ENUM, "nested enum stmt kind")
+    assert_eq(cls.methods[0].body.body[0].sym, "Inner", "nested enum sym")
+    assert_eq(len(cls.methods[0].body.body[0].variants), 2, "nested enum variants")
+}
+{
+    let ast = parseTokens(tokenize("class Outer { fn m() { class Mid { fn n() { } } } fn after() { } }"))
+    let cls = ast.body[0]
+    assert_eq(cls.sym, "Outer", "outer class sym survives nested class")
+    assert_eq(len(cls.methods), 2, "outer methods survive nested class")
+    assert_eq(cls.methods[1].sym, "after", "method after nested class")
+    assert_kind(cls.methods[0].body.body[0], AST_CLASS, "nested class stmt kind")
+    assert_eq(cls.methods[0].body.body[0].sym, "Mid", "nested class sym")
+    assert_eq(len(cls.methods[0].body.body[0].methods), 1, "nested class methods")
+}
+{
+    let ast = parseTokens(tokenize("interface I { fn q(); } fn f() { class C { } enum E { X } }"))
+    assert_kind(ast.body[0], AST_INTERFACE, "top iface kind")
+    assert_eq(ast.body[0].sym, "I", "iface sym")
+    assert_eq(len(ast.body[0].methods), 1, "iface methods")
+    let f = ast.body[1]
+    assert_kind(f, AST_FN, "fn after iface kind")
+    assert_eq(f.sym, "f", "fn sym survives nested decls")
+    assert_kind(f.body.body[0], AST_CLASS, "nested class in fn body")
+    assert_eq(f.body.body[0].sym, "C", "nested class sym in fn")
+    assert_kind(f.body.body[1], AST_ENUM, "nested enum in fn body")
+    assert_eq(f.body.body[1].sym, "E", "nested enum sym in fn")
+}
+
 // -- Report --------------------------------------------------------
 println("")
 println("Self-hosted parser tests: " + ("" + passed) + " passed, " + ("" + fail) + " failed")
