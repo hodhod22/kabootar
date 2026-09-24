@@ -322,6 +322,12 @@ impl KabootarBrowser {
                 c.document.root = tab.document.clone();
                 if let Some(css) = &tab.kv8_css {
                     c.css_text = css.clone();
+                }
+                // Provider-parsed sheet (kstyle/parse in Kab) is authoritative;
+                // re-lexing raw css is the pre-`sheet` provider fallback.
+                if let Some(sheet) = &tab.kv8_parsed_stylesheet {
+                    c.stylesheet = sheet.clone();
+                } else if let Some(css) = &tab.kv8_css {
                     c.stylesheet = parse_stylesheet(css);
                 }
                 Ok(())

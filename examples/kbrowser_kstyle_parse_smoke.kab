@@ -1,0 +1,28 @@
+// SH27 kstyle smoke: stylesheet parse runs in Kab on the product path —
+// kv8/module.kv8Page returns kstyle/parse.parseSheet output as `sheet` and
+// the host converts the value instead of re-lexing css. Proof: a :root
+// var() resolves in the rendered inline style (the Rust parser has no var
+// support — it would emit `var(--kb-accent)` literally).
+// cargo run --bin kabootar -- examples/kbrowser_kstyle_parse_smoke.kab
+
+import "kbrowser/nav"
+import "kbrowser/session"
+import "kv8/module"
+import "kos/vfs"
+
+clearSession()
+
+// direct module gate (sections + markup + parsed sheet on the contract)
+let moduleOk = kv8ModuleOk()
+let hooksOk = kb_product_hooks()
+
+write("/tmp_kstyle_parse.kv8", "---kml---\n<html><body><h1>Kab KSS</h1></body></html>\n---css---\n:root { --kb-accent: rgb(7, 8, 9) }\nh1 { color: var(--kb-accent) }\n---script---\n")
+bootNav("kabootar://vfs/tmp_kstyle_parse.kv8")
+let html = kb_render()
+
+// resolved var() reaches the computed inline style — only the Kab sheet has it
+let varOk = str_includes(html, "color:rgb(7, 8, 9)")
+let contentOk = str_includes(html, "Kab KSS")
+
+println("kb kstyle module=" + moduleOk + " hooks=" + hooksOk + " var=" + varOk + " content=" + contentOk)
+return moduleOk && hooksOk && varOk && contentOk

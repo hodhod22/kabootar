@@ -227,6 +227,50 @@ pub fn compute_style(
     style
 }
 
+/// Kab-parsed stylesheet handoff — the document provider returns
+/// `kstyle/parse.parseSheet` output (`[{type:"rule", selector, items:[{prop,
+/// value}]}]`) so the host converts the value instead of re-lexing css on the
+/// product path. Entries without a top-level `selector` (`@media` blocks etc.)
+/// are skipped — the engine has no media evaluation, same effective result as
+/// the legacy Rust parse where they never matched.
+pub fn stylesheet_from_value(v: &crate::value::Value) -> Option<Stylesheet> {
+    let crate::value::Value::Array(items) = v else {
+        return None;
+    };
+    let mut sheet = Stylesheet::default();
+    for item in items.iter() {
+        let crate::value::Value::Object(rule) = item else {
+            continue;
+        };
+        let Some(crate::value::Value::String(selector)) = rule.get("selector") else {
+            continue;
+        };
+        if selector.is_empty() {
+            continue;
+        }
+        let mut declarations = HashMap::new();
+        if let Some(crate::value::Value::Array(decls)) = rule.get("items") {
+            for decl in decls.iter() {
+                let crate::value::Value::Object(d) = decl else {
+                    continue;
+                };
+                if let (
+                    Some(crate::value::Value::String(k)),
+                    Some(crate::value::Value::String(v)),
+                ) = (d.get("prop"), d.get("value"))
+                {
+                    declarations.insert(k.clone(), v.clone());
+                }
+            }
+        }
+        sheet.rules.push(StyleRule {
+            selector: selector.clone(),
+            declarations,
+        });
+    }
+    Some(sheet)
+}
+
 fn selector_matches(selector: &str, tag: &str, attrs: &HashMap<String, String>) -> bool {
     let sel = selector.trim();
     if sel == tag {

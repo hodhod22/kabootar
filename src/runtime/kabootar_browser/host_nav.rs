@@ -5,7 +5,7 @@ use crate::runtime::kabootar_dom::assign_ids;
 use crate::runtime::kabootar_dom::DomNode;
 use crate::runtime::kv8::{parse_kv8_module, Kv8Module};
 use crate::runtime::os::OsHandle;
-use crate::runtime::kstyle::Stylesheet;
+use crate::runtime::kstyle::{parse_stylesheet, stylesheet_from_value, Stylesheet};
 use crate::kml::parse_kml;
 use crate::value::Value;
 use std::collections::HashMap;
@@ -292,11 +292,13 @@ fn parse_content(
     let kv8_parsed_stylesheet = None;
 
     // Kab document provider owns the document pipeline on the product path:
-    // `f(content, url) -> KabootarDom | {doc: KabootarDom, css, script} | null`
+    // `f(content, url) -> KabootarDom | {doc, css, script, sheet} | null`
     // — null keeps the host fallback (plain text, parse_kml edge cases).
-    // `kv8/module.kv8Page` splits ---kml---/---css---/---script--- and parses
-    // markup via `kdom/markup`. kdom_* writes land in the live registry by id,
-    // so the returned node is resolved to the live tree (same as home provider).
+    // `kv8/module.kv8Page` splits ---kml---/---css---/---script---, parses
+    // markup via `kdom/markup` and css via `kstyle/parse.parseSheet` — `sheet`
+    // is the parsed rules array, so the host converts the value and never
+    // re-lexes css. kdom_* writes land in the live registry by id, so the
+    // returned node is resolved to the live tree (same as home provider).
     if let Some(f) = doc {
         if let Ok(v) = crate::bytecode::call_value(
             f.clone(),
@@ -310,8 +312,8 @@ fn parse_content(
             &[],
             env,
         ) {
-            let (dom, css, script) = match v {
-                Value::KabootarDom(node) => (Some(node), None, None),
+            let (dom, css, script, sheet) = match v {
+                Value::KabootarDom(node) => (Some(node), None, None, None),
                 Value::Object(map) => {
                     let get = |k: &str| map.get(k);
                     let dom = match get("doc") {
@@ -326,22 +328,24 @@ fn parse_content(
                         Some(Value::String(s)) if !s.is_empty() => Some(s.clone()),
                         _ => None,
                     };
-                    (dom, css, script)
+                    let sheet = get("sheet").and_then(stylesheet_from_value);
+                    (dom, css, script, sheet)
                 }
-                _ => (None, None, None),
+                _ => (None, None, None, None),
             };
             if let Some(node) = dom {
                 let document = crate::runtime::kabootar_dom::live_resolve(node);
                 // Empty parse with nothing to run (non-markup content) → keep
                 // the styled fallback pages.
                 if !document.children.is_empty() || script.is_some() {
+                    // Kab-parsed sheet is authoritative; raw css parse stays
+                    // only for providers that predate the `sheet` field.
+                    let parsed = sheet.or_else(|| css.as_deref().map(parse_stylesheet));
                     return Ok(LoadedPage {
                         document,
                         kv8_script: script,
-                        // Rust parse_stylesheet is the style-engine capability —
-                        // paint re-parses kv8_css when kv8_parsed_stylesheet is None.
                         kv8_css: css,
-                        kv8_parsed_stylesheet,
+                        kv8_parsed_stylesheet: parsed,
                         source,
                     });
                 }
