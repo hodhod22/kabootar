@@ -1,13 +1,16 @@
 @version "1.0.0"
 
-// .kv8 module → {doc, css, script}, in Kab. import "kv8/module"
+// .kv8 module → {doc, css, script, sheet}, in Kab. import "kv8/module"
 // Mirrors src/runtime/kv8/vfs_module.rs parse_kv8_module: `---kml---`,
 // `---css---`, `---script---` section markers; bare markup is kml-only;
 // anything else is script-only with an empty page. Markup goes through
-// `kdom/markup.parseMarkup` so the whole document pipeline is Kab-owned.
+// `kdom/markup.parseMarkup` and css through `kstyle/parse.parseSheet` so
+// the whole document pipeline is Kab-owned — the host consumes the parsed
+// sheet and never re-lexes css on the product path.
 // Installed as the browser document provider via `kb_set_document_provider`.
 
 import "kdom/markup"
+import "kstyle/parse"
 
 // Section split: ---css--- then ---script--- in the remainder. Note: the
 // Kab path intentionally finds ---script--- even without ---css--- (the
@@ -38,9 +41,13 @@ pub fn kv8Sections(src) {
     return { "kml": "<html><body></body></html>", "css": "", "script": src }
 }
 
-// Document provider contract: `f(content, url) -> {doc, css, script} | null`.
-// null keeps the host fallback for content that is neither markup nor a .kv8
-// module (plain-text pages etc. stay on the Rust parse_kml path).
+// Document provider contract:
+// `f(content, url) -> {doc, css, script, sheet} | null`.
+// `sheet` is the Kab-parsed stylesheet (kstyle/parse.parseSheet rules array) —
+// the host converts the value straight into its Stylesheet; `css` stays in
+// the contract for script-visible css_text. null keeps the host fallback for
+// content that is neither markup nor a .kv8 module (plain-text pages etc.
+// stay on the Rust parse_kml path).
 pub fn kv8Page(src, url) {
     let isModule = str_includes(src, "---kml---")
         || str_index_of(url, ".kv8") == len(url) - 4
@@ -49,7 +56,7 @@ pub fn kv8Page(src, url) {
         return null
     }
     let m = kv8Sections(src)
-    return { "doc": parseMarkup(m["kml"]), "css": m["css"], "script": m["script"] }
+    return { "doc": parseMarkup(m["kml"]), "css": m["css"], "script": m["script"], "sheet": parseSheet(m["css"]) }
 }
 
 // Gate: section split + markup through the Kab pipeline.
@@ -66,6 +73,18 @@ pub fn kv8ModuleOk() {
         return false
     }
     if page["script"] != "1 + 1" {
+        return false
+    }
+    // parsed stylesheet rides the provider contract — the host must not
+    // re-lex css (Rust parse_stylesheet stays for host fallbacks only)
+    let sheet = page["sheet"]
+    if sheet == null || sheet == undefined {
+        return false
+    }
+    if len(sheet) != 1 || sheet[0]["selector"] != "h1" {
+        return false
+    }
+    if sheet[0]["items"][0]["prop"] != "color" || sheet[0]["items"][0]["value"] != "red" {
         return false
     }
     // plain markup and script-only shapes

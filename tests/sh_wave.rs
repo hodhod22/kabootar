@@ -78516,6 +78516,66 @@ fn sh27_kv8_module_smoke() {
     );
 }
 
+/// SH27 style-pipeline gate: KSS parse runs in Kab on the product path —
+/// `kv8Page` returns `kstyle/parse.parseSheet` output as `sheet` and the host
+/// converts the value (`stylesheet_from_value`) instead of re-lexing css.
+/// Rust `parse_stylesheet` stays for host capabilities/fallbacks only:
+/// `kv8_css(ctx, css)`, `kv8_run_ui`, `vfs_module`, bootstrap chrome theme.
+#[test]
+fn sh27_kstyle_parse_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let m = std::fs::read_to_string(root.join("lib/kv8/module.kab")).expect("module.kab");
+    assert!(
+        m.contains("import \"kstyle/parse\"")
+            && m.contains("parseSheet")
+            && m.contains("\"sheet\""),
+        "SH27 kstyle: provider returns the Kab-parsed sheet on the contract"
+    );
+    let k = std::fs::read_to_string(root.join("src/runtime/kstyle.rs")).expect("kstyle.rs");
+    assert!(
+        k.contains("pub fn stylesheet_from_value"),
+        "SH27 kstyle: host converts the Kab sheet value, not css text"
+    );
+    let b = std::fs::read_to_string(root.join("src/runtime/kabootar_browser/host_nav.rs"))
+        .expect("host_nav.rs");
+    assert!(
+        b.contains("stylesheet_from_value") && b.contains("kv8_parsed_stylesheet"),
+        "SH27 kstyle: load path consumes the provider-parsed sheet"
+    );
+}
+
+/// SH27 style-pipeline smoke: navigate a .kv8 whose :root var() must resolve
+/// through the Kab-parsed sheet (Rust parse_stylesheet has no var support).
+#[test]
+fn sh27_kstyle_parse_smoke() {
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let out = std::thread::Builder::new()
+        .name("sh27-kstyle-smoke".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+            kabootar_lib::cli::run_file(
+                root.join("examples/kbrowser_kstyle_parse_smoke.kab")
+                    .to_str()
+                    .expect("utf8"),
+            )
+            .map(|v| kabootar_lib::value::format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(
+        out.expect("kstyle parse smoke run"),
+        "true",
+        "SH27 kstyle: Kab-parsed sheet must reach paint through navigation"
+    );
+}
+
 /// SH27 render-path gate: Kab owns a display-list stage (DOM walk → draw ops)
 /// that rides the paint frame; rasterize/window/framebuffer stay host.
 #[test]
