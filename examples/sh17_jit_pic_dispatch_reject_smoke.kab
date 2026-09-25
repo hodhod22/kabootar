@@ -1,0 +1,27 @@
+import "kab/jit/jit_pic_exec"
+import "kab/jit/jit_pic"
+
+// Reject: unknown shape has no slot → miss (caller learns or goes mega).
+let aops = ["const", "add", "sub", "mul", "div", "mod", "ret"]
+let slots = jitPicLearn([], "point")
+if jitPicExecOk([aops], slots, "circle", 16, 3, 2, 4, 2, 5) {
+    return false
+}
+// Reject: slot table shorter than the learned PIC → miss.
+if jitPicExecOk([], slots, "point", 16, 3, 2, 4, 2, 5) {
+    return false
+}
+// Reject: a slot whose ops have no fusible lowering fails the slots gate.
+let bops = ["pop", "dup", "ret"]
+if jitPicSlotsOk([aops, bops]) {
+    return false
+}
+// Reject: empty slot table fails the slots gate.
+if jitPicSlotsOk([]) {
+    return false
+}
+// Reject: a miss never dispatches — even when the PIC has room to learn.
+if jitPicExecOk([aops, aops], slots, "rect", 16, 3, 2, 4, 2, 5) {
+    return false
+}
+return true

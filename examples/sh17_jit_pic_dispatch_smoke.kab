@@ -1,0 +1,41 @@
+import "kab/jit/jit_pic_exec"
+import "kab/jit/jit_pic"
+
+// Plan: poly site (2..4 shapes), hit ≥90, hot → PIC compile (2).
+if jitPicPlan(3, 92, 9) != 2 {
+    return false
+}
+// Mono site, good feedback → mono stub (1).
+if jitPicPlan(1, 92, 9) != 1 {
+    return false
+}
+// Megamorphic site → fallback (3), never compiles.
+if jitPicPlan(9, 92, 9) != 3 {
+    return false
+}
+// Cold poly site → interpret (0).
+if jitPicPlan(3, 92, 7) != 0 {
+    return false
+}
+// Mono site with poor hit rate → interpret (0), no stub.
+if jitPicPlan(1, 50, 9) != 0 {
+    return false
+}
+
+// Per-shape slot table: "point" → arith fuse, "rect" → cmp+branch fuse.
+let aops = ["const", "add", "sub", "mul", "div", "mod", "ret"]
+let cops = ["const", "const", "lt", "jump_if_false", "ret"]
+let slots = jitPicLearn(jitPicLearn([], "point"), "rect")
+let slotOps = [aops, cops]
+if jitPicSlotsOk(slotOps) == false {
+    return false
+}
+
+// Dispatch on receiver shape → that slot's fused lowering runs.
+if jitPicExecOk(slotOps, slots, "point", 16, 3, 2, 4, 2, 5) == false {
+    return false
+}
+if jitPicExecOk(slotOps, slots, "rect", 16, 3, 0, 0, 0, 0) == false {
+    return false
+}
+return true

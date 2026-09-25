@@ -1,0 +1,57 @@
+// SH17 deepen: PIC → fused pipeline dispatch. import "kab/jit/jit_pic_exec"
+// Do not grow jit_pic.kab. Site feedback picks the plan (cold / mono stub /
+// PIC / megamorphic); PIC exec dispatches on the receiver shape to the fused
+// lowering compiled for that slot. A slot miss falls back per jitPicMega.
+
+import "kab/jit/jit_ic"
+import "kab/jit/jit_pic"
+import "kab/jit/jit_from_ops_any"
+
+/// Site plan from IC feedback: 0 = cold (interpret), 1 = monomorphic stub,
+/// 2 = PIC compile, 3 = megamorphic fallback. Mono sites need jitIcOk;
+/// poly sites (2..cap shapes) need jitPicOk; mega never compiles.
+pub fn jitPicPlan(nShapes, pct, hits) {
+    let st = jitIcState(nShapes)
+    if st == 2 {
+        return 3
+    }
+    if st == 0 {
+        if jitIcOk(nShapes, pct, hits) {
+            return 1
+        }
+        return 0
+    }
+    if jitPicOk(nShapes, pct, hits) {
+        return 2
+    }
+    return 0
+}
+
+/// True when every slot's ops have a fusible lowering — a PIC carrying a
+/// cold slot compiles nothing (the site stays interpreted).
+pub fn jitPicSlotsOk(slotOps) {
+    if len(slotOps) == 0 {
+        return false
+    }
+    let i = 0
+    while i < len(slotOps) {
+        if jitFuseKind(slotOps[i]) == 0 {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+/// PIC exec: slotOps[i] is the op list specialized for slots[i]'s shape.
+/// The shape lookup picks the slot, and that slot's fused pipeline runs.
+/// A miss — unknown shape, or a slot table shorter than the learned PIC —
+/// returns false: the caller learns the shape into a free slot or goes
+/// megamorphic on a full PIC (jitPicMega).
+pub fn jitPicExecOk(slotOps, slots, shape, n, k, s, m, d, r) {
+    let i = jitPicFind(slots, shape)
+    if i < 0 || i >= len(slotOps) {
+        return false
+    }
+    return jitFromOpsAnyExecOk(slotOps[i], n, k, s, m, d, r)
+}

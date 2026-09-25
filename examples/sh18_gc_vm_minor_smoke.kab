@@ -27,7 +27,7 @@ vHeapPut(S, yRem)
 // old holder -> young target: the write barrier records it in gcRemIds.
 oldB["kid"] = yRem
 vGcLogWriteS(S, oldB, yRem)
-if len(S["gcRemIds"]) != 1 || S["gcRemIds"][0] != 2 {
+if len(S["gcRemIds"]) != 1 || S["gcRemIds"][0] != " " + 2 {
     return false
 }
 
@@ -150,7 +150,7 @@ yMerge["vmI"] = vGcTakeInstIdS(S)
 vHeapPut(S, oldM)
 vHeapPut(S, yMerge)
 vMergeInstInPlace(S, oldM, { "kid": yMerge })
-if len(S["gcRemIds"]) != 1 || S["gcRemIds"][0] != oldM["vmI"] {
+if len(S["gcRemIds"]) != 1 || S["gcRemIds"][0] != " " + oldM["vmI"] {
     return false
 }
 vGcCollectBeginS(S, true)
