@@ -321,6 +321,24 @@ pub fn vInstId(obj) {
     return id
 }
 
+/// Namespaced heap key: host make_object stamps every literal with
+/// __kab_oid from a global counter (bytecode/vm.rs), while vmI comes from
+/// the per-session bump allocator starting at 1 — the two numeric spaces
+/// collide. An oid-keyed object published under " "+oid is overwritten the
+/// moment an inst is assigned vmI==oid, so oid keys get the "h" prefix and
+/// never share a slot with insts.
+pub fn vInstKeyS(v) {
+    let id = vObjGet(v, "vmI")
+    if id != undefined {
+        return " " + id
+    }
+    let oid = vObjGet(v, "__kab_oid")
+    if oid != undefined {
+        return "h" + oid
+    }
+    return undefined
+}
+
 /// Merge src's fields into dst in place, firing the write barrier on each
 /// inst-valued write — a heaped dst gaining a young pointer must reach the
 /// remembered set or a minor collect can miss it.
@@ -353,6 +371,19 @@ pub fn vHeapGet(S, id) {
     return heap[" " + id]
 }
 
+/// Object-keyed heap read — resolves " "+vmI or "h"+oid via vInstKeyS.
+pub fn vHeapGetObj(S, v) {
+    let k = vInstKeyS(v)
+    if k == undefined {
+        return undefined
+    }
+    let heap = S["insts"]
+    if typeof(heap) != "object" || heap == null {
+        return undefined
+    }
+    return heap[k]
+}
+
 /// insts is an id-keyed map (" "+id -> inst), not an array — ids include
 /// host __kab_oid values that grow far beyond the inst count, so an
 /// id-indexed array would pad/copy quadratically per publish.
@@ -361,15 +392,16 @@ pub fn vHeapPut(S, obj) {
     if id == undefined {
         return
     }
+    let k = vInstKeyS(obj)
     let heap = S["insts"]
     if typeof(heap) != "object" || heap == null {
         heap = {}
     }
-    heap[" " + id] = obj
+    heap[k] = obj
     S["insts"] = heap
     // A put past the post-mark watermark while the lazy sweep is armed is a
     // fresh publish — count it here because the sweep key snapshot predates it.
-    if S["gcSweepActive"] == true {
+    if S["gcSweepActive"] == true && vObjGet(obj, "vmI") != undefined {
         let mn = S["gcSweepMinNew"]
         if typeof(mn) == "number" && id >= mn {
             let f = S["gcSweepFreshN"]
@@ -388,7 +420,7 @@ pub fn vHeapPut(S, obj) {
 /// in-flight cycle never sweeps a just-published object.
 pub fn vHeapPutFreshS(S, obj) {
     let id = vInstId(obj)
-    if id != undefined && vHeapGet(S, id) == undefined {
+    if id != undefined && vHeapGetObj(S, obj) == undefined {
         vNurseryCharge(S, gcInstShellBytes())
         vGcAllocBlackS(S, obj)
     }
@@ -408,11 +440,8 @@ pub fn vGcAllocBlackS(S, obj) {
 }
 
 pub fn vCanonicalInstS(S, v) {
-    let id = vObjGet(v, "vmI")
-    if id == undefined {
-        id = vObjGet(v, "__kab_oid")
-    }
-    let h = vHeapGet(S, id)
+    let id = vInstId(v)
+    let h = vHeapGetObj(S, v)
     if h != undefined {
         return h
     }
@@ -441,7 +470,8 @@ pub fn vPublishInstS(S, updated) {
     vHeapPutFreshS(S, updated)
     if len(S["thisStack"]) > 0 {
         let cur2 = S["thisStack"][len(S["thisStack"]) - 1]
-        if vSameVmI(vInstId(cur2), vInstId(updated)) {
+        let c2k = vInstKeyS(cur2)
+        if c2k != undefined && c2k == vInstKeyS(updated) {
             vWriteThisS(S, updated)
         }
     }
@@ -453,7 +483,13 @@ pub fn vWritebackAfterMethodS(S, recv, updated) {
     if id == undefined {
         id = vInstId(updated)
     }
-    let fresh = vHeapGet(S, id)
+    // Host-oid receivers stay in the oid key space — stamping vmI with an
+    // oid value would alias the inst-id space (see vInstKeyS).
+    let oidId = vObjGet(recv, "vmI") == undefined && vObjGet(recv, "__kab_oid") != undefined
+    let fresh = vHeapGetObj(S, recv)
+    if fresh == undefined {
+        fresh = vHeapGetObj(S, updated)
+    }
     if fresh != undefined {
         updated = fresh
     }
@@ -467,11 +503,16 @@ pub fn vWritebackAfterMethodS(S, recv, updated) {
         vMergeInstInPlace(S, recv, updated)
         return
     }
-    updated["vmI"] = id
+    if oidId {
+        updated["__kab_oid"] = id
+    } else {
+        updated["vmI"] = id
+    }
     vHeapPutFreshS(S, updated)
     vMergeInstInPlace(S, recv, updated)
-    S["locals"] = vReplaceByVmI(S["locals"], updated, id)
-    S["globals"] = vReplaceByVmI(S["globals"], updated, id)
+    let ukey = vInstKeyS(updated)
+    S["locals"] = vReplaceByVmI(S["locals"], updated, ukey)
+    S["globals"] = vReplaceByVmI(S["globals"], updated, ukey)
     return
 }
 
@@ -573,11 +614,13 @@ pub fn vGcMarkValS(st, v) {
     }
     if st["minor"] == true {
         let young = st["young"]
-        if typeof(young) == "number" && id < young {
+        // Generation skip only applies to vmI ids — a host __kab_oid shares no
+        // ordering with the young watermark, so an oid holder always scans.
+        if typeof(young) == "number" && vObjGet(v, "vmI") != undefined && id < young {
             return st
         }
     }
-    let k = " " + id
+    let k = vInstKeyS(v)
     let seen = st["seen"]
     if seen[k] != undefined {
         return st
@@ -737,10 +780,16 @@ pub fn vGcScanFieldsS(st, heap, rid) {
             return st
         }
         obj = heap[" " + rid]
+    } else if typeof(rid) == "string" {
+        // Namespaced key from gcRemIds/gcWriteLog — " "+vmI or "h"+oid.
+        if typeof(heap) != "object" || heap == null {
+            return st
+        }
+        obj = heap[rid]
     } else {
-        let hid = vInstId(obj)
-        if hid != undefined && typeof(heap) == "object" && heap != null {
-            let hv = heap[" " + hid]
+        let hk = vInstKeyS(obj)
+        if hk != undefined && typeof(heap) == "object" && heap != null {
+            let hv = heap[hk]
             if typeof(hv) == "object" && hv != null {
                 obj = hv
             }
@@ -787,17 +836,22 @@ pub fn vGcMarkSliceS(S, budget) {
                 S["gcWriteLog"] = pop(wl)
                 let ws = S["gcWriteSeen"]
                 if typeof(ws) == "object" && ws != null {
-                    // Write-log entries are holder inst ids or marked plain
-                    // objects — key the seen-unmark the way vGcLogWriteS did.
-                    let wk = " " + hid
-                    if typeof(hid) == "object" && hid != null {
-                        let hoid = vInstId(hid)
-                        if hoid != undefined {
-                            wk = " " + hoid
-                        } else {
-                            let poid = vGcObjIdS(hid)
-                            if poid != 0 && poid != undefined {
-                                wk = "p" + poid
+                    // Write-log entries are namespaced keys (" "+vmI / "h"+oid)
+                    // or marked plain objects — key the seen-unmark the way
+                    // vGcLogWriteS did.
+                    let wk = hid
+                    if typeof(hid) == "number" {
+                        wk = " " + hid
+                    } else {
+                        if typeof(hid) == "object" && hid != null {
+                            let hoid = vInstKeyS(hid)
+                            if hoid != undefined {
+                                wk = hoid
+                            } else {
+                                let poid = vGcObjIdS(hid)
+                                if poid != 0 && poid != undefined {
+                                    wk = "p" + poid
+                                }
                             }
                         }
                     }
@@ -836,8 +890,8 @@ pub fn vGcHeapMarkedN(heap, roots) {
     let n = 0
     let i = 0
     while i < len(roots) {
-        let rid = vInstId(roots[i])
-        if rid != undefined && heap[" " + rid] != undefined {
+        let rid = vInstKeyS(roots[i])
+        if rid != undefined && heap[rid] != undefined {
             n = n + 1
         }
         i = i + 1
@@ -903,7 +957,8 @@ pub fn vGcWeakClearObjS(obj, seen, minNew) {
         let k = keys[ki]
         if len(k) >= 5 && str_slice(k, 0, 5) == "weak_" {
             let wid = vInstId(obj[k])
-            if wid != undefined && wid < minNew && seen[" " + wid] != true {
+            let wk = vInstKeyS(obj[k])
+            if wid != undefined && wid < minNew && wk != undefined && seen[wk] != true {
                 obj[k] = undefined
             }
         }
@@ -976,16 +1031,21 @@ pub fn vGcSweepSliceS(S, budget) {
         let obj = heap[k]
         let id = vInstId(obj)
         if id != undefined {
-            if id >= mn {
+            // id is vmI for real insts, __kab_oid for oid-keyed slots —
+            // generation compares and freelist reuse only apply to vmI ids.
+            let vmI = vObjGet(obj, "vmI")
+            if vmI != undefined && vmI >= mn {
                 vGcWeakClearObjS(obj, seen, mn)
-            } else if minor && id < oldId {
+            } else if minor && vmI != undefined && vmI < oldId {
                 // old-space slot — a minor collect leaves it alone
-            } else if seen[" " + id] == true {
+            } else if seen[vInstKeyS(obj)] == true {
                 live = live + 1
                 vGcWeakClearObjS(obj, seen, mn)
             } else {
                 heap[k] = undefined
-                freeIds = push(freeIds, id)
+                if vmI != undefined {
+                    freeIds = push(freeIds, vmI)
+                }
                 dead = dead + 1
             }
         }
@@ -1012,7 +1072,7 @@ pub fn vGcSweepSliceS(S, budget) {
         let kv = heap[kk[ki]]
         if kv != undefined {
             keep[kk[ki]] = kv
-            let kvid = vInstId(kv)
+            let kvid = vObjGet(kv, "vmI")
             if kvid != undefined && kvid > maxId {
                 maxId = kvid
             }
@@ -1066,9 +1126,9 @@ pub fn vGcSweepSliceS(S, budget) {
             let ri = 0
             while ri < len(rem) {
                 let hid = rem[ri]
-                if seen[" " + hid] == true {
+                if seen[hid] == true {
                     keepR = push(keepR, hid)
-                    seenR[" " + hid] = true
+                    seenR[hid] = true
                 }
                 ri = ri + 1
             }
@@ -1149,8 +1209,13 @@ pub fn vGcTakeInstIdS(S) {
     return id
 }
 
-pub fn vReplaceByVmI(arr, updated, id) {
+/// `key` is a vInstKeyS string — comparing keys (not raw ids) keeps host-oid
+/// objects from aliasing a colliding vmI during writeback.
+pub fn vReplaceByVmI(arr, updated, key) {
     if arr == null || arr == undefined {
+        return arr
+    }
+    if key == undefined {
         return arr
     }
     let out = []
@@ -1161,8 +1226,7 @@ pub fn vReplaceByVmI(arr, updated, id) {
         let keep = v
         if v != null {
             if v != undefined {
-                let hit = vSameVmI(vInstId(v), id)
-                if hit {
+                if vInstKeyS(v) == key {
                     keep = updated
                 }
             }
@@ -1447,20 +1511,23 @@ pub fn vGcLogWriteS(S, holder, val) {
     // Remembered set: old holder -> young target survives minors only via
     // this record (young holders are covered by normal reachability). An
     // id-less composite val counts as potentially-young — it may nest one.
+    // Entries carry namespaced keys (" "+vmI / "h"+oid) — oid holders resolve
+    // under "h" after vInstKeyS split the numeric id space.
+    let hk2 = vInstKeyS(holder)
     let oldId = S["gcOldId"]
     if typeof(oldId) == "number" && id < oldId && (vid == undefined || vid >= oldId) {
         let rseen = S["gcRemSeen"]
         if typeof(rseen) != "object" || rseen == null {
             rseen = {}
         }
-        if rseen[" " + id] != true {
-            rseen[" " + id] = true
+        if rseen[hk2] != true {
+            rseen[hk2] = true
             S["gcRemSeen"] = rseen
             let rem = S["gcRemIds"]
             if typeof(rem) != "array" {
                 rem = []
             }
-            S["gcRemIds"] = push(rem, id)
+            S["gcRemIds"] = push(rem, hk2)
         }
     }
     if S["gcMarkActive"] != true {
@@ -1470,7 +1537,7 @@ pub fn vGcLogWriteS(S, holder, val) {
     if typeof(seen) != "object" || seen == null {
         seen = {}
     }
-    let k = " " + id
+    let k = hk2
     if seen[k] != undefined {
         S["gcWriteSeen"] = seen
         return
@@ -1481,7 +1548,7 @@ pub fn vGcLogWriteS(S, holder, val) {
     if typeof(log) != "array" {
         log = []
     }
-    S["gcWriteLog"] = push(log, id)
+    S["gcWriteLog"] = push(log, k)
     let wc = S["gcWriteCycleN"]
     if typeof(wc) != "number" {
         wc = 0

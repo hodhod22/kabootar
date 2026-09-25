@@ -5,10 +5,12 @@ class Cell {
     }
 }
 
-// Plain object (make_object shell — no vmI/__kab_oid) holding a live inst.
-// Pre-deep-10 the GC mark skipped id-less objects entirely, so the inst
-// reachable only through `holder` was swept under the app: holder.cell.n
-// then read as undefined and `undefined + 1` crashed the op.
+// Plain object (make_object shell — host stamps __kab_oid, no vmI) holding a
+// live inst. The Kab-VM inst heap keys insts by " "+vmI but also published
+// oid-keyed objects under " "+oid — host oids and session vmI values collide,
+// so a churn inst with vmI == holder's oid overwrote the holder slot and
+// holder.cell read as undefined. Heap keys are now namespaced: " "+vmI for
+// insts, "h"+__kab_oid for host-oid objects.
 let holder = {}
 holder.cell = Cell()
 

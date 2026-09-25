@@ -8,12 +8,13 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-KAB = Path(os.environ.get("KABOOTAR_BIN", ROOT / "target-p6b9-rel/release/kabootar.exe"))
+KAB = Path(os.environ.get("KABOOTAR_BIN", ROOT / "target/release/kabootar.exe"))
 MANIFEST = str(ROOT).replace("\\", "/")
 if len(MANIFEST) >= 2 and MANIFEST[1] == ":":
     MANIFEST = MANIFEST[0].lower() + MANIFEST[1:]
 
-LEAVES = ["emit_impl.kab", "parser_impl.kab", "lexer_impl.kab"]
+# SH5 reverse-densify candidates — merge order is chosen from these numbers.
+LEAVES = ["parser_stmt.kab", "parser_postfix.kab", "emit_expr_body.kab", "emit_stmt_body.kab"]
 BUDGET_MS = 10_000
 
 

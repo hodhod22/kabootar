@@ -33,7 +33,7 @@ fn sh0_self_host_compile_dag_snapshot() {
         inv.vm_files
     );
     assert!(
-        inv.compile_dag.len() >= 9,
+        inv.compile_dag.len() >= 8,
         "compile.kab DAG should stay a real pipeline, got {}",
         inv.compile_dag.len()
     );
@@ -408,8 +408,8 @@ fn sh3a_self_host_push_len_nested() {
 fn sh1_warm_full_compile_dag() {
     let n = kabootar_lib::compile::write_compiler_dag_seeds().expect("warm dag");
     eprintln!("SH1 warm wrote {n} seed/dag files");
-    // SH5's documented densification plateau is a 9-file compile DAG.
-    assert!(n >= 9, "compile DAG should stay a pipeline, wrote {n}");
+    // SH5's documented densification plateau is an 8-file compile DAG.
+    assert!(n >= 8, "compile DAG should stay a pipeline, wrote {n}");
 }
 
 #[test]
@@ -610,14 +610,15 @@ fn sh6_vm_policy_in_kab() {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/vm_run_new_run.kab"),
     )
     .expect("vm_run_new_run.kab");
+    // SH5 merge-4: parser_postfix body now lives in parser_exec.kab.
     let postfix = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/parser_postfix.kab"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/parser_exec.kab"),
     )
-    .expect("parser_postfix.kab");
+    .expect("parser_exec.kab");
     assert!(
         new_run.contains("vNewInstanceFromArrayS")
             && ops_loop.contains("new_instance_from_array")
-            && postfix.contains("AST_SPREAD")
+            && parser.contains("AST_SPREAD")
             && emit.contains("OP_NEW_INSTANCE_FROM_ARRAY")
             && emit.contains("OP_CALL_FROM_ARRAY"),
         "SH6: spread ctor/call on Kab VM + self-host parse/emit"
@@ -25032,6 +25033,72 @@ fn sh17_jit_pic_reject_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile jit pic reject smoke");
             let value = eval_program(&program, &mut env).expect("run jit pic reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// FT F2 deepen: PIC → fused dispatch — site plan + per-slot fused exec.
+#[test]
+fn sh17_jit_pic_exec_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let p = std::fs::read_to_string(root.join("lib/kab/jit/jit_pic_exec.kab"))
+        .expect("jit_pic_exec.kab");
+    assert!(
+        p.contains("pub fn jitPicPlan")
+            && p.contains("pub fn jitPicSlotsOk")
+            && p.contains("pub fn jitPicExecOk")
+            && p.contains("jitIcState")
+            && p.contains("jitIcOk")
+            && p.contains("jitPicOk")
+            && p.contains("jitPicFind")
+            && p.contains("jitFuseKind")
+            && p.contains("jitFromOpsAnyExecOk"),
+        "F2 Kab PIC→fused dispatch (jit_pic_exec.kab)"
+    );
+}
+
+/// FT F2 deepen: PIC dispatch — plan picks stub/PIC/mega; slot exec runs the
+/// per-shape fused lowering (eval).
+#[test]
+fn sh17_jit_pic_dispatch_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_pic_dispatch_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-pic-dispatch-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit pic dispatch smoke");
+            let value = eval_program(&program, &mut env).expect("run jit pic dispatch smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// FT F2 deepen: PIC dispatch rejects — slot miss never dispatches; a cold
+/// slot fails the slots gate (eval).
+#[test]
+fn sh17_jit_pic_dispatch_reject_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_pic_dispatch_reject_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-pic-dispatch-reject".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit pic dispatch reject smoke");
+            let value = eval_program(&program, &mut env).expect("run jit pic dispatch reject smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")
@@ -58647,6 +58714,40 @@ fn sh18_gc_vm_new_instance_exec_smoke() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "1");
+}
+
+/// SH18: Kab-VM plain-object mark dedup — id-less shells and cyclic plain
+/// objects keep inst children alive across a nursery collect.
+#[test]
+fn sh18_gc_vm_plain_exec_smoke() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = std::fs::read_to_string(format!(
+        "{}/examples/sh18_gc_vm_plain_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read gc vm plain smoke");
+    let formatted = std::thread::Builder::new()
+        .name("sh18-gc-vm-plain".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program = compile_source_self_host(&src)
+                .map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("gc vm plain smoke");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "14");
 }
 
 /// SH18 deepen: tricolor marking stays in a tiny leaf (do not grow gc_mark).
