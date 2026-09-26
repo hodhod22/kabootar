@@ -195,6 +195,79 @@ if vHeapGet(S, gv["vmI"]) == undefined {
 S["curGen"] = null
 S["genClose"] = undefined
 
+// --- h-keyed host-object holder: an oid-keyed object (host make_object
+// stamps __kab_oid on every literal — no vmI, no vm-space generation) is
+// old-space for GC purposes: writes into it record the remembered set
+// under "h"+oid even when the oid is far above the young watermark,
+// minors leave its slot alone when it is reachable only through untraced
+// old insts, and a mid-mark write reaches the write log under the same
+// namespaced key ---
+let S3 = vMakeSession()
+S3["gcOldId"] = 2
+let oldWrap = { "vmC": 0 }
+oldWrap["vmI"] = vGcTakeInstIdS(S3)
+vHeapPut(S3, oldWrap)
+let holder = {}
+let hoid = vObjGet(holder, "__kab_oid")
+if hoid == undefined {
+    return false
+}
+let hkey = "h" + hoid
+vHeapPut(S3, holder)
+oldWrap["h"] = holder
+let yChild = { "vmC": 0 }
+yChild["vmI"] = vGcTakeInstIdS(S3)
+vHeapPut(S3, yChild)
+let yDead = { "vmC": 0 }
+yDead["vmI"] = vGcTakeInstIdS(S3)
+vHeapPut(S3, yDead)
+holder["kid"] = yChild
+vGcLogWriteS(S3, holder, yChild)
+if len(S3["gcRemIds"]) != 1 || S3["gcRemIds"][0] != hkey {
+    return false
+}
+S3["stack"] = []
+vGcCollectBeginS(S3, true)
+while S3["gcMarkActive"] == true {
+    vGcMarkSliceS(S3, 64)
+}
+while S3["gcSweepActive"] == true {
+    vGcSweepSliceS(S3, 8)
+}
+if vHeapGetObj(S3, holder) == undefined {
+    return false
+}
+if vHeapGet(S3, yChild["vmI"]) == undefined {
+    return false
+}
+if vHeapGet(S3, yDead["vmI"]) != undefined {
+    return false
+}
+// Write-log path: storing into the oid holder while a mark is in flight
+// records "h424" in gcWriteLog; the drain rescans the holder's fields and
+// the young target survives.
+let yChild2 = { "vmC": 0 }
+yChild2["vmI"] = vGcTakeInstIdS(S3)
+vHeapPut(S3, yChild2)
+vGcCollectBeginS(S3, true)
+holder["kid2"] = yChild2
+vGcLogWriteS(S3, holder, yChild2)
+if len(S3["gcWriteLog"]) < 1 {
+    return false
+}
+while S3["gcMarkActive"] == true {
+    vGcMarkSliceS(S3, 64)
+}
+while S3["gcSweepActive"] == true {
+    vGcSweepSliceS(S3, 8)
+}
+if vHeapGet(S3, yChild2["vmI"]) == undefined {
+    return false
+}
+if vHeapGet(S3, yChild["vmI"]) == undefined {
+    return false
+}
+
 // --- charge coverage: literal ops charge the nursery ---
 let S2 = vMakeSession()
 S2["stack"] = [1, 2, 3]

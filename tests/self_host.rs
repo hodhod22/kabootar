@@ -6167,7 +6167,8 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     let defs = format!("{root}/self_host/serialize_defs.kab");
     let ir = format!("{root}/self_host/serialize_ir.kab");
     let out = format!("{root}/self_host/serialize_out.kab");
-    let sections = format!("{root}/self_host/serialize_sections.kab");
+    let sections = format!("{root}/self_host/compile.kab");
+    let sections_fac = format!("{root}/self_host/serialize_sections.kab");
     let ops = format!("{root}/self_host/serialize_ops.kab");
     let fns = format!("{root}/self_host/serialize_fns.kab");
     let acc = format!("{root}/self_host/serialize_acc.kab");
@@ -6177,7 +6178,9 @@ fn p6b_serialize_body_still_skip_listed_progress() {
     let defs_src = std::fs::read_to_string(&defs).expect("read serialize_defs");
     let ir_src = std::fs::read_to_string(&ir).expect("read serialize_ir");
     let out_src = std::fs::read_to_string(&out).expect("read serialize_out");
-    let sections_src = std::fs::read_to_string(&sections).expect("read serialize_sections");
+    let sections_src = std::fs::read_to_string(&sections).expect("read compile (merged serialize_sections)");
+    let sections_fac_src =
+        std::fs::read_to_string(&sections_fac).expect("read serialize_sections facade");
     let ops_src = std::fs::read_to_string(&ops).expect("read serialize_ops");
     let fns_src = std::fs::read_to_string(&fns).expect("read serialize_fns");
     let acc_src = std::fs::read_to_string(&acc).expect("read serialize_acc");
@@ -6188,6 +6191,11 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "serialize.kab should stay a thin facade (~1KB)"
     );
     assert!(
+        sections_fac_src.contains("pub import")
+            && sections_fac_src.len() < 2 * 1024,
+        "serialize_sections.kab stays a thin facade after merge 5"
+    );
+    assert!(
         defs_src.contains("pub import")
             && sections_src.contains("pub fn serAppendClasses(")
             && sections_src.contains("pub fn serAppendFunctions(")
@@ -6195,11 +6203,11 @@ fn p6b_serialize_body_still_skip_listed_progress() {
             && sections_src.contains("pub fn serIrOpLine(")
             && sections_src.contains("pub fn serSerializeBc(")
             && ir_line_src.contains("pub import"),
-        "SH5: sections hold class/fn/op/IR/serialize; ir_line is a facade"
+        "SH5: sections merged into compile (class/fn/op/IR/serialize); ir_line is a facade"
     );
     assert!(
         sections_src.contains("pub let IR_WITH_ARG") && sections_src.contains("pub let IR_ZERO_ARG"),
-        "SH5: IR membership tables live in serialize_sections"
+        "SH5: IR membership tables now live in compile (merged serialize_sections)"
     );
     assert!(
         sections_src.contains("|len_global|") && sections_src.contains("|index_get_global|"),
@@ -6215,12 +6223,12 @@ fn p6b_serialize_body_still_skip_listed_progress() {
             && out_src.contains("pub import")
             && acc_src.contains("pub import")
             && sections_src.contains("pub fn serAppendFunctions(out, fns)"),
-        "SH5: section appenders live in serialize_sections; ops/fns/out/acc are facades"
+        "SH5: section appenders live in compile; ops/fns/out/acc are facades"
     );
     assert!(
         acc_src.contains("pub import")
             && sections_src.contains("serAppendConsts("),
-        "SH5: serSerializeBc orchestrates pool/tail helpers in serialize_sections"
+        "SH5: serSerializeBc orchestrates pool/tail helpers in compile"
     );
     assert!(
         sections_src.contains("pub fn serEscStr(")
@@ -6230,7 +6238,7 @@ fn p6b_serialize_body_still_skip_listed_progress() {
             && sections_src.contains("pub fn serIrOpLookup(")
             && ir_src.contains("pub import")
             && ir_op_src.contains("pub import"),
-        "SH5: esc/const/ir-op helpers in serialize_sections; ir/ir_op are facades"
+        "SH5: esc/const/ir-op helpers in compile; ir/ir_op are facades"
     );
     assert!(
         fac_src.contains("serSerializeBc") && fac_src.contains("pub let serialize_bc"),
@@ -6241,7 +6249,7 @@ fn p6b_serialize_body_still_skip_listed_progress() {
         "P6b: facade must not keep AccAdd/section helpers"
     );
     for path in [
-        &fac, &defs, &ir, &out, &sections, &ops, &ir_line, &acc, &fns, &ir_op,
+        &fac, &defs, &ir, &out, &sections, &sections_fac, &ops, &ir_line, &acc, &fns, &ir_op,
     ] {
         assert!(
             !self_host_is_skip_listed(path),

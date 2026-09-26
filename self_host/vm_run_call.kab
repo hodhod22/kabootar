@@ -1,5 +1,6 @@
 import "self_host/vm_s_stack"
 import "self_host/vm_run_session"
+import "self_host/vm_run_jit"
 // SH6: g.next(v) send.
 
 // --- vm_run_args_arr ---
@@ -277,6 +278,14 @@ pub fn vApplyEnumCtor(ctor, ordered) {
 // --- vm_run_call_apply ---
 pub fn vApplyCalleeS(S, c, ordered, pool, globals, functions) {
     let kind = c["kind"]
+    if kind == "jit" {
+        let j = vJitExecOk(S, c, ordered)
+        if j["ok"] != 1 {
+            S["unsupported"] = true
+            return undefined
+        }
+        return j["out"]
+    }
     if kind == "fn" || kind == "arrow" {
         return vApplyFnArrowS(S, c, ordered, pool, globals, functions)
     }
@@ -325,7 +334,7 @@ pub fn runOpCallFromArrayS(S, name, pool, globals, functions) {
     let argsArr = vPopS(S)
     let callee = vPopS(S)
     let ordered = vArrayToOrdered(argsArr)
-    let c = vClassifyCallee(callee)
+    let c = vJitClassifyS(S, callee, vClassifyCallee)
     let a = vApplyCalleeCatchS(S, c, ordered, pool, globals, functions)
     if a["caught"] == 1 {
         return 1
@@ -339,7 +348,7 @@ pub fn runOpCallFromArrayS(S, name, pool, globals, functions) {
 pub fn vCallNPrepS(S, arg) {
     let callee = vPopS(S)
     let ordered = vPopOrderedArgs(S, arg)
-    let c = vClassifyCallee(callee)
+    let c = vJitClassifyS(S, callee, vClassifyCallee)
     if c["kind"] == "bad" {
         S["unsupported"] = true
         return { "st": 2 }

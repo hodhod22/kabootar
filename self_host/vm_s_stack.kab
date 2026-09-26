@@ -1036,8 +1036,11 @@ pub fn vGcSweepSliceS(S, budget) {
             let vmI = vObjGet(obj, "vmI")
             if vmI != undefined && vmI >= mn {
                 vGcWeakClearObjS(obj, seen, mn)
-            } else if minor && vmI != undefined && vmI < oldId {
-                // old-space slot — a minor collect leaves it alone
+            } else if minor && (vmI == undefined || vmI < oldId) {
+                // old-space slot — a minor collect leaves it alone. An
+                // oid-keyed object (vmI==undefined) has no generation and
+                // may be reachable only through untraced old insts — minors
+                // must not tombstone it or that edge dangles.
             } else if seen[vInstKeyS(obj)] == true {
                 live = live + 1
                 vGcWeakClearObjS(obj, seen, mn)
@@ -1515,7 +1518,26 @@ pub fn vGcLogWriteS(S, holder, val) {
     // under "h" after vInstKeyS split the numeric id space.
     let hk2 = vInstKeyS(holder)
     let oldId = S["gcOldId"]
-    if typeof(oldId) == "number" && id < oldId && (vid == undefined || vid >= oldId) {
+    // Generation compare only applies to real vmI ids — a host __kab_oid
+    // shares no ordering with the young watermark (same rule as
+    // vGcMarkValS). An oid holder is never minor-swept, so it counts as
+    // old-space: it must always record the write or a minor misses the
+    // old->young edge and the young child dies.
+    let holderOld = false
+    if typeof(oldId) == "number" {
+        if vObjGet(holder, "vmI") != undefined {
+            holderOld = id < oldId
+        } else {
+            holderOld = id != undefined
+        }
+    }
+    // Val is potentially-young when it is a young vmI inst or any composite
+    // without a vmI (id-less or oid-keyed — it may nest young insts).
+    let valYoung = vid == undefined || vObjGet(val, "vmI") == undefined
+    if valYoung == false && typeof(oldId) == "number" {
+        valYoung = vid >= oldId
+    }
+    if holderOld && valYoung {
         let rseen = S["gcRemSeen"]
         if typeof(rseen) != "object" || rseen == null {
             rseen = {}

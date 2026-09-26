@@ -1,0 +1,206 @@
+// SH17 deepen: PIC in the real dispatch path. import "self_host/vm_run_jit"
+// The `call` op site caches vClassifyCallee per callee shape in
+// S["jitSites"][" "+ip] — V8 model: mono stub → PIC ≤4 → megamorphic
+// fallback (jit_pic.kab). Per-call fields (recv/caps/arrowDef) live on the
+// callee wrapper, not the cached record — hits refresh them. A callee
+// carrying {vmJit:1, jitOps:[...]} (or jitSlots+jitSlotOps for polymorphic
+// jit fns) executes its fused lowering via jitPicExecOk instead of a frame.
+
+import "self_host/vm_s_stack"
+import "kab/jit/jit_pic"
+import "kab/jit/jit_pic_exec"
+import "kab/jit/jit_from_ops_any"
+import "kab/jit/jit_from_ops_any_val"
+
+/// Per-ip site table key.
+pub fn vJitSiteKeyS(S) {
+    return " " + S["ip"]
+}
+
+pub fn vJitSitesS(S) {
+    let sites = S["jitSites"]
+    if typeof(sites) != "object" || sites == null {
+        sites = {}
+        S["jitSites"] = sites
+    }
+    return sites
+}
+
+/// Identity key for a jit callee: explicit jitId wins; else the namespaced
+/// inst/host key (vmI or __kab_oid) — never aliases another identity space.
+pub fn vJitObjKey(v) {
+    let jid = vObjGet(v, "jitId")
+    if jid != undefined {
+        return "" + jid
+    }
+    let k = vInstKeyS(v)
+    if k != undefined {
+        return "k" + k
+    }
+    return "x" + vGcObjIdS(v)
+}
+
+/// Callee shape for the site PIC. Fn/arrow/jit identity keys are stable
+/// across calls; receiver-bound wrappers shape on kind + receiver class so
+/// different receivers of the same class hit one slot (recv is refreshed
+/// per call — it is instance state, not shape state). Host callees get no
+/// shape: their records would pin a per-call callee object.
+pub fn vJitCalleeShape(callee) {
+    if callee == null || callee == undefined {
+        return undefined
+    }
+    if typeof(callee) != "object" {
+        return undefined
+    }
+    let vmFn = vObjGet(callee, "vmFn")
+    if vmFn != undefined {
+        return "f" + vmFn
+    }
+    let vmArrow = vObjGet(callee, "vmArrow")
+    if vmArrow != undefined {
+        return "a" + vmArrow
+    }
+    if vObjGet(callee, "vmJit") == 1 {
+        return "j" + vJitObjKey(callee)
+    }
+    let r = vObjGet(callee, "vmR")
+    if r == undefined || r == null || typeof(r) != "object" {
+        return undefined
+    }
+    let rc = vObjGet(r, "vmC")
+    if rc == undefined {
+        return undefined
+    }
+    let vmM = vObjGet(callee, "vmM")
+    if vmM != undefined {
+        return "m" + rc + "." + vmM
+    }
+    if vObjGet(callee, "vmGenNext") != undefined {
+        return "gn" + rc
+    }
+    if vObjGet(callee, "vmGenReturn") != undefined {
+        return "gr" + rc
+    }
+    if vObjGet(callee, "vmGenThrow") != undefined {
+        return "gt" + rc
+    }
+    return undefined
+}
+
+/// Refresh per-call fields on a cached classify record — recv/caps/arrowDef
+/// are instance state carried by the callee wrapper of THIS call.
+pub fn vJitRefreshC(c, callee) {
+    let k = c["kind"]
+    if k == "method" || k == "hostMethod" || k == "genNext" || k == "genReturn" || k == "genThrow" {
+        c["recv"] = vObjGet(callee, "vmR")
+    }
+    if k == "arrow" {
+        c["caps"] = vObjGet(callee, "caps")
+        c["arrowDef"] = vObjGet(callee, "arrowDef")
+    }
+    return c
+}
+
+/// Jit-native callee kind: {vmJit:1} objects bypass the frame path.
+pub fn vJitClassifyJit(callee) {
+    if callee == null || callee == undefined {
+        return null
+    }
+    if typeof(callee) != "object" {
+        return null
+    }
+    if vObjGet(callee, "vmJit") != 1 {
+        return null
+    }
+    return { "kind": "jit", "callee": callee }
+}
+
+/// PIC-cached classify: `classify` is the caller's classify fn (passed in —
+/// vm_run_call owns vClassifyCallee; a direct import would cycle). Shape hit
+/// returns the cached record (with per-call fields refreshed); a miss
+/// classifies and learns the shape into the site PIC — a full PIC goes
+/// megamorphic and stops caching. Site counters (calls/hits/misses) feed
+/// jitPicPlan compile decisions.
+pub fn vJitClassifyS(S, callee, classify) {
+    let jc = vJitClassifyJit(callee)
+    if jc != null {
+        return jc
+    }
+    let shape = vJitCalleeShape(callee)
+    if shape == undefined {
+        return classify(callee)
+    }
+    let sites = vJitSitesS(S)
+    let key = vJitSiteKeyS(S)
+    let site = sites[key]
+    if typeof(site) != "object" || site == null {
+        site = { "slots": [], "recs": [], "calls": 0, "hits": 0, "misses": 0, "mega": false }
+        sites[key] = site
+    }
+    site["calls"] = site["calls"] + 1
+    if site["mega"] == true {
+        return classify(callee)
+    }
+    let i = jitPicFind(site["slots"], shape)
+    if i >= 0 && i < len(site["recs"]) {
+        site["hits"] = site["hits"] + 1
+        return vJitRefreshC(site["recs"][i], callee)
+    }
+    let c = classify(callee)
+    site["misses"] = site["misses"] + 1
+    if jitPicMega(site["slots"], shape) {
+        site["mega"] = true
+    } else {
+        site["slots"] = jitPicLearn(site["slots"], shape)
+        site["recs"] = push(site["recs"], c)
+    }
+    return c
+}
+
+/// Exec a jit callee through the fused lowering. jitOps is a single
+/// specialized op list; jitSlots+jitSlotOps is a polymorphic jit fn — the
+/// arg0 class shape picks the slot via jitPicExecOk. Numeric args feed the
+/// template immediates (n,k,s,m,d,r). {ok:0} means the domain rejected the
+/// call — the caller falls back per its contract.
+pub fn vJitExecOk(S, c, ordered) {
+    let callee = c["callee"]
+    let n = 0
+    let k = 0
+    let s = 0
+    let m = 0
+    let d = 0
+    let r = 0
+    if len(ordered) > 0 { n = ordered[0] }
+    if len(ordered) > 1 { k = ordered[1] }
+    if len(ordered) > 2 { s = ordered[2] }
+    if len(ordered) > 3 { m = ordered[3] }
+    if len(ordered) > 4 { d = ordered[4] }
+    if len(ordered) > 5 { r = ordered[5] }
+    let slotOps = vObjGet(callee, "jitSlotOps")
+    if typeof(slotOps) == "array" {
+        let slots = vObjGet(callee, "jitSlots")
+        if typeof(slots) != "array" {
+            return { "ok": 0 }
+        }
+        let shape = "t" + typeof(n)
+        if n != null && n != undefined && typeof(n) == "object" {
+            let nc = vObjGet(n, "vmC")
+            if nc != undefined {
+                shape = "c" + nc
+            }
+        }
+        if jitPicExecOk(slotOps, slots, shape, n, k, s, m, d, r) == false {
+            return { "ok": 0 }
+        }
+        let outSlot = jitPicFind(slots, shape)
+        return { "ok": 1, "out": jitFromOpsAnyVal(slotOps[outSlot], n, k, s, m, d, r) }
+    }
+    let ops = vObjGet(callee, "jitOps")
+    if typeof(ops) != "array" {
+        return { "ok": 0 }
+    }
+    if jitFromOpsAnyExecOk(ops, n, k, s, m, d, r) == false {
+        return { "ok": 0 }
+    }
+    return { "ok": 1, "out": jitFromOpsAnyVal(ops, n, k, s, m, d, r) }
+}
