@@ -1,0 +1,262 @@
+@version "1.0.0"
+
+// Kv8 run-on-page — routes `kb_run_kv8` scripts through the Kab interpreter
+// (`kv8/eval.evalSourceWith`) when the script fits the Kab capability
+// envelope; the host keeps Rust `eval_script` as fallback for the rest.
+// Contract: provider `f(script, docRoot) -> true | false`.
+//   false = decline BEFORE running (no DOM mutation) → host fallback.
+// Installed via `kb_set_eval_provider` in kbrowser/nav.
+// import "kv8/run"
+
+import "kv8/defs"
+import "kv8/parser"
+import "kv8/eval"
+import "kdom/query"
+
+// Route counters — object identity is shared across import envs, so
+// smokes can observe which engine ran (Kab vs Rust fallback).
+pub let evalRoute = { "kab": 0 }
+
+fn exprsOk(list) {
+    if list == null || list == undefined {
+        return true
+    }
+    let i = 0
+    while i < len(list) {
+        if exprOk(list[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+fn stmtsOk(list) {
+    if list == null || list == undefined {
+        return true
+    }
+    let i = 0
+    while i < len(list) {
+        if stmtOk(list[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+fn blockOk(blk) {
+    if blk == null || blk == undefined {
+        return true
+    }
+    return stmtsOk(blk["body"])
+}
+
+// Expression kinds + operator sets that evExpr handles (eval.kab).
+fn exprOk(n) {
+    if n == null || n == undefined {
+        return true
+    }
+    let k = n.kind
+    if k == K_LITERAL || k == K_IDENT {
+        return true
+    }
+    if k == K_BINARY {
+        let op = "" + n["op"]
+        if op == "+" || op == "-" || op == "*" || op == "/"
+            || op == "==" || op == "===" || op == "!=" || op == "!=="
+            || op == "<" || op == ">" || op == "<=" || op == ">="
+            || op == "&&" || op == "||" || op == "??" {
+            return exprOk(n["left"]) && exprOk(n["right"])
+        }
+        return false
+    }
+    if k == K_UNARY {
+        let uop = "" + n["op"]
+        if uop == "!" || uop == "typeof" || uop == "-" || uop == "+" {
+            return exprOk(n["arg"])
+        }
+        return false
+    }
+    if k == K_UPDATE {
+        let arg = n["arg"]
+        if arg == null || arg == undefined || arg.kind != K_IDENT {
+            return false
+        }
+        let uop = "" + n["op"]
+        return uop == "++" || uop == "--"
+    }
+    if k == K_MEMBER {
+        return exprOk(n["object"])
+    }
+    if k == K_INDEX {
+        return exprOk(n["object"]) && exprOk(n["index"])
+    }
+    if k == K_CALL || k == K_NEW {
+        return exprOk(n["callee"]) && exprsOk(n["args"])
+    }
+    if k == K_TERNARY {
+        return exprOk(n["cond"]) && exprOk(n["thenBranch"]) && exprOk(n["elseBranch"])
+    }
+    if k == K_TEMPLATE {
+        let parts = n["parts"]
+        let pi = 0
+        while pi < len(parts) {
+            let part = parts[pi]
+            if part["tag"] != "lit" {
+                if exprOk(part["expr"]) == false {
+                    return false
+                }
+            }
+            pi = pi + 1
+        }
+        return true
+    }
+    if k == K_OBJECT {
+        let fields = n["fields"]
+        let fi = 0
+        while fi < len(fields) {
+            if exprOk(fields[fi]["value"]) == false {
+                return false
+            }
+            fi = fi + 1
+        }
+        return true
+    }
+    if k == K_ARRAY {
+        return exprsOk(n["elements"])
+    }
+    if k == K_ARROW {
+        let body = n["body"]
+        if body != null && body != undefined && body.kind == K_BLOCK {
+            return stmtsOk(body["body"])
+        }
+        return exprOk(body)
+    }
+    if k == K_AWAIT {
+        return exprOk(n["arg"])
+    }
+    return false
+}
+
+// Statement kinds evStmt/evRunBlock handle (eval.kab). Expr nodes reached
+// as stmts (for-update etc.) fall through to the expression walk.
+fn stmtOk(st) {
+    if st == null || st == undefined {
+        return true
+    }
+    let k = st.kind
+    if k == K_LET || k == K_VAR {
+        return exprOk(st["init"])
+    }
+    if k == K_EXPR {
+        return exprOk(st["expr"])
+    }
+    if k == K_RETURN || k == K_THROW {
+        return exprOk(st["rhs"])
+    }
+    if k == K_ASSIGN {
+        if object_has_own(st, "op") {
+            let aop = "" + st["op"]
+            if aop != "+=" && aop != "-=" && aop != "*=" && aop != "/=" {
+                return false
+            }
+        }
+        if object_has_own(st, "object") {
+            return exprOk(st["object"]) && exprOk(st["rhs"])
+        }
+        return exprOk(st["rhs"])
+    }
+    if k == K_IF {
+        return exprOk(st["cond"]) && blockOk(st["then"]) && stmtsOk(st["elseBranch"])
+    }
+    if k == K_WHILE {
+        return exprOk(st["cond"]) && blockOk(st["body"])
+    }
+    if k == K_FOR {
+        return stmtOk(st["init"]) && exprOk(st["cond"]) && stmtOk(st["update"]) && blockOk(st["body"])
+    }
+    if k == K_FOR_IN || k == K_FOR_OF {
+        return exprOk(st["iterable"]) && blockOk(st["body"])
+    }
+    if k == K_SWITCH {
+        if exprOk(st["disc"]) == false {
+            return false
+        }
+        let cases = st["cases"]
+        let ci = 0
+        while ci < len(cases) {
+            let c = cases[ci]
+            if c["test"] != null && c["test"] != undefined {
+                if exprOk(c["test"]) == false {
+                    return false
+                }
+            }
+            if stmtsOk(c["body"]) == false {
+                return false
+            }
+            ci = ci + 1
+        }
+        return true
+    }
+    if k == K_TRY {
+        return blockOk(st["body"]) && blockOk(st["catchBody"]) && blockOk(st["finallyBody"])
+    }
+    if k == K_FN {
+        return blockOk(st["body"])
+    }
+    if k == K_CLASS {
+        let methods = st["methods"]
+        let mi = 0
+        while mi < len(methods) {
+            if blockOk(methods[mi]["body"]) == false {
+                return false
+            }
+            mi = mi + 1
+        }
+        return true
+    }
+    if k == K_BLOCK {
+        return stmtsOk(st["body"])
+    }
+    if k == K_BREAK || k == K_CONTINUE {
+        return true
+    }
+    return exprOk(st)
+}
+
+/// Kab capability envelope: parse + full AST walk — no partial DOM mutation
+/// on decline (the host falls back before evalSourceWith runs).
+pub fn kv8CanEval(src) {
+    let ok = false
+    try {
+        let ast = parseSource(src)
+        ok = stmtsOk(ast["body"])
+    } catch (e) {
+        ok = false
+    }
+    return ok
+}
+
+/// Product-path script runner — `document` binds to the page's live body so
+/// kdom_* writes land in the live registry (host re-resolves the render
+/// slot after return).
+pub fn kv8RunPage(src, docRoot) {
+    if kv8CanEval(src) == false {
+        return false
+    }
+    let body = queryKab(docRoot, "body")
+    if body == null || body == undefined {
+        body = docRoot
+    }
+    evalSourceWith(src, {
+        "document": {
+            "__k8document": true,
+            "body": body,
+            "createElement": { "tag": "k8host", "name": "el" },
+            "createTextNode": { "tag": "k8host", "name": "text" }
+        }
+    })
+    evalRoute["kab"] = evalRoute["kab"] + 1
+    return true
+}

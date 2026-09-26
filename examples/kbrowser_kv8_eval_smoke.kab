@@ -1,0 +1,39 @@
+// SH27 kv8-eval smoke: page scripts route through the Kab interpreter
+// (kv8/eval.evalSourceWith via kv8/run.kv8RunPage) behind kb_run_kv8 when
+// the script fits the Kab capability envelope — Rust eval_script stays the
+// fallback for the rest (here: `%` is lexed/parsed but outside the Kab
+// eval envelope, so the provider declines before any DOM mutation).
+// cargo run --bin kabootar -- examples/kbrowser_kv8_eval_smoke.kab
+
+import "kbrowser/nav"
+import "kbrowser/session"
+import "kv8/run"
+import "kos/vfs"
+
+clearSession()
+
+// capability envelope: DOM script is in, `%` binary is out
+let canOk = kv8CanEval("let h = document.querySelector(\"h1\"); h.style.color = \"rgb(4, 5, 6)\"")
+let cantOk = kv8CanEval("let x = 7 % 3") == false
+
+write("/tmp_kv8_eval.kv8", "---kml---\n<html><body><h1>Kab eval</h1></body></html>\n---css---\n---script---\nlet h = document.querySelector(\"h1\")\nh.style.color = \"rgb(4, 5, 6)\"")
+bootNav("kabootar://vfs/tmp_kv8_eval.kv8")
+kb_run_kv8()
+let html = kb_render()
+
+// Kab eval writes the `style` attr via kdom_set_attr — the mutation must
+// reach paint through the live registry (deep-resolved render slot).
+let styleOk = str_includes(html, "color:rgb(4, 5, 6)")
+// shared route counter — proves the Kab engine ran, not the Rust fallback
+let routeOk = evalRoute["kab"] > 0
+
+// unsupported op: provider declines → Rust fallback still runs the script.
+// (`%` is outside the Kab envelope; the style write is the shape Rust eval
+// provably applies — style:color attr → computed inline css.)
+write("/tmp_kv8_eval_fb.kv8", "---kml---\n<html><body><p>fb</p></body></html>\n---script---\nlet p = document.querySelector(\"p\")\np.style.color = \"rgb(9, 8, \" + (7 % 3) + \")\"")
+navGo("kabootar://vfs/tmp_kv8_eval_fb.kv8")
+kb_run_kv8()
+let fbOk = str_includes(kb_render(), "color:rgb(9, 8, 1)")
+
+println("kv8 eval can=" + canOk + " cant=" + cantOk + " style=" + styleOk + " route=" + routeOk + " fb=" + fbOk)
+return canOk && cantOk && styleOk && routeOk && fbOk

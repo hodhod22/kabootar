@@ -78484,11 +78484,12 @@ fn sh27_kb_h1_frozen_native_surface() {
         "kb_run_kv8",
         // css → paint bridge
         "kb_theme",
-        // provider hooks — Kab installs home/title/markup policy (mechanism,
-        // not policy)
+        // provider hooks — Kab installs home/title/markup/eval policy
+        // (mechanism, not policy)
         "kb_set_home_provider",
         "kb_set_title_provider",
         "kb_set_document_provider",
+        "kb_set_eval_provider",
         "kb_product_hooks",
     ];
     let mut expected: Vec<String> = audited.iter().map(|s| s.to_string()).collect();
@@ -78672,6 +78673,67 @@ fn sh27_kv8_module_smoke() {
         out.expect("kv8 module smoke run"),
         "true",
         "SH27 kv8: Kab-split module must render + run its script through navigation"
+    );
+}
+
+/// SH27 eval-path gate: `kb_run_kv8` routes page scripts through the Kab
+/// interpreter (`kv8/run.kv8RunPage` → `kv8/eval.evalSourceWith`) when the
+/// script fits the Kab capability envelope; Rust `eval_script` stays the
+/// host fallback. No new kb_* product API — `kb_set_eval_provider` is a
+/// provider hook (mechanism), same class as home/title/document.
+#[test]
+fn sh27_kv8_eval_in_kab() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let r = std::fs::read_to_string(root.join("lib/kv8/run.kab")).expect("run.kab");
+    assert!(
+        r.contains("pub fn kv8CanEval")
+            && r.contains("pub fn kv8RunPage")
+            && r.contains("evalSourceWith")
+            && r.contains("pub let evalRoute"),
+        "SH27 kv8 eval: Kab runner + capability envelope"
+    );
+    let n = std::fs::read_to_string(root.join("lib/kbrowser/nav.kab")).expect("nav.kab");
+    assert!(
+        n.contains("import \"kv8/run\"") && n.contains("kb_set_eval_provider(kv8RunPage)"),
+        "SH27 kv8 eval: nav installs the Kab eval provider"
+    );
+    let b = std::fs::read_to_string(root.join("src/runtime/kabootar_browser/mod.rs"))
+        .expect("mod.rs");
+    assert!(
+        b.contains("eval_provider") && b.contains("live_resolve_deep"),
+        "SH27 kv8 eval: kb_run_kv8 consults the provider and pulls live DOM"
+    );
+}
+
+/// SH27 eval-path smoke: Kab-routed script mutates the page DOM and an
+/// out-of-envelope script (`%`) still runs via the Rust fallback.
+#[test]
+fn sh27_kv8_eval_smoke() {
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let out = std::thread::Builder::new()
+        .name("sh27-kv8-eval-smoke".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+            kabootar_lib::cli::run_file(
+                root.join("examples/kbrowser_kv8_eval_smoke.kab")
+                    .to_str()
+                    .expect("utf8"),
+            )
+            .map(|v| kabootar_lib::value::format_value(&v))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(
+        out.expect("kv8 eval smoke run"),
+        "true",
+        "SH27 kv8 eval: Kab-routed script must reach paint; fallback must stay live"
     );
 }
 

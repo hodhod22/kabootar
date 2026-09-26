@@ -115,6 +115,17 @@ pub(crate) fn live_resolve(node: DomNode) -> DomNode {
     })
 }
 
+/// Deep variant of `live_resolve` — replaces every node with its live
+/// registry copy so a stored tree reflects post-mutation `kdom_*` writes
+/// (e.g. the Kab kv8 eval mutating the page DOM during `kb_run_kv8`).
+pub(crate) fn live_resolve_deep(node: &DomNode) -> DomNode {
+    let mut resolved = live_resolve(node.clone());
+    for child in &mut resolved.children {
+        *child = live_resolve_deep(child);
+    }
+    resolved
+}
+
 fn live_get(id: u64) -> Option<DomNode> {
     LIVE_NODES.with(|m| m.borrow().get(&id).cloned())
 }

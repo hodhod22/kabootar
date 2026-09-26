@@ -153,11 +153,13 @@ struct BrowserInner {
     // paint. Tab enumeration/indexing/ordering is Kab-owned.
     tab: BrowserTab,
     // Product-policy hooks installed by Kab (`nav.kab`/`theme.kab`):
-    // home(url) -> KabootarDom, title(url) -> string, doc(markup) -> KabootarDom.
+    // home(url) -> KabootarDom, title(url) -> string, doc(markup) -> KabootarDom,
+    // eval(script, docRoot) -> bool (kv8/run.kv8RunPage; false = Rust fallback).
     // None = host fallback.
     home_provider: Option<Value>,
     title_provider: Option<Value>,
     document_provider: Option<Value>,
+    eval_provider: Option<Value>,
     user_agent: String,
     viewport_w: f64,
     viewport_h: f64,
@@ -190,6 +192,7 @@ impl KabootarBrowser {
             home_provider: None,
             title_provider: None,
             document_provider: None,
+            eval_provider: None,
             user_agent: format!(
                 "KabootarBrowser/{} (KHTML, like Chrome) Kabootar/{}",
                 env!("CARGO_PKG_VERSION"),
@@ -262,6 +265,13 @@ impl KabootarBrowser {
         })
     }
 
+    pub fn set_eval_provider(&self, f: Value) -> Result<(), String> {
+        self.with_mut(|inner| {
+            inner.eval_provider = Some(f);
+            Ok(())
+        })
+    }
+
     /// Whether Kab product-policy hooks are installed (delete-gate probe).
     pub fn product_hooks_installed(&self) -> Result<bool, String> {
         self.with_mut(|inner| {
@@ -310,12 +320,37 @@ impl KabootarBrowser {
         })
     }
 
-    pub fn run_kv8_script(&self, _os: Option<&OsHandle>) -> Result<Value, String> {
+    pub fn run_kv8_script(&self, _os: Option<&OsHandle>, env: &mut Environment) -> Result<Value, String> {
         self.with_mut(|inner| {
             let tab = &mut inner.tab;
             let script = tab.kv8_script.clone().unwrap_or_default();
             if script.is_empty() {
                 return Ok(Value::Null);
+            }
+            // SH27: Kab eval owns the product path — the provider gets
+            // (script, docRoot) and returns true only when it ran the script
+            // inside the kv8/eval capability envelope (kv8/run.kv8RunPage
+            // declines before any DOM mutation, so the fallback is safe).
+            // Providers must not call kb_* natives (render-slot lock held).
+            if let Some(f) = inner.eval_provider.clone() {
+                // Register the render-slot tree so provider kdom_* writes
+                // land in the live registry.
+                let doc = crate::runtime::kabootar_dom::live_resolve_deep(&tab.document);
+                crate::runtime::kabootar_dom::live_register_tree(&doc);
+                let ran = crate::bytecode::call_value(
+                    f,
+                    vec![Value::String(script.clone()), Value::KabootarDom(doc)],
+                    &[],
+                    &[],
+                    &[],
+                    &[],
+                    env,
+                );
+                // Pull live-registry mutations into the render slot.
+                tab.document = crate::runtime::kabootar_dom::live_resolve_deep(&tab.document);
+                if matches!(ran, Ok(Value::Bool(true))) {
+                    return Ok(Value::Bool(true));
+                }
             }
             let ctx = Kv8Context::default();
             ctx.with_mut(|c| {
@@ -557,8 +592,17 @@ fn kb_product_hooks_native(_args: &[Value], env: &mut Environment) -> Result<Val
     Ok(Value::Bool(get_browser(env)?.product_hooks_installed()?))
 }
 
+fn kb_set_eval_provider_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
+    let f = args
+        .first()
+        .cloned()
+        .ok_or("kb_set_eval_provider() expects a function")?;
+    get_browser(env)?.set_eval_provider(f)?;
+    Ok(Value::Bool(true))
+}
+
 fn kb_run_kv8_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
-    get_browser(env)?.run_kv8_script(get_os_opt(env).as_ref())
+    get_browser(env)?.run_kv8_script(get_os_opt(env).as_ref(), env)
 }
 
 fn kb_location_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -882,6 +926,7 @@ pub fn kabootar_browser_globals(env: &mut Environment) {
     env.set("kb_set_document_provider".into(), Value::NativeFunction(kb_set_document_provider_native));
     env.set("kb_product_hooks".into(), Value::NativeFunction(kb_product_hooks_native));
     env.set("kb_run_kv8".into(), Value::NativeFunction(kb_run_kv8_native));
+    env.set("kb_set_eval_provider".into(), Value::NativeFunction(kb_set_eval_provider_native));
     env.set("kb_location".into(), Value::NativeFunction(kb_location_native));
     env.set("kb_render".into(), Value::NativeFunction(kb_render_native));
     env.set("kb_paint".into(), Value::NativeFunction(kb_paint_native));

@@ -29,6 +29,9 @@ pub fn kv8Sections(src) {
         let scriptParts = split(rest, "---script---")
         if len(cssParts) > 1 {
             css = trim(scriptParts[0])
+        } else if len(scriptParts) > 1 {
+            // no ---css--- marker: the script split owns the kml tail
+            kml = trim(scriptParts[0])
         }
         if len(scriptParts) > 1 {
             script = trim(scriptParts[1])
@@ -94,6 +97,12 @@ pub fn kv8ModuleOk() {
     }
     let scriptOnly = kv8Sections("x = 1")
     if scriptOnly["script"] != "x = 1" || str_includes(scriptOnly["kml"], "<body>") == false {
+        return false
+    }
+    // no ---css--- marker: the script split still owns the kml tail (the
+    // Rust reference left ---script--- embedded in kml — treated as a bug)
+    let noCss = kv8Sections("---kml---\n<html><body></body></html>\n---script---\nx = 1")
+    if str_includes(noCss["kml"], "---script---") || noCss["script"] != "x = 1" {
         return false
     }
     // plain text on a non-.kv8 URL → null → host fallback keeps the page
