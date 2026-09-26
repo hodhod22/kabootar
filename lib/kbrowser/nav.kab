@@ -9,16 +9,19 @@ import "kbrowser/session"
 import "kbrowser/load_policy"
 import "kbrowser/theme"
 import "kv8/module"
+import "kv8/run"
 
 let navSession = null
 
 // SH27 delete-gate: install Kab product-policy hooks on the host render slot —
 // home-page DOM via theme.homePage, page titles via load_policy.titleFromUrl,
 // documents via kv8/module.kv8Page (---kml---/---css---/---script--- split +
-// kdom/markup; kml/kv8 module parse stays host fallback for raw kb_navigate).
+// kdom/markup; kml/kv8 module parse stays host fallback for raw kb_navigate),
+// scripts via kv8/run.kv8RunPage (Kab eval first; Rust eval_script fallback).
 kb_set_home_provider(homePage)
 kb_set_title_provider(titleFromUrl)
 kb_set_document_provider(kv8Page)
+kb_set_eval_provider(kv8RunPage)
 
 // Requested fetch-mode preference ("auto" | "kabootar" | "host") — Kab owns the
 // preference; load_policy.effectiveMode resolves the per-URL fetch mode.
