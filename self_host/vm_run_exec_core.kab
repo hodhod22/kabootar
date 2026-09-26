@@ -4,6 +4,7 @@ import "self_host/vm_run_session"
 import "self_host/vm_run_tramp"
 import "self_host/vm_run_mod_run"
 import "self_host/vm_run_call"
+import "self_host/vm_run_jit"
 // SH6: yield* throw delegate.
 
 let S = vMakeSession()
@@ -24,7 +25,7 @@ pub fn runModuleImplBodyCore(bc) {
 // {vmArrow}/… sentinel objects here so module-side callbacks re-enter this
 // session's own function tables (bcFns/bcPool/bcGlobals stash per module run).
 pub fn vHostCallVmValue(callee, ordered) {
-    let c = vClassifyCallee(callee)
+    let c = vJitClassifyS(S, callee, vClassifyCallee)
     if c["kind"] == "bad" {
         return undefined
     }

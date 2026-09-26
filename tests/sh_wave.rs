@@ -33,7 +33,7 @@ fn sh0_self_host_compile_dag_snapshot() {
         inv.vm_files
     );
     assert!(
-        inv.compile_dag.len() >= 8,
+        inv.compile_dag.len() >= 7,
         "compile.kab DAG should stay a real pipeline, got {}",
         inv.compile_dag.len()
     );
@@ -408,8 +408,8 @@ fn sh3a_self_host_push_len_nested() {
 fn sh1_warm_full_compile_dag() {
     let n = kabootar_lib::compile::write_compiler_dag_seeds().expect("warm dag");
     eprintln!("SH1 warm wrote {n} seed/dag files");
-    // SH5's documented densification plateau is an 8-file compile DAG.
-    assert!(n >= 8, "compile DAG should stay a pipeline, wrote {n}");
+    // SH5's documented densification plateau is a 7-file compile DAG.
+    assert!(n >= 7, "compile DAG should stay a pipeline, wrote {n}");
 }
 
 #[test]
@@ -624,9 +624,9 @@ fn sh6_vm_policy_in_kab() {
         "SH6: spread ctor/call on Kab VM + self-host parse/emit"
     );
     let ser = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/serialize_sections.kab"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/compile.kab"),
     )
-    .expect("serialize_sections.kab");
+    .expect("compile.kab (merged serialize_sections)");
     assert!(
         ser.contains("|new_instance_from_array|")
             && ser.contains("|concat_array|")
@@ -25099,6 +25099,64 @@ fn sh17_jit_pic_dispatch_reject_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile jit pic dispatch reject smoke");
             let value = eval_program(&program, &mut env).expect("run jit pic dispatch reject smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: PIC + jit callee in the real ops loop — a plain program's
+/// `call` op reaches runOpCallNS → vJitClassifyS → vApplyCalleeS →
+/// vJitExecOk → fused lowering (no helper driving).
+#[test]
+fn sh17_jit_pic_ops_loop_smoke() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = std::fs::read_to_string(format!(
+        "{}/examples/sh17_jit_pic_ops_loop_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read jit pic ops loop smoke");
+    let formatted = std::thread::Builder::new()
+        .name("sh17-jit-pic-ops-loop".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program = compile_source_self_host(&src)
+                .map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("jit pic ops loop smoke");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH17 deepen: call-site classify PIC — shape hit/miss/megamorphic plus the
+/// jit callee exec contract, driven on the same fns the dispatch loop calls.
+#[test]
+fn sh17_jit_pic_loop_smoke() {
+    let path = format!(
+        "{}/examples/sh17_jit_pic_loop_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-pic-loop".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit pic loop smoke");
+            let value = eval_program(&program, &mut env).expect("run jit pic loop smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")

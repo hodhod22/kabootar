@@ -1,0 +1,40 @@
+// SH17: jit callee through the REAL ops loop — this program's `call` op
+// goes runOpCallNS → vJitClassifyS (kind jit) → vApplyCalleeS → vJitExecOk
+// → fused lowering. No frames, no helper driving — the dispatch loop
+// itself reaches the jit path.
+
+// Single-shape jit callee: jitOps is the specialized op list; numeric args
+// feed the template immediates (n,k,s,m,d,r). Result = fused mirror = 4.
+let f = { "vmJit": 1, "jitId": 42, "jitOps": ["const", "add", "sub", "mul", "div", "mod", "ret"] }
+let a = f(16, 3, 2, 4, 2, 5)
+if a != 4 {
+    return 1
+}
+
+// Second call at the SAME site — PIC hit path on the cached classify.
+let b = f(2, 1, 0, 4, 3, 5)
+if b != ((2 + 1 - 0) * 4) / 3 % 5 {
+    return 2
+}
+
+// Polymorphic jit callee — jitSlots/jitSlotOps dispatch on arg0 shape.
+let g = {
+    "vmJit": 1,
+    "jitId": 43,
+    "jitSlots": ["tnumber"],
+    "jitSlotOps": [["const", "add", "sub", "mul", "div", "mod", "ret"]]
+}
+let c = g(16, 3, 2, 4, 2, 5)
+if c != 4 {
+    return 3
+}
+
+// Ordinary fns still take the frame path through the same classify layer.
+fn dbl(x) {
+    return x * 2
+}
+if dbl(21) != 42 {
+    return 4
+}
+
+return 42

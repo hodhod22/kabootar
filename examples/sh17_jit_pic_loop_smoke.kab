@@ -1,0 +1,107 @@
+// SH17: PIC i riktig dispatch — call-site-cache i vm_run_jit körs via
+// vJitClassifyS inne i runOpCallNS/call_from_array. Denna smoke driver
+// samma fns som loopen: shape-hit/miss/mega + jit-taggad fused exec.
+
+import "self_host/vm_run_session"
+import "self_host/vm_run_call"
+import "self_host/vm_run_jit"
+import "kab/jit/jit_pic"
+import "kab/jit/jit_fuse"
+
+let S = vMakeSession()
+S["ip"] = 10
+
+// fn callee — shape "f"+idx: first call misses + learns, second hits.
+let c1 = { "vmFn": 2 }
+let r1 = vJitClassifyS(S, c1, vClassifyCallee)
+if r1["kind"] != "fn" || r1["idx"] != 2 {
+    return false
+}
+let site = S["jitSites"][" 10"]
+if site["calls"] != 1 || site["misses"] != 1 || site["hits"] != 0 {
+    return false
+}
+let r2 = vJitClassifyS(S, c1, vClassifyCallee)
+if r2["kind"] != "fn" || r2["idx"] != 2 {
+    return false
+}
+if site["hits"] != 1 {
+    return false
+}
+
+// Second shape — the site goes polymorphic (2 slots).
+let c2 = { "vmFn": 5 }
+let r3 = vJitClassifyS(S, c2, vClassifyCallee)
+if r3["idx"] != 5 {
+    return false
+}
+if len(site["slots"]) != 2 || site["misses"] != 2 {
+    return false
+}
+let r4 = vJitClassifyS(S, c1, vClassifyCallee)
+if r4["idx"] != 2 || site["hits"] != 2 {
+    return false
+}
+
+// Fill the PIC (cap 4) — shapes 3,4 learn; shape 5 goes megamorphic.
+let c3 = { "vmFn": 8 }
+let c4 = { "vmFn": 11 }
+let c5 = { "vmFn": 13 }
+vJitClassifyS(S, c3, vClassifyCallee)
+vJitClassifyS(S, c4, vClassifyCallee)
+if len(site["slots"]) != 4 {
+    return false
+}
+vJitClassifyS(S, c5, vClassifyCallee)
+if site["mega"] != true {
+    return false
+}
+// Megamorphic: classify still resolves, but the PIC stops caching.
+let rM = vJitClassifyS(S, c5, vClassifyCallee)
+if rM["idx"] != 13 || len(site["slots"]) != 4 {
+    return false
+}
+
+// A different ip = a different site — independent feedback.
+S["ip"] = 20
+let cB = { "vmFn": 2 }
+vJitClassifyS(S, cB, vClassifyCallee)
+let siteB = S["jitSites"][" 20"]
+if siteB["misses"] != 1 || siteB["hits"] != 0 {
+    return false
+}
+
+// jit callee: {vmJit:1, jitOps} execs the fused lowering, not a frame.
+let jc = { "vmJit": 1, "jitId": 7, "jitOps": ["const", "add", "sub", "mul", "div", "mod", "ret"] }
+let cj = vJitClassifyS(S, jc, vClassifyCallee)
+if cj["kind"] != "jit" {
+    return false
+}
+let j = vJitExecOk(S, cj, [16, 3, 2, 4, 2, 5])
+if j["ok"] != 1 {
+    return false
+}
+// Dual-bind: native fused rax matches the Kab mirror.
+if j["out"] != jitFuseRax(16, 3, 2, 4, 2, 5) {
+    return false
+}
+
+// Polymorphic jit callee: jitSlots/jitSlotOps dispatch on arg0 class shape.
+let pj = {
+    "vmJit": 1,
+    "jitId": 9,
+    "jitSlots": ["tnumber"],
+    "jitSlotOps": [["const", "add", "sub", "mul", "div", "mod", "ret"]]
+}
+let cpj = vJitClassifyS(S, pj, vClassifyCallee)
+let jp = vJitExecOk(S, cpj, [16, 3, 2, 4, 2, 5])
+if jp["ok"] != 1 || jp["out"] != jitFuseRax(16, 3, 2, 4, 2, 5) {
+    return false
+}
+// Unknown shape → slot miss → {ok:0} (caller falls back per contract).
+let jpBad = vJitExecOk(S, cpj, [ { "vmC": 0 } ])
+if jpBad["ok"] != 0 {
+    return false
+}
+
+return true

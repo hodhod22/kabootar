@@ -7596,9 +7596,10 @@ fn_op 61 call 1
 fn_op 61 return
 fn_arrows 61 0
 arrows=0
-imports=2
+imports=3
 import 0 self_host/ast_defs
-import 1 self_host/parser_stmt
+import 1 self_host/lexer_scan
+import 2 self_host/parser_stmt
 pub_imports=0
 exports=56
 export 0 pMakeSession
@@ -7667,5 +7668,5 @@ store_local 0
 halt
 
 source=self_host/parser_exec.kab
-statements=65
-fingerprint=cb57f0a0e0533256
+statements=66
+fingerprint=57d3755872ee0883

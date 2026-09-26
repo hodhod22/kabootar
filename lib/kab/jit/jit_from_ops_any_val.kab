@@ -1,0 +1,25 @@
+// SH17 deepen: value mirror for jit_from_ops_any — jitFromOpsAnyExecOk
+// returns bool (it validates guest rax against the Kab mirror); callers
+// that need the call RESULT compute it here after exec validated it.
+// import "kab/jit/jit_from_ops_any_val"
+
+import "kab/jit/jit_from_ops_any"
+import "kab/jit/jit_fuse"
+import "kab/jit/jit_fuse_cmp"
+import "kab/jit/jit_f64"
+
+/// Kab mirror of the guest result for a validated exec — same kind dispatch
+/// as jitFromOpsAnyExecOk. undefined when ops have no fusible shape.
+pub fn jitFromOpsAnyVal(ops, n, k, s, m, d, r) {
+    let kind = jitFuseKind(ops)
+    if kind == 1 {
+        return jitFuseRax(n, k, s, m, d, r)
+    }
+    if kind == 2 {
+        return jitFuseCmpRax(n, k, jitFuseCmpTarget(ops))
+    }
+    if kind == 3 {
+        return jitF64Rax(n, k, jitF64Magic(ops[2]))
+    }
+    return undefined
+}
