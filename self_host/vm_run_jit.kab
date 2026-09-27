@@ -14,6 +14,7 @@ import "kab/jit/jit_pic"
 import "kab/jit/jit_pic_exec"
 import "kab/jit/jit_from_ops_any"
 import "kab/jit/jit_from_ops_any_val"
+import "kab/jit/jit_fuse_cmp"
 
 /// Per-ip site table key.
 pub fn vJitSiteKeyS(S) {
@@ -126,11 +127,19 @@ pub fn vJitSitePct(site) {
     return (site["hits"] * 100) / site["calls"]
 }
 
-/// Extraction: fn body ops → jitOps descriptor for the fused L-chain.
-/// Shape: load_local of params 0..5 in order feeding add,sub,mul,div,mod,
-/// then return — i.e. `return ((p0 + p1 - p2) * p3 / p4) % p5`. Params must
-/// bind to locals 0..5 in order (locals[i] == params[i]) so load_local i is
-/// call arg i. Anything else → null (the site stays on the frame path).
+/// Extraction: fn body ops → jitOps descriptor for a fused template.
+/// Shapes (params must bind to locals 0..N in order so load_local i is
+/// call arg i; anything else → null, the site stays on the frame path):
+///   A arith    — `return ((p0 + p1 - p2) * p3 / p4) % p5`:
+///                load_local 0..5 + add,sub,mul,div,mod + return (12 ops)
+///                → ["const","add","sub","mul","div","mod","ret"] arity 6
+///   B cmp      — `return p0 <cmp> p1`:
+///                load_local 0,1 + eq/ne/lt/gt/le/ge/test + return (4 ops)
+///                → ["const","const",cmp,"jump_if_true","ret"] arity 2
+///   C cmp+not  — `return not (p0 <cmp> p1)`:
+///                same + a `not` op before return (5 ops)
+///                → ["const","const",cmp,"jump_if_false","ret"] arity 2
+///                (jump_if_false folds the negation into the predicate)
 pub fn vJitOpsOfFn(f) {
     if f == null || f == undefined || typeof(f) != "object" {
         return null
@@ -141,7 +150,40 @@ pub fn vJitOpsOfFn(f) {
     if typeof(ops) != "array" || typeof(params) != "array" || typeof(locals) != "array" {
         return null
     }
-    if len(ops) != 12 || len(params) < 6 || len(locals) < 6 {
+    let nOps = len(ops)
+    if (nOps == 4 || nOps == 5) && len(params) >= 2 && len(locals) >= 2 {
+        if locals[0] != params[0] || locals[1] != params[1] {
+            return null
+        }
+        if ops[0]["op"] != "load_local" || ops[0]["arg"] != 0 {
+            return null
+        }
+        if ops[1]["op"] != "load_local" || ops[1]["arg"] != 1 {
+            return null
+        }
+        let cm = ops[2]["op"]
+        if jitCmpMagic(cm) == 0 {
+            return null
+        }
+        let neg = false
+        let ri = 3
+        if nOps == 5 {
+            if ops[3]["op"] != "not" {
+                return null
+            }
+            neg = true
+            ri = 4
+        }
+        let rop = ops[ri]["op"]
+        if rop != "return" && rop != "ret" {
+            return null
+        }
+        if neg {
+            return ["const", "const", cm, "jump_if_false", "ret"]
+        }
+        return ["const", "const", cm, "jump_if_true", "ret"]
+    }
+    if nOps != 12 || len(params) < 6 || len(locals) < 6 {
         return null
     }
     let pi = 0
@@ -174,6 +216,25 @@ pub fn vJitOpsOfFn(f) {
         return null
     }
     return ["const", "add", "sub", "mul", "div", "mod", "ret"]
+}
+
+/// Numeric-arg requirement of a site-compiled callee — the fused template
+/// immediates are typed per shape (arith 6, cmp/f64 2, SIMD 4). 0 = cold.
+pub fn vJitOpsArity(jitOps) {
+    let kind = jitFuseKind(jitOps)
+    if kind == 1 {
+        return 6
+    }
+    if kind == 2 {
+        return 2
+    }
+    if kind == 3 {
+        return 2
+    }
+    if kind == 4 {
+        return 4
+    }
+    return 0
 }
 
 /// Resolve a cached classify rec's fn ops to a jitOps descriptor — fn recs
@@ -217,7 +278,7 @@ pub fn vJitMaybeCompileS(S, site, key, rec, i, functions) {
     if jitOps == null {
         return null
     }
-    rec["jitCallee"] = { "vmJit": 1, "jitId": "c" + key + "." + i, "jitOps": jitOps, "jitArity": 6 }
+    rec["jitCallee"] = { "vmJit": 1, "jitId": "c" + key + "." + i, "jitOps": jitOps, "jitArity": vJitOpsArity(jitOps) }
     return rec["jitCallee"]
 }
 

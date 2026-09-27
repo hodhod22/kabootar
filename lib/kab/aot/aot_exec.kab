@@ -1,0 +1,137 @@
+// F10/SH28: persisted-image exec leg. import "kab/aot/aot_exec"
+// Emits a real fused-template byte blob (jitEmitI64FuseCmp), hex-encodes it
+// into an image string, persists via os_write, reloads via os_read, decodes
+// the payload, mmaps a fresh guest page, stores, calls — guest rax must
+// equal the Kab mirror. This is the "persisted image executes" leg of
+// nollAotProcess; the gate stays false until exec is an OS-spawned
+// process rather than the in-process guest MM.
+// Do not grow other aot_* leaves with this.
+
+import "kab/jit/jit_fuse_cmp"
+
+/// Guest-MM slot for image exec — same pid/virt the fused-cmp jit pipeline
+/// uses; the guest MM only execs slots it has mapped, and this one is a
+/// proven-exec slot.
+pub fn aotExecPid() {
+    return 1
+}
+
+pub fn aotExecVirt() {
+    return 655360
+}
+
+pub fn aotExecLen() {
+    return 4096
+}
+
+pub fn aotExecProt() {
+    return 7
+}
+
+/// One hex digit's value; -1 outside 0-9a-f.
+fn aotHexVal(ch) {
+    let chars = "0123456789abcdef"
+    let i = 0
+    while i < 16 {
+        if chars[i] == ch {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+/// Byte array → lowercase hex string.
+pub fn aotHexEncode(bytes) {
+    let chars = "0123456789abcdef"
+    let out = ""
+    let i = 0
+    while i < len(bytes) {
+        let b = bytes[i]
+        out = out + chars[b / 16]
+        out = out + chars[b % 16]
+        i = i + 1
+    }
+    return out
+}
+
+/// "kab-aot/1|fuse-cmp|<hex>" image from a real template emission; ""
+/// when the template is out of domain.
+pub fn aotExecImageEmit(magic, n, k) {
+    if jitFuseCmpMagicOk(magic) == false {
+        return ""
+    }
+    if jitFuseCmpOk(n, k) == false {
+        return ""
+    }
+    let bytes = jitEmitI64FuseCmp(magic, n, k)
+    if len(bytes) != jitFuseCmpLen() {
+        return ""
+    }
+    return "kab-aot/1|fuse-cmp|" + aotHexEncode(bytes)
+}
+
+/// Stage-coded variant of aotExecOk for diagnosis: 1 emit-fail,
+/// 2 read-mismatch, 3 prefix, 4 hex, 5 len, 6 mmap, 7 store,
+/// 8 rax-mismatch — 42 on success.
+pub fn aotExecDbg(path, magic, n, k) {
+    let image = aotExecImageEmit(magic, n, k)
+    if image == "" {
+        return 1
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return 2
+    }
+    let prefix = "kab-aot/1|fuse-cmp|"
+    let pi = 0
+    while pi < len(prefix) {
+        if back[pi] != prefix[pi] {
+            return 3
+        }
+        pi = pi + 1
+    }
+    let b = []
+    let i = len(prefix)
+    while i + 1 < len(back) {
+        let hi = aotHexVal(back[i])
+        let lo = aotHexVal(back[i + 1])
+        if hi < 0 || lo < 0 {
+            return 400 + i
+        }
+        b = push(b, hi * 16 + lo)
+        i = i + 2
+    }
+    if len(b) != jitFuseCmpLen() {
+        return 500 + len(b)
+    }
+    let tpl = jitEmitI64FuseCmp(magic, n, k)
+    let bi = 0
+    while bi < len(b) {
+        if b[bi] != tpl[bi] {
+            return 600 + bi
+        }
+        bi = bi + 1
+    }
+    let base = os_mm_mmap(aotExecPid(), aotExecVirt(), aotExecLen(), aotExecProt())
+    if base <= 0 {
+        return 7
+    }
+    let w = os_mm_store(aotExecPid(), aotExecVirt(), b)
+    if w != len(b) {
+        return 800 + w
+    }
+    let res = os_mm_call(aotExecPid(), aotExecVirt())
+    if res != jitFuseCmpRax(n, k, magic) {
+        return 900 + res
+    }
+    return 42
+}
+
+/// Persist + reload + exec: writes the emitted image to path, reads it
+/// back, decodes the hex payload into bytes, stores them at the aot
+/// guest page, and calls. True when guest rax == jitFuseCmpRax mirror.
+pub fn aotExecOk(path, magic, n, k) {
+    return aotExecDbg(path, magic, n, k) == 42
+}

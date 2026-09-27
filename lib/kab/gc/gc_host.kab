@@ -19,3 +19,17 @@ pub fn gcHostReadyOk(roots, marked, live, dead, reclaimed) {
     }
     return roots <= marked
 }
+
+/// Evidence criterion for the host-delete flip: the VM accumulates
+/// consecutive internally-consistent collect cycles in
+/// S["gcHostReadyStreak"]. 8 = two full rotations of the VM's
+/// major-every-4 cadence (vGcMajorEvery — evidence spanning both minor
+/// and major cycles, not just a lucky minor). gcHostDeleteOk still
+/// returns false: this is the *check the flip will consult*, not the
+/// flip itself.
+pub fn gcHostReadyStreakOk(streak) {
+    if typeof(streak) != "number" {
+        return false
+    }
+    return streak >= 8
+}

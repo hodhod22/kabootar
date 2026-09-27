@@ -48,4 +48,38 @@ if dsum != 42 {
     return 4
 }
 
+// Cmp predicate chain: `return a < b` is the 4-op shape → jitOps
+// [const,const,lt,jump_if_true,ret], jitArity 2.
+fn lessthan(a, b) {
+    return a < b
+}
+let li = 0
+let lacc = 0
+while li < 12 {
+    if lessthan(3, 9) {
+        lacc = lacc + 1
+    }
+    li = li + 1
+}
+if lacc != 12 {
+    return 5
+}
+
+// Negated cmp chain: `return not (a < b)` adds the `not` op → the
+// jump_if_false descriptor folds the negation into the predicate.
+fn notless(a, b) {
+    return not (a < b)
+}
+let ni = 0
+let nacc = 0
+while ni < 12 {
+    if notless(9, 3) {
+        nacc = nacc + 1
+    }
+    ni = ni + 1
+}
+if nacc != 12 {
+    return 6
+}
+
 return 42

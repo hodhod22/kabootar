@@ -4,6 +4,7 @@
 // import "kab/jit/jit_from_ops_any_val"
 
 import "kab/jit/jit_from_ops_any"
+import "kab/jit/jit_from_ops_fuse_cmp"
 import "kab/jit/jit_fuse"
 import "kab/jit/jit_fuse_cmp"
 import "kab/jit/jit_f64"

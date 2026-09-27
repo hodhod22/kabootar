@@ -72,4 +72,22 @@ if S["gcHostReadyStreak"] < 2 {
 if gcHostDeleteOk() != false {
     return false
 }
+// The flip criterion is codified: the live streak (2 cycles — full rotations
+// are exercised by the gate at VM scale, not re-run here) is below the
+// two-rotation threshold, so the criterion rejects.
+if gcHostReadyStreakOk(S["gcHostReadyStreak"]) != false {
+    return false
+}
+// The criterion itself is a pure boundary check: a streak reaching two
+// major-cadence rotations reports ready, one below does not.
+if gcHostReadyStreakOk(8) != true {
+    return false
+}
+if gcHostReadyStreakOk(7) != false {
+    return false
+}
+// Gate unchanged — streak evidence is not the flip.
+if gcHostDeleteOk() != false {
+    return false
+}
 return true

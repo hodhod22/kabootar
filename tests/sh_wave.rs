@@ -641,10 +641,16 @@ fn sh6_vm_policy_in_kab() {
             && ser.contains("|call_from_array|"),
         "SH6: self-host serialize spread ctor/call ops"
     );
-    let stmt = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/parser_stmt.kab"),
-    )
-    .expect("parser_stmt.kab");
+    let stmt = {
+        let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let mut s = std::fs::read_to_string(base.join("self_host/parser_stmt.kab"))
+            .expect("parser_stmt.kab");
+        s.push_str(
+            &std::fs::read_to_string(base.join("self_host/parser_stmt_class.kab"))
+                .expect("parser_stmt_class.kab"),
+        );
+        s
+    };
     let stmt_emit = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/emit_stmt_body.kab"),
     )
@@ -25182,6 +25188,32 @@ fn sh17_jit_compile_trigger_smoke() {
         None => std::env::remove_var("KABOOTAR_VM"),
     }
     assert_eq!(formatted, "42");
+}
+
+/// F10/SH28 deepen: persisted-image exec leg — a Kab-emitted fused-cmp
+/// template blob is hex-encoded into an image, persisted through os_write,
+/// read back, decoded, mmap'd into a fresh guest-MM page, and called; guest
+/// rax must equal the Kab mirror. nollAotProcess stays false: exec is the
+/// in-process guest MM, not an OS-spawned process.
+#[test]
+fn f10_aot_exec_round_smoke() {
+    let path = format!(
+        "{}/examples/f10_aot_exec_round_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("f10-aot-exec-round".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot exec round smoke");
+            let value = eval_program(&program, &mut env).expect("run aot exec round smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// SH17 deepen: call-site classify PIC — shape hit/miss/megamorphic plus the
@@ -59822,7 +59854,7 @@ fn sh18_gc_vm_minor_exec_smoke() {
 fn sh28_dag_self_host_attemptable() {
     use kabootar_lib::compile::{self_host_is_attemptable, walk_compile_dag};
     let dag = walk_compile_dag().expect("walk dag");
-    assert_eq!(dag.len(), 6, "SH5 plateau is 6 files");
+    assert_eq!(dag.len(), 7, "SH5 plateau is 7 files after parser_stmt split");
     for rel in &dag {
         assert!(
             self_host_is_attemptable(rel),

@@ -1,0 +1,28 @@
+// F10/SH28: persisted-image exec roundtrip — a fused-cmp template blob is
+// emitted by Kab, hex-encoded into an image, written to disk, read back,
+// decoded, stored into a fresh guest-MM page, and CALLED. The guest rax
+// must match the Kab mirror for both the true and false predicates.
+
+import "kab/aot/aot_exec"
+
+// lt (87): 3 < 9 → guest/mirror 1; persisted bytes actually execute.
+if aotExecOk("_aot_exec_round.kabi", 87, 3, 9) == false {
+    return 1
+}
+// lt (87): 9 < 3 → 0.
+if aotExecOk("_aot_exec_round.kabi", 87, 9, 3) == false {
+    return 2
+}
+// ge (90): 9 >= 3 → 1 — different predicate magic, same roundtrip.
+if aotExecOk("_aot_exec_round.kabi", 90, 9, 3) == false {
+    return 3
+}
+// Out-of-domain immediates (n=0) → emit refuses → no exec.
+if aotExecOk("_aot_exec_round.kabi", 87, 0, 9) {
+    return 4
+}
+// Bad magic → emit refuses.
+if aotExecOk("_aot_exec_round.kabi", 0, 3, 9) {
+    return 5
+}
+return 42
