@@ -11,9 +11,36 @@ import "kab/jit/jit_fuse"
 let S = vMakeSession()
 S["ip"] = 10
 
+// Fake fns table — idx 2 is a fusible arith chain (compile candidate);
+// other idxs hold non-fusible bodies so the trigger rejects them.
+let fusOps = []
+fusOps = push(fusOps, { "op": "load_local", "arg": 0 })
+fusOps = push(fusOps, { "op": "load_local", "arg": 1 })
+fusOps = push(fusOps, { "op": "add" })
+fusOps = push(fusOps, { "op": "load_local", "arg": 2 })
+fusOps = push(fusOps, { "op": "sub" })
+fusOps = push(fusOps, { "op": "load_local", "arg": 3 })
+fusOps = push(fusOps, { "op": "mul" })
+fusOps = push(fusOps, { "op": "load_local", "arg": 4 })
+fusOps = push(fusOps, { "op": "div" })
+fusOps = push(fusOps, { "op": "load_local", "arg": 5 })
+fusOps = push(fusOps, { "op": "mod" })
+fusOps = push(fusOps, { "op": "return" })
+let fusFn = {
+    "params": ["a", "b", "c", "d", "e", "f"],
+    "locals": ["a", "b", "c", "d", "e", "f"],
+    "ops": fusOps
+}
+let coldFn = {
+    "params": ["x"],
+    "locals": ["x"],
+    "ops": [{ "op": "load_local", "arg": 0 }, { "op": "return" }]
+}
+let fns = [coldFn, coldFn, fusFn, coldFn, coldFn, coldFn, coldFn, coldFn, coldFn, coldFn, coldFn, coldFn, coldFn, coldFn]
+
 // fn callee — shape "f"+idx: first call misses + learns, second hits.
 let c1 = { "vmFn": 2 }
-let r1 = vJitClassifyS(S, c1, vClassifyCallee)
+let r1 = vJitClassifyS(S, c1, vClassifyCallee, fns)
 if r1["kind"] != "fn" || r1["idx"] != 2 {
     return false
 }
@@ -21,7 +48,7 @@ let site = S["jitSites"][" 10"]
 if site["calls"] != 1 || site["misses"] != 1 || site["hits"] != 0 {
     return false
 }
-let r2 = vJitClassifyS(S, c1, vClassifyCallee)
+let r2 = vJitClassifyS(S, c1, vClassifyCallee, fns)
 if r2["kind"] != "fn" || r2["idx"] != 2 {
     return false
 }
@@ -31,14 +58,14 @@ if site["hits"] != 1 {
 
 // Second shape — the site goes polymorphic (2 slots).
 let c2 = { "vmFn": 5 }
-let r3 = vJitClassifyS(S, c2, vClassifyCallee)
+let r3 = vJitClassifyS(S, c2, vClassifyCallee, fns)
 if r3["idx"] != 5 {
     return false
 }
 if len(site["slots"]) != 2 || site["misses"] != 2 {
     return false
 }
-let r4 = vJitClassifyS(S, c1, vClassifyCallee)
+let r4 = vJitClassifyS(S, c1, vClassifyCallee, fns)
 if r4["idx"] != 2 || site["hits"] != 2 {
     return false
 }
@@ -47,17 +74,17 @@ if r4["idx"] != 2 || site["hits"] != 2 {
 let c3 = { "vmFn": 8 }
 let c4 = { "vmFn": 11 }
 let c5 = { "vmFn": 13 }
-vJitClassifyS(S, c3, vClassifyCallee)
-vJitClassifyS(S, c4, vClassifyCallee)
+vJitClassifyS(S, c3, vClassifyCallee, fns)
+vJitClassifyS(S, c4, vClassifyCallee, fns)
 if len(site["slots"]) != 4 {
     return false
 }
-vJitClassifyS(S, c5, vClassifyCallee)
+vJitClassifyS(S, c5, vClassifyCallee, fns)
 if site["mega"] != true {
     return false
 }
 // Megamorphic: classify still resolves, but the PIC stops caching.
-let rM = vJitClassifyS(S, c5, vClassifyCallee)
+let rM = vJitClassifyS(S, c5, vClassifyCallee, fns)
 if rM["idx"] != 13 || len(site["slots"]) != 4 {
     return false
 }
@@ -65,7 +92,7 @@ if rM["idx"] != 13 || len(site["slots"]) != 4 {
 // A different ip = a different site — independent feedback.
 S["ip"] = 20
 let cB = { "vmFn": 2 }
-vJitClassifyS(S, cB, vClassifyCallee)
+vJitClassifyS(S, cB, vClassifyCallee, fns)
 let siteB = S["jitSites"][" 20"]
 if siteB["misses"] != 1 || siteB["hits"] != 0 {
     return false
@@ -73,7 +100,7 @@ if siteB["misses"] != 1 || siteB["hits"] != 0 {
 
 // jit callee: {vmJit:1, jitOps} execs the fused lowering, not a frame.
 let jc = { "vmJit": 1, "jitId": 7, "jitOps": ["const", "add", "sub", "mul", "div", "mod", "ret"] }
-let cj = vJitClassifyS(S, jc, vClassifyCallee)
+let cj = vJitClassifyS(S, jc, vClassifyCallee, fns)
 if cj["kind"] != "jit" {
     return false
 }
@@ -93,7 +120,7 @@ let pj = {
     "jitSlots": ["tnumber"],
     "jitSlotOps": [["const", "add", "sub", "mul", "div", "mod", "ret"]]
 }
-let cpj = vJitClassifyS(S, pj, vClassifyCallee)
+let cpj = vJitClassifyS(S, pj, vClassifyCallee, fns)
 let jp = vJitExecOk(S, cpj, [16, 3, 2, 4, 2, 5])
 if jp["ok"] != 1 || jp["out"] != jitFuseRax(16, 3, 2, 4, 2, 5) {
     return false
@@ -101,6 +128,61 @@ if jp["ok"] != 1 || jp["out"] != jitFuseRax(16, 3, 2, 4, 2, 5) {
 // Unknown shape → slot miss → {ok:0} (caller falls back per contract).
 let jpBad = vJitExecOk(S, cpj, [ { "vmC": 0 } ])
 if jpBad["ok"] != 0 {
+    return false
+}
+
+// Compile trigger: fresh mono site, fn body is a fusible arith chain.
+// After jitThreshold(8) hits with pct>=90 the rec compiles — the next
+// classify returns kind jit and the fused lowering runs instead of a frame.
+S["ip"] = 30
+let cf = { "vmFn": 2 }
+let first = vJitClassifyS(S, cf, vClassifyCallee, fns)
+if first["kind"] != "fn" {
+    return false
+}
+let warm = 0
+while warm < 8 {
+    let wr = vJitClassifyS(S, cf, vClassifyCallee, fns)
+    warm = warm + 1
+}
+let siteH = S["jitSites"][" 30"]
+if siteH["hits"] < 8 {
+    return false
+}
+let hot = vJitClassifyS(S, cf, vClassifyCallee, fns)
+if hot["kind"] != "jit" {
+    return false
+}
+if hot["fb"] == undefined || hot["fb"]["kind"] != "fn" {
+    return false
+}
+// Compiled callee execs the fused template on the call args.
+let jhot = vJitExecOk(S, hot, [16, 3, 2, 4, 2, 5])
+if jhot["ok"] != 1 || jhot["out"] != jitFuseRax(16, 3, 2, 4, 2, 5) {
+    return false
+}
+// Non-numeric args reject → caller deopts to fb (frame path).
+let jstr = vJitExecOk(S, hot, ["x", 3, 2, 4, 2, 5])
+if jstr["ok"] != 0 {
+    return false
+}
+// Fewer args than jitArity → reject too.
+let jfew = vJitExecOk(S, hot, [16, 3])
+if jfew["ok"] != 0 {
+    return false
+}
+
+// Non-fusible fn at a hot mono site: trigger checks once, stays frame kind.
+S["ip"] = 40
+let cn = { "vmFn": 3 }
+vJitClassifyS(S, cn, vClassifyCallee, fns)
+let nw = 0
+while nw < 10 {
+    vJitClassifyS(S, cn, vClassifyCallee, fns)
+    nw = nw + 1
+}
+let nr = vJitClassifyS(S, cn, vClassifyCallee, fns)
+if nr["kind"] != "fn" || nr["idx"] != 3 {
     return false
 }
 

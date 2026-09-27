@@ -1,0 +1,51 @@
+// SH17: compile trigger through the REAL ops loop — a hot monomorphic call
+// site whose callee body is the fusible arith chain compiles after
+// jitThreshold(8) hits with pct>=90: vJitClassifyS → vJitMaybeCompileS →
+// vJitOpsOfRec extracts the fn's own ops into the jitOps descriptor → the
+// fused lowering (jitFromOpsAnyExecOk + mirror) runs instead of a frame.
+
+// fus computes ((a + b - c) * d / e) % f — exactly the fused L-chain shape.
+fn fus(a, b, c, d, e, f) {
+    return ((a + b - c) * d / e) % f
+}
+
+// Drive the site hot: the `call` op at this ip sees fus 12 times.
+let acc = 0
+let i = 0
+while i < 12 {
+    acc = fus(16, 3, 2, 4, 2, 5)
+    i = i + 1
+}
+// ((16+3-2)*4/2)%5 = (17*4/2)%5 = 34%5 = 4 — same value either path.
+if acc != 4 {
+    return 1
+}
+
+// Out-of-domain args (n>64) → jitFuseOk rejects → deopt to frame path;
+// the result still comes out right via the interpreted fn body.
+let deopt = fus(100, 3, 2, 4, 2, 5)
+if deopt != ((100 + 3 - 2) * 4 / 2) % 5 {
+    return 2
+}
+
+// A second site (different ip) is cold — still computes via frames.
+let cold = fus(16, 3, 2, 4, 2, 5)
+if cold != 4 {
+    return 3
+}
+
+// Non-fusible fn stays interpreted even when hot.
+fn dbl(x) {
+    return x * 2
+}
+let j = 0
+let dsum = 0
+while j < 12 {
+    dsum = dbl(21)
+    j = j + 1
+}
+if dsum != 42 {
+    return 4
+}
+
+return 42

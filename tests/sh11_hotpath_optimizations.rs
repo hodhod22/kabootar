@@ -2,8 +2,14 @@
 
 #[test]
 fn sh11_emit_expr_body_optimizations_exist() {
-    let emit_file = std::fs::read_to_string("self_host/emit_expr_body.kab")
-        .expect("emit_expr_body.kab should exist");
+    // tryEmit*/leaf emit fns live in lexer_scan.kab after the SH5 merge+split.
+    let emit_file = format!(
+        "{}{}",
+        std::fs::read_to_string("self_host/lexer_scan.kab")
+            .expect("lexer_scan.kab should exist"),
+        std::fs::read_to_string("self_host/emit_expr_body.kab")
+            .expect("emit_expr_body.kab should exist"),
+    );
     
     // Verify SH11 optimization functions exist
     assert!(emit_file.contains("tryEmitAccAddLiteral"), "should have AccAdd literal optimization");
@@ -29,8 +35,14 @@ fn sh11_emit_expr_body_optimizations_exist() {
 
 #[test]
 fn sh11_existing_len_call_optimization() {
-    let emit_file = std::fs::read_to_string("self_host/emit_expr_body.kab")
-        .expect("emit_expr_body.kab should exist");
+    // tryEmit*/leaf emit fns live in lexer_scan.kab after the SH5 merge+split.
+    let emit_file = format!(
+        "{}{}",
+        std::fs::read_to_string("self_host/lexer_scan.kab")
+            .expect("lexer_scan.kab should exist"),
+        std::fs::read_to_string("self_host/emit_expr_body.kab")
+            .expect("emit_expr_body.kab should exist"),
+    );
     
     // Verify existing SH11 len call optimization
     assert!(emit_file.contains("tryEmitLenCall"), "should have len call optimization");
@@ -40,8 +52,14 @@ fn sh11_existing_len_call_optimization() {
 
 #[test]
 fn sh11_call_arg_fast_path() {
-    let emit_file = std::fs::read_to_string("self_host/emit_expr_body.kab")
-        .expect("emit_expr_body.kab should exist");
+    // tryEmit*/leaf emit fns live in lexer_scan.kab after the SH5 merge+split.
+    let emit_file = format!(
+        "{}{}",
+        std::fs::read_to_string("self_host/lexer_scan.kab")
+            .expect("lexer_scan.kab should exist"),
+        std::fs::read_to_string("self_host/emit_expr_body.kab")
+            .expect("emit_expr_body.kab should exist"),
+    );
     
     // Verify existing call argument fast path
     assert!(emit_file.contains("emitCallArgFast"), "should have call arg fast path");
@@ -50,8 +68,14 @@ fn sh11_call_arg_fast_path() {
 
 #[test]
 fn sh11_optimizations_design_correctness() {
-    let emit_file = std::fs::read_to_string("self_host/emit_expr_body.kab")
-        .expect("emit_expr_body.kab should exist");
+    // tryEmit*/leaf emit fns live in lexer_scan.kab after the SH5 merge+split.
+    let emit_file = format!(
+        "{}{}",
+        std::fs::read_to_string("self_host/lexer_scan.kab")
+            .expect("lexer_scan.kab should exist"),
+        std::fs::read_to_string("self_host/emit_expr_body.kab")
+            .expect("emit_expr_body.kab should exist"),
+    );
     
     // Verify optimizations don't use Rust-specific features
     assert!(!emit_file.contains("Rust"), "should not mention Rust");

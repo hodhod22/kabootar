@@ -956,10 +956,21 @@ pub fn vGcWeakClearObjS(obj, seen, minNew) {
     while ki < len(keys) {
         let k = keys[ki]
         if len(k) >= 5 && str_slice(k, 0, 5) == "weak_" {
-            let wid = vInstId(obj[k])
-            let wk = vInstKeyS(obj[k])
-            if wid != undefined && wid < minNew && wk != undefined && seen[wk] != true {
-                obj[k] = undefined
+            let wv = obj[k]
+            let wk = vInstKeyS(wv)
+            if wk != undefined {
+                let wvmI = vObjGet(wv, "vmI")
+                if wvmI != undefined {
+                    // vmI target: fresh publishes sit above the post-mark
+                    // watermark; below it a non-seen target is dead.
+                    if wvmI < minNew && seen[wk] != true {
+                        obj[k] = undefined
+                    }
+                } else if seen[wk] != true {
+                    // oid target: the oid value is not a vmI watermark —
+                    // generation compares never apply, the mark set decides.
+                    obj[k] = undefined
+                }
             }
         }
         ki = ki + 1
@@ -1144,6 +1155,15 @@ pub fn vGcSweepSliceS(S, budget) {
     S["gcLiveBytes"] = liveBytes
     S["gcCap"] = gcPaceGrow(S["gcCap"], liveBytes, 80, S["gcCap"] * 8)
     S["gcHostReady"] = gcHostReadyOk(S["gcRootsN"], S["gcMarkedN"], live, dead, S["gcReclaimedN"])
+    if S["gcHostReady"] == true {
+        let streak = S["gcHostReadyStreak"]
+        if typeof(streak) != "number" {
+            streak = 0
+        }
+        S["gcHostReadyStreak"] = streak + 1
+    } else {
+        S["gcHostReadyStreak"] = 0
+    }
     let t0 = S["gcCollectT0"]
     if typeof(t0) == "number" {
         let ms = date_now_ms() - t0

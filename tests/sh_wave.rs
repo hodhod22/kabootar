@@ -33,7 +33,7 @@ fn sh0_self_host_compile_dag_snapshot() {
         inv.vm_files
     );
     assert!(
-        inv.compile_dag.len() >= 7,
+        inv.compile_dag.len() >= 6,
         "compile.kab DAG should stay a real pipeline, got {}",
         inv.compile_dag.len()
     );
@@ -408,8 +408,8 @@ fn sh3a_self_host_push_len_nested() {
 fn sh1_warm_full_compile_dag() {
     let n = kabootar_lib::compile::write_compiler_dag_seeds().expect("warm dag");
     eprintln!("SH1 warm wrote {n} seed/dag files");
-    // SH5's documented densification plateau is a 7-file compile DAG.
-    assert!(n >= 7, "compile DAG should stay a pipeline, wrote {n}");
+    // SH5's documented densification plateau is a 6-file compile DAG.
+    assert!(n >= 6, "compile DAG should stay a pipeline, wrote {n}");
 }
 
 #[test]
@@ -579,10 +579,18 @@ fn sh6_vm_policy_in_kab() {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/parser_exec.kab"),
     )
     .expect("parser_exec.kab");
-    let emit = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/emit_expr_body.kab"),
-    )
-    .expect("emit_expr_body.kab");
+    // tryEmit*/index/var leaf fns live in lexer_scan.kab after the SH5 split.
+    let emit = format!(
+        "{}{}",
+        std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/emit_expr_body.kab"),
+        )
+        .expect("emit_expr_body.kab"),
+        std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/lexer_scan.kab"),
+        )
+        .expect("lexer_scan.kab"),
+    );
     assert!(
         cmp.contains("runOpCmpIn") && parser.contains("TOKEN_IS || sess[\"pCur\"].type == TOKEN_IN") && emit.contains("binOp == \"in\""),
         "SH6: membership `in` on Kab VM + self-host parse/emit"
@@ -1042,9 +1050,9 @@ fn sh6_vm_policy_in_kab() {
         "SH6: self-host two id specializations id$Number / id$String"
     );
     let emit_sym = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/ast_defs.kab"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/lexer_scan.kab"),
     )
-    .expect("ast_defs.kab (emit_sym merged in, SH5)");
+    .expect("lexer_scan.kab (ast_defs+emit_sym merged in, SH5)");
     assert!(
         emit_sym.contains("emitInferNestedCall")
             && emit_sym.contains("emitInferTypeArgsFrom")
@@ -25134,6 +25142,41 @@ fn sh17_jit_pic_ops_loop_smoke() {
         .join()
         .expect("join")
         .expect("jit pic ops loop smoke");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH17 deepen: compile trigger — a hot mono call site whose callee body is
+/// the fusible arith chain compiles via jitPicPlan + vJitOpsOfRec and runs
+/// the fused lowering; out-of-domain args deopt to the frame path.
+#[test]
+fn sh17_jit_compile_trigger_smoke() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = std::fs::read_to_string(format!(
+        "{}/examples/sh17_jit_compile_trigger_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read jit compile trigger smoke");
+    let formatted = std::thread::Builder::new()
+        .name("sh17-jit-compile-trigger".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program = compile_source_self_host(&src)
+                .map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("jit compile trigger smoke");
     match prev {
         Some(p) => std::env::set_var("KABOOTAR_VM", p),
         None => std::env::remove_var("KABOOTAR_VM"),
@@ -59771,6 +59814,76 @@ fn sh18_gc_vm_minor_exec_smoke() {
         .expect("join");
 }
 
+/// SH28 audit: every compile-DAG file must be self-host attemptable (source
+/// under SELF_HOST_MAX_SOURCE_BYTES and not bytecode/skip-listed) — the
+/// precondition for seed regen by the Kab compiler itself (bootstrap from
+/// Kab). The SH5 emit_expr_body split re-opened this: it was 72,541 bytes.
+#[test]
+fn sh28_dag_self_host_attemptable() {
+    use kabootar_lib::compile::{self_host_is_attemptable, walk_compile_dag};
+    let dag = walk_compile_dag().expect("walk dag");
+    assert_eq!(dag.len(), 6, "SH5 plateau is 6 files");
+    for rel in &dag {
+        assert!(
+            self_host_is_attemptable(rel),
+            "SH28: DAG file not self-host attemptable: {rel}"
+        );
+    }
+}
+
+/// SH28 audit: the Kab compiler compiles the compiler entry itself to
+/// bytecode — seed regen without rustc is proven end-to-end (dual-bind vs
+/// rust compile: same file, both backends produce modules). Slow: the
+/// self-host compile of compile.kab takes minutes — opt-in only.
+#[test]
+#[ignore = "slow: self-host compile of compile.kab — run with --ignored"]
+fn sh28_self_host_seed_dual_bind() {
+    use kabootar_lib::compile::{compile_file, compile_file_self_host, walk_compile_dag};
+    let dag = walk_compile_dag().expect("walk dag");
+    for rel in &dag {
+        let rel2 = rel.to_string();
+        std::thread::Builder::new()
+            .name(format!("sh28-sh-seed-{rel2}"))
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                let sh = compile_file_self_host(&rel2)
+                    .unwrap_or_else(|e| panic!("self-host compile {rel2}: {e}"));
+                assert!(sh.has_bytecode(), "self-host no bytecode for {rel2}");
+                let rs = compile_file(&rel2)
+                    .unwrap_or_else(|e| panic!("rust compile {rel2}: {e}"));
+                assert!(rs.has_bytecode(), "rust no bytecode for {rel2}");
+            })
+            .expect("spawn")
+            .join()
+            .expect("join");
+    }
+}
+
+/// SH18 deepen: oid-target weak-clear — a holder's weak_o → host-oid object
+/// must clear even when the oid value sits above the vmI watermark; the oid
+/// never enters the vmI freelist; gcHostReadyStreak accumulates evidence for
+/// the (still-false) gcHostDeleteOk gate.
+#[test]
+fn sh18_gc_vm_oid_weak_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18_gc_vm_oid_weak_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-vm-oid-weak".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc vm oid weak smoke");
+            let value = eval_program(&program, &mut env).expect("run gc vm oid weak smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH18 deepen 6: lazy sweep slice lives in gc_lazy.kab.
 #[test]
 fn sh18_gc_lazy_in_kab() {
@@ -84042,9 +84155,9 @@ fn sh12_lexer_hotpath_low_alloc() {
         "SH12: runaway bound must follow source length, not 10000"
     );
     let bump = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/ast_defs.kab"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/lexer_scan.kab"),
     )
-    .expect("ast_defs");
+    .expect("lexer_scan (ast_defs merged in, SH5)");
     assert!(
         bump.contains("let n = sess[\"pToksLen\"]"),
         "SH12: bump caches pToksLen"
@@ -84565,3 +84678,4 @@ fn sh15_ca_kbcb_mmap_hit_skips_text() {
     assert!(hit.is_some(), "mmap CA hit after deleting path-keyed cache");
     let _ = std::fs::remove_dir_all(&tmp);
 }
+

@@ -1,6 +1,5 @@
 // Full self-hosted pipeline: source text -> kabootar-bytecode/1 text.
 // SH5 deepen: ownership + emit_exec merged here (compile-DAG 12 -> 9).
-import "self_host/ast_defs"
 import "self_host/lexer_scan"
 import "self_host/parser_exec"
 import "self_host/emit_expr_body"

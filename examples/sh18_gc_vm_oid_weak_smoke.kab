@@ -1,0 +1,75 @@
+import "self_host/vm_run_session"
+import "self_host/vm_s_stack"
+import "kab/gc/gc_alloc"
+import "kab/gc/gc_host"
+
+// SH18 deepen: oid-target weak-clear + oid-freelist safety + host-ready
+// streak. holder (vmI inst) holds weak_o -> oidObj. The oid value sits far
+// above the vmI watermark (host NEXT_OID vs session ids) — the old
+// wid<minNew compare let oid targets escape weak-clear entirely.
+let S = vMakeSession()
+let holder = { "vmC": 0 }
+holder["vmI"] = vGcTakeInstIdS(S)
+let oidObj = {}
+let ooid = vInstId(oidObj)
+if ooid == undefined {
+    return false
+}
+holder["weak_o"] = oidObj
+vHeapPut(S, holder)
+vHeapPut(S, oidObj)
+S["stack"] = [holder]
+
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+if S["gcSweepActive"] != true {
+    return false
+}
+vGcSweepDeadS(S)
+
+// Dead oid target was tombstoned under its "h"-key ...
+if S["insts"]["h" + ooid] != undefined {
+    return false
+}
+// ... and the weak field cleared even though oid >= gcSweepMinNew.
+if holder["weak_o"] != undefined {
+    return false
+}
+// oid never entered the vmI freelist.
+let free = S["gcFreeIds"]
+if typeof(free) == "array" {
+    let fi = 0
+    while fi < len(free) {
+        if free[fi] == ooid {
+            return false
+        }
+        fi = fi + 1
+    }
+}
+if S["gcHostReady"] != true {
+    return false
+}
+if S["gcHostReadyStreak"] < 1 {
+    return false
+}
+
+// Second consistent cycle grows the streak.
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+vGcSweepDeadS(S)
+if S["gcHostReady"] != true {
+    return false
+}
+if S["gcHostReadyStreak"] < 2 {
+    return false
+}
+// The delete gate itself stays false until the streak is proven across
+// real workloads — this smoke only proves the evidence accumulates.
+if gcHostDeleteOk() != false {
+    return false
+}
+return true

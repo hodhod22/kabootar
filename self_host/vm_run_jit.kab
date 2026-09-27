@@ -5,6 +5,9 @@
 // callee wrapper, not the cached record — hits refresh them. A callee
 // carrying {vmJit:1, jitOps:[...]} (or jitSlots+jitSlotOps for polymorphic
 // jit fns) executes its fused lowering via jitPicExecOk instead of a frame.
+// Hot sites compile: jitPicPlan gates on hits/pct; a rec whose fn body is a
+// fusible chain (vJitOpsOf) gets a jit callee; exec-domain rejects deopt to
+// the cached frame record (c["fb"]) rather than failing the call.
 
 import "self_host/vm_s_stack"
 import "kab/jit/jit_pic"
@@ -115,13 +118,116 @@ pub fn vJitClassifyJit(callee) {
     return { "kind": "jit", "callee": callee }
 }
 
+/// Hit-rate percent for jitPicPlan's icHitOk gate (>=90).
+pub fn vJitSitePct(site) {
+    if site["calls"] <= 0 {
+        return 0
+    }
+    return (site["hits"] * 100) / site["calls"]
+}
+
+/// Extraction: fn body ops → jitOps descriptor for the fused L-chain.
+/// Shape: load_local of params 0..5 in order feeding add,sub,mul,div,mod,
+/// then return — i.e. `return ((p0 + p1 - p2) * p3 / p4) % p5`. Params must
+/// bind to locals 0..5 in order (locals[i] == params[i]) so load_local i is
+/// call arg i. Anything else → null (the site stays on the frame path).
+pub fn vJitOpsOfFn(f) {
+    if f == null || f == undefined || typeof(f) != "object" {
+        return null
+    }
+    let ops = f["ops"]
+    let params = f["params"]
+    let locals = f["locals"]
+    if typeof(ops) != "array" || typeof(params) != "array" || typeof(locals) != "array" {
+        return null
+    }
+    if len(ops) != 12 || len(params) < 6 || len(locals) < 6 {
+        return null
+    }
+    let pi = 0
+    while pi < 6 {
+        if locals[pi] != params[pi] {
+            return null
+        }
+        pi = pi + 1
+    }
+    let posL = [0, 1, 3, 5, 7, 9]
+    let li = 0
+    while li < 6 {
+        let op = ops[posL[li]]
+        if op["op"] != "load_local" || op["arg"] != li {
+            return null
+        }
+        li = li + 1
+    }
+    let posA = [2, 4, 6, 8, 10]
+    let names = ["add", "sub", "mul", "div", "mod"]
+    let ai = 0
+    while ai < 5 {
+        if ops[posA[ai]]["op"] != names[ai] {
+            return null
+        }
+        ai = ai + 1
+    }
+    let rop = ops[11]["op"]
+    if rop != "return" && rop != "ret" {
+        return null
+    }
+    return ["const", "add", "sub", "mul", "div", "mod", "ret"]
+}
+
+/// Resolve a cached classify rec's fn ops to a jitOps descriptor — fn recs
+/// read functions[idx], arrows read their arrowDef (or S["arrows"][idx]).
+/// Method/host/generator kinds return null: their bodies are not fusible.
+pub fn vJitOpsOfRec(S, rec, functions) {
+    let k = rec["kind"]
+    if k == "fn" {
+        if typeof(functions) == "array" {
+            return vJitOpsOfFn(functions[rec["idx"]])
+        }
+        return null
+    }
+    if k == "arrow" {
+        let ad = rec["arrowDef"]
+        if ad == undefined {
+            let arrs = S["arrows"]
+            if typeof(arrs) == "array" {
+                ad = arrs[rec["idx"]]
+            }
+        }
+        return vJitOpsOfFn(ad)
+    }
+    return null
+}
+
+/// Compile trigger: on a PIC hit, when jitPicPlan says the site compiles
+/// (1 mono / 2 PIC), extract the rec's ops once. A fusible chain installs a
+/// jit callee on the rec — subsequent hits return kind jit with fb = the
+/// frame record for deopt on exec-domain rejects.
+pub fn vJitMaybeCompileS(S, site, key, rec, i, functions) {
+    if rec["jitChecked"] == 1 {
+        return null
+    }
+    let plan = jitPicPlan(len(site["slots"]), vJitSitePct(site), site["hits"])
+    if plan != 1 && plan != 2 {
+        return null
+    }
+    rec["jitChecked"] = 1
+    let jitOps = vJitOpsOfRec(S, rec, functions)
+    if jitOps == null {
+        return null
+    }
+    rec["jitCallee"] = { "vmJit": 1, "jitId": "c" + key + "." + i, "jitOps": jitOps, "jitArity": 6 }
+    return rec["jitCallee"]
+}
+
 /// PIC-cached classify: `classify` is the caller's classify fn (passed in —
 /// vm_run_call owns vClassifyCallee; a direct import would cycle). Shape hit
 /// returns the cached record (with per-call fields refreshed); a miss
 /// classifies and learns the shape into the site PIC — a full PIC goes
 /// megamorphic and stops caching. Site counters (calls/hits/misses) feed
-/// jitPicPlan compile decisions.
-pub fn vJitClassifyS(S, callee, classify) {
+/// jitPicPlan compile decisions; a hot fusible rec installs a jit callee.
+pub fn vJitClassifyS(S, callee, classify, functions) {
     let jc = vJitClassifyJit(callee)
     if jc != null {
         return jc
@@ -144,7 +250,15 @@ pub fn vJitClassifyS(S, callee, classify) {
     let i = jitPicFind(site["slots"], shape)
     if i >= 0 && i < len(site["recs"]) {
         site["hits"] = site["hits"] + 1
-        return vJitRefreshC(site["recs"][i], callee)
+        let rec = site["recs"][i]
+        let jitCallee = rec["jitCallee"]
+        if jitCallee == undefined {
+            jitCallee = vJitMaybeCompileS(S, site, key, rec, i, functions)
+        }
+        if jitCallee != null && jitCallee != undefined {
+            return { "kind": "jit", "callee": jitCallee, "fb": vJitRefreshC(rec, callee) }
+        }
+        return vJitRefreshC(rec, callee)
     }
     let c = classify(callee)
     site["misses"] = site["misses"] + 1
@@ -161,9 +275,25 @@ pub fn vJitClassifyS(S, callee, classify) {
 /// specialized op list; jitSlots+jitSlotOps is a polymorphic jit fn — the
 /// arg0 class shape picks the slot via jitPicExecOk. Numeric args feed the
 /// template immediates (n,k,s,m,d,r). {ok:0} means the domain rejected the
-/// call — the caller falls back per its contract.
+/// call — the caller falls back per its contract (deopt to c["fb"] when set).
+/// jitArity marks a site-compiled callee: it needs exactly-typed numeric args
+/// (an object/non-number arg would feed the template garbage), so a typed
+/// callee rejects before exec when args are missing or non-numeric.
 pub fn vJitExecOk(S, c, ordered) {
     let callee = c["callee"]
+    let arity = vObjGet(callee, "jitArity")
+    if arity != undefined {
+        if len(ordered) < arity {
+            return { "ok": 0 }
+        }
+        let ti = 0
+        while ti < arity {
+            if typeof(ordered[ti]) != "number" {
+                return { "ok": 0 }
+            }
+            ti = ti + 1
+        }
+    }
     let n = 0
     let k = 0
     let s = 0

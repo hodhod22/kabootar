@@ -52,8 +52,8 @@ fn sh11_lexer_token_pooling() {
 
 #[test]
 fn sh11_parser_trampoline_optimization() {
-    let ast_file = std::fs::read_to_string("self_host/ast_defs.kab")
-        .expect("ast_defs.kab should exist");
+    let ast_file = std::fs::read_to_string("self_host/lexer_scan.kab")
+        .expect("lexer_scan.kab should exist (ast_defs merged in, SH5)");
     
     // Verify parser uses trampoline hooks (P6b)
     assert!(ast_file.contains("pCallHook"), "should have trampoline hook");

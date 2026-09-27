@@ -281,8 +281,12 @@ pub fn vApplyCalleeS(S, c, ordered, pool, globals, functions) {
     if kind == "jit" {
         let j = vJitExecOk(S, c, ordered)
         if j["ok"] != 1 {
-            S["unsupported"] = true
-            return undefined
+            let fb = c["fb"]
+            if fb == undefined {
+                S["unsupported"] = true
+                return undefined
+            }
+            return vApplyCalleeS(S, fb, ordered, pool, globals, functions)
         }
         return j["out"]
     }
@@ -334,7 +338,7 @@ pub fn runOpCallFromArrayS(S, name, pool, globals, functions) {
     let argsArr = vPopS(S)
     let callee = vPopS(S)
     let ordered = vArrayToOrdered(argsArr)
-    let c = vJitClassifyS(S, callee, vClassifyCallee)
+    let c = vJitClassifyS(S, callee, vClassifyCallee, functions)
     let a = vApplyCalleeCatchS(S, c, ordered, pool, globals, functions)
     if a["caught"] == 1 {
         return 1
@@ -345,10 +349,10 @@ pub fn runOpCallFromArrayS(S, name, pool, globals, functions) {
 }
 
 // --- vm_run_call_n_prep ---
-pub fn vCallNPrepS(S, arg) {
+pub fn vCallNPrepS(S, arg, functions) {
     let callee = vPopS(S)
     let ordered = vPopOrderedArgs(S, arg)
-    let c = vJitClassifyS(S, callee, vClassifyCallee)
+    let c = vJitClassifyS(S, callee, vClassifyCallee, functions)
     if c["kind"] == "bad" {
         S["unsupported"] = true
         return { "st": 2 }
@@ -361,7 +365,7 @@ pub fn runOpCallNS(S, name, arg, pool, globals, functions) {
     if name != "call" {
         return 0
     }
-    let p = vCallNPrepS(S, arg)
+    let p = vCallNPrepS(S, arg, functions)
     if p["st"] == 2 {
         return 2
     }

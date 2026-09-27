@@ -2,7 +2,6 @@
 // SH5: parseMain + pTramp + session + postfix live here (was parser_main / parser_tramp /
 // parser_session / parser_postfix — compile-DAG 9 -> 8).
 // SH6: yield e * 10 (mul loop); resume must not load tryRegions (breaks yield pause).
-import "self_host/ast_defs"
 import "self_host/lexer_scan"
 import "self_host/parser_stmt"
 

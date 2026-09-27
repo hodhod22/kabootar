@@ -1,4 +1,4 @@
-import "self_host/ast_defs"
+import "self_host/lexer_scan"
 
 // --- parser_stmt_block ---
 pub fn parseStmt_block(sess) {

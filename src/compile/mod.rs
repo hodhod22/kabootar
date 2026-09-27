@@ -21,7 +21,8 @@ pub use crate::bytecode::{can_compile, compile_source, try_compile, CompiledProg
 pub use dag::{
     collect_self_host_inventory, compile_dirty_dag_seeds, compile_dirty_product_tree,
     compiler_image_path, dag_max_import_depth, is_compile_dag_path, is_self_host_vm_path,
-    missing_compiler_dag_seeds, rust_compile_write_seed, walk_compile_dag,
+    missing_compiler_dag_seeds, rust_compile_write_seed, self_host_compile_write_seed,
+    walk_compile_dag,
     write_compiler_dag_seeds, write_compiler_facade_seeds, DirtyCompileStats,
     SelfHostInventory, IMAGE_VERSION as COMPILER_IMAGE_VERSION,
 };

@@ -6547,7 +6547,7 @@ fn p6b_emit_if_hotpath_progress() {
 fn p6b_emit_symindex_map_progress() {
     let src = self_host_concat(&[
         "compile.kab",
-        "ast_defs.kab",
+        "lexer_scan.kab",
         "emit_sym_index.kab",
     ]);
     assert!(
@@ -6577,7 +6577,7 @@ fn p6b_emit_symindex_map_progress() {
 fn p6b_parser_iterative_add_progress() {
     let src = self_host_concat(&[
         "parser_exec.kab",
-        "ast_defs.kab",
+        "lexer_scan.kab",
         "parser_stmt.kab",
     ]);
     assert!(
@@ -6615,8 +6615,9 @@ fn p6b_parser_iterative_add_progress() {
 #[test]
 fn p6b_len_index_cheap_path_progress() {
     use kabootar_lib::bytecode::{compile_source, try_compile, Opcode};
-    let emit = self_host_concat(&["emit_expr_body.kab"]);
-    let defs = std::fs::read_to_string(self_host_path("ast_defs.kab")).expect("read ast_defs");
+    // emit leaf fns (tryEmitLenCall et al.) live in lexer_scan.kab since SH5 split.
+    let emit = self_host_concat(&["emit_expr_body.kab", "lexer_scan.kab"]);
+    let defs = std::fs::read_to_string(self_host_path("lexer_scan.kab")).expect("read lexer_scan (ast_defs merged in, SH5)");
     assert!(
         defs.contains("OP_LEN_GLOBAL")
             && defs.contains("OP_INDEX_GET_GLOBAL")

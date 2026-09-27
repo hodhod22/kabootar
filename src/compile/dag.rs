@@ -1,7 +1,8 @@
 //! SH0/SH1 — self_host import DAG inventory and committed compiler-image seeds.
 
 use super::{
-    compile_file, extract_kab_imports, source_fingerprint, write_atomic, CompiledProgram,
+    compile_file, compile_file_self_host, extract_kab_imports, source_fingerprint, write_atomic,
+    CompiledProgram,
 };
 use crate::bytecode::{deserialize, serialize, BytecodeModule, FORMAT_HEADER};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -526,6 +527,17 @@ pub fn write_seed_dag_file(path: &str, program: &CompiledProgram) -> Result<Path
 
 pub fn rust_compile_write_seed(path: &str) -> Result<PathBuf, String> {
     let program = compile_file(&resolve_kab_path(path))?;
+    write_seed_dag_file(&resolve_kab_path(path), &program)
+}
+
+/// SH28: self-host variant — the Kab compiler regenerates its own DAG seed
+/// (bootstrap-from-Kab evidence). Same seed format + source fingerprint, so
+/// the produced .kbc is interchangeable with the rust-compiled one.
+pub fn self_host_compile_write_seed(path: &str) -> Result<PathBuf, String> {
+    let program = compile_file_self_host(&resolve_kab_path(path))?;
+    if !program.has_bytecode() {
+        return Err(format!("self-host seed compile produced no bytecode for {path}"));
+    }
     write_seed_dag_file(&resolve_kab_path(path), &program)
 }
 
