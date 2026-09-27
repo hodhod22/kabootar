@@ -16,7 +16,7 @@ fn test_runtime_env() {
 fn game_playable_2d_runs_ticks() {
     test_runtime_env();
     kabootar_lib::runtime::game::reset_all();
-    let src = include_str!("../examples/game_playable_2d.kab");
+    let src = include_str!("../examples/game/game_playable_2d.kab");
     let mut env = create_global_env();
     let v = eval_source(src, &mut env).expect("playable demo");
     assert!(matches!(v, Value::Bool(true)), "got {v:?}");

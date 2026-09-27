@@ -81,7 +81,7 @@ fn ai_delete_gate_no_python() {
     env_host();
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/examples/science_freedom_demo.kab"
+        "/examples/science/science_freedom_demo.kab"
     );
     let src = std::fs::read_to_string(path).expect("read demo");
     let mut env = create_global_env();

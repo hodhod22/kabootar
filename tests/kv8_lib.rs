@@ -66,8 +66,8 @@ tokenType(toks[1]) == "===" && tokenType(toks[3]) == "!=="
 
 #[test]
 fn kv8_lexer_smoke_example_runs() {
-    let path = format!("{}/examples/kv8_lexer_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_lexer_smoke.kab should run");
+    let path = format!("{}/examples/kv8/kv8_lexer_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8/kv8_lexer_smoke.kab should run");
     assert!(matches!(result, Value::Number(n) if n > 10));
 }
 
@@ -98,8 +98,8 @@ f.body[0].kind == "Function" && a.body[0].expr.kind == "Arrow"
 
 #[test]
 fn kv8_parser_smoke_example_runs() {
-    let path = format!("{}/examples/kv8_parser_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_parser_smoke.kab should run");
+    let path = format!("{}/examples/kv8/kv8_parser_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8/kv8_parser_smoke.kab should run");
     assert!(matches!(result, Value::Number(n) if n >= 2));
 }
 
@@ -152,7 +152,7 @@ evalSourceKab("let n = 0; while (n < 3) { n = n + 1; } n") == 3 && evalSourceKab
 fn k1d_class_new_kab_eval() {
     // Class/new/this path in kv8/eval is mutual-rec heavy; Windows test threads
     // default to a small stack and overflow. Run on a larger stack (Value is !Send).
-    let path = format!("{}/examples/kv8_k1d_class_new.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_k1d_class_new.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1d-class-new".into())
         .stack_size(64 * 1024 * 1024)
@@ -165,7 +165,7 @@ fn k1d_class_new_kab_eval() {
 
 #[test]
 fn k1d_static_kab_eval() {
-    let path = format!("{}/examples/kv8_k1d_static.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_k1d_static.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1d-static".into())
         .stack_size(64 * 1024 * 1024)
@@ -178,7 +178,7 @@ fn k1d_static_kab_eval() {
 
 #[test]
 fn k1d_super_kab_eval() {
-    let path = format!("{}/examples/kv8_k1d_super.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_k1d_super.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1d-super".into())
         .stack_size(64 * 1024 * 1024)
@@ -191,7 +191,7 @@ fn k1d_super_kab_eval() {
 
 #[test]
 fn k1d_super_method_kab_eval() {
-    let path = format!("{}/examples/kv8_k1d_super_method.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_k1d_super_method.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1d-super-method".into())
         .stack_size(64 * 1024 * 1024)
@@ -204,7 +204,7 @@ fn k1d_super_method_kab_eval() {
 
 #[test]
 fn k1d_promise_all_kab_eval() {
-    let path = format!("{}/examples/kv8_k1d_promise_all.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_k1d_promise_all.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1d-promise-all".into())
         .stack_size(64 * 1024 * 1024)
@@ -217,7 +217,7 @@ fn k1d_promise_all_kab_eval() {
 
 #[test]
 fn k1e_extends_kab_eval() {
-    let path = format!("{}/examples/kv8_k1e_extends.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_k1e_extends.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1e-extends".into())
         .stack_size(64 * 1024 * 1024)
@@ -250,13 +250,13 @@ evalSource("1 + 2") == 3 && evalSource("class A { a() { return 1 } } class B ext
 
 #[test]
 fn k1f_async_promise_kab_eval() {
-    let path = format!("{}/examples/kv8_k1f_async.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_k1f_async.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1f-async".into())
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
-                cli::run_file(&path).expect("examples/kv8_k1f_async.kab should run"),
+                cli::run_file(&path).expect("examples/kv8/kv8_k1f_async.kab should run"),
                 Value::Bool(true)
             )
         })
@@ -268,13 +268,13 @@ fn k1f_async_promise_kab_eval() {
 
 #[test]
 fn k1g_promise_then_microtask() {
-    let path = format!("{}/examples/kv8_k1g_promise_then.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_k1g_promise_then.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("k1g-promise-then".into())
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
-                cli::run_file(&path).expect("examples/kv8_k1g_promise_then.kab should run"),
+                cli::run_file(&path).expect("examples/kv8/kv8_k1g_promise_then.kab should run"),
                 Value::Bool(true)
             )
         })
@@ -286,13 +286,13 @@ fn k1g_promise_then_microtask() {
 
 #[test]
 fn h4_prefer_kab_eval() {
-    let path = format!("{}/examples/kv8_h4_prefer_kab.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_h4_prefer_kab.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h4-prefer-kab".into())
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
-                cli::run_file(&path).expect("examples/kv8_h4_prefer_kab.kab should run"),
+                cli::run_file(&path).expect("examples/kv8/kv8_h4_prefer_kab.kab should run"),
                 Value::Bool(true)
             )
         })
@@ -304,13 +304,13 @@ fn h4_prefer_kab_eval() {
 
 #[test]
 fn h6_arrow_kab_eval() {
-    let path = format!("{}/examples/kv8_h6_arrow.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_h6_arrow.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h6-arrow".into())
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
-                cli::run_file(&path).expect("examples/kv8_h6_arrow.kab should run"),
+                cli::run_file(&path).expect("examples/kv8/kv8_h6_arrow.kab should run"),
                 Value::Bool(true)
             )
         })
@@ -322,13 +322,13 @@ fn h6_arrow_kab_eval() {
 
 #[test]
 fn h6_builtins_kab_eval() {
-    let path = format!("{}/examples/kv8_h6_builtins.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_h6_builtins.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h6-builtins".into())
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
-                cli::run_file(&path).expect("examples/kv8_h6_builtins.kab should run"),
+                cli::run_file(&path).expect("examples/kv8/kv8_h6_builtins.kab should run"),
                 Value::Bool(true)
             )
         })
@@ -340,13 +340,13 @@ fn h6_builtins_kab_eval() {
 
 #[test]
 fn h6_events_timers_kab_eval() {
-    let path = format!("{}/examples/kv8_h6_events_timers.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_h6_events_timers.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h6-events".into())
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
-                cli::run_file(&path).expect("examples/kv8_h6_events_timers.kab should run"),
+                cli::run_file(&path).expect("examples/kv8/kv8_h6_events_timers.kab should run"),
                 Value::Bool(true)
             )
         })
@@ -358,13 +358,13 @@ fn h6_events_timers_kab_eval() {
 
 #[test]
 fn h6a_parity_kab_eval() {
-    let path = format!("{}/examples/kv8_h6a_parity.kab", manifest_dir());
+    let path = format!("{}/examples/kv8/kv8_h6a_parity.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h6a-parity".into())
         .stack_size(64 * 1024 * 1024)
         .spawn(move || {
             matches!(
-                cli::run_file(&path).expect("examples/kv8_h6a_parity.kab should run"),
+                cli::run_file(&path).expect("examples/kv8/kv8_h6a_parity.kab should run"),
                 Value::Bool(true)
             )
         })

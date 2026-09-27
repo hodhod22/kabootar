@@ -1,7 +1,7 @@
 @version "1.0.0"
 
 // GP7 entry — full editor shell composition.
-// kabootar run examples/game_editor.kab  (or import "game/game_editor")
+// kabootar run examples/game/game_editor.kab  (or import "game/game_editor")
 
 pub import "game/scene"
 pub import "game/editor"

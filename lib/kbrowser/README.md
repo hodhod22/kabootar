@@ -122,4 +122,4 @@ wasm-pack build --target web --no-default-features --features docai,codai
 
 ## Tester
 
-`examples/kbrowser_native_smoke.kab`, `kbrowser_kos_smoke.kab`, `kbrowser_wasm_smoke.kab`, `kbrowser_mobile_smoke.kab`, `h6c_browser_chrome_smoke.kab`.
+`examples/kbrowser/kbrowser_native_smoke.kab`, `kbrowser_kos_smoke.kab`, `kbrowser_wasm_smoke.kab`, `kbrowser_mobile_smoke.kab`, `h6c_browser_chrome_smoke.kab`.

@@ -34,7 +34,7 @@ React bär JS-historik: mutable DOM, closures, dependency arrays, separat bundle
 - Commit: `negin/commit` — op-lista (SET_TEXT, MOVE, …) sedan host apply (fast/compat)
 - Static: `negin/static-tree` — UI utan signaler skapas en gång
 - Error: `negin/error` som giltig Kabootar (inga JS-`useState`-destructures)
-- Gate: `examples/negin_fas6_smoke.kab`, `examples/negin_fas7_smoke.kab`
+- Gate: `examples/negin/negin_fas6_smoke.kab`, `examples/negin/negin_fas7_smoke.kab`
 
 ## Arkitektur
 
@@ -100,7 +100,7 @@ Fas 1–5 är historiska leveranser (core → Kabootar-integration → signals/S
 - [x] Keyed fiber-walk (`negin/fiber`) — mindre onödig child-remount
 - [x] O(1) signal-tracking (`seen["e"+eid]`) — inte linjär subscriber-scan
 - [x] Giltig error-modul (ingen JS-destructure / `!==` / rekursiv `typeof`)
-- [x] Gate: `examples/negin_fas6_smoke.kab`
+- [x] Gate: `examples/negin/negin_fas6_smoke.kab`
 - [x] Roadmap: behållvärda React-styrkor vs Kabootar-vinster
 
 ### Fas 7 — Host-agnostisk runtime (ABI + commit + static)
@@ -113,7 +113,7 @@ Negin ska inte optimeras för en miljö. Samma API/komponentmodell över kDOM, K
 - [x] **KV8 förstaklassig host** — egen profil (`kv8`), inte browser-fallback
 - [x] **Event som host-feature** — native vs delegation
 - [x] **List-primitive** — synligt fönster utan DOM-tricks (`negin/list`)
-- [x] Gate: `examples/negin_fas7_smoke.kab`
+- [x] Gate: `examples/negin/negin_fas7_smoke.kab`
 
 Nästa (samma ABI, djupare hosts):
 - [ ] kdom-host / kv8-host / browser-dom-host / kos-browser-host mot riktiga noder (inte bara in-memory ABI)
@@ -147,8 +147,8 @@ lib/negin/
 ├── host-adapter.kab     # sql / http / kml (Kabootar-primitives)
 ├── error.kab
 └── examples/            # counter, todo, app, …
-examples/negin_fas6_smoke.kab
-examples/negin_fas7_smoke.kab
+examples/negin/negin_fas6_smoke.kab
+examples/negin/negin_fas7_smoke.kab
 ```
 
 ## API (Kabootar, inte JS)

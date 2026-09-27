@@ -15,7 +15,7 @@ kabootar
 > :quit
 
 # Notebook (.knb)
-kabootar notebook run examples/explore_smoke.knb --science
+kabootar notebook run examples/explore/explore_smoke.knb --science
 
 # Web UI (WASM optional)
 # öppna kabootar-notebook.html efter wasm-bindgen till ./pkg

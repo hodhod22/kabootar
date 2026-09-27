@@ -146,9 +146,9 @@ gl.drawArrays(3);
 ## Samples
 
 ```bash
-kabootar run examples/game_2d_smoke.kab
-kabootar run examples/game_playable_2d.kab
-kabootar run examples/game_3d_triangle.kab
+kabootar run examples/game/game_2d_smoke.kab
+kabootar run examples/game/game_playable_2d.kab
+kabootar run examples/game/game_3d_triangle.kab
 kabootar mod init game    # 2D loop + physics scaffold
 kabootar mod init game3d  # 3D mesh + shaders/solid.wgsl
 ```
@@ -231,7 +231,7 @@ lib/game/
 
 Natives: `gltf_load_json`, `image_decode_png`, `asset_watch`, `asset_poll`, `host_read_bytes`, `gpu3d_load_wgsl`, `gpu3d_load_wgsl_from_file`, `gpu3d_shader_info`. Fixtures: `fixtures/game/triangle.gltf`, `fixtures/game/px.png`, `fixtures/game/solid.wgsl`.
 
-`createBuffer` accepterar **Float32Array** (bulk) utöver Array-of-numbers. `texImage2D` accepterar **Uint8Array** RGBA staging (P2) utöver byte-Array. `playPcm` accepterar **Uint8Array** som LE i16 PCM (`pcmToUint8`). Frame-smoke: `tests/perf_p0_smoke.rs` (P9: `delta_ms` < 100). GC-frame: `gc_frame_stats` / `gc_set_frame_budget` (P3). Playable: `examples/game_playable_2d.kab`. **XR:** [XR.md](XR.md). **Spelbyggare / sandlåda:** `import "game/sandbox"` + `science/mechanics` — **session** (`createSession`/`stepSession`/`runSessionFrames`: canvas + pointer), Play↔Edit↔Learn (`enterEdit`/`applyEditorAndPlay`/`enterLearnMode`/`setLearnParam`), multi-level (`defaultLevelPack`/`nextLevel`/`saveLevelPack`). Exempel `examples/sandbox_force_puzzle.kab`, test `tests/game_sandbox.rs`. **Sim/robot twin:** `examples/sim_robot_arm.kab`, `tests/sim_robot.rs`.
+`createBuffer` accepterar **Float32Array** (bulk) utöver Array-of-numbers. `texImage2D` accepterar **Uint8Array** RGBA staging (P2) utöver byte-Array. `playPcm` accepterar **Uint8Array** som LE i16 PCM (`pcmToUint8`). Frame-smoke: `tests/perf_p0_smoke.rs` (P9: `delta_ms` < 100). GC-frame: `gc_frame_stats` / `gc_set_frame_budget` (P3). Playable: `examples/game/game_playable_2d.kab`. **XR:** [XR.md](XR.md). **Spelbyggare / sandlåda:** `import "game/sandbox"` + `science/mechanics` — **session** (`createSession`/`stepSession`/`runSessionFrames`: canvas + pointer), Play↔Edit↔Learn (`enterEdit`/`applyEditorAndPlay`/`enterLearnMode`/`setLearnParam`), multi-level (`defaultLevelPack`/`nextLevel`/`saveLevelPack`). Exempel `examples/sandbox/sandbox_force_puzzle.kab`, test `tests/game_sandbox.rs`. **Sim/robot twin:** `examples/sim/sim_robot_arm.kab`, `tests/sim_robot.rs`.
 
 **WGSL (GP0e):** `gpu3d_load_wgsl("solid"|"textured", source)` bygger om wgpu-pipeline vid hash-ändring; fil-load registreras för hot reload via `asset_poll` (`.wgsl`). GLSL `compileShader*` lagras fortfarande (CPU/legacy); GPU-path använder WGSL.
 

@@ -10,8 +10,8 @@ Negin är designat för Kabootar:
 - **Språkets inbyggda yor** (sql, db, http, kdom)
 - **Host-agnostiskt** — samma komponenter på kDOM, KV8, vanlig DOM och kOS/browser
 - **Signals + GC** för reaktivitet
-- **Fas 6:** keyed fiber-walk (`negin/fiber`), O(1) signal-tracking, giltig error-modul. Smoke: `examples/negin_fas6_smoke.kab`.
-- **Fas 7:** Host Adapter ABI, commit-ops, static hoisting. Smoke: `examples/negin_fas7_smoke.kab`.
+- **Fas 6:** keyed fiber-walk (`negin/fiber`), O(1) signal-tracking, giltig error-modul. Smoke: `examples/negin/negin_fas6_smoke.kab`.
+- **Fas 7:** Host Adapter ABI, commit-ops, static hoisting. Smoke: `examples/negin/negin_fas7_smoke.kab`.
 
 ## Installation
 

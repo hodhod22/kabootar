@@ -152,4 +152,4 @@ kDOM/Kv8/kss (Våg K2/G6–G10), layout/canvas (Våg C), **kOS VFS** (`kos/vfs`,
 
 ## Checkpoint
 
-Smokes: `examples/kbrowser_*.kab`, `examples/h6c_browser_chrome_smoke.kab`, `k4_kbrowser_tabs_smoke`.
+Smokes: `examples/kbrowser_*.kab`, `examples/h6c/h6c_browser_chrome_smoke.kab`, `k4_kbrowser_tabs_smoke`.

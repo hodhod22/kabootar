@@ -6,7 +6,7 @@ use kabootar_lib::evaluator::create_global_env;
 #[test]
 fn sh18_shared_obj_mut_exec_smoke() {
     let path = format!(
-        "{}/examples/sh18_shared_obj_mut_smoke.kab",
+        "{}/examples/sh18/sh18_shared_obj_mut_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()

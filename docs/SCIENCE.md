@@ -733,7 +733,7 @@ job_map_chunks([1, 2, 3, 4], double, 2); // Kab-closure chunk plan
 sci_blas_dgemm(A, m, k, B, n, 1.0, 0.0, null); // BLAS-style DGEMM
 ```
 
-Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
+Mall: `kabootar mod init science-ai`. Exempel: `examples/science/science_ai_linreg.kab`.
 
 ## Felsökning
 
@@ -750,7 +750,7 @@ Mall: `kabootar mod init science-ai`. Exempel: `examples/science_ai_linreg.kab`.
 - Kab (produkt-API): `lib/science/*.kab` — **Kab-first** (`fit`, `kab_algo`, `pipeline`, `bootstrap`, `autograd`, `gpu`, …; **SC6:** `preprocess`, `metrics`, `prob`, `graph`, `timeseries`, `rl`, `explain`, `dist`, `domain/*`; **SC7:** `io`, `parallel`, `visualize`, `nd_gpu`; **STEM sandlåda:** `mechanics`)
 - Registrering: `science_register` vid `import "science"`
 - Tester: `tests/science_sc*.rs`, checkpoints `science_sc_checkpoint_sc6.rs` … `sc6e.rs`, plus `science_sc_wave7.rs`
-- Demo: `examples/science_freedom_demo.kab` — train + tokenizer + transformer + plot (no Python)
+- Demo: `examples/science/science_freedom_demo.kab` — train + tokenizer + transformer + plot (no Python)
 
 ### Policy SC5c (inga nya Rust-produkt-API)
 

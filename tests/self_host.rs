@@ -1766,7 +1766,7 @@ fn self_host_emit_rust_bytecode_let_probe() {
 #[test]
 fn h6e_boot_policy_smoke() {
     let path = format!(
-        "{}/examples/h6e_boot_policy_smoke.kab",
+        "{}/examples/h6e/h6e_boot_policy_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()
@@ -1787,7 +1787,7 @@ fn h6e_boot_policy_smoke() {
 #[test]
 fn h6e_compile_prefer_smoke() {
     let path = format!(
-        "{}/examples/h6e_compile_prefer_smoke.kab",
+        "{}/examples/h6e/h6e_compile_prefer_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()
@@ -1808,7 +1808,7 @@ fn h6e_compile_prefer_smoke() {
 #[test]
 fn negin_fas6_smoke() {
     let path = format!(
-        "{}/examples/negin_fas6_smoke.kab",
+        "{}/examples/negin/negin_fas6_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()
@@ -1829,7 +1829,7 @@ fn negin_fas6_smoke() {
 #[test]
 fn negin_fas7_smoke() {
     let path = format!(
-        "{}/examples/negin_fas7_smoke.kab",
+        "{}/examples/negin/negin_fas7_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()
@@ -1852,7 +1852,7 @@ fn negin_fas7_smoke() {
 #[test]
 fn h6e_run_selfhost_probe() {
     let path = format!(
-        "{}/examples/h6e_run_selfhost_probe.kab",
+        "{}/examples/h6e/h6e_run_selfhost_probe.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()
@@ -1873,7 +1873,7 @@ fn h6e_run_selfhost_probe() {
 #[test]
 fn h6e_vm_smoke() {
     let path = format!(
-        "{}/examples/h6e_vm_smoke.kab",
+        "{}/examples/h6e/h6e_vm_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()
@@ -1894,7 +1894,7 @@ fn h6e_vm_smoke() {
 #[test]
 fn h6e_kab_vm_smoke() {
     let path = format!(
-        "{}/examples/h6e_kab_vm_smoke.kab",
+        "{}/examples/h6e/h6e_kab_vm_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()
@@ -6761,7 +6761,7 @@ fn self_host_unescape_probe_full_compile() {
 #[test]
 fn h6e_kab_vm_delete_gate() {
     let path = format!(
-        "{}/examples/h6e_kab_vm_delete_gate.kab",
+        "{}/examples/h6e/h6e_kab_vm_delete_gate.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()
@@ -6782,7 +6782,7 @@ fn h6e_kab_vm_delete_gate() {
 #[test]
 fn h6e_kab_only_gate() {
     let path = format!(
-        "{}/examples/h6e_kab_only_gate.kab",
+        "{}/examples/h6e/h6e_kab_only_gate.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()

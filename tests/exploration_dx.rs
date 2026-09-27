@@ -44,7 +44,7 @@ fn notebook_cells_share_env() {
 
 #[test]
 fn explore_smoke_knb_with_science() {
-    let path = format!("{}/examples/explore_smoke.knb", env!("CARGO_MANIFEST_DIR"));
+    let path = format!("{}/examples/explore/explore_smoke.knb", env!("CARGO_MANIFEST_DIR"));
     let nb = kabootar_lib::notebook::load_notebook(std::path::Path::new(&path)).expect("load");
     let (_s, results) = run_notebook(&nb, true).expect("run science notebook");
     assert!(results.last().unwrap().ok);

@@ -32,7 +32,7 @@ let msgs = poll(bus, "edge-1")["messages"]
 
 - `lib/iot.kab` — `pub import` surface
 - `lib/iot/mqtt.kab`, `sensors.kab`, `coap.kab`, `radio.kab`
-- `examples/iot_sensors_mqtt.kab`
+- `examples/iot/iot_sensors_mqtt.kab`
 - `tests/iot_module.rs`
 
 Roadmap: [ROADMAP.md](ROADMAP.md) **Våg IOT**.

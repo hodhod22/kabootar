@@ -754,7 +754,7 @@ fn sh23_crypto_tls_peer_fin_eval_smoke() {
     spawn_tls12_peer(28233, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls_peer_fin_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls_peer_fin_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -789,7 +789,7 @@ fn sh23_crypto_tls_prf_keyseed_eval_smoke() {
     ];
     let expect = hex_of(&tls_prf(secret, b"test label", &seed, 48));
     let path = format!(
-        "{}/examples/sh23_crypto_tls_prf_keyseed_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls_prf_keyseed_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -817,7 +817,7 @@ fn sh23_crypto_tls_prf_keyseed_eval_smoke() {
 #[ignore]
 fn sh23_crypto_x25519_alice_base_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_x25519_alice_base_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_x25519_alice_base_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -849,7 +849,7 @@ fn sh23_crypto_tls_peer_get_eval_smoke() {
     spawn_tls12_peer(28261, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls_peer_get_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls_peer_get_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -873,7 +873,7 @@ fn sh23_crypto_http_fetch_peer_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_peer_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_peer_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -898,7 +898,7 @@ fn sh23_crypto_http_fetch_route_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_route_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_route_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -923,7 +923,7 @@ fn sh23_crypto_http_fetch_bind_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_bind_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_bind_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -948,7 +948,7 @@ fn sh23_crypto_http_fetch_await_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_await_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_await_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -973,7 +973,7 @@ fn sh23_crypto_http_fetch_body_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_body_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_body_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -998,7 +998,7 @@ fn sh23_crypto_http_fetch_hdr_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_hdr_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_hdr_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1023,7 +1023,7 @@ fn sh23_crypto_http_fetch_url_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_url_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_url_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1048,7 +1048,7 @@ fn sh23_crypto_http_fetch_localhost_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_localhost_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_localhost_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1073,7 +1073,7 @@ fn sh23_crypto_http_fetch_post_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_post_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_post_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1098,7 +1098,7 @@ fn sh23_crypto_http_fetch_put_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_put_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_put_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1123,7 +1123,7 @@ fn sh23_crypto_http_fetch_patch_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_patch_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_patch_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1148,7 +1148,7 @@ fn sh23_crypto_http_fetch_delete_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_delete_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_delete_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1173,7 +1173,7 @@ fn sh23_crypto_http_fetch_head_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_head_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_head_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1198,7 +1198,7 @@ fn sh23_crypto_http_fetch_options_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_options_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_options_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1223,7 +1223,7 @@ fn sh23_crypto_http_fetch_trace_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_trace_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_trace_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1248,7 +1248,7 @@ fn sh23_crypto_http_fetch_connect_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_connect_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_connect_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1273,7 +1273,7 @@ fn sh23_crypto_http_fetch_auth_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_auth_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_auth_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1298,7 +1298,7 @@ fn sh23_crypto_http_fetch_cookie_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_cookie_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_cookie_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1323,7 +1323,7 @@ fn sh23_crypto_http_fetch_proxy_eval_smoke() {
     spawn_tls12_peer(28291, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_proxy_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_proxy_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1346,7 +1346,7 @@ fn sh23_crypto_http_fetch_proxy_eval_smoke() {
 #[test]
 fn sh23_crypto_tls13_hs_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_hs_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_hs_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1369,7 +1369,7 @@ fn sh23_crypto_tls13_hs_eval_smoke() {
 #[test]
 fn sh23_crypto_tls13_fin_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_fin_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_fin_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1392,7 +1392,7 @@ fn sh23_crypto_tls13_fin_eval_smoke() {
 #[test]
 fn sh23_crypto_tls13_gcm_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_gcm_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_gcm_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1415,7 +1415,7 @@ fn sh23_crypto_tls13_gcm_eval_smoke() {
 #[test]
 fn sh23_crypto_tls13_app_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_app_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_app_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1438,7 +1438,7 @@ fn sh23_crypto_tls13_app_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1461,7 +1461,7 @@ fn sh23_crypto_http_fetch_tls13_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_localhost_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_localhost_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_localhost_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1484,7 +1484,7 @@ fn sh23_crypto_http_fetch_tls13_localhost_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_url_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_url_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_url_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1507,7 +1507,7 @@ fn sh23_crypto_http_fetch_tls13_url_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_post_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_post_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_post_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1530,7 +1530,7 @@ fn sh23_crypto_http_fetch_tls13_post_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_put_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_put_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_put_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1553,7 +1553,7 @@ fn sh23_crypto_http_fetch_tls13_put_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_patch_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_patch_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_patch_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1576,7 +1576,7 @@ fn sh23_crypto_http_fetch_tls13_patch_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_delete_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_delete_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_delete_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1599,7 +1599,7 @@ fn sh23_crypto_http_fetch_tls13_delete_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_head_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_head_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_head_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1622,7 +1622,7 @@ fn sh23_crypto_http_fetch_tls13_head_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_options_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_options_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_options_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1645,7 +1645,7 @@ fn sh23_crypto_http_fetch_tls13_options_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_trace_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_trace_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_trace_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1668,7 +1668,7 @@ fn sh23_crypto_http_fetch_tls13_trace_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_connect_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_connect_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_connect_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1691,7 +1691,7 @@ fn sh23_crypto_http_fetch_tls13_connect_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_auth_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_auth_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_auth_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1714,7 +1714,7 @@ fn sh23_crypto_http_fetch_tls13_auth_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_cookie_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_cookie_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_cookie_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1737,7 +1737,7 @@ fn sh23_crypto_http_fetch_tls13_cookie_eval_smoke() {
 #[test]
 fn sh23_crypto_http_fetch_tls13_proxy_eval_smoke() {
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_proxy_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_proxy_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1762,7 +1762,7 @@ fn sh23_crypto_tls13_peer_eval_smoke() {
     spawn_tls13_peer(28293, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1787,7 +1787,7 @@ fn sh23_crypto_tls13_peer_fin_eval_smoke() {
     spawn_tls13_peer(28294, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_fin_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_fin_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1812,7 +1812,7 @@ fn sh23_crypto_tls13_peer_get_eval_smoke() {
     spawn_tls13_peer(28295, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_get_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_get_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1837,7 +1837,7 @@ fn sh23_crypto_http_fetch_tls13_peer_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1862,7 +1862,7 @@ fn sh23_crypto_http_fetch_tls13_peer_localhost_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_localhost_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_localhost_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1887,7 +1887,7 @@ fn sh23_crypto_http_fetch_tls13_peer_url_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_url_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_url_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1912,7 +1912,7 @@ fn sh23_crypto_http_fetch_tls13_peer_post_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_post_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_post_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1937,7 +1937,7 @@ fn sh23_crypto_http_fetch_tls13_peer_put_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_put_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_put_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1962,7 +1962,7 @@ fn sh23_crypto_http_fetch_tls13_peer_patch_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_patch_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_patch_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -1987,7 +1987,7 @@ fn sh23_crypto_http_fetch_tls13_peer_delete_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_delete_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_delete_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2012,7 +2012,7 @@ fn sh23_crypto_http_fetch_tls13_peer_head_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_head_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_head_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2037,7 +2037,7 @@ fn sh23_crypto_http_fetch_tls13_peer_options_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_options_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_options_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2062,7 +2062,7 @@ fn sh23_crypto_http_fetch_tls13_peer_trace_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_trace_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_trace_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2087,7 +2087,7 @@ fn sh23_crypto_http_fetch_tls13_peer_connect_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_connect_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_connect_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2112,7 +2112,7 @@ fn sh23_crypto_http_fetch_tls13_peer_auth_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_auth_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_auth_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2137,7 +2137,7 @@ fn sh23_crypto_http_fetch_tls13_peer_cookie_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_cookie_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_cookie_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2162,7 +2162,7 @@ fn sh23_crypto_http_fetch_tls13_peer_proxy_eval_smoke() {
     spawn_tls13_peer(28296, true, true);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_http_fetch_tls13_peer_proxy_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_http_fetch_tls13_peer_proxy_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2187,7 +2187,7 @@ fn sh23_crypto_tls13_peer_cv_eval_smoke() {
     spawn_tls13_peer(28297, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_cv_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_cv_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2212,7 +2212,7 @@ fn sh23_crypto_tls13_peer_ecdsa_eval_smoke() {
     spawn_tls13_peer(28299, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_ecdsa_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_ecdsa_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2237,7 +2237,7 @@ fn sh23_crypto_tls13_peer_pss_eval_smoke() {
     spawn_tls13_rsa_peer(28300);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_pss_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_pss_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2262,7 +2262,7 @@ fn sh23_crypto_tls13_peer_tbs_eval_smoke() {
     spawn_tls13_rsa_peer(28301);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_tbs_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_tbs_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2287,7 +2287,7 @@ fn sh23_crypto_tls13_peer_ecdsa_tbs_eval_smoke() {
     spawn_tls13_peer(28302, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_ecdsa_tbs_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_ecdsa_tbs_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2312,7 +2312,7 @@ fn sh23_crypto_tls13_peer_san_eval_smoke() {
     spawn_tls13_peer(28303, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_san_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_san_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2337,7 +2337,7 @@ fn sh23_crypto_tls13_peer_time_eval_smoke() {
     spawn_tls13_peer(28304, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_time_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_time_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2362,7 +2362,7 @@ fn sh23_crypto_tls13_peer_ku_eval_smoke() {
     spawn_tls13_peer(28305, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_ku_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_ku_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2387,7 +2387,7 @@ fn sh23_crypto_tls13_peer_eku_eval_smoke() {
     spawn_tls13_peer(28306, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_eku_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_eku_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2412,7 +2412,7 @@ fn sh23_crypto_tls13_peer_bc_eval_smoke() {
     spawn_tls13_peer(28307, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_bc_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_bc_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2437,7 +2437,7 @@ fn sh23_crypto_tls13_peer_iss_eval_smoke() {
     spawn_tls13_peer(28308, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_iss_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_iss_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2462,7 +2462,7 @@ fn sh23_crypto_tls13_peer_sn_eval_smoke() {
     spawn_tls13_peer(28309, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_sn_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_sn_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2487,7 +2487,7 @@ fn sh23_crypto_tls13_peer_ver_eval_smoke() {
     spawn_tls13_peer(28310, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_ver_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_ver_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2512,7 +2512,7 @@ fn sh23_crypto_tls13_peer_ski_eval_smoke() {
     spawn_tls13_peer(28311, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_ski_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_ski_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2537,7 +2537,7 @@ fn sh23_crypto_tls13_peer_aki_eval_smoke() {
     spawn_tls13_peer(28312, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_aki_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_aki_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2562,7 +2562,7 @@ fn sh23_crypto_tls13_peer_spki_eval_smoke() {
     spawn_tls13_peer(28313, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_spki_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_spki_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2587,7 +2587,7 @@ fn sh23_crypto_tls13_peer_p256_eval_smoke() {
     spawn_tls13_peer(28314, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_p256_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_p256_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2612,7 +2612,7 @@ fn sh23_crypto_tls13_peer_pt_eval_smoke() {
     spawn_tls13_peer(28315, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_pt_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_pt_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2637,7 +2637,7 @@ fn sh23_crypto_tls13_peer_xy_eval_smoke() {
     spawn_tls13_peer(28316, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_xy_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_xy_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2662,7 +2662,7 @@ fn sh23_crypto_tls13_peer_cn_eval_smoke() {
     spawn_tls13_peer(28317, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_cn_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_cn_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2687,7 +2687,7 @@ fn sh23_crypto_tls13_peer_utf8_eval_smoke() {
     spawn_tls13_peer(28318, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_utf8_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_utf8_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2712,7 +2712,7 @@ fn sh23_crypto_tls13_peer_cnb_eval_smoke() {
     spawn_tls13_peer(28319, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_cnb_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_cnb_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2737,7 +2737,7 @@ fn sh23_crypto_tls13_peer_nul_eval_smoke() {
     spawn_tls13_peer(28320, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_nul_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_nul_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2762,7 +2762,7 @@ fn sh23_crypto_tls13_peer_prn_eval_smoke() {
     spawn_tls13_peer(28321, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_prn_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_prn_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2787,7 +2787,7 @@ fn sh23_crypto_tls13_peer_trim_eval_smoke() {
     spawn_tls13_peer(28322, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_trim_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_trim_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2812,7 +2812,7 @@ fn sh23_crypto_tls13_peer_spc_eval_smoke() {
     spawn_tls13_peer(28323, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_spc_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_spc_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2837,7 +2837,7 @@ fn sh23_crypto_tls13_peer_cnl_eval_smoke() {
     spawn_tls13_peer(28324, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_cnl_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_cnl_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2862,7 +2862,7 @@ fn sh23_crypto_tls13_peer_ltr_eval_smoke() {
     spawn_tls13_peer(28325, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_ltr_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_ltr_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2887,7 +2887,7 @@ fn sh23_crypto_tls13_peer_wsp_eval_smoke() {
     spawn_tls13_peer(28326, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_wsp_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_wsp_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2912,7 +2912,7 @@ fn sh23_crypto_tls13_peer_dig_eval_smoke() {
     spawn_tls13_peer(28327, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_dig_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_dig_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2937,7 +2937,7 @@ fn sh23_crypto_tls13_peer_pun_eval_smoke() {
     spawn_tls13_peer(28328, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_pun_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_pun_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2962,7 +2962,7 @@ fn sh23_crypto_tls13_peer_upc_eval_smoke() {
     spawn_tls13_peer(28329, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_upc_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_upc_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -2987,7 +2987,7 @@ fn sh23_crypto_tls13_peer_wrd_eval_smoke() {
     spawn_tls13_peer(28330, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_wrd_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_wrd_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3012,7 +3012,7 @@ fn sh23_crypto_tls13_peer_str_eval_smoke() {
     spawn_tls13_peer(28331, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_str_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_str_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3037,7 +3037,7 @@ fn sh23_crypto_tls13_peer_end_eval_smoke() {
     spawn_tls13_peer(28332, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_end_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_end_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3062,7 +3062,7 @@ fn sh23_crypto_tls13_peer_pfx_eval_smoke() {
     spawn_tls13_peer(28333, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_pfx_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_pfx_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3087,7 +3087,7 @@ fn sh23_crypto_tls13_peer_sfx_eval_smoke() {
     spawn_tls13_peer(28350, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_sfx_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_sfx_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3112,7 +3112,7 @@ fn sh23_crypto_tls13_peer_slf_eval_smoke() {
     spawn_tls13_peer(28380, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_slf_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_slf_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3137,7 +3137,7 @@ fn sh23_crypto_tls13_peer_sgd_eval_smoke() {
     spawn_tls13_peer(28381, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_sgd_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_sgd_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3162,7 +3162,7 @@ fn sh23_crypto_tls13_peer_crt_eval_smoke() {
     spawn_tls13_peer(28382, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_crt_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_crt_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3187,7 +3187,7 @@ fn sh23_crypto_tls13_peer_rcg_eval_smoke() {
     spawn_tls13_peer(28383, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_rcg_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_rcg_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3212,7 +3212,7 @@ fn sh23_crypto_tls13_peer_scn_eval_smoke() {
     spawn_tls13_peer(28384, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_scn_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_scn_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3237,7 +3237,7 @@ fn sh23_crypto_tls13_peer_rdn_eval_smoke() {
     spawn_tls13_peer(28385, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_rdn_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_rdn_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3262,7 +3262,7 @@ fn sh23_crypto_tls13_peer_ird_eval_smoke() {
     spawn_tls13_peer(28386, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_ird_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_ird_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3287,7 +3287,7 @@ fn sh23_crypto_tls13_peer_icn_eval_smoke() {
     spawn_tls13_peer(28387, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_icn_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_icn_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3312,7 +3312,7 @@ fn sh23_crypto_tls13_peer_ndn_eval_smoke() {
     spawn_tls13_peer(28388, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_ndn_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_ndn_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3337,7 +3337,7 @@ fn sh23_crypto_tls13_peer_nml_eval_smoke() {
     spawn_tls13_peer(28389, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_nml_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_nml_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3362,7 +3362,7 @@ fn sh23_crypto_tls13_peer_nur_eval_smoke() {
     spawn_tls13_peer(28390, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_nur_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_nur_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3387,7 +3387,7 @@ fn sh23_crypto_tls13_peer_oth_eval_smoke() {
     spawn_tls13_peer(28391, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_oth_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_oth_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3412,7 +3412,7 @@ fn sh23_crypto_tls13_peer_x4a_eval_smoke() {
     spawn_tls13_peer(28392, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_x4a_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_x4a_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3437,7 +3437,7 @@ fn sh23_crypto_tls13_peer_dnm_eval_smoke() {
     spawn_tls13_peer(28393, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_dnm_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_dnm_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3462,7 +3462,7 @@ fn sh23_crypto_tls13_peer_epn_eval_smoke() {
     spawn_tls13_peer(28394, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_epn_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_epn_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3487,7 +3487,7 @@ fn sh23_crypto_tls13_peer_rid_eval_smoke() {
     spawn_tls13_peer(28395, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_rid_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_rid_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3512,7 +3512,7 @@ fn sh23_crypto_tls13_peer_ipo_eval_smoke() {
     spawn_tls13_peer(28396, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_ipo_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_ipo_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3537,7 +3537,7 @@ fn sh23_crypto_tls13_peer_ip4_eval_smoke() {
     spawn_tls13_peer(28397, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_ip4_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_ip4_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3562,7 +3562,7 @@ fn sh23_crypto_tls13_peer_lip_eval_smoke() {
     spawn_tls13_peer(28398, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_lip_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_lip_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3587,7 +3587,7 @@ fn sh23_crypto_tls13_peer_nmc_eval_smoke() {
     spawn_tls13_peer(28399, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_nmc_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_nmc_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3612,7 +3612,7 @@ fn sh23_crypto_tls13_peer_nus_eval_smoke() {
     spawn_tls13_peer(28400, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_nus_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_nus_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3637,7 +3637,7 @@ fn sh23_crypto_tls13_peer_nbc_eval_smoke() {
     spawn_tls13_peer(28401, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_nbc_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_nbc_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3662,7 +3662,7 @@ fn sh23_crypto_tls13_peer_nll_eval_smoke() {
     spawn_tls13_peer(28402, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_nll_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_nll_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3687,7 +3687,7 @@ fn sh23_crypto_tls13_peer_n10_eval_smoke() {
     spawn_tls13_peer(28403, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n10_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n10_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3712,7 +3712,7 @@ fn sh23_crypto_tls13_peer_n172_eval_smoke() {
     spawn_tls13_peer(28404, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n172_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n172_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3737,7 +3737,7 @@ fn sh23_crypto_tls13_peer_n192_eval_smoke() {
     spawn_tls13_peer(28405, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n192_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n192_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3762,7 +3762,7 @@ fn sh23_crypto_tls13_peer_n100_eval_smoke() {
     spawn_tls13_peer(28406, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n100_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n100_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3787,7 +3787,7 @@ fn sh23_crypto_tls13_peer_n202_eval_smoke() {
     spawn_tls13_peer(28407, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n202_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n202_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3812,7 +3812,7 @@ fn sh23_crypto_tls13_peer_n198_eval_smoke() {
     spawn_tls13_peer(28408, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n198_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n198_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3837,7 +3837,7 @@ fn sh23_crypto_tls13_peer_n203_eval_smoke() {
     spawn_tls13_peer(28409, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n203_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n203_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3862,7 +3862,7 @@ fn sh23_crypto_tls13_peer_n218_eval_smoke() {
     spawn_tls13_peer(28410, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n218_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n218_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3887,7 +3887,7 @@ fn sh23_crypto_tls13_peer_n200_eval_smoke() {
     spawn_tls13_peer(28411, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n200_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n200_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3912,7 +3912,7 @@ fn sh23_crypto_tls13_peer_n288_eval_smoke() {
     spawn_tls13_peer(28412, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n288_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n288_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3937,7 +3937,7 @@ fn sh23_crypto_tls13_peer_n240_eval_smoke() {
     spawn_tls13_peer(28413, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n240_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n240_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3962,7 +3962,7 @@ fn sh23_crypto_tls13_peer_n008_eval_smoke() {
     spawn_tls13_peer(28414, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n008_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n008_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -3987,7 +3987,7 @@ fn sh23_crypto_tls13_peer_n231_eval_smoke() {
     spawn_tls13_peer(28415, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n231_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n231_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4012,7 +4012,7 @@ fn sh23_crypto_tls13_peer_n252_eval_smoke() {
     spawn_tls13_peer(28426, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n252_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n252_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4037,7 +4037,7 @@ fn sh23_crypto_tls13_peer_n175_eval_smoke() {
     spawn_tls13_peer(28427, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n175_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n175_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4062,7 +4062,7 @@ fn sh23_crypto_tls13_peer_n255_eval_smoke() {
     spawn_tls13_peer(28438, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n255_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n255_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4087,7 +4087,7 @@ fn sh23_crypto_tls13_peer_n160_eval_smoke() {
     spawn_tls13_peer(28439, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n160_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n160_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4112,7 +4112,7 @@ fn sh23_crypto_tls13_peer_n129_eval_smoke() {
     spawn_tls13_peer(28440, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n129_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n129_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4137,7 +4137,7 @@ fn sh23_crypto_tls13_peer_n130_eval_smoke() {
     spawn_tls13_peer(28441, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n130_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n130_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4162,7 +4162,7 @@ fn sh23_crypto_tls13_peer_n131_eval_smoke() {
     spawn_tls13_peer(28442, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n131_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n131_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4187,7 +4187,7 @@ fn sh23_crypto_tls13_peer_n132_eval_smoke() {
     spawn_tls13_peer(28443, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n132_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n132_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4212,7 +4212,7 @@ fn sh23_crypto_tls13_peer_n133_eval_smoke() {
     spawn_tls13_peer(28444, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n133_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n133_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4237,7 +4237,7 @@ fn sh23_crypto_tls13_peer_n134_eval_smoke() {
     spawn_tls13_peer(28445, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n134_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n134_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4262,7 +4262,7 @@ fn sh23_crypto_tls13_peer_n136_eval_smoke() {
     spawn_tls13_peer(28446, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n136_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n136_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4287,7 +4287,7 @@ fn sh23_crypto_tls13_peer_n16_eval_smoke() {
     spawn_tls13_peer(28447, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n16_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n16_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4312,7 +4312,7 @@ fn sh23_crypto_tls13_peer_n0_eval_smoke() {
     spawn_tls13_peer(28448, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n0_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n0_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4337,7 +4337,7 @@ fn sh23_crypto_tls13_peer_n1_eval_smoke() {
     spawn_tls13_peer(28449, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n1_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n1_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4362,7 +4362,7 @@ fn sh23_crypto_tls13_peer_n2_eval_smoke() {
     spawn_tls13_peer(28450, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n2_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n2_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4387,7 +4387,7 @@ fn sh23_crypto_tls13_peer_n3_eval_smoke() {
     spawn_tls13_peer(28451, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n3_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n3_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4412,7 +4412,7 @@ fn sh23_crypto_tls13_peer_n5_eval_smoke() {
     spawn_tls13_peer(28452, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n5_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n5_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4437,7 +4437,7 @@ fn sh23_crypto_tls13_peer_n6_eval_smoke() {
     spawn_tls13_peer(28453, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n6_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n6_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4462,7 +4462,7 @@ fn sh23_crypto_tls13_peer_n7_eval_smoke() {
     spawn_tls13_peer(28454, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n7_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n7_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4487,7 +4487,7 @@ fn sh23_crypto_tls13_peer_n8_eval_smoke() {
     spawn_tls13_peer(28455, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n8_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n8_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4512,7 +4512,7 @@ fn sh23_crypto_tls13_peer_n9_eval_smoke() {
     spawn_tls13_peer(28456, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n9_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n9_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()
@@ -4537,7 +4537,7 @@ fn sh23_crypto_tls13_peer_n11_eval_smoke() {
     spawn_tls13_peer(28457, true, false);
     std::thread::sleep(Duration::from_millis(80));
     let path = format!(
-        "{}/examples/sh23_crypto_tls13_peer_n11_eval_smoke.kab",
+        "{}/examples/sh23/sh23_crypto_tls13_peer_n11_eval_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     std::thread::Builder::new()

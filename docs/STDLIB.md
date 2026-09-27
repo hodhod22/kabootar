@@ -73,7 +73,7 @@ lib/kstyle/
   parser.kab    — facade: parse, ruleCount, rules
   theme.kab     — reset/addRule/commit, applyDark(), applyCss()
 examples/
-  kdom_smoke.kab — cargo run --bin kabootar -- examples/kdom_smoke.kab
+  kdom_smoke.kab — cargo run --bin kabootar -- examples/kdom/kdom_smoke.kab
   kstyle_parse_smoke.kab — KSS parser smoke
 lib/kv8/
   defs.kab      — JS keyword map + token + AST constants
@@ -84,9 +84,9 @@ lib/kv8/
   dom.kab       — makeEnv, evalUi (Kv8 + kDOM; use sequential JS calls)
 examples/
   kv8_lexer_smoke.kab
-  kv8_parser_smoke.kab — cargo run --bin kabootar -- examples/kv8_parser_smoke.kab
-  kv8_eval_smoke.kab — cargo run --bin kabootar -- examples/kv8_eval_smoke.kab
-  kv8_dom_smoke.kab — cargo run --bin kabootar -- examples/kv8_dom_smoke.kab
+  kv8_parser_smoke.kab — cargo run --bin kabootar -- examples/kv8/kv8_parser_smoke.kab
+  kv8_eval_smoke.kab — cargo run --bin kabootar -- examples/kv8/kv8_eval_smoke.kab
+  kv8_dom_smoke.kab — cargo run --bin kabootar -- examples/kv8/kv8_dom_smoke.kab
 ```
 
 ```kabootar

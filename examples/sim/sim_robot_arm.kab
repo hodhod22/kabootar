@@ -1,0 +1,69 @@
+// Sim / robotics — 3-DOF arm twin + GP7 teleop.
+// kabootar run examples/sim/sim_robot_arm.kab
+import "science"
+import "sim"
+import "sim/robot"
+import "sim/teleop"
+import "game/editor"
+
+os_mkdir("/sim")
+
+let arm = createArm3(defaultArmParams())
+let ee0 = endEffector(arm)
+let x0 = ee0["x"]
+
+arm = setArmTargets(arm, 0.6, 0.8, -0.4)
+arm = simulateArm(arm, 1.0 / 60.0, 120)
+
+let ee1 = endEffector(arm)
+let moved = ee1["x"] != x0 || ee1["y"] != 0.0 || ee1["z"] != 0.0
+let enc = readEncoders(arm)
+let imu = readImu(arm)
+let encOk = len(enc) == 3 && enc[0]["joint"] == "j1"
+let imuOk = imu["kind"] == "imu" && imu["x"] != null
+
+// RK4 solver path
+arm = applyLiveParams(arm, { "solver": "rk4", "kp": 40.0 })
+arm = setArmTargets(arm, 0.2, 0.3, 0.1)
+arm = simulateArm(arm, 1.0 / 60.0, 40)
+
+// Digital twin → editor scene
+let root = worldToEditor(arm)
+let ed = createEditor(root)
+ed = refresh(ed)
+let twinOk = len(ed["hierarchy"]) >= 4
+
+let lesson = buildTwinLesson(arm)
+writeParamsFile("/sim/arm_params.json", arm["params"])
+let pBack = readParamsFile("/sim/arm_params.json")
+let learnOk = lesson["dof"] == 3 && pBack["kp"] == 40.0 && lesson["code"] != null
+
+// Live editor teleop: joint + IK + Learn
+let tele = bindArmEditor(createArm3(defaultArmParams()), "/sim/teleop_params.json")
+tele = teleopSetJoint(tele, "j1", 0.8, 60)
+let j1q = findJoint(tele["world"], "j1")["q"]
+tele = selectLink(tele, "link3")
+tele = teleopPlaceEe(tele, 1.2, 0.4, 0.0, 60)
+let eeTele = endEffector(tele["world"])
+tele = setLearnParam(tele, "kp", 5.0)
+tele = enterLearnMode(tele)
+let teleOk = j1q > 0.3 && tele["editor"]["hierarchy"] != null && len(tele["editor"]["hierarchy"]) >= 4 && tele["world"]["params"]["kp"] > 32.0 && tele["learnUi"]["kind"] == "teleop_learn" && eeTele["x"] != null
+
+// Slider joint smoke in a tiny world
+let w = createWorld(defaultSimParams())
+w = addBody(w, createFixedBase("rail", 0.0, 0.0, 0.0))
+w = addBody(w, createBody("cart", 1.0, 0.0, 0.0, 0.0))
+w = addJoint(w, createSlider("s1", "rail", "cart", "x", 2.0, 1.0))
+w = setJointTarget(w, "s1", 1.2)
+w = stepN(w, 1.0 / 60.0, 90)
+let sliderOk = findBody(w, "cart")["x"] > 0.5
+
+println(moved)
+println(encOk)
+println(imuOk)
+println(twinOk)
+println(learnOk)
+println(teleOk)
+println(sliderOk)
+
+moved && encOk && imuOk && twinOk && learnOk && teleOk && sliderOk

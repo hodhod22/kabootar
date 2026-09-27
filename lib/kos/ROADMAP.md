@@ -125,4 +125,4 @@ Beror på: kbrowser paint/nav ([kbrowser roadmap](../kbrowser/ROADMAP.md)), layo
 
 ## Checkpoint
 
-`cargo test --test os_lib` · `cargo test --test kos_lib` · smokes: `examples/os_*.kab`, `examples/kos_*.kab`, `examples/h6d_os_policy_smoke.kab`
+`cargo test --test os_lib` · `cargo test --test kos_lib` · smokes: `examples/os_*.kab`, `examples/kos_*.kab`, `examples/h6d/h6d_os_policy_smoke.kab`

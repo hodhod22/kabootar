@@ -74,8 +74,8 @@ len(k) > 3 && len(c) > 0
 
 #[test]
 fn os_smoke_example_runs() {
-    let path = format!("{}/examples/os_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/os_smoke.kab should run");
+    let path = format!("{}/examples/os/os_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/os/os_smoke.kab should run");
     assert!(matches!(result, Value::Number(n) if n >= 10));
 }
 
@@ -114,8 +114,8 @@ xs[0] + xs[1] == "AB"
 
 #[test]
 fn os_async_smoke_example_runs() {
-    let path = format!("{}/examples/os_async_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/os_async_smoke.kab should run");
+    let path = format!("{}/examples/os/os_async_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/os/os_async_smoke.kab should run");
     assert!(matches!(result, Value::Number(n) if n == 2));
 }
 
@@ -136,14 +136,14 @@ t != null && y != null
 
 #[test]
 fn os_k3_vfs_smoke_example_runs() {
-    let path = format!("{}/examples/os_k3_vfs_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/os_k3_vfs_smoke.kab should run");
+    let path = format!("{}/examples/os/os_k3_vfs_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/os/os_k3_vfs_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
 
 #[test]
 fn os_h6d_policy_smoke() {
-    let path = format!("{}/examples/h6d_os_policy_smoke.kab", manifest_dir());
+    let path = format!("{}/examples/h6d/h6d_os_policy_smoke.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h6d-os".into())
         .stack_size(16 * 1024 * 1024)

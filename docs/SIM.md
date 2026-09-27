@@ -49,7 +49,7 @@ Teleop modes: **joint** (sliders → `qTarget`), **ik** (place EE → planar IK)
 - `lib/sim/robot.kab` — 3-DOF arm
 - `lib/sim/teleop.kab` — GP7 live teleop
 - `lib/sim/soft.kab` — particle–spring soft body
-- `examples/sim_robot_arm.kab`
+- `examples/sim/sim_robot_arm.kab`
 - `tests/sim_robot.rs`
 
 Roadmap: [ROADMAP.md](ROADMAP.md) **Våg SIM**.

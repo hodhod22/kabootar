@@ -1,0 +1,33 @@
+// Kv8 eval smoke - Kabootar lib/kv8/eval.kab
+// cargo run --bin kabootar -- examples/kv8/kv8_eval_smoke.kab
+
+import "kv8/eval"
+
+let a = evalSource("let x = 1 + 2; x")
+println("kv8 eval: x=" + json_stringify(a))
+
+let b = evalSource("function add(a, b) { return a + b; } add(3, 4)")
+println("kv8 eval: add=" + json_stringify(b))
+
+let c = evalSource("let n = 5; if (n > 3) { n + 10 } else { 0 }")
+println("kv8 eval: if=" + json_stringify(c))
+
+let d = evalSource("let n = 0; while (n < 3) { n = n + 1; } n")
+println("kv8 eval: while=" + json_stringify(d))
+
+let e = evalSource("let x = 2 * 3; x != 5 && (null ?? 4) == 4")
+println("kv8 eval: ops=" + json_stringify(e))
+
+let f = evalSource("false && missing")
+println("kv8 eval: sc=" + json_stringify(f))
+
+let g = evalSource("let s = 0; for (let i = 0; i < 3; i = i + 1) { s = s + i; } s")
+println("kv8 eval: for=" + json_stringify(g))
+
+let h = evalSource("try { throw \"boom\"; } catch (e) { e }")
+println("kv8 eval: try=" + json_stringify(h))
+
+let br = evalSource("let s = 0; for (let i = 0; i < 10; i = i + 1) { if (i == 3) { break; } s = s + i; } s")
+println("kv8 eval: break=" + json_stringify(br))
+
+return b

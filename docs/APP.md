@@ -36,7 +36,7 @@ Phone sensors (`app/sensors`) ≠ edge IoT (`import "iot"`).
 ## Files
 
 - `lib/app.kab`, `lib/app/*.kab`
-- `examples/app_shell.kab`
+- `examples/app/app_shell.kab`
 - `tests/app_module.rs`
 
 Roadmap: [ROADMAP.md](ROADMAP.md) **Våg APP**.

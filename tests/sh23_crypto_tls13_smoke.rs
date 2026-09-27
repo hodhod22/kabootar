@@ -19,7 +19,7 @@ fn sh23_crypto_tls13_peer_n12_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_n12_smoke_exists() {
-    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_n12_eval_smoke.kab");
+    let smoke_file = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_n12_eval_smoke.kab");
     assert!(smoke_file.exists(), "n12 smoke test should exist");
     
     let smoke_content = std::fs::read_to_string(smoke_file)
@@ -50,7 +50,7 @@ fn sh23_crypto_tls13_peer_n13_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_n13_smoke_exists() {
-    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_n13_eval_smoke.kab");
+    let smoke_file = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_n13_eval_smoke.kab");
     assert!(smoke_file.exists(), "n13 smoke test should exist");
     
     let smoke_content = std::fs::read_to_string(smoke_file)
@@ -81,7 +81,7 @@ fn sh23_crypto_tls13_peer_n14_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_n14_smoke_exists() {
-    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_n14_eval_smoke.kab");
+    let smoke_file = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_n14_eval_smoke.kab");
     assert!(smoke_file.exists(), "n14 smoke test should exist");
     
     let smoke_content = std::fs::read_to_string(smoke_file)
@@ -137,7 +137,7 @@ fn sh23_crypto_tls13_peer_x509_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_x509_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_x509_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_x509_eval_smoke.kab");
     assert!(smoke.exists(), "x509 smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -165,7 +165,7 @@ fn sh23_crypto_tls13_client_fetch_exists() {
 
 #[test]
 fn sh23_crypto_tls13_client_fetch_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_fetch_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_client_fetch_eval_smoke.kab");
     assert!(smoke.exists(), "client fetch smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -193,7 +193,7 @@ fn sh23_crypto_tls13_client_generic_exists() {
 
 #[test]
 fn sh23_crypto_tls13_client_generic_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_generic_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_client_generic_eval_smoke.kab");
     assert!(smoke.exists(), "client generic smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -221,7 +221,7 @@ fn sh23_crypto_tls13_client_timeout_exists() {
 
 #[test]
 fn sh23_crypto_tls13_client_timeout_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_timeout_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_client_timeout_eval_smoke.kab");
     assert!(smoke.exists(), "client timeout smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -246,7 +246,7 @@ fn sh23_crypto_tls13_client_post_exists() {
 
 #[test]
 fn sh23_crypto_tls13_client_post_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_post_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_client_post_eval_smoke.kab");
     assert!(smoke.exists(), "client post smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -274,7 +274,7 @@ fn sh23_crypto_tls13_client_config_exists() {
 
 #[test]
 fn sh23_crypto_tls13_client_config_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_config_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_client_config_eval_smoke.kab");
     assert!(smoke.exists(), "client config smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -317,7 +317,7 @@ fn sh23_crypto_tls12_client_fetch_exists() {
 
 #[test]
 fn sh23_crypto_tls12_client_fetch_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls12_client_fetch_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls12_client_fetch_eval_smoke.kab");
     assert!(smoke.exists(), "tls12 client fetch smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -331,7 +331,7 @@ fn sh23_crypto_tls12_client_fetch_smoke_exists() {
 
 #[test]
 fn sh23_crypto_tls12_client_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls12_client_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls12_client_eval_smoke.kab");
     assert!(smoke.exists(), "tls12 client smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -359,7 +359,7 @@ fn sh23_crypto_tls13_client_exists() {
 
 #[test]
 fn sh23_crypto_tls13_client_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_client_eval_smoke.kab");
     assert!(smoke.exists(), "client smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -373,7 +373,7 @@ fn sh23_crypto_tls13_client_smoke_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_appdata_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_appdata_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_appdata_eval_smoke.kab");
     assert!(smoke.exists(), "appdata smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -397,7 +397,7 @@ fn sh23_crypto_tls13_peer_alert_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_alert_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_alert_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_alert_eval_smoke.kab");
     assert!(smoke.exists(), "alert smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -423,7 +423,7 @@ fn sh23_crypto_tls13_peer_certreq_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_certreq_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_certreq_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_certreq_eval_smoke.kab");
     assert!(smoke.exists(), "certreq smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -448,7 +448,7 @@ fn sh23_crypto_tls13_peer_resume_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_resume_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_resume_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_resume_eval_smoke.kab");
     assert!(smoke.exists(), "resume smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -475,7 +475,7 @@ fn sh23_crypto_tls13_peer_crl_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_crl_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_crl_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_crl_eval_smoke.kab");
     assert!(smoke.exists(), "crl smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -501,7 +501,7 @@ fn sh23_crypto_tls13_peer_ocsp_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_ocsp_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_ocsp_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_ocsp_eval_smoke.kab");
     assert!(smoke.exists(), "ocsp smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -526,7 +526,7 @@ fn sh23_crypto_tls13_peer_chainall_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_chainall_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_chainall_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_chainall_eval_smoke.kab");
     assert!(smoke.exists(), "chainall smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -563,7 +563,7 @@ fn sh23_crypto_tls13_san_gen_exists() {
 
 #[test]
 fn sh23_crypto_tls13_san_gen_smoke_exists() {
-    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_san_gen_eval_smoke.kab");
+    let smoke_file = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_san_gen_eval_smoke.kab");
     assert!(smoke_file.exists(), "san_gen smoke test should exist");
     
     let smoke_content = std::fs::read_to_string(smoke_file)
@@ -591,7 +591,7 @@ fn sh23_crypto_tls13_peer_n15_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_n15_smoke_exists() {
-    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_n15_eval_smoke.kab");
+    let smoke_file = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_n15_eval_smoke.kab");
     assert!(smoke_file.exists(), "n15 smoke test should exist");
     
     let smoke_content = std::fs::read_to_string(smoke_file)
@@ -618,7 +618,7 @@ fn sh23_crypto_tls13_peer_n4_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_n4_smoke_exists() {
-    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_n4_eval_smoke.kab");
+    let smoke_file = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_n4_eval_smoke.kab");
     assert!(smoke_file.exists(), "n4 smoke test should exist");
     
     let smoke_content = std::fs::read_to_string(smoke_file)
@@ -644,7 +644,7 @@ fn sh23_crypto_tls13_client_loop_exists() {
 
 #[test]
 fn sh23_crypto_tls13_client_loop_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_loop_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_client_loop_eval_smoke.kab");
     assert!(smoke.exists(), "client_loop smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -670,7 +670,7 @@ fn sh23_crypto_tls13_client_close_exists() {
 
 #[test]
 fn sh23_crypto_tls13_client_close_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_close_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_client_close_eval_smoke.kab");
     assert!(smoke.exists(), "client close smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -724,7 +724,7 @@ fn sh23_crypto_tls13_peer_chain_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_chain_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_chain_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_chain_eval_smoke.kab");
     assert!(smoke.exists(), "chain smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -737,7 +737,7 @@ fn sh23_crypto_tls13_peer_chain_smoke_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_sigalg_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_sigalg_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_sigalg_eval_smoke.kab");
     assert!(smoke.exists(), "sigalg smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -750,7 +750,7 @@ fn sh23_crypto_tls13_peer_sigalg_smoke_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_dates_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_dates_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_dates_eval_smoke.kab");
     assert!(smoke.exists(), "dates smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -789,7 +789,7 @@ fn sh23_crypto_tls13_peer_pin_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_pin_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_pin_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_pin_eval_smoke.kab");
     assert!(smoke.exists(), "pin smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -802,7 +802,7 @@ fn sh23_crypto_tls13_peer_pin_smoke_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_serial_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_serial_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_serial_eval_smoke.kab");
     assert!(smoke.exists(), "serial smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -845,7 +845,7 @@ fn sh23_crypto_tls13_hs_opt_exists() {
 
 #[test]
 fn sh23_crypto_tls13_hs_opt_smoke_exists() {
-    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_hs_opt_smoke.kab");
+    let smoke_file = std::path::Path::new("examples/sh23/sh23_crypto_tls13_hs_opt_smoke.kab");
     assert!(smoke_file.exists(), "hs_opt smoke test should exist");
     
     let smoke_content = std::fs::read_to_string(smoke_file)
@@ -875,7 +875,7 @@ fn sh23_crypto_tls13_peer_nlen_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_nlen_sweep_smoke_exists() {
-    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_nlen_sweep_smoke.kab");
+    let smoke_file = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_nlen_sweep_smoke.kab");
     assert!(smoke_file.exists(), "nlen sweep smoke test should exist");
     
     let smoke_content = std::fs::read_to_string(smoke_file)
@@ -889,7 +889,7 @@ fn sh23_crypto_tls13_peer_nlen_sweep_smoke_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_nlen_smoke_exists() {
-    let smoke_file = std::path::Path::new("examples/sh23_crypto_tls13_peer_nlen_eval_smoke.kab");
+    let smoke_file = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_nlen_eval_smoke.kab");
     assert!(smoke_file.exists(), "nlen smoke test should exist");
     
     let smoke_content = std::fs::read_to_string(smoke_file)
@@ -932,7 +932,7 @@ fn sh23_crypto_tls13_peer_full_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_full_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_full_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_full_eval_smoke.kab");
     assert!(smoke.exists(), "full smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -945,7 +945,7 @@ fn sh23_crypto_tls13_peer_full_smoke_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_trust_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_trust_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_trust_eval_smoke.kab");
     assert!(smoke.exists(), "trust smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -971,7 +971,7 @@ fn sh23_crypto_tls13_peer_scheme_exists() {
 
 #[test]
 fn sh23_crypto_tls13_peer_scheme_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_peer_scheme_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_peer_scheme_eval_smoke.kab");
     assert!(smoke.exists(), "scheme smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -1011,7 +1011,7 @@ fn sh23_crypto_tls13_client_reconnect_exists() {
 
 #[test]
 fn sh23_crypto_tls13_client_reconnect_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_reconnect_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_client_reconnect_eval_smoke.kab");
     assert!(smoke.exists(), "reconnect smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -1040,7 +1040,7 @@ fn sh23_crypto_tls13_all_exists() {
 
 #[test]
 fn sh23_crypto_tls13_all_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_all_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_all_eval_smoke.kab");
     assert!(smoke.exists(), "all smoke should exist");
     
     let content = std::fs::read_to_string(smoke)
@@ -1052,7 +1052,7 @@ fn sh23_crypto_tls13_all_smoke_exists() {
 
 #[test]
 fn sh23_crypto_tls13_client_get_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh23_crypto_tls13_client_get_eval_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh23/sh23_crypto_tls13_client_get_eval_smoke.kab");
     assert!(smoke.exists(), "client_get smoke should exist");
     
     let content = std::fs::read_to_string(smoke)

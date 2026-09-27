@@ -158,7 +158,7 @@ fn run_example_bool(path: String) -> bool {
 #[test]
 fn k4_kbrowser_tabs_smoke() {
     let path = format!(
-        "{}/examples/kbrowser_k4_tabs_smoke.kab",
+        "{}/examples/kbrowser/kbrowser_k4_tabs_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(run_example_bool(path));
@@ -167,7 +167,7 @@ fn k4_kbrowser_tabs_smoke() {
 #[test]
 fn sh27_bookmarks_core_smoke() {
     let path = format!(
-        "{}/examples/sh27_bookmarks_smoke.kab",
+        "{}/examples/sh27/sh27_bookmarks_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(run_example_bool(path));
@@ -176,7 +176,7 @@ fn sh27_bookmarks_core_smoke() {
 #[test]
 fn sh27_session_persist_smoke() {
     let path = format!(
-        "{}/examples/sh27_session_persist_smoke.kab",
+        "{}/examples/sh27/sh27_session_persist_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(run_example_bool(path));
@@ -185,7 +185,7 @@ fn sh27_session_persist_smoke() {
 #[test]
 fn sh27_session_disk_smoke() {
     let path = format!(
-        "{}/examples/sh27_session_disk_smoke.kab",
+        "{}/examples/sh27/sh27_session_disk_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(run_example_bool(path));
@@ -194,7 +194,7 @@ fn sh27_session_disk_smoke() {
 #[test]
 fn sh27_delete_gate_smoke() {
     let path = format!(
-        "{}/examples/sh27_delete_gate_smoke.kab",
+        "{}/examples/sh27/sh27_delete_gate_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(run_example_bool(path));
@@ -203,7 +203,7 @@ fn sh27_delete_gate_smoke() {
 #[test]
 fn sh27_load_policy_smoke() {
     let path = format!(
-        "{}/examples/sh27_load_policy_smoke.kab",
+        "{}/examples/sh27/sh27_load_policy_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(run_example_bool(path));
@@ -212,7 +212,7 @@ fn sh27_load_policy_smoke() {
 #[test]
 fn sh27_game_loop_smoke() {
     let path = format!(
-        "{}/examples/sh27_game_loop_smoke.kab",
+        "{}/examples/sh27/sh27_game_loop_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(run_example_bool(path));
@@ -221,7 +221,7 @@ fn sh27_game_loop_smoke() {
 #[test]
 fn sh27_vm_fn_callback_smoke() {
     let path = format!(
-        "{}/examples/vm_fn_callback_smoke.kab",
+        "{}/examples/vm/vm_fn_callback_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(run_example_bool(path));
@@ -230,7 +230,7 @@ fn sh27_vm_fn_callback_smoke() {
 #[test]
 fn sh27_host_method_sugar_smoke() {
     let path = format!(
-        "{}/examples/vm_host_method_sugar_smoke.kab",
+        "{}/examples/vm/vm_host_method_sugar_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     assert!(run_example_bool(path));
@@ -239,7 +239,7 @@ fn sh27_host_method_sugar_smoke() {
 #[test]
 fn h6c_browser_chrome_smoke() {
     let path = format!(
-        "{}/examples/h6c_browser_chrome_smoke.kab",
+        "{}/examples/h6c/h6c_browser_chrome_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()
@@ -260,7 +260,7 @@ fn h6c_browser_chrome_smoke() {
 #[test]
 fn h6_delete_gate_smoke() {
     let path = format!(
-        "{}/examples/h6_delete_gate_smoke.kab",
+        "{}/examples/h6/h6_delete_gate_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
     );
     let ok = std::thread::Builder::new()

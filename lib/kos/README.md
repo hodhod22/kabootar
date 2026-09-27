@@ -104,8 +104,8 @@ En app i `/apps` är en kDOM-yta + valfritt Kv8 + kstyle. Shell, Explorer och Se
 ```bash
 cargo test --test os_lib
 cargo test --test kos_lib
-cargo run --bin kabootar -- examples/os_smoke.kab
-cargo run --bin kabootar -- examples/kos_shell_mount_smoke.kab
+cargo run --bin kabootar -- examples/os/os_smoke.kab
+cargo run --bin kabootar -- examples/kos/kos_shell_mount_smoke.kab
 ```
 
 CI: `kos_lib` i `self-host.yml`.

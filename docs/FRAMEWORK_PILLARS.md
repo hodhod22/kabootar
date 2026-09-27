@@ -16,7 +16,7 @@ sit on these motor modules:
 Shared CAD helpers: `cad/geom`, `cad/graph`.
 
 ```bash
-kabootar run examples/pillars_smoke.kab
+kabootar run examples/pillars/pillars_smoke.kab
 ```
 
 Kits should prefer leaf imports of motor modules, then add branded helpers.

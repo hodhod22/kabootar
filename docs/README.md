@@ -17,7 +17,7 @@ kabootar
 cargo run
 
 # Notebook
-kabootar notebook run examples/explore_smoke.knb --science
+kabootar notebook run examples/explore/explore_smoke.knb --science
 
 # Host-tester (skuld tills SH25/SH28: kabootar test)
 cargo test

@@ -26,7 +26,7 @@ KT0 inventering
 | Steg | Vad | Gate | Status |
 |------|-----|------|--------|
 | **KT0** | Kartlägg `lib/test.kab`, `kabootar test`, `cargo test`, DX-coverage | Denna roadmap + README | ✅ |
-| **KT1** | `lib/kabtest/` + `import "kabtest"` (asserts) | Smoke `examples/kabtest_smoke.kab` | ✅ subset |
+| **KT1** | `lib/kabtest/` + `import "kabtest"` (asserts) | Smoke `examples/kabtest/kabtest_smoke.kab` | ✅ subset |
 | **KT2** | Discover `*_test.kab` / `*.test.kab`; kör fil → pass om `true` / `{ ok: true }` | En katalog körs utan Rust-test_runner | ✅ subset: discover + `ktRunSource`; Kab-VM eval väntar på SH6 (för stor import-DAG) |
 | **KT3** | Reporter: konsol + TAP + JSON-fil | Maskinläsbar CI | ✅ subset: TAP + `kabtest/report` `ktJsonResult` / `ktJsonWrite` (os_write); JUnit deepen |
 | **KT4** | Suites för Kab: tiny compile, `bootPipelineOk`, `jitGprCount`, VM `40+2` | Ersätter en bit `tests/sh_wave` i `.kab` | ✅ subset: JIT + `ktSelfArith`. `import "kab/boot"` från app: SH16 `@version` / stack — rör inte `boot.kab` (knäcker övriga smokes) |

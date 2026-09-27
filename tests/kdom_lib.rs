@@ -9,8 +9,8 @@ fn manifest_dir() -> String {
 
 #[test]
 fn kdom_lib_smoke_example_runs() {
-    let path = format!("{}/examples/kdom_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kdom_smoke.kab should run");
+    let path = format!("{}/examples/kdom/kdom_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kdom/kdom_smoke.kab should run");
     assert!(matches!(result, Value::Number(n) if n > 0));
 }
 
@@ -110,55 +110,55 @@ matches("body", "body", "", "")
 
 #[test]
 fn kstyle_parse_smoke_example_runs() {
-    let path = format!("{}/examples/kstyle_parse_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kstyle_parse_smoke.kab should run");
+    let path = format!("{}/examples/kstyle/kstyle_parse_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kstyle/kstyle_parse_smoke.kab should run");
     assert!(matches!(result, Value::Number(n) if n >= 2));
 }
 
 #[test]
 fn k2_query_and_kss_smoke() {
-    let path = format!("{}/examples/kdom_query_kss_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kdom_query_kss_smoke.kab should run");
+    let path = format!("{}/examples/kdom/kdom_query_kss_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kdom/kdom_query_kss_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
 
 #[test]
 fn k2_applycss_matches_smoke() {
-    let path = format!("{}/examples/kdom_applycss_matches_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kdom_applycss_matches_smoke.kab should run");
+    let path = format!("{}/examples/kdom/kdom_applycss_matches_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kdom/kdom_applycss_matches_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
 
 #[test]
 fn h1_shell_boot_css_kab() {
-    let path = format!("{}/examples/h1_shell_css_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/h1_shell_css_smoke.kab should run");
+    let path = format!("{}/examples/h1/h1_shell_css_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/h1/h1_shell_css_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)), "got {result:?}");
 }
 
 #[test]
 fn h2_query_kab_smoke() {
-    let path = format!("{}/examples/h2_query_kab_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/h2_query_kab_smoke.kab should run");
+    let path = format!("{}/examples/h2/h2_query_kab_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/h2/h2_query_kab_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)), "got {result:?}");
 }
 
 #[test]
 fn h3_query_all_kab_smoke() {
-    let path = format!("{}/examples/h3_query_all_kab_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/h3_query_all_kab_smoke.kab should run");
+    let path = format!("{}/examples/h3/h3_query_all_kab_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/h3/h3_query_all_kab_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)), "got {result:?}");
 }
 
 #[test]
 fn h6b_query_policy_smoke() {
-    let path = format!("{}/examples/h6b_query_policy.kab", manifest_dir());
+    let path = format!("{}/examples/h6b/h6b_query_policy.kab", manifest_dir());
     let ok = std::thread::Builder::new()
         .name("h6b-query".into())
         .stack_size(16 * 1024 * 1024)
         .spawn(move || {
             matches!(
-                cli::run_file(&path).expect("examples/h6b_query_policy.kab should run"),
+                cli::run_file(&path).expect("examples/h6b/h6b_query_policy.kab should run"),
                 Value::Bool(true)
             )
         })
@@ -170,8 +170,8 @@ fn h6b_query_policy_smoke() {
 
 #[test]
 fn k2_layout_smoke() {
-    let path = format!("{}/examples/k2_layout_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/k2_layout_smoke.kab should run");
+    let path = format!("{}/examples/k2/k2_layout_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/k2/k2_layout_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)), "got {result:?}");
 }
 

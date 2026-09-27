@@ -97,7 +97,7 @@ Examples:
   kabootar doc lib/data --out docs/api-data.md
   kabootar test tests --coverage
   kabootar registry web --port 8787
-  kabootar notebook run examples/explore_smoke.knb --science
+  kabootar notebook run examples/explore/explore_smoke.knb --science
   kabootar mod init science-ai
   kabootar serve --watch main.kab
 "

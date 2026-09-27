@@ -141,8 +141,8 @@ fn kv8_eval_let_and_add() {
 #[test]
 fn kv8_eval_smoke_example_runs() {
     ensure_kv8_eval_cache_fresh();
-    let path = format!("{}/examples/kv8_eval_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_eval_smoke.kab should run");
+    let path = format!("{}/examples/kv8/kv8_eval_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8/kv8_eval_smoke.kab should run");
     assert!(matches!(result, Value::Number(n) if n == 7));
 }
 
@@ -161,8 +161,8 @@ fn kv8_eval_member() {
 #[test]
 fn kv8_eval_while_inline_example_runs() {
     ensure_kv8_eval_cache_fresh();
-    let path = format!("{}/examples/kv8_eval_while_inline.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_eval_while_inline.kab should run");
+    let path = format!("{}/examples/kv8/kv8_eval_while_inline.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8/kv8_eval_while_inline.kab should run");
     assert!(matches!(result, Value::Number(n) if n == 0));
 }
 
@@ -307,8 +307,8 @@ frame != null && frame["html"] != undefined
 #[test]
 fn kv8_dom_smoke_example_runs() {
     ensure_kv8_eval_cache_fresh();
-    let path = format!("{}/examples/kv8_dom_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_dom_smoke.kab should run");
+    let path = format!("{}/examples/kv8/kv8_dom_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8/kv8_dom_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
 
@@ -317,8 +317,8 @@ fn kv8_react_smoke_example_runs() {
     ensure_kv8_eval_cache_fresh();
     warm_kv8_disk_kbc();
     warm_kv8_module_exports();
-    let path = format!("{}/examples/kv8_react_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_react_smoke.kab should run");
+    let path = format!("{}/examples/kv8/kv8_react_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8/kv8_react_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
 
@@ -327,8 +327,8 @@ fn kv8_react_kids_smoke_example_runs() {
     ensure_kv8_eval_cache_fresh();
     warm_kv8_disk_kbc();
     warm_kv8_module_exports();
-    let path = format!("{}/examples/kv8_react_kids_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_react_kids_smoke.kab should run");
+    let path = format!("{}/examples/kv8/kv8_react_kids_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8/kv8_react_kids_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
 
@@ -337,8 +337,8 @@ fn kv8_react_nested_smoke_example_runs() {
     ensure_kv8_eval_cache_fresh();
     warm_kv8_disk_kbc();
     warm_kv8_module_exports();
-    let path = format!("{}/examples/kv8_react_nested_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_react_nested_smoke.kab should run");
+    let path = format!("{}/examples/kv8/kv8_react_nested_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8/kv8_react_nested_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
 
@@ -347,8 +347,8 @@ fn kv8_react_multi_fiber_smoke_example_runs() {
     ensure_kv8_eval_cache_fresh();
     warm_kv8_disk_kbc();
     warm_kv8_module_exports();
-    let path = format!("{}/examples/kv8_react_multi_fiber_smoke.kab", manifest_dir());
-    let result = cli::run_file(&path).expect("examples/kv8_react_multi_fiber_smoke.kab should run");
+    let path = format!("{}/examples/kv8/kv8_react_multi_fiber_smoke.kab", manifest_dir());
+    let result = cli::run_file(&path).expect("examples/kv8/kv8_react_multi_fiber_smoke.kab should run");
     assert!(matches!(result, Value::Bool(true)));
 }
 

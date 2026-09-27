@@ -17,7 +17,7 @@ fn sh19_load_validate_exists() {
 
 #[test]
 fn sh19_load_validate_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh19_load_validate_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh19/sh19_load_validate_smoke.kab");
     assert!(smoke.exists(), "sh19_load_validate_smoke should exist");
     
     let content = std::fs::read_to_string(smoke)

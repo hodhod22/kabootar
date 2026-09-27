@@ -15,7 +15,7 @@ fn sh6_vm_tag_array_exists() {
 
 #[test]
 fn sh6_vm_tag_array_smoke_exists() {
-    let smoke = std::path::Path::new("examples/sh6_vm_tag_array_smoke.kab");
+    let smoke = std::path::Path::new("examples/sh6/sh6_vm_tag_array_smoke.kab");
     assert!(smoke.exists(), "sh6_vm_tag_array_smoke.kab should exist");
     
     let content = std::fs::read_to_string(smoke)

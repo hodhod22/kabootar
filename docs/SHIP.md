@@ -16,8 +16,8 @@ cargo build --release --bin kabootar --features "default,shell,gpu"
 ## Kör
 
 ```bash
-./target/release/kabootar run examples/game_3d_triangle.kab
-./target/release/kabootar run examples/game_2d_smoke.kab
+./target/release/kabootar run examples/game/game_3d_triangle.kab
+./target/release/kabootar run examples/game/game_2d_smoke.kab
 kabootar mod init game3d && kabootar mod run
 
 # Shell (kräver shell-feature)

@@ -34,7 +34,7 @@ let fig = interactiveLine([1.0, 2.0, 1.5], "trend")
 
 - `lib/data.kab` — `pub import` surface
 - `lib/data/frame.kab`, `io.kab`, `plot.kab`
-- `examples/data_analysis.kab`
+- `examples/data/data_analysis.kab`
 - `tests/data_module.rs`
 
 Lower layer: `science/df`, `science/io`, `science/data`. Roadmap: [ROADMAP.md](ROADMAP.md) **Våg DATA**.

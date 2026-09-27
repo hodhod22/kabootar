@@ -43,17 +43,17 @@ kDOM/KSS Kabootar-moduler (`lib/kdom`, `lib/kstyle`) — 8 tester.
 VS Code / terminal (från repo root, `kabootar` finns inte i PATH förrän du byggt/installerat):
 
 ```bash
-cargo run --bin kabootar -- examples/kdom_smoke.kab
-cargo run --bin kabootar -- examples/kstyle_parse_smoke.kab
-cargo run --bin kabootar -- examples/kv8_lexer_smoke.kab
+cargo run --bin kabootar -- examples/kdom/kdom_smoke.kab
+cargo run --bin kabootar -- examples/kstyle/kstyle_parse_smoke.kab
+cargo run --bin kabootar -- examples/kv8/kv8_lexer_smoke.kab
 cargo test --test kv8_lib -- --test-threads=1
 cargo test --test kv8_lib_slow -- --test-threads=1
-cargo run --bin kabootar -- examples/kv8_parser_smoke.kab
-cargo run --bin kabootar -- examples/kv8_eval_smoke.kab
-cargo run --bin kabootar -- examples/kv8_dom_smoke.kab
+cargo run --bin kabootar -- examples/kv8/kv8_parser_smoke.kab
+cargo run --bin kabootar -- examples/kv8/kv8_eval_smoke.kab
+cargo run --bin kabootar -- examples/kv8/kv8_dom_smoke.kab
 cargo test --test os_lib -- --test-threads=1
-cargo run --bin kabootar -- examples/os_smoke.kab
-cargo run --bin kabootar -- examples/os_async_smoke.kab
+cargo run --bin kabootar -- examples/os/os_smoke.kab
+cargo run --bin kabootar -- examples/os/os_async_smoke.kab
 ```
 
 Valfritt: lägg `target/debug` (eller `target/release`) i PATH, eller `cargo install --path .` en gång.
