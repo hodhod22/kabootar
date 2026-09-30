@@ -1,0 +1,178 @@
+// KT8: `kabootar test` — Kab-native entry point (replaces the Rust
+// test_runner path). The CLI shim sets KABOOTAR_TEST_ROOT (default
+// "tests") and KABOOTAR_TEST_COV ("1" for --coverage), runs this file,
+// and uses the returned exit code. Test sources are evaled on the Kab
+// VM via ktEvalSource — no Rust discovery/eval/report remains in the
+// command path.
+
+import "kabtest/runner"
+import "kabtest/cov"
+import "kabtest/cli"
+
+fn ktCliRoot() {
+    let root = env_get("KABOOTAR_TEST_ROOT")
+    if root == undefined {
+        return "tests"
+    }
+    if root == null {
+        return "tests"
+    }
+    if len("" + root) == 0 {
+        return "tests"
+    }
+    let rs = "" + root
+    // Strip trailing separators so "tests/" + "/" + name does not render "tests//name".
+    while len(rs) > 0 {
+        let cc = char_code_at(rs, len(rs) - 1)
+        if cc == 47 || cc == 92 {
+            rs = str_slice(rs, 0, len(rs) - 1)
+        } else {
+            return rs
+        }
+    }
+    return "tests"
+}
+
+fn ktCliRelName(r, prefix, root) {
+    let rel = r["rel"]
+    if rel == undefined {
+        return "" + prefix + r["name"]
+    }
+    return "" + prefix + rel
+}
+
+// split "dir/file.kab" into [dir, file] (both '/' and '\\' separators).
+fn ktCliSplitPath(p) {
+    let s = "" + p
+    let dir = "."
+    let file = s
+    let i = len(s) - 1
+    while i >= 0 {
+        let c = char_code_at(s, i)
+        if c == 47 || c == 92 {
+            dir = str_slice(s, 0, i)
+            file = str_slice(s, i + 1, len(s))
+            i = -1
+        }
+        i = i - 1
+    }
+    return { "dir": dir, "file": file }
+}
+
+fn ktCliMain() {
+    let root = ktCliRoot()
+    let mount = "/kt_test_root"
+    // os_stat throws on edge cases and native errors escape the Kab VM's
+    // try/catch — the CLI shim marks single-file roots via env instead.
+    // For a file root the mount target must be the parent directory.
+    let isFile = env_get("KABOOTAR_TEST_FILE")
+    let mountHost = root
+    let fileInMount = ""
+    if isFile == "1" {
+        let sp = ktCliSplitPath(root)
+        mountHost = sp["dir"]
+        fileInMount = sp["file"]
+    }
+    let mounted = false
+    try {
+        let ms = os_mounts()
+        let mi = 0
+        while mi < len(ms) {
+            if ms[mi]["vfs"] == mount {
+                mounted = true
+            }
+            mi = mi + 1
+        }
+    } catch (eM) {
+        let x0 = 0
+    }
+    let mErr = null
+    if mounted == false {
+        try {
+            os_mount(mount, mountHost)
+        } catch (e) {
+            mErr = e
+        }
+    }
+    if mErr != null {
+        console_error("test error: " + mErr)
+        return 1
+    }
+    let results = []
+    let prefix = "" + root + "/"
+    if isFile == "1" {
+        let r0 = ktRunFile(ktJoin(mount, fileInMount))
+        r0["rel"] = r0["name"]
+        results = push(results, r0)
+    } else {
+        let suite = ktRunDir(mount)
+        results = suite["results"]
+    }
+    if len(results) == 0 {
+        console_error("No *_test.kab files under " + root)
+        return 1
+    }
+    let passed = 0
+    let failed = 0
+    let i = 0
+    while i < len(results) {
+        let r = results[i]
+        let disp = ktCliRelName(r, prefix, root)
+        if r["ok"] {
+            console_log("ok " + disp)
+            passed = passed + 1
+        } else {
+            let msg = r["err"]
+            if msg == null {
+                msg = "" + r["out"]
+            }
+            console_log("FAIL " + disp + " — " + msg)
+            failed = failed + 1
+        }
+        i = i + 1
+    }
+    console_log("" + passed + " passed, " + failed + " failed")
+    let cov = env_get("KABOOTAR_TEST_COV")
+    if cov == "1" {
+        let libErr = null
+        let libMounted = false
+        try {
+            let ms2 = os_mounts()
+            let mj = 0
+            while mj < len(ms2) {
+                if ms2[mj]["vfs"] == "/kt_cov_lib" {
+                    libMounted = true
+                }
+                mj = mj + 1
+            }
+        } catch (e6) {
+            let x2 = 0
+        }
+        if libMounted == false {
+            try {
+                os_mount("/kt_cov_lib", "lib")
+            } catch (e3) {
+                libErr = e3
+            }
+        }
+        if libErr != null {
+            console_error("coverage error: " + libErr)
+        } else {
+            let blob = ""
+            i = 0
+            while i < len(results) {
+                let rp = results[i]["path"]
+                try {
+                    blob = blob + os_read(rp) + "\n"
+                } catch (e4) {
+                    blob = blob + ""
+                }
+                i = i + 1
+            }
+            console_log(ktCovReport("/kt_cov_lib", blob))
+        }
+    }
+    return ktCliExit(failed == 0)
+}
+
+return ktCliMain()

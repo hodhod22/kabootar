@@ -9,8 +9,20 @@ pub fn ktIsTestFile(name) {
     return str_includes(s, ".test.kab")
 }
 
+/// Pass semantics matching the retired Rust runner: Bool(b) → b,
+/// object → ok iff ok==true, null/other → pass.
 pub fn ktResultIsPass(v) {
-    return v == true
+    let t = typeof(v)
+    if t == "boolean" {
+        return v
+    }
+    if t == "object" {
+        if v == null {
+            return true
+        }
+        return v["ok"] == true
+    }
+    return true
 }
 
 pub fn ktCount3(a, b, c) {

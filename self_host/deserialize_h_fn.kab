@@ -89,6 +89,43 @@ pub fn deserFn(st, line) {
         st["functions"] = functions
         return "ok"
     }
+    if starts_with(line, "fn_const ") {
+        // fn_const <fi> <idx> <kind> <val> — fn-private constants pool
+        // (optimizer folds append past the module snapshot).
+        let rest = trim(str_slice(line, 9, len(line)))
+        let sp = str_index_of(rest, " ")
+        let fi = parse_int(trim(str_slice(rest, 0, sp)))
+        let constRest = trim(str_slice(rest, sp + 1, len(rest)))
+        let val = parseConstLine("const " + constRest)
+        let functions = st["functions"]
+        while len(functions) <= fi {
+            functions = push(functions, { "sym": "", "params": [], "locals": [], "ops": [], "tryRegions": [] })
+        }
+        if functions[fi]["constants"] == undefined {
+            functions[fi]["constants"] = []
+        }
+        functions[fi]["constants"] = push(functions[fi]["constants"], val)
+        st["functions"] = functions
+        return "ok"
+    }
+    if starts_with(line, "fn_arrow_const ") {
+        // fn_arrow_const <fi> <ai> <idx> <kind> <val>
+        let rest = trim(str_slice(line, 15, len(line)))
+        let sp1 = str_index_of(rest, " ")
+        let fi = parse_int(trim(str_slice(rest, 0, sp1)))
+        let rest2 = trim(str_slice(rest, sp1 + 1, len(rest)))
+        let sp2 = str_index_of(rest2, " ")
+        let ai = parse_int(trim(str_slice(rest2, 0, sp2)))
+        let constRest = trim(str_slice(rest2, sp2 + 1, len(rest2)))
+        let val = parseConstLine("const " + constRest)
+        deserEnsureFnArrow(st, fi, ai, "")
+        let arr = st["functions"][fi]["arrows"][ai]
+        if arr["constants"] == undefined {
+            arr["constants"] = []
+        }
+        arr["constants"] = push(arr["constants"], val)
+        return "ok"
+    }
     if starts_with(line, "fn_arrow_op ") {
         let rest = trim(str_slice(line, 12, len(line)))
         let sp1 = str_index_of(rest, " ")

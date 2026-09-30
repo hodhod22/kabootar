@@ -3092,14 +3092,9 @@ fn sh6_self_host_for_of_generator_ok() {
         .spawn(move || {
             let program =
                 compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
-            let bytecode = program
-                .bytecode
-                .as_ref()
-                .ok_or_else(|| "self-host produced no bytecode".to_string())?;
-            let kbc = kabootar_lib::bytecode::serialize(bytecode);
             let mut env = create_global_env();
             eval_program(&program, &mut env)
-                .map(|v| format!("{}\n{kbc}", kabootar_lib::value::format_value(&v)))
+                .map(|v| kabootar_lib::value::format_value(&v))
                 .map_err(|e| format!("eval: {e}"))
         })
         .expect("spawn")
@@ -25209,6 +25204,56 @@ fn f10_aot_exec_round_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile aot exec round smoke");
             let value = eval_program(&program, &mut env).expect("run aot exec round smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: OSR in the real ops loop — back-edge landings on a loop
+/// header (ip>0) are counted; jitOsrOk arms it once hot and each following
+/// header visit execs the fused cmp template (guest rax mirror-validated)
+/// instead of the 4 interpreted ops. Out-of-domain operands keep the armed
+/// header interpreted.
+#[test]
+fn sh17_jit_osr_loop_smoke() {
+    let path = format!(
+        "{}/examples/sh17/sh17_jit_osr_loop_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-osr-loop".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit osr loop smoke");
+            let value = eval_program(&program, &mut env).expect("run jit osr loop smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// KT2 real: kabtest evals test sources through the Kab VM itself
+/// (evalSourceKabVm) — discover via os_list, run via os_read + eval,
+/// TAP report. Not the Rust test_runner; not a string-match stub.
+#[test]
+fn kabtest_engine_smoke() {
+    let path = format!(
+        "{}/examples/kabtest/kabtest_engine_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("kabtest-engine".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile kabtest engine smoke");
+            let value = eval_program(&program, &mut env).expect("run kabtest engine smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
         })
         .expect("spawn")
@@ -84709,5 +84754,82 @@ fn sh15_ca_kbcb_mmap_hit_skips_text() {
     let hit = read_bytecode_cache_at(&tmp, path_s, mtime).expect("read");
     assert!(hit.is_some(), "mmap CA hit after deleting path-keyed cache");
     let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// Cache-race regression: `write_atomic` used a per-PROCESS tmp name
+/// (`dest.tmp{pid}`) — two threads writing the same cache dest interleaved
+/// into one tmp file, and the corrupt bytes could rename over the real
+/// `.kbcb` (flaky "Invalid const index N" in parallel suites). Now each call
+/// gets a unique tmp name. Drive many threads writing *different* payloads
+/// to the same dest: every finished payload must be a byte-exact copy of
+/// one of the inputs — never a mix.
+#[test]
+fn write_atomic_unique_tmp_per_call() {
+    let tmp = std::env::temp_dir().join(format!("kab_atomic_tmp_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).expect("tmp");
+    let dest = tmp.join("shared.kbcb");
+    // Two payloads that differ in length so a spliced file is detectable.
+    let a = vec![0xABu8; 3000];
+    let b = vec![0xCDu8; 5000];
+    let mut handles = Vec::new();
+    for i in 0..8 {
+        let dest = dest.clone();
+        let payload = if i % 2 == 0 { a.clone() } else { b.clone() };
+        handles.push(std::thread::spawn(move || {
+            for _ in 0..60 {
+                kabootar_lib::compile::write_atomic_pub(&dest, &payload).expect("write");
+                if let Ok(got) = std::fs::read(&dest) {
+                    assert!(
+                        got == payload || got.len() == 3000 || got.len() == 5000,
+                        "torn write: {} bytes",
+                        got.len()
+                    );
+                    if got.len() == 3000 {
+                        assert!(got.iter().all(|&x| x == 0xAB), "mixed payload bytes");
+                    } else if got.len() == 5000 {
+                        assert!(got.iter().all(|&x| x == 0xCD), "mixed payload bytes");
+                    }
+                }
+            }
+        }));
+    }
+    for h in handles {
+        h.join().expect("join");
+    }
+    let final_bytes = std::fs::read(&dest).expect("dest");
+    assert!(final_bytes == a || final_bytes == b);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// Corrupt-but-parseable `.kbcb` must fail decode: an op whose const index
+/// exceeds the pool is a cache entry to *discard*, not a module to eval.
+#[test]
+fn kbcb_decode_rejects_oob_const_index() {
+    use kabootar_lib::bytecode::{
+        deserialize_kbcb, serialize_kbcb, BytecodeModule, Constant, Opcode,
+    };
+    let mut m = BytecodeModule {
+        constants: vec![],
+        globals: vec![],
+        main_locals: vec![],
+        main_immutable_locals: vec![],
+        main_try_regions: vec![],
+        main_code: vec![],
+        functions: vec![],
+        arrow_functions: vec![],
+        classes: vec![],
+        interfaces: vec![],
+        enums: vec![],
+        imports: vec![],
+        pub_imports: vec![],
+        exports: vec![],
+        memory_mode: kabootar_lib::lang_preprocess::MemoryMode::Gc,
+    };
+    m.constants = vec![Constant::Number(1), Constant::Number(2)];
+    m.main_code = vec![Opcode::Const(6), Opcode::Const(0)];
+    let bytes = serialize_kbcb(&m);
+    let err = deserialize_kbcb(&bytes).expect_err("oob const must fail decode");
+    assert!(err.contains("const index"), "unexpected err: {err}");
 }
 

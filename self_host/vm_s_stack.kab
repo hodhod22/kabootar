@@ -504,7 +504,18 @@ pub fn vWritebackAfterMethodS(S, recv, updated) {
         return
     }
     if oidId {
-        updated["__kab_oid"] = id
+        // member-set cannot write __kab_* keys (host is_internal_key guard
+        // rejects them), so the oid restamp must not go through obj[key]=val:
+        // already carrying the id → no-op; a different object → publish it
+        // under recv's oid-key so identity lookups still resolve.
+        if vObjGet(updated, "__kab_oid") != id {
+            let heap = S["insts"]
+            if typeof(heap) != "object" || heap == null {
+                heap = {}
+                S["insts"] = heap
+            }
+            heap["h" + id] = updated
+        }
     } else {
         updated["vmI"] = id
     }

@@ -55,9 +55,80 @@ pub fn deserialize_kbcb(bytes: &[u8]) -> Result<BytecodeModule, String> {
             let text = std::str::from_utf8(payload).map_err(|e| e.to_string())?;
             deserialize(text)
         }
-        KBCB_VERSION => decode_module(payload),
+        KBCB_VERSION => {
+            let m = decode_module(payload)?;
+            check_const_bounds(&m)?;
+            Ok(m)
+        }
         v => Err(format!("unsupported kbcb version {v}")),
     }
+}
+
+/// Structurally-valid bytes can still be corrupt (torn cache writes, mixed
+/// payloads): an op may reference a const slot the pool never had. Reject
+/// such modules at decode so a damaged cache entry reads as a cache miss —
+/// never as a module whose ops point past its pool.
+fn check_const_bounds(m: &BytecodeModule) -> Result<(), String> {
+    fn ops_ok(code: &[Opcode], pool: &[Constant]) -> bool {
+        code.iter().all(|op| {
+            let idx = match op {
+                Opcode::Const(i)
+                | Opcode::GetMember(i)
+                | Opcode::MemberSet(i)
+                | Opcode::GetSuperMethod(i)
+                | Opcode::JumpUnlessConstEq(i, _)
+                | Opcode::JumpUnlessHasMember(i, _) => Some(*i),
+                Opcode::JumpUnlessEnumVariant(a, b, _) => {
+                    if (*a as usize) < pool.len() && (*b as usize) < pool.len() {
+                        None
+                    } else {
+                        return false;
+                    }
+                }
+                _ => None,
+            };
+            idx.map_or(true, |i| (i as usize) < pool.len())
+        })
+    }
+    fn fn_ok(f: &BytecodeFnDef, fallback: &[Constant]) -> Result<(), String> {
+        let pool: &[Constant] = if f.constants.is_empty() {
+            fallback
+        } else {
+            &f.constants
+        };
+        if !ops_ok(&f.code, pool) {
+            return Err(format!("kbcb corrupt: bad const index in fn {}", f.name));
+        }
+        for a in &f.arrow_functions {
+            fn_ok(a, pool)?;
+        }
+        Ok(())
+    }
+    if !ops_ok(&m.main_code, &m.constants) {
+        return Err("kbcb corrupt: bad const index in main".into());
+    }
+    for f in &m.functions {
+        fn_ok(f, &m.constants)?;
+    }
+    for f in &m.arrow_functions {
+        fn_ok(f, &m.constants)?;
+    }
+    for c in &m.classes {
+        for f in &c.fields {
+            if let Some(i) = f.default_const {
+                if (i as usize) >= c.constants.len() {
+                    return Err(format!("kbcb corrupt: bad default_const in class {}", c.name));
+                }
+            }
+            if !ops_ok(&f.default_code, &c.constants) {
+                return Err(format!("kbcb corrupt: bad const index in class {}", c.name));
+            }
+        }
+        for f in &c.methods {
+            fn_ok(f, &c.constants)?;
+        }
+    }
+    Ok(())
 }
 
 pub fn deserialize_kbcb_v2(bytes: &[u8]) -> Result<BytecodeModule, String> {

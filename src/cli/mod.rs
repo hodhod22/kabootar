@@ -3,6 +3,7 @@
 mod doc;
 mod registry_web;
 mod repl;
+#[allow(dead_code)]
 mod test_runner;
 
 pub use doc::{extract_kab_docs, DocItem};
@@ -416,49 +417,38 @@ fn doc_cmd(args: &[String]) -> i32 {
     }
 }
 
+/// KT8: `kabootar test` runs through the Kab-native kabtest runner
+/// (`lib/kabtest/cli_main.kab` → ktWalk/ktRunFile → ktEvalSource on the
+/// Kab VM). The Rust `test_runner` module is kept for reference until
+/// the SH25 delete-gate clears it; it is no longer in the command path.
 fn test_cmd(args: &[String]) -> i32 {
-    let coverage = args.iter().any(|a| a == "--coverage");
     let path = args
         .iter()
         .find(|a| !a.starts_with('-'))
         .map(String::as_str)
         .unwrap_or("tests");
-    let root = Path::new(path);
-    let tests = match test_runner::discover_tests(root) {
-        Ok(t) => t,
-        Err(e) => {
-            eprintln!("test error: {e}");
-            return 1;
-        }
-    };
-    if tests.is_empty() {
-        eprintln!("No *_test.kab files under {path}");
-        return 1;
-    }
-    let (pass, fail, results) = test_runner::run_tests(&tests);
-    for r in &results {
-        if r.ok {
-            println!("ok {}", r.path);
-        } else {
-            println!("FAIL {} — {}", r.path, r.message);
-        }
-    }
-    println!("{pass} passed, {fail} failed");
-    if coverage {
-        let cov_roots = if root.is_dir() && path == "tests" {
-            vec![PathBuf::from("lib")]
-        } else {
-            vec![PathBuf::from("lib")]
-        };
-        match test_runner::coverage_for(&cov_roots, &tests) {
-            Ok(rep) => print!("{}", test_runner::format_coverage(&rep)),
-            Err(e) => eprintln!("coverage error: {e}"),
-        }
-    }
-    if fail > 0 {
-        1
+    std::env::set_var("KABOOTAR_TEST_ROOT", path);
+    if Path::new(path).is_file() {
+        std::env::set_var("KABOOTAR_TEST_FILE", "1");
     } else {
-        0
+        std::env::remove_var("KABOOTAR_TEST_FILE");
+    }
+    if args.iter().any(|a| a == "--coverage") {
+        std::env::set_var("KABOOTAR_TEST_COV", "1");
+    } else {
+        std::env::remove_var("KABOOTAR_TEST_COV");
+    }
+    match run_file("lib/kabtest/cli_main.kab") {
+        Ok(v) => match v {
+            crate::value::Value::Number(n) => n as i32,
+            crate::value::Value::Bool(true) => 0,
+            crate::value::Value::Bool(false) => 1,
+            _ => 0,
+        },
+        Err(e) => {
+            eprintln!("test error: {}", format_user_error(&e));
+            1
+        }
     }
 }
 

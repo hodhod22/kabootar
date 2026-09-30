@@ -1,0 +1,53 @@
+// SH28: guest x64 executor — real fetch-decode-execute of emitted bytes.
+// The guest decodes each instruction of the aot_emit_text x64 subset; no
+// os_mm_call template matching is involved. Still in-process — this proves
+// the image's bytes are real executable code, not just a recognised blob.
+
+import "kab/aot/aot_guest"
+
+// mov eax,21 ; add eax,eax ; ret  → rax = 42
+let s1 = aotGuestExecHex("b81500000001c0c3", 10000)
+if aotGuestHaltOk(s1) == false { return 1 }
+if aotGuestRax(s1) != 42 { return 2 }
+
+// countdown loop: mov eax,3 ; sub eax,1 ; jne -5 ; ret  → rax = 0
+let s2 = aotGuestExecHex("b80300000083e80175fbc3", 10000)
+if aotGuestHaltOk(s2) == false { return 3 }
+if aotGuestRax(s2) != 0 { return 4 }
+if s2["steps"] != 8 { return 5 }
+
+// frame + local slot: push rbp ; mov rbp,rsp ; mov eax,7 ;
+// mov [rbp-8],rax ; add qword[rbp-8],1 ; mov rax,[rbp-8] ; leave ; ret → 8
+let s3 = aotGuestExecHex("554889e5b807000000488945f8488345f801488b45f8c9c3", 10000)
+if aotGuestHaltOk(s3) == false { return 6 }
+if aotGuestRax(s3) != 8 { return 7 }
+
+// call/ret: call +3 ; ret ; nop nop ; mov eax,9 ; ret  → rax = 9
+let s4 = aotGuestExecHex("e803000000c39090b809000000c3", 10000)
+if aotGuestHaltOk(s4) == false { return 8 }
+if aotGuestRax(s4) != 9 { return 9 }
+
+// taken branch: mov eax,5 ; mov ebx,3 ; cmp eax,ebx ; ja +5 ;
+// mov eax,0 (skipped) ; ret  → rax = 5
+let s5 = aotGuestExecHex("b805000000bb0300000039d87705b800000000c3", 10000)
+if aotGuestHaltOk(s5) == false { return 10 }
+if aotGuestRax(s5) != 5 { return 11 }
+
+// equal operands: cmp 3,3 → zf=1 → je taken → mov eax,0 skipped → rax = 3
+let s6 = aotGuestExecHex("b803000000bb0300000039d87405b800000000c3", 10000)
+if aotGuestHaltOk(s6) == false { return 12 }
+if aotGuestRax(s6) != 3 { return 13 }
+
+// div-by-zero is a real guest fault, not a crash: mov eax,0 ; idiv eax → "de"
+let s7 = aotGuestExecHex("b800000000f7f8", 10000)
+if s7["halt"] != "de" { return 14 }
+
+// unknown opcode faults cleanly: 0xff is not in the emitted subset → "ud"
+let s8 = aotGuestExecHex("ff", 10000)
+if s8["halt"] != "ud" { return 15 }
+
+// image level: the code:x64 field of a kabootar-native image executes to 42.
+let img = "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|code:x64:b81500000001c0c3|rodata:r|data:rw"
+if aotGuestExecOk(img, 42, 10000) == false { return 16 }
+
+return 42

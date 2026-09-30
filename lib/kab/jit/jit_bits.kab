@@ -1,0 +1,135 @@
+// SH17 widen: guest bit/shift/unary templates (magic 77-84). Same 8-byte
+// template contract as jit_fuse_cmp — the guest os_mm_call table already
+// execs these magics; this leaf is the Kab mirror + emitter for the
+// extraction layer. import "kab/jit/jit_bits"
+// Do not grow jit_fuse_cmp.kab or jit_f64.kab.
+
+/// Guest magic for a bit/shift/unary op name; 0 when not fusible.
+/// bit_not and neg are unary (k is unused); bit_* are binary; shl/shr/ushr
+/// take k as shift amount.
+pub fn jitBitsMagic(name) {
+    if name == "bit_and" {
+        return 77
+    }
+    if name == "bit_or" {
+        return 78
+    }
+    if name == "bit_xor" {
+        return 79
+    }
+    if name == "shl" {
+        return 80
+    }
+    if name == "shr" {
+        return 81
+    }
+    if name == "ushr" {
+        return 82
+    }
+    if name == "bit_not" {
+        return 83
+    }
+    if name == "neg" {
+        return 84
+    }
+    return 0
+}
+
+pub fn jitBitsMagicOk(magic) {
+    if magic < 77 {
+        return false
+    }
+    if magic > 84 {
+        return false
+    }
+    return true
+}
+
+/// True for unary magics (single operand).
+pub fn jitBitsUnary(magic) {
+    if magic == 83 {
+        return true
+    }
+    if magic == 84 {
+        return true
+    }
+    return false
+}
+
+/// Operand bounds match the guest template contract: n 1..=64; binary masks
+/// 1..=64; shift amounts 1..=6; unary needs n only.
+pub fn jitBitsOk(n, k, magic) {
+    if n <= 0 {
+        return false
+    }
+    if n > 64 {
+        return false
+    }
+    if jitBitsUnary(magic) == true {
+        return true
+    }
+    if magic == 80 || magic == 81 || magic == 82 {
+        if k <= 0 {
+            return false
+        }
+        if k > 6 {
+            return false
+        }
+        return true
+    }
+    if k <= 0 {
+        return false
+    }
+    if k > 64 {
+        return false
+    }
+    return true
+}
+
+/// Mirror of the guest semantics for dual-bind checks. Kab shifts are i64 —
+/// exact for the guest domain (n,k 1..=64, shift ≤ 6).
+pub fn jitBitsRax(n, k, magic) {
+    if magic == 77 {
+        return n & k
+    }
+    if magic == 78 {
+        return n | k
+    }
+    if magic == 79 {
+        return (n | k) - (n & k)
+    }
+    if magic == 80 {
+        return n << k
+    }
+    if magic == 81 {
+        return n >> k
+    }
+    if magic == 82 {
+        return n >> k
+    }
+    if magic == 83 {
+        return 0 - n - 1
+    }
+    if magic == 84 {
+        return 0 - n
+    }
+    return 0
+}
+
+pub fn jitBitsLen() {
+    return 8
+}
+
+/// magic, n, k, pad, ret — same 8-byte layout as the other loop templates.
+pub fn jitEmitI64Bits(magic, n, k) {
+    let b = []
+    b = push(b, magic)
+    b = push(b, n)
+    b = push(b, k)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}

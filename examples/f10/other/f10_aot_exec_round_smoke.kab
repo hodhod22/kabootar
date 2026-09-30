@@ -4,6 +4,7 @@
 // must match the Kab mirror for both the true and false predicates.
 
 import "kab/aot/aot_exec"
+import "kab/jit/jit_fuse_cmp"
 
 // lt (87): 3 < 9 → guest/mirror 1; persisted bytes actually execute.
 if aotExecOk("_aot_exec_round.kabi", 87, 3, 9) == false {
@@ -24,5 +25,38 @@ if aotExecOk("_aot_exec_round.kabi", 87, 0, 9) {
 // Bad magic → emit refuses.
 if aotExecOk("_aot_exec_round.kabi", 0, 3, 9) {
     return 5
+}
+
+// Entry-stub leg: the image DECLARES its entry — kabootar-native/1 with
+// `entry:` + `sym:text:0:_start` + `code:x64:<hex>`. The loader resolves
+// the declared entry (aotEntryStartOk + aotEntryFieldNum), stores the code
+// at entry, and calls — guest rax must equal the Kab mirror.
+if aotEntryExecOk("_aot_entry_round.kabi", 87, 3, 9) == false {
+    return 6
+}
+if aotEntryExecOk("_aot_entry_round.kabi", 90, 9, 3) == false {
+    return 7
+}
+// Entry resolution itself: a real image has entry:0 + _start at text:0.
+let img = aotEntryImageEmit(87, 3, 9)
+if img == "" {
+    return 8
+}
+if aotEntryStartOk(img) == false {
+    return 9
+}
+if aotEntryFieldNum(img, "entry") != 0 {
+    return 10
+}
+if len(aotEntryCodeBytes(img)) != jitFuseCmpLen() {
+    return 11
+}
+// A header without a matching _start decl is not an entry image.
+if aotEntryStartOk("kabootar-native/1|x64|entry:7|syms:sym:text:0:_start:x64") {
+    return 12
+}
+// Out-of-domain entry image refuses at emit — no exec.
+if aotEntryExecOk("_aot_entry_round.kabi", 87, 0, 9) {
+    return 13
 }
 return 42

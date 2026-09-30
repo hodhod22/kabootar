@@ -14,7 +14,11 @@ import "kab/jit/jit_pic"
 import "kab/jit/jit_pic_exec"
 import "kab/jit/jit_from_ops_any"
 import "kab/jit/jit_from_ops_any_val"
+import "kab/jit/jit_from_ops_bits"
 import "kab/jit/jit_fuse_cmp"
+import "kab/jit/jit_f64"
+import "kab/jit/jit_bits"
+import "kab/jit/jit_osr"
 
 /// Per-ip site table key.
 pub fn vJitSiteKeyS(S) {
@@ -151,6 +155,23 @@ pub fn vJitOpsOfFn(f) {
         return null
     }
     let nOps = len(ops)
+    // Unary chain: `return -a` / `return ~a` — one param, three ops — lowers
+    // to the guest unary template (83 bit_not / 84 neg).
+    if nOps == 3 && len(params) >= 1 && len(locals) >= 1 {
+        if locals[0] == params[0] {
+            if ops[0]["op"] == "load_local" && ops[0]["arg"] == 0 {
+                let um = jitBitsMagic(ops[1]["op"])
+                if um != 0 {
+                    if jitBitsUnary(um) == true {
+                        let rop2 = ops[2]["op"]
+                        if rop2 == "return" || rop2 == "ret" {
+                            return ["const", ops[1]["op"], "ret"]
+                        }
+                    }
+                }
+            }
+        }
+    }
     if (nOps == 4 || nOps == 5) && len(params) >= 2 && len(locals) >= 2 {
         if locals[0] != params[0] || locals[1] != params[1] {
             return null
@@ -163,6 +184,29 @@ pub fn vJitOpsOfFn(f) {
         }
         let cm = ops[2]["op"]
         if jitCmpMagic(cm) == 0 {
+            // f64 chain: `return a OP b` (add/sub/mul/div) lowers to the
+            // guest f64 template — exact for the 1..=64 operand domain
+            // (fdiv truncates = integer div). `mod` has no f64 template;
+            // anything else stays cold.
+            if nOps == 4 {
+                if jitF64Magic("f" + cm) != 0 {
+                    let rop4 = ops[3]["op"]
+                    if rop4 == "return" || rop4 == "ret" {
+                        return ["const", "const", "f" + cm, "ret"]
+                    }
+                }
+                // bits chain: `return a OP b` for bit_and/bit_or/bit_xor/
+                // shl/shr/ushr lowers to the guest bits template (77-82).
+                let bm = jitBitsMagic(cm)
+                if bm != 0 {
+                    if jitBitsUnary(bm) == false {
+                        let rop4b = ops[3]["op"]
+                        if rop4b == "return" || rop4b == "ret" {
+                            return ["const", "const", cm, "ret"]
+                        }
+                    }
+                }
+            }
             return null
         }
         let neg = false
@@ -233,6 +277,12 @@ pub fn vJitOpsArity(jitOps) {
     }
     if kind == 4 {
         return 4
+    }
+    if kind == 5 {
+        if len(jitOps) == 3 {
+            return 1
+        }
+        return 2
     }
     return 0
 }
@@ -394,4 +444,101 @@ pub fn vJitExecOk(S, c, ordered) {
         return { "ok": 0 }
     }
     return { "ok": 1, "out": jitFromOpsAnyVal(ops, n, k, s, m, d, r) }
+}
+
+// --- vm_jit_osr ---
+/// Back-edge landing on a loop header (ip moved backwards): count the hit in
+/// S["jitLoopHits"][" "+ip]; once jitOsrOk says the header is hot, mark it
+/// armed in S["jitOsrArmed"] so vJitOsrStepS may run the fused header.
+pub fn vJitBackEdgeS(S, ip) {
+    let hits = S["jitLoopHits"]
+    if hits == undefined {
+        hits = {}
+        S["jitLoopHits"] = hits
+    }
+    let key = " " + ip
+    let h = vObjGet(hits, key)
+    if h == undefined {
+        h = 0
+    }
+    h = h + 1
+    hits[key] = h
+    if jitOsrOk(ip, h) == true {
+        let armed = S["jitOsrArmed"]
+        if armed == undefined {
+            armed = {}
+            S["jitOsrArmed"] = armed
+        }
+        armed[key] = true
+    }
+}
+
+/// Operand value for a fused header operand op; only load_local/const
+/// resolve — anything else returns undefined and the header stays
+/// interpreted.
+fn vOsrOperandVal(S, op, pool) {
+    let name = op["op"]
+    if name == "load_local" {
+        let i = op["arg"]
+        if i >= 0 && i < len(S["locals"]) {
+            return S["locals"][i]
+        }
+        return undefined
+    }
+    if name == "const" {
+        let i = op["arg"]
+        if i >= 0 && i < len(pool) {
+            return pool[i]
+        }
+        return undefined
+    }
+    return undefined
+}
+
+/// OSR step: an armed loop header of shape [operand, operand, cmp,
+/// jump_if_*] executes its branch decision through the fused cmp template —
+/// operand values are baked as the const,const immediates of a kind-2 chain
+/// (jump_if_false folds the negated predicate, so a fused 1 means "take").
+/// Returns 0 when unarmed/shape-mismatched/domain-rejected → interpreted.
+pub fn vJitOsrStepS(S, ops, pool) {
+    let ip = S["ip"]
+    if ip <= 0 {
+        return 0
+    }
+    let armed = S["jitOsrArmed"]
+    if armed == undefined {
+        return 0
+    }
+    if vObjGet(armed, " " + ip) != true {
+        return 0
+    }
+    if ip + 3 >= len(ops) {
+        return 0
+    }
+    let a = vOsrOperandVal(S, ops[ip], pool)
+    let b = vOsrOperandVal(S, ops[ip + 1], pool)
+    if a == undefined || b == undefined {
+        return 0
+    }
+    if typeof(a) != "number" || typeof(b) != "number" {
+        return 0
+    }
+    let chain = ["const", "const", ops[ip + 2]["op"], ops[ip + 3]["op"], "ret"]
+    if jitFromOpsAnyExecOk(chain, a, b, 0, 0, 0, 0) == false {
+        return 0
+    }
+    let r = jitFromOpsAnyVal(chain, a, b, 0, 0, 0, 0)
+    // The jcc target is relative to the jump op itself (ip + 3), not the
+    // header start — taken = (ip + 3) + 1 + arg, fallthrough = ip + 4.
+    if r == 1 {
+        S["ip"] = ip + 4 + ops[ip + 3]["arg"]
+    } else {
+        S["ip"] = ip + 4
+    }
+    let e = S["jitOsrExecs"]
+    if e == undefined {
+        e = 0
+    }
+    S["jitOsrExecs"] = e + 1
+    return 1
 }

@@ -1,0 +1,741 @@
+// SH28: guest x64 executor — real fetch-decode-execute of emitted bytes.
+// import "kab/aot/aot_guest"
+// Executes the aot_emit_text instruction subset (x64) from a code:x64:<hex>
+// payload, one instruction at a time — not os_mm_call template matching.
+// Still in-process guest execution: nollAotProcess stays false until an
+// OS-spawned process runs the image.
+
+// ---- hex decode ----
+
+pub fn aotGuestHexNib(c) {
+    if c >= 48 { if c <= 57 { return c - 48 } }
+    if c >= 97 { if c <= 102 { return c - 87 } }
+    if c >= 65 { if c <= 70 { return c - 55 } }
+    return -1
+}
+
+pub fn aotGuestHexByte(s, i) {
+    let hi = aotGuestHexNib(char_code_at(s, i))
+    let lo = aotGuestHexNib(char_code_at(s, i + 1))
+    if hi < 0 { return -1 }
+    if lo < 0 { return -1 }
+    return hi * 16 + lo
+}
+
+pub fn aotGuestBytes(hex) {
+    let b = []
+    let n = len(hex)
+    let i = 0
+    while i + 1 < n {
+        b = push(b, aotGuestHexByte(hex, i))
+        i = i + 2
+    }
+    return b
+}
+
+// ---- image field extraction (code:x64:<hex>) ----
+
+pub fn aotGuestCodeHex(image) {
+    let parts = split(image, "|")
+    let i = 0
+    while i < len(parts) {
+        if starts_with(parts[i], "code:x64:") {
+            let h = str_slice(parts[i], 9, len(parts[i]))
+            if h == "ret" { return "c3" }
+            return h
+        }
+        i = i + 1
+    }
+    return ""
+}
+
+// ---- image: symbols, relocations, entry ----
+
+pub fn aotGuestParseNum(s) {
+    let n = 0
+    let i = 0
+    while i < len(s) {
+        let c = char_code_at(s, i)
+        if c < 48 { return -1 }
+        if c > 57 { return -1 }
+        n = n * 10 + c - 48
+        i = i + 1
+    }
+    return n
+}
+
+// sym record: "text:OFF:NAME:ARCH" -> section offset of NAME.
+pub fn aotGuestSymOff(image, want) {
+    let parts = split(image, "|")
+    let i = 0
+    while i < len(parts) {
+        let p = parts[i]
+        if starts_with(p, "syms:") {
+            let recs = split(str_slice(p, 5, len(p)), ";")
+            let j = 0
+            while j < len(recs) {
+                let f = split(str_slice(recs[j], 4, len(recs[j])), ":")
+                if len(f) >= 4 {
+                    if f[2] == want { return aotGuestParseNum(f[1]) }
+                }
+                j = j + 1
+            }
+        }
+        if starts_with(p, "sym:") {
+            let f2 = split(str_slice(p, 4, len(p)), ":")
+            if len(f2) >= 4 {
+                if f2[2] == want { return aotGuestParseNum(f2[1]) }
+            }
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+// write little-endian dword at index i (v may be negative for rel32).
+pub fn aotGuestStoreU32(b, i, v) {
+    let u = v
+    if u < 0 { u = u + 4294967296 }
+    b[i] = u & 255
+    b[i + 1] = (u >> 8) & 255
+    b[i + 2] = (u >> 16) & 255
+    b[i + 3] = (u >> 24) & 255
+    return b
+}
+
+// reloc record: "text:OFF:ADDEND:SYM:ARCH" — the dword at OFF is patched:
+//   PC32  (site instruction e8 call / e9 jmp at OFF-1): SYM - (OFF + 4) + ADDEND
+//   ABS32 (any other site):                             base + SYM + ADDEND
+pub fn aotGuestApplyRelocRec(b, rec, image, base) {
+    let f = split(rec, ":")
+    if len(f) < 5 { return b }
+    if f[0] != "text" { return b }
+    let off = aotGuestParseNum(f[1])
+    let add = aotGuestParseNum(f[2])
+    let symOff = aotGuestSymOff(image, f[3])
+    if off < 1 { return b }
+    if symOff < 0 { return b }
+    if add < 0 { return b }
+    if off + 3 >= len(b) { return b }
+    let v = base + symOff + add
+    if b[off - 1] == 232 { v = symOff - (off + 4) + add }
+    if b[off - 1] == 233 { v = symOff - (off + 4) + add }
+    return aotGuestStoreU32(b, off, v)
+}
+
+pub fn aotGuestApplyRelocs(b, image, base) {
+    let parts = split(image, "|")
+    let i = 0
+    while i < len(parts) {
+        let p = parts[i]
+        if starts_with(p, "relocs:") {
+            let recs = split(str_slice(p, 7, len(p)), ";")
+            let j = 0
+            while j < len(recs) {
+                b = aotGuestApplyRelocRec(b, str_slice(recs[j], 6, len(recs[j])), image, base)
+                j = j + 1
+            }
+        }
+        if starts_with(p, "reloc:") {
+            b = aotGuestApplyRelocRec(b, str_slice(p, 6, len(p)), image, base)
+        }
+        i = i + 1
+    }
+    return b
+}
+
+// entry:N numeric, else the `_start`/`main` symbol offset.
+pub fn aotGuestEntryOff(image) {
+    let parts = split(image, "|")
+    let i = 0
+    while i < len(parts) {
+        let p = parts[i]
+        if starts_with(p, "entry:") {
+            let n = aotGuestParseNum(str_slice(p, 6, len(p)))
+            if n >= 0 { return n }
+            let so = aotGuestSymOff(image, str_slice(p, 6, len(p)))
+            if so >= 0 { return so }
+        }
+        i = i + 1
+    }
+    let es = aotGuestSymOff(image, "_start")
+    if es >= 0 { return es }
+    return aotGuestSymOff(image, "main")
+}
+
+// ---- state ----
+
+// rsp/rbp are byte offsets into a 64-slot (512 byte) guest stack; the stack
+// grows down like real x64 and each slot carries one qword.
+pub fn aotGuestInit() {
+    let st = []
+    let i = 0
+    while i < 64 {
+        st = push(st, 0)
+        i = i + 1
+    }
+    return {
+        "r0": 0, "r1": 0, "r2": 0, "r3": 0,
+        "rbp": 0, "rsi": 0, "rdi": 0,
+        "rsp": 512, "base": 512, "st": st, "pc": 0,
+        "zf": 0, "sf": 0, "of": 0, "cf": 0, "pf": 1,
+        "halt": "", "steps": 0
+    }
+}
+
+pub fn aotGuestRegGet(s, i) {
+    if i == 0 { return s["r0"] }
+    if i == 1 { return s["r1"] }
+    if i == 2 { return s["r2"] }
+    if i == 3 { return s["r3"] }
+    if i == 4 { return s["rsp"] }
+    if i == 5 { return s["rbp"] }
+    if i == 6 { return s["rsi"] }
+    if i == 7 { return s["rdi"] }
+    return 0
+}
+
+pub fn aotGuestRegSet(s, i, v) {
+    if i == 0 { s["r0"] = v }
+    if i == 1 { s["r1"] = v }
+    if i == 2 { s["r2"] = v }
+    if i == 3 { s["r3"] = v }
+    if i == 4 { s["rsp"] = v }
+    if i == 5 { s["rbp"] = v }
+    if i == 6 { s["rsi"] = v }
+    if i == 7 { s["rdi"] = v }
+    return s
+}
+
+pub fn aotGuestPush(s, v) {
+    let sp = s["rsp"] - 8
+    if sp < 0 { s["halt"] = "stk"; return s }
+    let st = s["st"]
+    st[sp / 8] = v
+    s["st"] = st
+    s["rsp"] = sp
+    return s
+}
+
+pub fn aotGuestPop(s) {
+    let sp = s["rsp"]
+    if sp >= s["base"] { s["halt"] = "stk"; return 0 }
+    s["rsp"] = sp + 8
+    return s["st"][sp / 8]
+}
+
+pub fn aotGuestMemSet(s, idx, v) {
+    if idx < 0 { s["halt"] = "mem"; return s }
+    let st = s["st"]
+    if idx >= len(st) { s["halt"] = "mem"; return s }
+    st[idx] = v
+    s["st"] = st
+    return s
+}
+
+pub fn aotGuestMemGet(s, idx) {
+    if idx < 0 { s["halt"] = "mem"; return 0 }
+    if idx >= len(s["st"]) { s["halt"] = "mem"; return 0 }
+    return s["st"][idx]
+}
+
+// ---- immediates ----
+
+pub fn aotGuestS8(v) {
+    if v >= 128 { return v - 256 }
+    return v
+}
+
+pub fn aotGuestU32(b, i) {
+    let v = b[i]
+    v = v + b[i + 1] * 256
+    v = v + b[i + 2] * 65536
+    v = v + b[i + 3] * 16777216
+    return v
+}
+
+pub fn aotGuestS32(b, i) {
+    let v = aotGuestU32(b, i)
+    if v >= 2147483648 { return v - 4294967296 }
+    return v
+}
+
+pub fn aotGuestSigned32(v) {
+    if v >= 2147483648 { return v - 4294967296 }
+    return v
+}
+
+// ---- flags ----
+
+pub fn aotGuestParity(s, r) {
+    let t = r & 255
+    let ones = 0
+    while t > 0 {
+        ones = ones + (t & 1)
+        t = t >> 1
+    }
+    if ones % 2 == 0 { s["pf"] = 1 }
+    else { s["pf"] = 0 }
+    return s
+}
+
+// kind: 1=add, 2=sub/cmp, 3=logic, 4=shl1, 5=shr1, 6=imul, 7=neg
+pub fn aotGuestFlags32(s, a, b, r, kind) {
+    if r == 0 { s["zf"] = 1 } else { s["zf"] = 0 }
+    s["sf"] = (r >> 31) & 1
+    if kind == 3 {
+        s["cf"] = 0
+        s["of"] = 0
+    }
+    if kind == 1 {
+        if a + b > 4294967295 { s["cf"] = 1 } else { s["cf"] = 0 }
+        let sa = 0
+        let sb = 0
+        let sr = 0
+        if a >= 2147483648 { sa = 1 }
+        if b >= 2147483648 { sb = 1 }
+        if r >= 2147483648 { sr = 1 }
+        if sa == sb { if sr != sa { s["of"] = 1 } else { s["of"] = 0 } }
+        else { s["of"] = 0 }
+    }
+    if kind == 2 {
+        if a < b { s["cf"] = 1 } else { s["cf"] = 0 }
+        let sa2 = 0
+        let sb2 = 0
+        let sr2 = 0
+        if a >= 2147483648 { sa2 = 1 }
+        if b >= 2147483648 { sb2 = 1 }
+        if r >= 2147483648 { sr2 = 1 }
+        if sa2 != sb2 { if sr2 != sa2 { s["of"] = 1 } else { s["of"] = 0 } }
+        else { s["of"] = 0 }
+    }
+    if kind == 4 {
+        s["cf"] = (a >> 31) & 1
+        if ((r >> 31) & 1) != s["cf"] { s["of"] = 1 } else { s["of"] = 0 }
+    }
+    if kind == 5 {
+        s["cf"] = a & 1
+        s["of"] = (a >> 31) & 1
+    }
+    if kind == 6 {
+        s["cf"] = 0
+        s["of"] = 0
+    }
+    if kind == 7 {
+        if a != 0 { s["cf"] = 1 } else { s["cf"] = 0 }
+        if a == 2147483648 { s["of"] = 1 } else { s["of"] = 0 }
+    }
+    return aotGuestParity(s, r)
+}
+
+// 64-bit flags for REX.W group1 ops; a, b, r are i64 values.
+// kind: 1=add, 2=sub/cmp. Unsigned cf is exact while operands stay
+// non-negative (guest locals/immediates are small), documented limit.
+pub fn aotGuestFlags64(s, a, b, r, kind) {
+    if r == 0 { s["zf"] = 1 } else { s["zf"] = 0 }
+    if r < 0 { s["sf"] = 1 } else { s["sf"] = 0 }
+    if kind == 1 {
+        if a + b < a { s["cf"] = 1 } else { s["cf"] = 0 }
+        s["of"] = 0
+        if a >= 0 { if b >= 0 { if r < 0 { s["of"] = 1 } } }
+        if a < 0 { if b < 0 { if r >= 0 { s["of"] = 1 } } }
+    }
+    if kind == 2 {
+        if a >= 0 { if b >= 0 { if a < b { s["cf"] = 1 } else { s["cf"] = 0 } } }
+        if a >= 0 { if b < 0 { s["cf"] = 0 } }
+        if a < 0 { s["cf"] = 1 }
+        s["of"] = 0
+        if a >= 0 { if b < 0 { if r < 0 { s["of"] = 1 } } }
+        if a < 0 { if b >= 0 { if r >= 0 { s["of"] = 1 } } }
+    }
+    return aotGuestParity(s, r)
+}
+
+// ---- condition codes (op & 15) ----
+
+pub fn aotGuestCond(s, cc) {
+    if cc == 0 { return s["of"] }
+    if cc == 1 { if s["of"] == 0 { return 1 } return 0 }
+    if cc == 2 { return s["cf"] }
+    if cc == 3 { if s["cf"] == 0 { return 1 } return 0 }
+    if cc == 4 { return s["zf"] }
+    if cc == 5 { if s["zf"] == 0 { return 1 } return 0 }
+    if cc == 6 { if s["cf"] == 1 { return 1 } return s["zf"] }
+    if cc == 7 { if s["cf"] == 0 { if s["zf"] == 0 { return 1 } } return 0 }
+    if cc == 8 { return s["sf"] }
+    if cc == 9 { if s["sf"] == 0 { return 1 } return 0 }
+    if cc == 10 { return s["pf"] }
+    if cc == 11 { if s["pf"] == 0 { return 1 } return 0 }
+    if cc == 12 { if s["sf"] != s["of"] { return 1 } return 0 }
+    if cc == 13 { if s["sf"] == s["of"] { return 1 } return 0 }
+    if cc == 14 { if s["zf"] == 1 { return 1 } if s["sf"] != s["of"] { return 1 } return 0 }
+    if cc == 15 { if s["zf"] == 0 { if s["sf"] == s["of"] { return 1 } } return 0 }
+    return 0
+}
+
+// ---- modrm 32-bit reg group ----
+
+pub fn aotGuestBin32(s, b, pc, op) {
+    let m = b[pc + 1]
+    if (m >> 6) != 3 { s["halt"] = "ud"; return s }
+    let rg = (m >> 3) & 7
+    let rm = m & 7
+    let rv = aotGuestRegGet(s, rm) & 4294967295
+    let gv = aotGuestRegGet(s, rg) & 4294967295
+    let r = 0
+    if op == 1 {
+        r = (rv + gv) & 4294967295
+        s = aotGuestFlags32(s, rv, gv, r, 1)
+        s = aotGuestRegSet(s, rm, r)
+    }
+    if op == 9 {
+        r = rv | gv
+        s = aotGuestFlags32(s, rv, gv, r, 3)
+        s = aotGuestRegSet(s, rm, r)
+    }
+    if op == 33 {
+        r = rv & gv
+        s = aotGuestFlags32(s, rv, gv, r, 3)
+        s = aotGuestRegSet(s, rm, r)
+    }
+    if op == 41 {
+        r = (rv - gv) & 4294967295
+        s = aotGuestFlags32(s, rv, gv, r, 2)
+        s = aotGuestRegSet(s, rm, r)
+    }
+    if op == 51 {
+        r = (rv | gv) - (rv & gv)
+        s = aotGuestFlags32(s, rv, gv, r, 3)
+        s = aotGuestRegSet(s, rg, r)
+    }
+    if op == 57 {
+        r = (rv - gv) & 4294967295
+        s = aotGuestFlags32(s, rv, gv, r, 2)
+    }
+    if op == 133 {
+        r = rv & gv
+        s = aotGuestFlags32(s, rv, gv, r, 3)
+    }
+    s["pc"] = pc + 2
+    return s
+}
+
+// ---- one step ----
+
+pub fn aotGuestStep(s, b) {
+    let pc = s["pc"]
+    if pc < 0 { s["halt"] = "pc"; return s }
+    if pc >= len(b) { s["halt"] = "pc"; return s }
+    let op = b[pc]
+
+    // nop / ret / leave
+    if op == 144 { s["pc"] = pc + 1; return s }
+    if op == 195 {
+        if s["rsp"] >= s["base"] { s["halt"] = "ret"; return s }
+        s["pc"] = aotGuestPop(s)
+        return s
+    }
+    if op == 201 {
+        s["rsp"] = s["rbp"]
+        s["rbp"] = aotGuestPop(s)
+        s["pc"] = pc + 1
+        return s
+    }
+
+    // push/pop r64
+    if op >= 80 { if op <= 87 {
+        s = aotGuestPush(s, aotGuestRegGet(s, op - 80))
+        s["pc"] = pc + 1
+        return s
+    } }
+    if op >= 88 { if op <= 95 {
+        let v = aotGuestPop(s)
+        s = aotGuestRegSet(s, op - 88, v)
+        s["pc"] = pc + 1
+        return s
+    } }
+
+    // mov r32, imm32
+    if op >= 184 { if op <= 191 {
+        s = aotGuestRegSet(s, op - 184, aotGuestU32(b, pc + 1))
+        s["pc"] = pc + 5
+        return s
+    } }
+
+    // jmp rel32 / call rel32 / jmp rel8
+    if op == 233 { s["pc"] = pc + 5 + aotGuestS32(b, pc + 1); return s }
+    if op == 232 {
+        s = aotGuestPush(s, pc + 5)
+        s["pc"] = pc + 5 + aotGuestS32(b, pc + 1)
+        return s
+    }
+    if op == 235 { s["pc"] = pc + 2 + aotGuestS8(b[pc + 1]); return s }
+
+    // jcc rel8
+    if op >= 112 { if op <= 127 {
+        if aotGuestCond(s, op - 112) == 1 {
+            s["pc"] = pc + 2 + aotGuestS8(b[pc + 1])
+        }
+        else {
+            s["pc"] = pc + 2
+        }
+        return s
+    } }
+
+    // 0f af /r imul r32, r/m32
+    if op == 15 {
+        if b[pc + 1] == 175 {
+            let m = b[pc + 2]
+            if (m >> 6) != 3 { s["halt"] = "ud"; return s }
+            let rg = (m >> 3) & 7
+            let rm = m & 7
+            let av = aotGuestRegGet(s, rg) & 4294967295
+            let vv = aotGuestRegGet(s, rm) & 4294967295
+            let r = (av * vv) & 4294967295
+            s = aotGuestRegSet(s, rg, r)
+            s = aotGuestFlags32(s, av, vv, r, 6)
+            s["pc"] = pc + 3
+            return s
+        }
+        s["halt"] = "ud"
+        return s
+    }
+
+    // d1 /r shift by 1
+    if op == 209 {
+        let m = b[pc + 1]
+        if (m >> 6) != 3 { s["halt"] = "ud"; return s }
+        let sub = (m >> 3) & 7
+        let rm = m & 7
+        let a = aotGuestRegGet(s, rm) & 4294967295
+        let r = 0
+        if sub == 4 {
+            r = (a * 2) & 4294967295
+            s = aotGuestFlags32(s, a, 0, r, 4)
+        }
+        if sub == 5 {
+            r = a >> 1
+            s = aotGuestFlags32(s, a, 0, r, 5)
+        }
+        s = aotGuestRegSet(s, rm, r)
+        s["pc"] = pc + 2
+        return s
+    }
+
+    // f7 /r group3
+    if op == 247 {
+        let m = b[pc + 1]
+        if (m >> 6) != 3 { s["halt"] = "ud"; return s }
+        let sub = (m >> 3) & 7
+        let rm = m & 7
+        let a = aotGuestRegGet(s, rm) & 4294967295
+        if sub == 2 {
+            s = aotGuestRegSet(s, rm, 4294967295 - a)
+            s["pc"] = pc + 2
+            return s
+        }
+        if sub == 3 {
+            let r = 0
+            if a != 0 { r = 4294967296 - a }
+            s = aotGuestRegSet(s, rm, r)
+            s = aotGuestFlags32(s, a, 0, r, 7)
+            s["pc"] = pc + 2
+            return s
+        }
+        if sub == 7 {
+            let dv = aotGuestSigned32(a)
+            if dv == 0 { s["halt"] = "de"; return s }
+            let num = aotGuestSigned32(s["r0"] & 4294967295)
+            let q = num / dv
+            let rem = num - q * dv
+            s["r0"] = q & 4294967295
+            s["r2"] = rem & 4294967295
+            s["pc"] = pc + 2
+            return s
+        }
+        s["halt"] = "ud"
+        return s
+    }
+
+    // 83 /r group1 imm8 (32-bit)
+    if op == 131 {
+        let m = b[pc + 1]
+        let mod = m >> 6
+        let sub = (m >> 3) & 7
+        let rm = m & 7
+        let imm = aotGuestS8(b[pc + 2])
+        if mod == 3 {
+            let a = aotGuestRegGet(s, rm) & 4294967295
+            let iu = imm & 4294967295
+            if sub == 0 {
+                let r = (a + iu) & 4294967295
+                s = aotGuestRegSet(s, rm, r)
+                s = aotGuestFlags32(s, a, iu, r, 1)
+            }
+            if sub == 5 {
+                let r = (a - iu) & 4294967295
+                s = aotGuestRegSet(s, rm, r)
+                s = aotGuestFlags32(s, a, iu, r, 2)
+            }
+            if sub == 7 {
+                let r = (a - iu) & 4294967295
+                s = aotGuestFlags32(s, a, iu, r, 2)
+            }
+            s["pc"] = pc + 3
+            return s
+        }
+        s["halt"] = "ud"
+        return s
+    }
+
+    // 48 REX.W group
+    if op == 72 {
+        let op2 = b[pc + 1]
+        if op2 == 137 {
+            let m = b[pc + 2]
+            let mod = m >> 6
+            let rg = (m >> 3) & 7
+            let rm = m & 7
+            if mod == 3 {
+                s = aotGuestRegSet(s, rm, aotGuestRegGet(s, rg))
+                s["pc"] = pc + 3
+                return s
+            }
+            if mod == 1 { if rm == 5 {
+                let idx = (s["rbp"] + aotGuestS8(b[pc + 3])) / 8
+                s = aotGuestMemSet(s, idx, aotGuestRegGet(s, rg))
+                s["pc"] = pc + 4
+                return s
+            } }
+        }
+        if op2 == 139 {
+            let m = b[pc + 2]
+            let mod = m >> 6
+            let rg = (m >> 3) & 7
+            let rm = m & 7
+            if mod == 3 {
+                s = aotGuestRegSet(s, rg, aotGuestRegGet(s, rm))
+                s["pc"] = pc + 3
+                return s
+            }
+            if mod == 1 { if rm == 5 {
+                let idx = (s["rbp"] + aotGuestS8(b[pc + 3])) / 8
+                s = aotGuestRegSet(s, rg, aotGuestMemGet(s, idx))
+                s["pc"] = pc + 4
+                return s
+            } }
+        }
+        if op2 == 131 {
+            let m = b[pc + 2]
+            let mod = m >> 6
+            let sub = (m >> 3) & 7
+            let rm = m & 7
+            if mod == 3 {
+                let imm = aotGuestS8(b[pc + 3])
+                let a = aotGuestRegGet(s, rm)
+                if sub == 0 {
+                    let r = a + imm
+                    s = aotGuestRegSet(s, rm, r)
+                    s = aotGuestFlags64(s, a, imm, r, 1)
+                }
+                if sub == 5 {
+                    let r = a - imm
+                    s = aotGuestRegSet(s, rm, r)
+                    s = aotGuestFlags64(s, a, imm, r, 2)
+                }
+                if sub == 7 {
+                    s = aotGuestFlags64(s, a, imm, a - imm, 2)
+                }
+                s["pc"] = pc + 4
+                return s
+            }
+            if mod == 1 { if rm == 5 {
+                let idx = (s["rbp"] + aotGuestS8(b[pc + 3])) / 8
+                let imm = aotGuestS8(b[pc + 4])
+                let a = aotGuestMemGet(s, idx)
+                if s["halt"] != "" { return s }
+                if sub == 0 {
+                    s = aotGuestMemSet(s, idx, a + imm)
+                    s = aotGuestFlags64(s, a, imm, a + imm, 1)
+                }
+                if sub == 5 {
+                    s = aotGuestMemSet(s, idx, a - imm)
+                    s = aotGuestFlags64(s, a, imm, a - imm, 2)
+                }
+                if sub == 7 {
+                    s = aotGuestFlags64(s, a, imm, a - imm, 2)
+                }
+                s["pc"] = pc + 5
+                return s
+            } }
+        }
+        s["halt"] = "ud"
+        return s
+    }
+
+    // modrm 32-bit alu group
+    if op == 1 { return aotGuestBin32(s, b, pc, op) }
+    if op == 9 { return aotGuestBin32(s, b, pc, op) }
+    if op == 33 { return aotGuestBin32(s, b, pc, op) }
+    if op == 41 { return aotGuestBin32(s, b, pc, op) }
+    if op == 51 { return aotGuestBin32(s, b, pc, op) }
+    if op == 57 { return aotGuestBin32(s, b, pc, op) }
+    if op == 133 { return aotGuestBin32(s, b, pc, op) }
+
+    s["halt"] = "ud"
+    return s
+}
+
+// ---- run ----
+
+pub fn aotGuestRunAt(b, entry, maxSteps) {
+    let s = aotGuestInit()
+    s["pc"] = entry
+    while s["halt"] == "" {
+        if s["steps"] >= maxSteps {
+            s["halt"] = "steps"
+        }
+        else {
+            s = aotGuestStep(s, b)
+            s["steps"] = s["steps"] + 1
+        }
+    }
+    return s
+}
+
+pub fn aotGuestRun(b, maxSteps) {
+    return aotGuestRunAt(b, 0, maxSteps)
+}
+
+pub fn aotGuestExecHex(hex, maxSteps) {
+    return aotGuestRun(aotGuestBytes(hex), maxSteps)
+}
+
+// Full image path: decode code:x64 payload, apply the image's relocation
+// records, resolve the entry point, then fetch-decode-execute.
+pub fn aotGuestExecImage(image, maxSteps) {
+    let b = aotGuestBytes(aotGuestCodeHex(image))
+    b = aotGuestApplyRelocs(b, image, 0)
+    let e = aotGuestEntryOff(image)
+    if e < 0 { e = 0 }
+    return aotGuestRunAt(b, e, maxSteps)
+}
+
+// ---- gates ----
+
+pub fn aotGuestHaltOk(s) {
+    return s["halt"] == "ret"
+}
+
+pub fn aotGuestRax(s) {
+    return s["r0"]
+}
+
+/// True when a real decode-execute guest ran the image and returned want.
+pub fn aotGuestExecOk(image, want, maxSteps) {
+    let s = aotGuestExecImage(image, maxSteps)
+    if aotGuestHaltOk(s) == false {
+        return false
+    }
+    return s["r0"] == want
+}

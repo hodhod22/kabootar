@@ -15,3 +15,189 @@ pub fn ktCovPct(hit, total) {
 pub fn ktCovLineHint(src) {
     return str_includes(src, "return")
 }
+
+/// Basename without the final extension ("lib/x/y.kab" → "y").
+pub fn ktCovStem(path) {
+    let b = "" + path
+    let i = len(b) - 1
+    while i >= 0 {
+        if b[i] == "/" {
+            b = str_slice(b, i + 1, len(b))
+            i = -1
+        }
+        i = i - 1
+    }
+    let j = len(b) - 1
+    while j >= 0 {
+        if b[j] == "." {
+            return str_slice(b, 0, j)
+        }
+        j = j - 1
+    }
+    return b
+}
+
+/// t starts with "//" (line comment)?
+fn ktCovIsComment(t) {
+    if len(t) < 2 {
+        return false
+    }
+    return t[0] == "/" && t[1] == "/"
+}
+
+/// t starts with "@" (directive like @version)?
+fn ktCovIsDirective(t) {
+    if len(t) < 1 {
+        return false
+    }
+    return t[0] == "@"
+}
+
+/// Executable-line count: non-empty, non-comment, non-brace, non-@version.
+/// Mirrors the retired Rust format_coverage heuristic.
+pub fn ktCovExecLines(src) {
+    let lines = split("" + src, "\n")
+    let n = 0
+    let i = 0
+    while i < len(lines) {
+        let t = trim(lines[i])
+        if t != "" {
+            if ktCovIsComment(t) == false {
+                if t != "{" {
+                    if t != "}" {
+                        if ktCovIsDirective(t) == false {
+                            n = n + 1
+                        }
+                    }
+                }
+            }
+        }
+        i = i + 1
+    }
+    return n
+}
+
+/// All .kab/.kabootar module paths under `root`, relative to `root`.
+fn ktCovWalkInto(dir, prefix, out) {
+    let names = null
+    try {
+        names = os_list(dir)
+    } catch (e) {
+        names = null
+    }
+    if typeof(names) != "array" {
+        return out
+    }
+    let i = 0
+    while i < len(names) {
+        let n = names[i]
+        let p = ktJoin(dir, n)
+        // os_list never throws (see ktWalkInto) — os_stat is unsafe here.
+        let sub = os_list(p)
+        let rel = n
+        if len(prefix) > 0 {
+            rel = ktJoin(prefix, n)
+        }
+        if len(sub) > 0 {
+            if n[0] != "." {
+                if n != "target" {
+                    out = ktCovWalkInto(p, rel, out)
+                }
+            }
+        } else {
+            if str_includes(n, ".kab") {
+                out = push(out, rel)
+            }
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Coverage report text for lib modules under `libDir` against the
+/// concatenated `testBlob` sources. Same shape as the old Rust
+/// format_coverage: module-hit ≈ import/stem mention, plus a
+/// line-approx probe for unmentioned modules.
+pub fn ktCovReport(libDir, testBlob) {
+    let files = ktCovWalkInto(libDir, "", [])
+    let total = len(files)
+    if total < 1 {
+        total = 1
+    }
+    let hit = 0
+    let execSum = 0
+    let hitLinesSum = 0
+    let hitLines = []
+    let i = 0
+    while i < len(files) {
+        let rel = files[i]
+        let src = ""
+        try {
+            src = os_read(ktJoin(libDir, rel))
+        } catch (e) {
+            src = ""
+        }
+        let stem = ktCovStem(rel)
+        let execLines = ktCovExecLines(src)
+        let isHit = false
+        if str_includes(testBlob, stem) {
+            isHit = true
+        }
+        if str_includes(testBlob, rel) {
+            isHit = true
+        }
+        if str_includes(testBlob, "\"" + stem + "\"") {
+            isHit = true
+        }
+        let hl = 0
+        if isHit {
+            hl = execLines
+        } else {
+            let lines = split(src, "\n")
+            let j = 0
+            while j < len(lines) {
+                let t = trim(lines[j])
+                if len(t) >= 8 {
+                    if ktCovIsComment(t) == false {
+                        if str_includes(testBlob, t) {
+                            hl = hl + 1
+                        }
+                    }
+                }
+                j = j + 1
+            }
+            if hl > execLines {
+                hl = execLines
+            }
+            if hl > 0 {
+                isHit = true
+            }
+        }
+        hitLines = push(hitLines, { "rel": rel, "hl": hl, "exec": execLines, "hit": isHit })
+        if isHit {
+            hit = hit + 1
+        }
+        execSum = execSum + execLines
+        hitLinesSum = hitLinesSum + hl
+        i = i + 1
+    }
+    let linePct = 0
+    if execSum > 0 {
+        linePct = (hitLinesSum * 100) / execSum
+    }
+    let out = "Coverage (module hit ~= import mention): " + hit + "/" + total + " files (" + ktCovPct(hit, total) + "%)\n"
+    out = out + "Line-approx (executable lines in hit modules): " + hitLinesSum + "/" + execSum + " (" + linePct + "%)\n"
+    i = 0
+    while i < len(hitLines) {
+        let f = hitLines[i]
+        if f["hit"] {
+            out = out + "  [HIT ] " + f["rel"] + " (" + f["hl"] + " / " + f["exec"] + " exec lines)\n"
+        }
+        i = i + 1
+    }
+    let miss = len(files) - hit
+    if miss > 0 {
+        out = out + "  (" + miss + " other lib files not mentioned in tests)\n"
+    }
+    return out
+}

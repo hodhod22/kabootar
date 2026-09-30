@@ -1,0 +1,106 @@
+// SH17: OSR in the real ops loop — a backward jump lands on the loop
+// header (ip>0), vJitBackEdgeS counts hits in S["jitLoopHits"], and once
+// jitOsrOk arms it (header hits >= jitThreshold) each following visit's
+// header [op,op,lt,jump_if_false] runs through the fused cmp template
+// (vJitOsrStepS) instead of the 4 interpreted ops — S["jitOsrExecs"] counts
+// the compiled header decisions. Result stays mirror-faithful; an
+// out-of-domain operand makes the armed header fall back to interpreted
+// stepping on every visit.
+//
+// Ops layout — `while i < n { i = i + 1 }; return i` with header at ip 1:
+//   1: load_local 0        push i
+//   2: const 0             push n (pool[0])
+//   3: lt
+//   4: jump_if_false +5    -> ip 10 (exit)
+//   5: load_local 0
+//   6: const 1             push 1 (pool[1])
+//   7: add
+//   8: store_local 0       i = i + 1
+//   9: jump -9             -> ip 1 (back-edge)
+//  10: load_local 0
+//  11: return
+
+import "self_host/vm_run_session"
+import "self_host/vm_run_ops_loop"
+import "self_host/vm_run_jit"
+
+fn osrOps() {
+    let ops = []
+    ops = push(ops, { "op": "return" })
+    ops = push(ops, { "op": "load_local", "arg": 0 })
+    ops = push(ops, { "op": "const", "arg": 0 })
+    ops = push(ops, { "op": "lt" })
+    ops = push(ops, { "op": "jump_if_false", "arg": 5 })
+    ops = push(ops, { "op": "load_local", "arg": 0 })
+    ops = push(ops, { "op": "const", "arg": 1 })
+    ops = push(ops, { "op": "add" })
+    ops = push(ops, { "op": "store_local", "arg": 0 })
+    ops = push(ops, { "op": "jump", "arg": -9 })
+    ops = push(ops, { "op": "load_local", "arg": 0 })
+    ops = push(ops, { "op": "return" })
+    return ops
+}
+
+let ops = osrOps()
+
+// In-domain loop: i 1→12 (pool [12, 1]) — operands stay inside the fused-cmp
+// domain (1..=64), so once armed (hit 8) the header execs on the visits
+// carrying i = 9, 10, 11, 12 — the last one takes the exit branch.
+let S = vMakeSession()
+S["ip"] = 1
+S["locals"] = [1]
+runOpsS(S, ops, [12, 1], {}, [])
+if S["result"] != 12 {
+    return 1
+}
+// Back-edge landings on the header: arrivals with i = 2..12 → 11 hits.
+if S["jitLoopHits"][" 1"] != 11 {
+    return 2
+}
+if S["jitOsrArmed"][" 1"] != true {
+    return 3
+}
+// Armed header visits: i = 9,10,11,12 → 4 compiled decisions.
+if S["jitOsrExecs"] != 4 {
+    return 4
+}
+
+// Armed but out-of-domain: n = 100 keeps every operand > 64 past i = 65 —
+// the header arms (hits >= 8) yet every exec attempt rejects at
+// jitFromOpsAnyExecOk → interpreted stepping, result still right.
+let S2 = vMakeSession()
+S2["ip"] = 1
+S2["locals"] = [1]
+runOpsS(S2, ops, [100, 1], {}, [])
+if S2["result"] != 100 {
+    return 5
+}
+if S2["jitLoopHits"][" 1"] != 99 {
+    return 6
+}
+if S2["jitOsrArmed"][" 1"] != true {
+    return 7
+}
+// Compiled execs on the visits where BOTH operands were in domain:
+// i = 9..64 as `a` against b = 100 reject too (b out of domain) → 0 execs.
+let e2 = S2["jitOsrExecs"]
+if e2 != undefined {
+    return 8
+}
+
+// Cold loop: exits before jitThreshold — never arms, never counts execs.
+let S3 = vMakeSession()
+S3["ip"] = 1
+S3["locals"] = [1]
+runOpsS(S3, ops, [4, 1], {}, [])
+if S3["result"] != 4 {
+    return 9
+}
+if S3["jitLoopHits"][" 1"] != 3 {
+    return 10
+}
+if S3["jitOsrArmed"] != undefined {
+    return 11
+}
+
+return 42

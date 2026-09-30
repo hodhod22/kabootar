@@ -2,6 +2,7 @@ import "self_host/vm_s_stack"
 import "self_host/vm_run_new_run"
 import "self_host/vm_run_dispatch_plain"
 import "self_host/vm_run_call"
+import "self_host/vm_run_jit"
 import "self_host/vm_ops_mem_a"
 import "self_host/vm_ops_arith_a"
 import "self_host/vm_ops_jump_a"
@@ -124,10 +125,16 @@ pub fn runOpsStepRawS(S, ops, pool, globals, functions) {
 
 // --- vm_run_ops_step ---
 pub fn runOpsStepS(S, ops, pool, globals, functions) {
+    let ipBefore = S["ip"]
     let r = runOpsStepRawS(S, ops, pool, globals, functions)
     let st = r["st"]
     if st == 0 {
         throw "vm unsupported opcode: " + r["name"]
+    }
+    // Back-edge: any jump landing below its own ip hits a loop header —
+    // count it; jitOsrOk arms the header once hot (OSR compile gate).
+    if S["ip"] < ipBefore {
+        vJitBackEdgeS(S, S["ip"])
     }
     // Collect armed by a mid-op charge begins only at an op boundary: the
     // root snapshot then sees the operand stack complete (temporaries
@@ -166,6 +173,13 @@ pub fn runOpsS(S, ops, pool, globals, functions) {
                     break
                 }
             }
+        }
+        // OSR: an armed loop header ([op,op,cmp,jump_if_*] shape) runs its
+        // fused cmp template instead of the 4 interpreted ops — the guest
+        // branch decision is mirror-validated inside jitFromOpsAnyExecOk;
+        // domain/shape rejects fall through to interpreted stepping.
+        if vJitOsrStepS(S, ops, pool) == 1 {
+            continue
         }
         let st = runOpsStepS(S, ops, pool, globals, functions)
         if st == 2 {

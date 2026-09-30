@@ -135,3 +135,159 @@ pub fn aotExecDbg(path, magic, n, k) {
 pub fn aotExecOk(path, magic, n, k) {
     return aotExecDbg(path, magic, n, k) == 42
 }
+
+// --- entry-stub leg -------------------------------------------------------
+// The image itself declares where execution begins: a kabootar-native/1
+// record with `entry:` + `syms:…_start…` + `code:<arch>:<hex>` — the loader
+// resolves the declared entry instead of exec'ing a caller-pinned blob.
+
+/// Emit a native-format image whose text section carries a real fused-cmp
+/// template at text offset 0; `_start` binds there and `entry:` points at
+/// it. "" when the template is out of domain.
+pub fn aotEntryImageEmit(magic, n, k) {
+    if jitFuseCmpMagicOk(magic) == false {
+        return ""
+    }
+    if jitFuseCmpOk(n, k) == false {
+        return ""
+    }
+    let bytes = jitEmitI64FuseCmp(magic, n, k)
+    return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:" + aotHexEncode(bytes) + "|syms:sym:text:0:_start:x64"
+}
+
+/// Decimal parse of a "|key:N|" field; -1 when absent/malformed.
+pub fn aotEntryFieldNum(image, key) {
+    let kl = len(key)
+    let i = 0
+    while i + kl < len(image) {
+        if image[i] == "|" {
+            let j = i + 1
+            let ok = true
+            let m = 0
+            while m < kl {
+                if image[j + m] != key[m] {
+                    ok = false
+                }
+                m = m + 1
+            }
+            if ok == true && image[j + kl] == ":" {
+                let v = 0
+                let p = j + kl + 1
+                while p < len(image) && image[p] != "|" {
+                    let d = aotHexVal(image[p])
+                    if d < 0 || d > 9 {
+                        return -1
+                    }
+                    v = v * 10 + d
+                    p = p + 1
+                }
+                return v
+            }
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+/// Byte payload of the "|code:<arch>:<hex>|" field; [] when the field is
+/// absent or carries a non-hex stub name (e.g. `ret` — not executable).
+pub fn aotEntryCodeBytes(image) {
+    let i = 0
+    while i + 5 < len(image) {
+        if image[i] == "|" {
+            let ok = true
+            let m = 0
+            let kw = "|code:"
+            while m < 6 {
+                if image[i + m] != kw[m] {
+                    ok = false
+                }
+                m = m + 1
+            }
+            if ok == true {
+                let p = i + 6
+                while p < len(image) && image[p] != ":" {
+                    p = p + 1
+                }
+                if p >= len(image) {
+                    return []
+                }
+                let out = []
+                let q = p + 1
+                while q + 1 < len(image) {
+                    if image[q] == "|" {
+                        return out
+                    }
+                    let hi = aotHexVal(image[q])
+                    let lo = aotHexVal(image[q + 1])
+                    if hi < 0 || lo < 0 {
+                        return []
+                    }
+                    out = push(out, hi * 16 + lo)
+                    q = q + 2
+                }
+                return out
+            }
+        }
+        i = i + 1
+    }
+    return []
+}
+
+/// True when `_start` is declared at the `entry:` text offset — the
+/// minimal entry-stub contract (loader resolves the symbol, not magic 0).
+pub fn aotEntryStartOk(image) {
+    let e = aotEntryFieldNum(image, "entry")
+    if e < 0 {
+        return false
+    }
+    let want = "sym:text:" + e + ":_start:"
+    let i = 0
+    while i + len(want) <= len(image) {
+        let ok = true
+        let m = 0
+        while m < len(want) {
+            if image[i + m] != want[m] {
+                ok = false
+            }
+            m = m + 1
+        }
+        if ok == true {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+/// Full entry-stub leg: emit image → persist → reload → resolve `entry:` +
+/// `_start` → decode code bytes → mmap → store at entry → call at entry —
+/// guest rax must equal the Kab mirror. False on any stage.
+pub fn aotEntryExecOk(path, magic, n, k) {
+    let image = aotEntryImageEmit(magic, n, k)
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    if aotEntryStartOk(back) == false {
+        return false
+    }
+    let entry = aotEntryFieldNum(back, "entry")
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != jitFuseCmpLen() {
+        return false
+    }
+    let base = os_mm_mmap(aotExecPid(), aotExecVirt(), aotExecLen(), aotExecProt())
+    if base <= 0 {
+        return false
+    }
+    let w = os_mm_store(aotExecPid(), aotExecVirt() + entry, bytes)
+    if w != len(bytes) {
+        return false
+    }
+    return os_mm_call(aotExecPid(), aotExecVirt() + entry) == jitFuseCmpRax(n, k, magic)
+}

@@ -1,0 +1,34 @@
+// SH28: guest executor over a relocation-applied multi-function image.
+// The image carries real x64 text with placeholder rel32 call sites; the
+// guest parses the symbol table, applies the reloc records, resolves the
+// entry symbol, then fetch-decode-executes across the function boundary.
+// In-process guest execution only — nollAotProcess stays false.
+
+import "kab/aot/aot_guest"
+
+// text layout:
+//   f2   @0 : mov eax,21 ; ret                       (6 B)
+//   f1   @6 : call f2 ; add eax,eax ; ret            (8 B, rel32 @7)
+//   main @14: call f1 ; ret                          (6 B, rel32 @15)
+// After reloc: f1 -> 21*2 = 42 ; main -> 42.
+let img = "kabootar-native/1|x64|abi:win64|entry:main|text:rx|code:x64:b815000000c3e80000000001c0c3e800000000c3|syms:sym:text:0:f2:x64;sym:text:6:f1:x64;sym:text:14:main:x64|relocs:reloc:text:7:0:f2:x64;reloc:text:15:0:f1:x64"
+
+if aotGuestSymOff(img, "f1") != 6 { return 1 }
+if aotGuestSymOff(img, "main") != 14 { return 2 }
+if aotGuestEntryOff(img) != 14 { return 3 }
+if aotGuestExecOk(img, 42, 10000) == false { return 4 }
+
+// numeric entry field also resolves.
+let imgN = "kabootar-native/1|x64|abi:win64|entry:14|text:rx|code:x64:b815000000c3e80000000001c0c3e800000000c3|syms:sym:text:0:f2:x64;sym:text:6:f1:x64;sym:text:14:main:x64|relocs:reloc:text:7:0:f2:x64;reloc:text:15:0:f1:x64"
+if aotGuestExecOk(imgN, 42, 10000) == false { return 5 }
+
+// _start fallback when no entry field is present.
+let imgS = "kabootar-native/1|x64|abi:win64|text:rx|code:x64:b815000000c3e80000000001c0c3e800000000c3|syms:sym:text:0:f2:x64;sym:text:6:f1:x64;sym:text:14:_start:x64|relocs:reloc:text:7:0:f2:x64;reloc:text:15:0:f1:x64"
+if aotGuestExecOk(imgS, 42, 10000) == false { return 6 }
+
+// addend participates: call site patched with SYM-(OFF+4)+ADDEND.
+// f3 @0: mov eax,9 ; ret ; caller @6: call f3 ; ret — addend 0 → rax = 9.
+let imgA = "kabootar-native/1|x64|abi:win64|entry:main|text:rx|code:x64:b809000000c3e800000000c3|syms:sym:text:0:f3:x64;sym:text:6:main:x64|relocs:reloc:text:7:0:f3:x64"
+if aotGuestExecOk(imgA, 9, 10000) == false { return 7 }
+
+return 42

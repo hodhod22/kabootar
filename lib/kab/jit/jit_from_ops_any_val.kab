@@ -8,6 +8,7 @@ import "kab/jit/jit_from_ops_fuse_cmp"
 import "kab/jit/jit_fuse"
 import "kab/jit/jit_fuse_cmp"
 import "kab/jit/jit_f64"
+import "kab/jit/jit_bits"
 
 /// Kab mirror of the guest result for a validated exec — same kind dispatch
 /// as jitFromOpsAnyExecOk. undefined when ops have no fusible shape.
@@ -21,6 +22,12 @@ pub fn jitFromOpsAnyVal(ops, n, k, s, m, d, r) {
     }
     if kind == 3 {
         return jitF64Rax(n, k, jitF64Magic(ops[2]))
+    }
+    if kind == 5 {
+        if len(ops) == 3 {
+            return jitBitsRax(n, 0, jitBitsMagic(ops[1]))
+        }
+        return jitBitsRax(n, k, jitBitsMagic(ops[2]))
     }
     return undefined
 }

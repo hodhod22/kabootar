@@ -12,6 +12,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::SystemTime;
 
@@ -986,9 +987,16 @@ fn marker_matches(text: &str, path: &str, fp: &str) -> bool {
 /// the pid so concurrent writers don't clobber each other's temp file;
 /// last rename wins, which is fine — contents are identical per fingerprint.
 fn write_atomic(dest: &Path, contents: &[u8]) -> Result<(), String> {
+    // Tmp name must be unique per call, not per process: parallel compiles
+    // (tests, nested module loads) can write the same dest on different
+    // threads — a shared `tmp{pid}` let one thread's write land inside
+    // another's payload, which then renamed over dest and produced a valid
+    // marker for corrupt bytes ("Invalid const index N" downstream).
+    static TMP_SEQ: AtomicU64 = AtomicU64::new(0);
     let tmp = dest.with_extension(format!(
-        "tmp{}",
-        std::process::id()
+        "tmp{}.{}",
+        std::process::id(),
+        TMP_SEQ.fetch_add(1, Ordering::Relaxed)
     ));
     fs::write(&tmp, contents).map_err(|e| format!("write {}: {e}", tmp.display()))?;
     match fs::rename(&tmp, dest) {
@@ -1009,6 +1017,12 @@ fn write_atomic(dest: &Path, contents: &[u8]) -> Result<(), String> {
             }
         }
     }
+}
+
+/// Test-only export so integration tests can drive concurrent cache writes.
+#[doc(hidden)]
+pub fn write_atomic_pub(dest: &Path, contents: &[u8]) -> Result<(), String> {
+    write_atomic(dest, contents)
 }
 
 fn deserialize_kbcb_file(path: &Path) -> Result<BytecodeModule, String> {

@@ -1,0 +1,58 @@
+// kabtest KT2 real smoke — the runner evals test sources through the Kab
+// VM itself (evalSourceKabVm), not a string-match and not the Rust
+// test_runner. Writes *_test.kab files into the VFS, discovers them via
+// os_list, runs each via os_read + eval, and reports TAP.
+// Expect: 1 pass (true), 2 fails (false + throw); skip.kab is not a test.
+// cargo run --bin kabootar -- examples/kabtest/kabtest_engine_smoke.kab
+
+import "kabtest/runner"
+import "kabtest/eval"
+
+// Inline eval through the Kab VM — pass and fail are real results.
+if ktRunSource("return true") == false {
+    return 1
+}
+if ktRunSource("return false") {
+    return 2
+}
+// A source that imports a lib module — import binding survives eval.
+if ktRunSource("import \"kabtest/self\"\nreturn ktSelfArith() == 42") == false {
+    return 3
+}
+
+// Discovery + dir run over VFS files.
+os_mkdir("_kt")
+os_write("_kt/pass_test.kab", "return true")
+os_write("_kt/fail_test.kab", "return false")
+os_write("_kt/throw_test.kab", "throw \"boom\"")
+os_write("_kt/skip.kab", "return true")
+
+let names = ktDiscover("_kt")
+if len(names) != 3 {
+    return 4
+}
+
+let suite = ktRunDir("_kt")
+if suite["passed"] != 1 || suite["failed"] != 2 {
+    return 5
+}
+// Exactly one failure carries a thrown error (throw_test); fail_test
+// returns false cleanly — os_list order is not asserted.
+let rs = suite["results"]
+let errCount = 0
+let i = 0
+while i < len(rs) {
+    if rs[i]["err"] != null {
+        errCount = errCount + 1
+    }
+    i = i + 1
+}
+if errCount != 1 {
+    return 6
+}
+// TAP text exists and marks the failures.
+let tap = ktTapReport(suite)
+if str_includes(tap, "not ok") == false {
+    return 7
+}
+return 42

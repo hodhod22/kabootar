@@ -336,6 +336,8 @@ pub fn vSyncGenRecvS(g) {
                 rg["started"] = g["started"]
                 rg["closing"] = g["closing"]
                 rg["closeRet"] = g["closeRet"]
+                rg["pendK"] = g["pendK"]
+                rg["pendV"] = g["pendV"]
             }
         }
     }
@@ -352,6 +354,8 @@ pub fn vSyncGenRecvS(g) {
                 rr["started"] = g["started"]
                 rr["closing"] = g["closing"]
                 rr["closeRet"] = g["closeRet"]
+                rr["pendK"] = g["pendK"]
+                rr["pendV"] = g["pendV"]
             }
         }
     }
@@ -368,6 +372,8 @@ pub fn vSyncGenRecvS(g) {
                 tr["started"] = g["started"]
                 tr["closing"] = g["closing"]
                 tr["closeRet"] = g["closeRet"]
+                tr["pendK"] = g["pendK"]
+                tr["pendV"] = g["pendV"]
             }
         }
     }
@@ -626,7 +632,7 @@ pub fn vRunFinallyThenCloseS(S, g, finR, retV, pool, globals, functions) {
             }
         }
     }
-    vCallRunOps(S, fnDef["ops"], pool, globals, functions)
+    vCallRunOps(S, fnDef["ops"], vFnPoolS(fnDef, pool), globals, functions)
     S["ipEnd"] = -1
     if S["unsupported"] == true {
         vRestoreFnFrame(S, old)
@@ -689,6 +695,21 @@ pub fn vCloseGeneratorS(S, g, ordered, pool, globals, functions) {
     }
     if g["done"] == true {
         return { "value": null, "done": true }
+    }
+    if g["pendK"] != undefined {
+        if g["pendK"] == "ret" {
+            // Matching abrupt resume completes the close with the new value.
+            g["pendK"] = undefined
+            g["done"] = 1
+            let rv = null
+            if len(ordered) > 0 {
+                rv = ordered[0]
+            }
+            return { "value": rv, "done": true }
+        }
+        let pv = g["pendV"]
+        g["pendK"] = undefined
+        return { "value": pv, "done": false }
     }
     if g["closing"] == 1 {
         let early = null
@@ -770,10 +791,10 @@ pub fn vCloseGeneratorS(S, g, ordered, pool, globals, functions) {
                             retf = vIndexGet(delR, "return")
                         }
                         if vObjGet(retf, "vmFn") != undefined {
-                            return vFinishIterThrowS(S, g, rRet, pool, globals, functions)
+                            return vFinishIterThrowS(S, g, rRet, pool, globals, functions, "ret")
                         }
                         if vObjGet(retf, "vmArrow") != undefined {
-                            return vFinishIterThrowS(S, g, rRet, pool, globals, functions)
+                            return vFinishIterThrowS(S, g, rRet, pool, globals, functions, "ret")
                         }
                     }
                 }
@@ -820,6 +841,13 @@ pub fn vResumeGeneratorS(S, g, ordered, pool, globals, functions) {
     if g["done"] == true {
         return { "value": null, "done": true }
     }
+    if g["pendK"] != undefined {
+        // Pending-yield replay: emit the armed value once more; a send resume
+        // always disarms it (only a matching abrupt kind keeps it alive).
+        let pv = g["pendV"]
+        g["pendK"] = undefined
+        return { "value": pv, "done": false }
+    }
     if g["closing"] == 1 {
         let delR = g["ysdel"]
         if vObjGet(delR, "vmGen") == 1 {
@@ -856,9 +884,14 @@ pub fn vResumeGeneratorS(S, g, ordered, pool, globals, functions) {
                 return vRunFinallyThenCloseS(S, g, finR, g["closeRet"], pool, globals, functions)
             }
         }
-        g["done"] = 1
-        let doneV = g["closeRet"]
-        return { "value": doneV, "done": true }
+        // Suspended inside/past a finally body (or no region found): resume op
+        // execution so the in-flight close unwinds through enclosing finally
+        // blocks and their yields, instead of truncating at closeRet.
+        if g["ip"] <= 0 {
+            g["done"] = 1
+            let doneV = g["closeRet"]
+            return { "value": doneV, "done": true }
+        }
     }
     let fnDef = functions[g["idx"]]
     let oldCg = S["curGen"]
@@ -882,7 +915,7 @@ pub fn vResumeGeneratorS(S, g, ordered, pool, globals, functions) {
     g["started"] = 1
     let err = null
     try {
-        vCallRunOps(S, fnDef["ops"], pool, globals, functions)
+        vCallRunOps(S, fnDef["ops"], vFnPoolS(fnDef, pool), globals, functions)
     } catch (e) {
         err = e
     }
@@ -937,7 +970,7 @@ pub fn vResumeGeneratorS(S, g, ordered, pool, globals, functions) {
     return { "value": out, "done": true }
 }
 
-pub fn vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions) {
+pub fn vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions, kind) {
     let fnDef = functions[g["idx"]]
     g["ysdel"] = null
     let old = vSaveFnFrame(S)
@@ -968,7 +1001,7 @@ pub fn vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions) {
     }
     S["stack"] = []
     g["locals"] = S["locals"]
-    vCallRunOps(S, fnDef["ops"], pool, globals, functions)
+    vCallRunOps(S, fnDef["ops"], vFnPoolS(fnDef, pool), globals, functions)
     if S["unsupported"] == true {
         vRestoreFnFrame(S, old)
         throw "vm unsupported opcode in generator"
@@ -978,6 +1011,12 @@ pub fn vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions) {
         g["locals"] = S["locals"]
         g["stack"] = S["stack"]
         g["ysdel"] = S["ysdel"]
+        // A yield suspended during a delegate-done abrupt resume must emit once
+        // more on the next resume (pending-yield replay), and the mark survives
+        // only while the resume kind matches the abrupt kind.
+        g["pendK"] = kind
+        g["pendV"] = S["yieldVal"]
+        vSyncGenRecvS(g)
         let v = S["yieldVal"]
         vRestoreFnFrame(S, old)
         return { "value": v, "done": false }
@@ -988,7 +1027,7 @@ pub fn vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions) {
     return { "value": out, "done": true }
 }
 
-pub fn vFinishIterThrowS(S, g, rTh, pool, globals, functions) {
+pub fn vFinishIterThrowS(S, g, rTh, pool, globals, functions, kind) {
     if rTh == undefined {
         return rTh
     }
@@ -997,10 +1036,10 @@ pub fn vFinishIterThrowS(S, g, rTh, pool, globals, functions) {
         d = vIndexGet(rTh, "done")
     }
     if d == true {
-        return vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions)
+        return vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions, kind)
     }
     if d == 1 {
-        return vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions)
+        return vResumeYsThrowDoneS(S, g, rTh, pool, globals, functions, kind)
     }
     return rTh
 }
@@ -1012,10 +1051,25 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
         g = given
     }
     if g["done"] == 1 {
-        return { "value": null, "done": true }
+        let dv = null
+        if len(ordered) > 0 {
+            dv = ordered[0]
+        }
+        return { "value": dv, "done": false }
     }
     if g["done"] == true {
-        return { "value": null, "done": true }
+        let dv2 = null
+        if len(ordered) > 0 {
+            dv2 = ordered[0]
+        }
+        return { "value": dv2, "done": false }
+    }
+    if g["pendK"] != undefined {
+        let pv = g["pendV"]
+        if g["pendK"] != "thr" {
+            g["pendK"] = undefined
+        }
+        return { "value": pv, "done": false }
     }
     let del = g["ysdel"]
     let oldCg = S["curGen"]
@@ -1080,7 +1134,7 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
                         if vObjGet(th, "vmFn") != undefined {
                             let rThFn = null
                             try {
-                                rThFn = vFinishIterThrowS(S, g, vCallBoundIterFnS(S, del, th, [reason0], pool, globals, functions), pool, globals, functions)
+                                rThFn = vFinishIterThrowS(S, g, vCallBoundIterFnS(S, del, th, [reason0], pool, globals, functions), pool, globals, functions, "thr")
                             } catch (eThFn) {
                                 delErr = eThFn
                             }
@@ -1093,7 +1147,7 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
                             if vObjGet(th, "vmArrow") != undefined {
                                 let rThAr = null
                                 try {
-                                    rThAr = vFinishIterThrowS(S, g, vCallBoundIterFnS(S, del, th, [reason0], pool, globals, functions), pool, globals, functions)
+                                    rThAr = vFinishIterThrowS(S, g, vCallBoundIterFnS(S, del, th, [reason0], pool, globals, functions), pool, globals, functions, "thr")
                                 } catch (eThAr) {
                                     delErr = eThAr
                                 }
@@ -1175,6 +1229,21 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
 }
 
 // --- vm_run_fn_body ---
+/// A fn def carries its own constants pool (optimizer folds can append fn
+/// constants past the module snapshot, so module indices don't line up) —
+/// mirror runMethodBodyS's mpool rule: fnDef["constants"] wins, else caller
+/// pool. Generator resume paths must switch the same way.
+pub fn vFnPoolS(fnDef, pool) {
+    let fpool = fnDef["constants"]
+    if fpool == undefined {
+        return pool
+    }
+    if len(fpool) == 0 {
+        return pool
+    }
+    return fpool
+}
+
 pub fn runFnBodyS(S, fnDef, pool, globals, functions, callArgs, caps) {
     let old = vSaveFnFrame(S)
     vPrepareFnLocals(S, fnDef, callArgs, caps)
@@ -1184,7 +1253,19 @@ pub fn runFnBodyS(S, fnDef, pool, globals, functions, callArgs, caps) {
             S["arrows"] = bodyArrows
         }
     }
-    vCallRunOps(S, fnDef["ops"], pool, globals, functions)
+    let runErr = null
+    try {
+        vCallRunOps(S, fnDef["ops"], vFnPoolS(fnDef, pool), globals, functions)
+    } catch (e) {
+        runErr = e
+    }
+    if runErr != null {
+        // A throwing callee must not leak its frame: callers (call-site
+        // vCatchThrow, generator close/throw) resume from the caller's ip,
+        // not the dead callee's.
+        vRestoreFnFrame(S, old)
+        throw runErr
+    }
     let out = vTakeResult(S)
     let bad = S["unsupported"]
     vRestoreFnFrame(S, old)

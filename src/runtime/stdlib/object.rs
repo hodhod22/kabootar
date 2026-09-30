@@ -351,7 +351,9 @@ pub fn check_can_delete(map: &HashMap<String, Value>) -> Result<(), String> {
 }
 
 fn mark_object(mut map: Rc<HashMap<String, Value>>, key: &str) -> Value {
-    Rc::make_mut(&mut map).insert(key.to_string(), Value::Bool(true));
+    // In-place: a cow clone would keep __kab_oid and become an aliased twin —
+    // canonicalization/writeback could then merge stale state across the pair.
+    Value::object_make_mut(&mut map).insert(key.to_string(), Value::Bool(true));
     Value::Object(map)
 }
 
@@ -577,20 +579,25 @@ fn array_arg(v: &Value) -> Result<&[Value], String> {
 
 fn assign_native(args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let target = args.first().ok_or("assign(target, ...sources)")?;
-    let mut out = match target {
-        Value::Object(map) => map.as_ref().clone(),
-        _ => return Err("assign() target must be an object".into()),
+    let Value::Object(tmap) = target else {
+        return Err("assign() target must be an object".into());
     };
+    // In-place into the target's shared map: cloning would return a twin that
+    // inherits __kab_oid and desyncs from every existing alias.
+    let mut tmap = tmap.clone();
     for src in args.iter().skip(1) {
         let Value::Object(map) = src else {
             continue;
         };
+        if Rc::ptr_eq(map, &tmap) {
+            continue;
+        }
         for key in enumerable_own_keys(map.as_ref()) {
             if let Some(val) =
                 crate::runtime::stdlib::descriptor::get_own_property(map.as_ref(), &key, src, env)?
             {
                 crate::runtime::stdlib::descriptor::set_own_property(
-                    &mut out,
+                    Value::object_make_mut(&mut tmap),
                     &key,
                     val,
                     target,
@@ -601,11 +608,11 @@ fn assign_native(args: &[Value], env: &mut Environment) -> Result<Value, String>
         for sym_id in enumerable_own_symbol_ids(map.as_ref()) {
             let key = PropertyKey::Symbol(sym_id);
             if let Some(val) = get_own_property_key(map.as_ref(), &key, src, env)? {
-                set_own_property_key(&mut out, &key, val, target, env)?;
+                set_own_property_key(Value::object_make_mut(&mut tmap), &key, val, target, env)?;
             }
         }
     }
-    Ok(Value::from_object(out))
+    Ok(Value::Object(tmap))
 }
 
 fn has_key_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
@@ -639,9 +646,15 @@ fn delete_prop_native(args: &[Value], _env: &mut Environment) -> Result<Value, S
     let Value::Object(map) = obj else {
         return Err("delete_prop() expects object".into());
     };
-    let mut out = map.as_ref().clone();
-    let _ = crate::runtime::stdlib::descriptor::delete_own_property_key(&mut out, &key)?;
-    Ok(Value::from_object(out))
+    // In-place delete on the shared map: a fresh clone inherits __kab_oid and
+    // becomes an aliased twin — canonicalization/writeback can merge the stale
+    // copy's fields back and resurrect the deleted key.
+    let mut map = map.clone();
+    let _ = crate::runtime::stdlib::descriptor::delete_own_property_key(
+        Value::object_make_mut(&mut map),
+        &key,
+    )?;
+    Ok(Value::Object(map))
 }
 
 fn clone_shallow_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {

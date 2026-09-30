@@ -21,13 +21,6 @@ if acc != 4 {
     return 1
 }
 
-// Out-of-domain args (n>64) → jitFuseOk rejects → deopt to frame path;
-// the result still comes out right via the interpreted fn body.
-let deopt = fus(100, 3, 2, 4, 2, 5)
-if deopt != ((100 + 3 - 2) * 4 / 2) % 5 {
-    return 2
-}
-
 // A second site (different ip) is cold — still computes via frames.
 let cold = fus(16, 3, 2, 4, 2, 5)
 if cold != 4 {
@@ -80,6 +73,46 @@ while ni < 12 {
 }
 if nacc != 12 {
     return 6
+}
+
+// Two-arg arith chain: `return a * b` is the 4-op shape → jitOps
+// [const,const,fmul,ret] — the f64 guest template (kind 3). Iteration 10
+// feeds an out-of-domain arg (k > 64) THROUGH the compiled site: exec
+// rejects and deopts to fb, so the value still lands right.
+fn pairmul(a, b) {
+    return a * b
+}
+let pi = 0
+let pacc = 0
+while pi < 12 {
+    // One call-site ip: iteration 10 swaps the args in place, so the OOD
+    // call flows through the compiled jit callee → exec rejects → deopt
+    // via fb — the frame path still yields the right value.
+    let pa = 6
+    let pb = 7
+    if pi == 10 {
+        pa = 2
+        pb = 100
+    }
+    pacc = pairmul(pa, pb)
+    if pacc != pa * pb {
+        return 7
+    }
+    pi = pi + 1
+}
+// `mod` has no f64 template — `return a % b` stays on the frame path
+// even when hot (extraction returns null, jitChecked marks the rec).
+fn pairmod(a, b) {
+    return a % b
+}
+let mi = 0
+let macc = 0
+while mi < 12 {
+    macc = pairmod(46, 4)
+    mi = mi + 1
+}
+if macc != 2 {
+    return 9
 }
 
 return 42

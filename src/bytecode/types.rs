@@ -302,6 +302,9 @@ pub fn serialize(module: &BytecodeModule) -> String {
             writeln!(out, "fn_generator {fi}").unwrap();
         }
         write_fn_try_regions(&mut out, "fn_try_region", &fi.to_string(), &f.try_regions);
+        for (idx, c) in f.constants.iter().enumerate() {
+            write_const_line(&mut out, &format!("fn_const {fi}"), idx, c);
+        }
         for op in &f.code {
             writeln!(out, "fn_op {fi} {}", encode_op(op)).unwrap();
         }
@@ -312,6 +315,9 @@ pub fn serialize(module: &BytecodeModule) -> String {
             writeln!(out, "fn_arrow_locals {fi} {ai} {}", arrow.locals.join(",")).unwrap();
             if arrow.async_fn {
                 writeln!(out, "fn_arrow_async {fi} {ai}").unwrap();
+            }
+            for (idx, c) in arrow.constants.iter().enumerate() {
+                write_const_line(&mut out, &format!("fn_arrow_const {fi} {ai}"), idx, c);
             }
             for op in &arrow.code {
                 writeln!(out, "fn_arrow_op {fi} {ai} {}", encode_op(op)).unwrap();
@@ -325,6 +331,9 @@ pub fn serialize(module: &BytecodeModule) -> String {
         writeln!(out, "arrow_locals {ai} {}", arrow.locals.join(",")).unwrap();
         if arrow.async_fn {
             writeln!(out, "arrow_async {ai}").unwrap();
+        }
+        for (idx, c) in arrow.constants.iter().enumerate() {
+            write_const_line(&mut out, &format!("arrow_const {ai}"), idx, c);
         }
         for op in &arrow.code {
             writeln!(out, "arrow_op {ai} {}", encode_op(op)).unwrap();
@@ -626,6 +635,22 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             ensure_bool_slot(&mut functions[fi].immutable_locals, li, true);
             continue;
         }
+        if let Some(rest) = line.strip_prefix("fn_const ") {
+            let (fi, rest) = rest
+                .split_once(' ')
+                .ok_or_else(|| format!("Invalid fn_const line: {line}"))?;
+            let fi: usize = fi.parse().map_err(|_| format!("Invalid fn index: {line}"))?;
+            let idx = rest
+                .split_whitespace()
+                .next()
+                .ok_or_else(|| format!("Invalid fn_const line: {line}"))?
+                .parse()
+                .map_err(|_| format!("Invalid fn_const index: {line}"))?;
+            let c = parse_const(rest)?;
+            ensure_fn(&mut functions, fi, String::new(), Vec::new(), Vec::new());
+            ensure_const_slot(&mut functions[fi].constants, idx, c);
+            continue;
+        }
         if let Some(rest) = line.strip_prefix("fn_op ") {
             let (idx, op_text) = rest
                 .split_once(' ')
@@ -633,6 +658,27 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             let idx: usize = idx.parse().map_err(|_| format!("Invalid fn index: {line}"))?;
             ensure_fn(&mut functions, idx, String::new(), Vec::new(), Vec::new());
             functions[idx].code.push(decode_op(op_text)?);
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("fn_arrow_const ") {
+            let (fi, rest) = rest
+                .split_once(' ')
+                .ok_or_else(|| format!("Invalid fn_arrow_const line: {line}"))?;
+            let (ai, rest) = rest
+                .split_once(' ')
+                .ok_or_else(|| format!("Invalid fn_arrow_const line: {line}"))?;
+            let fi: usize = fi.parse().map_err(|_| format!("Invalid fn index: {line}"))?;
+            let ai: usize = ai.parse().map_err(|_| format!("Invalid arrow index: {line}"))?;
+            let idx = rest
+                .split_whitespace()
+                .next()
+                .ok_or_else(|| format!("Invalid fn_arrow_const line: {line}"))?
+                .parse()
+                .map_err(|_| format!("Invalid fn_arrow_const index: {line}"))?;
+            let c = parse_const(rest)?;
+            ensure_fn(&mut functions, fi, String::new(), Vec::new(), Vec::new());
+            ensure_fn_arrow(&mut functions[fi].arrow_functions, ai, String::new());
+            ensure_const_slot(&mut functions[fi].arrow_functions[ai].constants, idx, c);
             continue;
         }
         if let Some(rest) = line.strip_prefix("fn_arrow_op ") {
@@ -678,6 +724,24 @@ pub fn deserialize(text: &str) -> Result<BytecodeModule, String> {
             let (fi, ai, name) = parse_fn_arrow_index_name(rest)?;
             ensure_fn(&mut functions, fi, String::new(), Vec::new(), Vec::new());
             ensure_fn_arrow(&mut functions[fi].arrow_functions, ai, name);
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("arrow_const ") {
+            let (ai, rest) = rest
+                .split_once(' ')
+                .ok_or_else(|| format!("Invalid arrow_const line: {line}"))?;
+            let ai: usize = ai
+                .parse()
+                .map_err(|_| format!("Invalid arrow index: {line}"))?;
+            let idx = rest
+                .split_whitespace()
+                .next()
+                .ok_or_else(|| format!("Invalid arrow_const line: {line}"))?
+                .parse()
+                .map_err(|_| format!("Invalid arrow_const index: {line}"))?;
+            let c = parse_const(rest)?;
+            ensure_fn_arrow(&mut arrow_functions, ai, String::new());
+            ensure_const_slot(&mut arrow_functions[ai].constants, idx, c);
             continue;
         }
         if let Some(rest) = line.strip_prefix("arrow_op ") {

@@ -1,0 +1,71 @@
+import "self_host/vm_run_session"
+import "self_host/vm_s_stack"
+import "kab/gc/gc_host"
+
+// SH18: host-delete evidence run — the flip criterion gcHostReadyStreakOk(8)
+// (two full major-cadence rotations) must be reachable on a real workload,
+// not just two hand-driven cycles. This smoke churns the inst heap: each
+// round publishes dead garbage plus a permanently-retained keep, then runs
+// a complete collect. 8 consecutive internally-consistent cycles satisfy
+// the criterion — the gate itself still stays false (see below).
+let S = vMakeSession()
+
+// Persistent root reachable via S["stack"] across all cycles.
+let root = { "vmC": 0 }
+root["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, root)
+let kept = []
+root["kept"] = kept
+S["stack"] = [root]
+
+let round = 0
+while round < 8 {
+    // Workload churn: 2 dead insts per cycle — the streak criterion counts
+    // consistent cycles, not heap size; the Kab-VM interpreter makes big
+    // heaps slow and the evidence is identical either way.
+    let i = 0
+    while i < 2 {
+        let g = { "vmC": 0 }
+        g["vmI"] = vGcTakeInstIdS(S)
+        vHeapPut(S, g)
+        i = i + 1
+    }
+    // One permanently-retained keep per round — real retained growth.
+    let keep = { "vmC": 0, "tag": round }
+    keep["vmI"] = vGcTakeInstIdS(S)
+    vHeapPut(S, keep)
+    kept = push(kept, keep)
+
+    vGcCollectBeginS(S, false)
+    while S["gcMarkActive"] == true {
+        vGcMarkSliceS(S, 64)
+    }
+    vGcSweepDeadS(S)
+    if S["gcHostReady"] != true {
+        return round + 1
+    }
+    round = round + 1
+}
+
+// Evidence: two full rotations of consistent cycles were actually reached.
+if S["gcHostReadyStreak"] < 8 {
+    return 90
+}
+if gcHostReadyStreakOk(S["gcHostReadyStreak"]) != true {
+    return 91
+}
+// The kept insts survived every sweep; root still reaches them.
+if len(kept) != 8 {
+    return 92
+}
+let k0 = kept[0]
+if k0["tag"] != 0 {
+    return 93
+}
+// Gate unchanged: this smoke proves the criterion is reachable on a
+// workload — the flip still wants the streak held under production
+// workloads, so gcHostDeleteOk must keep returning false here.
+if gcHostDeleteOk() != false {
+    return 94
+}
+return true

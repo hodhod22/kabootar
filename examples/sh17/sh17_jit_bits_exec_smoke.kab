@@ -1,0 +1,75 @@
+// SH17 widen: bits/unary fusion through the REAL ops loop — a hot
+// monomorphic call site whose callee body is `return a OP b` for a bit/shift
+// op (or `-a`/`~a` unary) compiles to the guest bits template (77-84):
+// vJitClassifyS → vJitMaybeCompileS → vJitOpsOfRec extracts the chain →
+// jitFromOpsBitsOk execs + mirror validates instead of a frame.
+
+// band computes a & b — the binary bits chain shape.
+fn band(a, b) {
+    return a & b
+}
+
+// Drive the site hot: 12 calls at one ip compile the rec.
+let acc = 0
+let i = 0
+while i < 12 {
+    acc = band(12, 10)
+    i = i + 1
+}
+// 12 & 10 = 8 — same value via template or frame.
+if acc != 8 {
+    return 1
+}
+
+// shl chain: a << b (shift bound 1..=6 inside the guest contract).
+fn shl2(a, b) {
+    return a << b
+}
+let s = 0
+let j = 0
+while j < 12 {
+    s = shl2(5, 3)
+    j = j + 1
+}
+if s != 40 {
+    return 2
+}
+
+// unary neg chain: return -a.
+fn ng(a) {
+    return -a
+}
+let v = 0
+let q = 0
+while q < 12 {
+    v = ng(7)
+    q = q + 1
+}
+if v != -7 {
+    return 3
+}
+
+// xor chain: a ^ b.
+fn xr(a, b) {
+    return a ^ b
+}
+let x = 0
+let p = 0
+while p < 12 {
+    x = xr(12, 10)
+    p = p + 1
+}
+if x != 6 {
+    return 4
+}
+
+// Out-of-domain shift (k > 6) deopts to the frame path — same value.
+fn shlw(a, b) {
+    return a << b
+}
+let w = shlw(2, 10)
+if w != 2048 {
+    return 5
+}
+
+return 42

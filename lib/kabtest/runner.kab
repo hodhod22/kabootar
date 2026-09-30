@@ -1,0 +1,160 @@
+// KT2 real: discover + run *_test.kab through the Kab VM itself.
+// import "kabtest/runner"
+// Files are read via os_read/os_list (VFS — mount or write them there
+// first); each is evaled by ktEvalSource (evalSourceKabVm), so a failing
+// or throwing test becomes a record — it cannot crash the runner.
+
+import "kabtest/eval"
+import "kabtest/run"
+import "kabtest/tap"
+
+/// dir + "/" + name, tolerating a trailing slash on dir.
+pub fn ktJoin(dir, name) {
+    let d = "" + dir
+    if len(d) > 0 && d[len(d) - 1] == "/" {
+        return d + name
+    }
+    return d + "/" + name
+}
+
+/// Basename of a path (last "/"-separated segment).
+pub fn ktBase(path) {
+    let p = "" + path
+    let i = len(p) - 1
+    while i >= 0 {
+        if p[i] == "/" {
+            return substring(p, i + 1, len(p))
+        }
+        i = i - 1
+    }
+    return p
+}
+
+/// Names under `dir` that are test files (ktIsTestFile). [] on list error.
+pub fn ktDiscover(dir) {
+    let out = []
+    let names = null
+    let err = null
+    try {
+        names = os_list(dir)
+    } catch (e) {
+        err = e
+    }
+    if typeof(names) != "array" {
+        return out
+    }
+    let i = 0
+    while i < len(names) {
+        if ktIsTestFile(names[i]) {
+            out = push(out, names[i])
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Recursive walk helper: appends test paths (relative to the walk root,
+/// e.g. "sub/x_test.kab") into `out` and returns it. Mirrors the retired
+/// Rust walk_tests: dot-dirs and target/ are skipped.
+fn ktWalkInto(dir, prefix, out) {
+    let names = null
+    try {
+        names = os_list(dir)
+    } catch (e) {
+        names = null
+    }
+    if typeof(names) != "array" {
+        return out
+    }
+    let i = 0
+    while i < len(names) {
+        let n = names[i]
+        let p = ktJoin(dir, n)
+        // os_list never throws: a file or empty dir yields [], a non-empty
+        // dir yields its entries. (os_stat CAN throw, and native errors
+        // escape Kab VM try/catch — do not stat here.)
+        let sub = os_list(p)
+        let rel = n
+        if len(prefix) > 0 {
+            rel = ktJoin(prefix, n)
+        }
+        if len(sub) > 0 {
+            if n[0] != "." {
+                if n != "target" {
+                    out = ktWalkInto(p, rel, out)
+                }
+            }
+        } else {
+            if ktIsTestFile(n) {
+                out = push(out, rel)
+            }
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Deep discovery: test paths under `dir`, relative to `dir` ("sub/x_test.kab").
+pub fn ktWalk(dir) {
+    return ktWalkInto(dir, "", [])
+}
+
+/// Read + eval one test file; the record carries its name + VFS path.
+pub fn ktRunFile(path) {
+    let src = null
+    let err = null
+    try {
+        src = os_read(path)
+    } catch (e) {
+        err = e
+    }
+    if err != null {
+        return { "ok": false, "out": null, "err": "" + err, "name": ktBase(path), "path": "" + path }
+    }
+    let r = ktEvalSource(src)
+    r["name"] = ktBase(path)
+    r["path"] = "" + path
+    return r
+}
+
+/// Run every discovered test under `dir` (recursive via ktWalk). Returns
+/// { "passed", "failed", "results": [ {ok,out,err,name,path} ] }.
+pub fn ktRunDir(dir) {
+    let names = ktWalk(dir)
+    let results = []
+    let passed = 0
+    let failed = 0
+    let i = 0
+    while i < len(names) {
+        let r = ktRunFile(ktJoin(dir, names[i]))
+        r["rel"] = names[i]
+        results = push(results, r)
+        if r["ok"] {
+            passed = passed + 1
+        } else {
+            failed = failed + 1
+        }
+        i = i + 1
+    }
+    return { "passed": passed, "failed": failed, "results": results }
+}
+
+/// TAP text for a results record (ktRunDir return).
+pub fn ktTapReport(suite) {
+    let rs = suite["results"]
+    let out = ktTapPlan(len(rs))
+    let i = 0
+    while i < len(rs) {
+        let r = rs[i]
+        let line = ktTapNotOk(i + 1, r["name"])
+        if r["ok"] {
+            line = ktTapOk(i + 1, r["name"])
+        }
+        if r["err"] != null {
+            line = line + " # " + r["err"]
+        }
+        out = out + "\n" + line
+        i = i + 1
+    }
+    return out
+}

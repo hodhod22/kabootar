@@ -1,8 +1,19 @@
 // Aggregator — import "kabtest". Plan: lib/kabtest/ROADMAP.md
 
 import "kabtest/core"
+import "kabtest/eval"
+import "kabtest/runner"
 
 pub let assertTrue = ktAssertTrue
 pub let assertEq = ktAssertEq
 pub let assertNeq = ktAssertNeq
 pub let summary = ktSummary
+
+// Real eval + runner (KT2): sources eval on the Kab VM — a string-match
+// stub would be a lie; failures come back as {ok,out,err} records.
+pub let evalSource = ktEvalSource
+pub let runSource = ktRunSource
+pub let runFile = ktRunFile
+pub let discover = ktDiscover
+pub let runDir = ktRunDir
+pub let tapReport = ktTapReport

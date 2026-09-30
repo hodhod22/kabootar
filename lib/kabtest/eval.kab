@@ -1,10 +1,45 @@
-// KT2: run inline/VFS test source. Full Kab-VM eval is deepen.
+// KT2: run inline/VFS test source through Kabootar's own Kab VM.
 // import "kabtest/eval"
 
-pub fn ktSourceIsPass(src) {
-    return str_includes("" + src, "return true")
+import "kab/vm"
+import "kabtest/run"
+
+/// Real eval: compile+run `src` on the Kab VM (no host VM fallback).
+/// Returns { "ok", "out", "err" } — ok when the result is a pass
+/// (ktResultIsPass: the source evaluates to true). A thrown test value is
+/// a failure record, never a crash of the runner: when the source has no
+/// top-level `import` it is wrapped in a fn whose internal try/catch turns
+/// a throw into a {__ktThrow} value inside the eval'd program (a throw that
+/// crosses evalSourceKabVm's boundary is fatal to the host caller — the
+/// outer catch here cannot see it, so the guard must live in the source).
+/// Sources with imports run unwrapped: a throw there still propagates.
+pub fn ktEvalSource(src) {
+    let s = "" + src
+    if str_includes(s, "import") == false {
+        s = "fn __kt_main() { try { " + s + " } catch (e) { return { \"__ktThrow\": e } } }\nreturn __kt_main()"
+    }
+    let out = null
+    let err = null
+    try {
+        out = evalSourceKabVm(s)
+    } catch (e) {
+        err = e
+    }
+    if err != null {
+        return { "ok": false, "out": null, "err": "" + err }
+    }
+    if typeof(out) == "object" && out != null && out["__ktThrow"] != undefined {
+        return { "ok": false, "out": null, "err": "" + out["__ktThrow"] }
+    }
+    return { "ok": ktResultIsPass(out), "out": out, "err": null }
 }
 
+/// True when `src` evaluates to a pass under the Kab VM.
 pub fn ktRunSource(src) {
-    return ktSourceIsPass(src)
+    return ktEvalSource(src)["ok"]
+}
+
+/// Pass check by evaluation — a string-match would be a lie.
+pub fn ktSourceIsPass(src) {
+    return ktRunSource(src)
 }

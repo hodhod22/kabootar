@@ -1,0 +1,146 @@
+// SH17 widen: ops-driven bit/shift/unary fusion — const/const/bop/ret and
+// const/uop/ret lower to ONE guest template each (magic 77-84). The guest
+// os_mm_call table and the per-op loop pipelines already exist; this leaf
+// connects chain extraction to them. import "kab/jit/jit_from_ops_bits"
+// Do not grow jit_from_ops_f64.kab.
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_bits"
+import "kab/jit/jit_loop_and"
+import "kab/jit/jit_loop_or"
+import "kab/jit/jit_loop_xor"
+import "kab/jit/jit_loop_shl"
+import "kab/jit/jit_loop_shr"
+import "kab/jit/jit_loop_ushr"
+import "kab/jit/jit_loop_neg"
+import "kab/jit/jit_loop_not"
+import "kab/jit/jit_mm_loop_and"
+import "kab/jit/jit_mm_loop_or"
+import "kab/jit/jit_mm_loop_xor"
+import "kab/jit/jit_mm_loop_shl"
+import "kab/jit/jit_mm_loop_shr"
+import "kab/jit/jit_mm_loop_ushr"
+import "kab/jit/jit_mm_loop_neg"
+import "kab/jit/jit_mm_loop_not"
+import "kab/jit/jit_call_loop_and"
+import "kab/jit/jit_call_loop_or"
+import "kab/jit/jit_call_loop_xor"
+import "kab/jit/jit_call_loop_shl"
+import "kab/jit/jit_call_loop_shr"
+import "kab/jit/jit_call_loop_ushr"
+import "kab/jit/jit_call_loop_neg"
+import "kab/jit/jit_call_loop_not"
+
+/// True when ops are the fusible bits chain: const/const/bop/ret or
+/// const/uop/ret (unary neg/bit_not).
+pub fn jitBitsOpsOk(ops) {
+    if typeof(ops) != "array" {
+        return false
+    }
+    if len(ops) == 3 {
+        if ops[0] != "const" {
+            return false
+        }
+        let um = jitBitsMagic(ops[1])
+        if um == 0 {
+            return false
+        }
+        if jitBitsUnary(um) == false {
+            return false
+        }
+        if ops[2] != "ret" {
+            return false
+        }
+        return true
+    }
+    if len(ops) != 4 {
+        return false
+    }
+    if ops[0] != "const" {
+        return false
+    }
+    if ops[1] != "const" {
+        return false
+    }
+    let bm = jitBitsMagic(ops[2])
+    if bm == 0 {
+        return false
+    }
+    if jitBitsUnary(bm) == true {
+        return false
+    }
+    if ops[3] != "ret" {
+        return false
+    }
+    return true
+}
+
+/// Compile a fusible bits chain into one guest template and exec it in the
+/// guest MMU; true when guest rax matches jitBitsRax.
+pub fn jitFromOpsBitsOk(ops, n, k) {
+    if jitCanCompile(ops) == false {
+        return false
+    }
+    if jitBitsOpsOk(ops) == false {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        if jitOpOk(ops[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    let magic = 0
+    if len(ops) == 3 {
+        magic = jitBitsMagic(ops[1])
+    }
+    else {
+        magic = jitBitsMagic(ops[2])
+    }
+    if jitBitsOk(n, k, magic) == false {
+        return false
+    }
+    if magic == 77 {
+        let b0 = jitEmitI64LoopAndN(n, k)
+        let m0 = os_mm_mmap(jitMmLoopAndPid(), jitMmLoopAndVirt(), jitMmLoopAndLen(), jitMmLoopAndProt())
+        return jitCallLoopAndOk(m0, "rwx", n, k, b0)
+    }
+    if magic == 78 {
+        let b1 = jitEmitI64LoopOrN(n, k)
+        let m1 = os_mm_mmap(jitMmLoopOrPid(), jitMmLoopOrVirt(), jitMmLoopOrLen(), jitMmLoopOrProt())
+        return jitCallLoopOrOk(m1, "rwx", n, k, b1)
+    }
+    if magic == 79 {
+        let b2 = jitEmitI64LoopXorN(n, k)
+        let m2 = os_mm_mmap(jitMmLoopXorPid(), jitMmLoopXorVirt(), jitMmLoopXorLen(), jitMmLoopXorProt())
+        return jitCallLoopXorOk(m2, "rwx", n, k, b2)
+    }
+    if magic == 80 {
+        let b3 = jitEmitI64LoopShlN(n, k)
+        let m3 = os_mm_mmap(jitMmLoopShlPid(), jitMmLoopShlVirt(), jitMmLoopShlLen(), jitMmLoopShlProt())
+        return jitCallLoopShlOk(m3, "rwx", n, k, b3)
+    }
+    if magic == 81 {
+        let b4 = jitEmitI64LoopShrN(n, k)
+        let m4 = os_mm_mmap(jitMmLoopShrPid(), jitMmLoopShrVirt(), jitMmLoopShrLen(), jitMmLoopShrProt())
+        return jitCallLoopShrOk(m4, "rwx", n, k, b4)
+    }
+    if magic == 82 {
+        let b5 = jitEmitI64LoopUshrN(n, k)
+        let m5 = os_mm_mmap(jitMmLoopUshrPid(), jitMmLoopUshrVirt(), jitMmLoopUshrLen(), jitMmLoopUshrProt())
+        return jitCallLoopUshrOk(m5, "rwx", n, k, b5)
+    }
+    if magic == 83 {
+        let b6 = jitEmitI64LoopNotN(n)
+        let m6 = os_mm_mmap(jitMmLoopNotPid(), jitMmLoopNotVirt(), jitMmLoopNotLen(), jitMmLoopNotProt())
+        return jitCallLoopNotOk(m6, "rwx", n, b6)
+    }
+    if magic == 84 {
+        let b7 = jitEmitI64LoopNegN(n)
+        let m7 = os_mm_mmap(jitMmLoopNegPid(), jitMmLoopNegVirt(), jitMmLoopNegLen(), jitMmLoopNegProt())
+        return jitCallLoopNegOk(m7, "rwx", n, b7)
+    }
+    return false
+}

@@ -34,6 +34,22 @@ pub fn deserArrow(st, line) {
         st["arrows"][idx]["isAsync"] = 1
         return "ok"
     }
+    if starts_with(line, "arrow_const ") {
+        // arrow_const <ai> <idx> <kind> <val> — arrow-private constants pool.
+        let rest = trim(str_slice(line, 12, len(line)))
+        let sp = str_index_of(rest, " ")
+        let ai = parse_int(trim(str_slice(rest, 0, sp)))
+        let constRest = trim(str_slice(rest, sp + 1, len(rest)))
+        let val = parseConstLine("const " + constRest)
+        while len(st["arrows"]) <= ai {
+            st["arrows"] = push(st["arrows"], { "sym": "", "params": [], "locals": [], "ops": [] })
+        }
+        if st["arrows"][ai]["constants"] == undefined {
+            st["arrows"][ai]["constants"] = []
+        }
+        st["arrows"][ai]["constants"] = push(st["arrows"][ai]["constants"], val)
+        return "ok"
+    }
     if starts_with(line, "arrow_op ") {
         let rest = str_slice(line, 9, len(line))
         let sp = str_index_of(rest, " ")
