@@ -2,7 +2,7 @@ import "kab/cli/cli_init"
 import "kab/cli/cli_new"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsNew("new") == false {
@@ -11,4 +11,4 @@ if cliIsNew("new") == false {
 if cliIsInit("init") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

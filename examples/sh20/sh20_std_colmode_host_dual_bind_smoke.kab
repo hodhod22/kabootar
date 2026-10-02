@@ -4,7 +4,7 @@ import "kab/std/std_colfill"
 import "kab/std/std_colpush"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let p = stdColFill(2, 1)
@@ -15,4 +15,4 @@ if stdColMedian(p) != 1 {
 if stdColMode(p) != 1 {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

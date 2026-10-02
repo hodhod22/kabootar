@@ -3,7 +3,7 @@ import "kab/std/std_colrange"
 import "kab/std/std_colfill"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let r = stdColRange(40, 43)
@@ -14,4 +14,4 @@ if stdColSum(f) != 42 {
 if stdColSum(r) != 123 {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

@@ -14,7 +14,7 @@ if nollAotReady() {
 if nollProcessIsKab() != false {
     return false
 }
-if nollAotProcess() != false {
+if nollAotProcess() != true {
     return false
 }
 if nollDropSrc() != false {

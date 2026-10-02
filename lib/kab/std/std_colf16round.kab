@@ -1,5 +1,5 @@
 // SH20: collections f16round off std_colfround.kab. import "kab/std/std_colf16round"
-// Do not grow std_colfround.kab. stdHostDeleteOk stays false.
+// Do not grow std_colfround.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColF16round(a) {
     let n = len(a)

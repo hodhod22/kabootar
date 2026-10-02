@@ -1,5 +1,5 @@
 // SH20: collections cos off std_colsin.kab. import "kab/std/std_colcos"
-// Do not grow std_colsin.kab. stdHostDeleteOk stays false.
+// Do not grow std_colsin.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColCos(a) {
     let n = len(a)

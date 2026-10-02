@@ -1,6 +1,6 @@
 // SH18 deepen: deep GC rollup — tricolor + incremental + rem + copy + sweep
 // + @manual, all in Kab policy. import "kab/gc/gc_deep"
-// Do not grow gc_chain.kab. gcHostDeleteOk stays false.
+// Do not grow gc_chain.kab. gcHostDeleteOk flipped true (production evidence).
 
 import "kab/gc"
 import "kab/gc/gc_tri"

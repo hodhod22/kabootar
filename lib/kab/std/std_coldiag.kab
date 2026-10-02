@@ -1,5 +1,5 @@
 // SH20: collections diag off std_coltr.kab. import "kab/std/std_coldiag"
-// Do not grow std_coltr.kab. stdHostDeleteOk stays false.
+// Do not grow std_coltr.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColDiag(rows) {
     let n = len(rows)

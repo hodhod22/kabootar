@@ -5,7 +5,7 @@ import "kab/std/std_colfill"
 import "kab/std/std_coleq"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let v = stdColFill(2, 1)
@@ -15,4 +15,4 @@ if stdColDot(v, v) != 2 {
 if stdColEq(stdColMatVec(stdColIdent(2), v), v) == false {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

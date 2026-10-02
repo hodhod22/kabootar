@@ -4,7 +4,7 @@ import "kab/std/std_colfill"
 import "kab/std/std_colpush"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let h = stdColFill(1, 0.0)
@@ -19,4 +19,4 @@ let w = stdColTan(g)
 if w[0] != 0 {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

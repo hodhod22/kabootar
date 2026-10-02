@@ -4,7 +4,7 @@ import "kab/std/std_colfill"
 import "kab/std/std_colpush"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let a = stdColFill(1, 7)
@@ -25,4 +25,4 @@ if r[0] < 0 {
 if r[0] > 1 {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

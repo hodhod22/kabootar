@@ -1,5 +1,5 @@
 // SH20: collections dot off std_colrshp.kab. import "kab/std/std_coldot"
-// Do not grow std_colrshp.kab. stdHostDeleteOk stays false.
+// Do not grow std_colrshp.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColDot(a, b) {
     let na = len(a)

@@ -2,7 +2,7 @@ import "kab/cli/cli_minit"
 import "kab/cli/cli_path"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsRunPath("app.kab") == false {
@@ -11,4 +11,4 @@ if cliIsRunPath("app.kab") == false {
 if cliIsModInit("init") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

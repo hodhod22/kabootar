@@ -1,5 +1,5 @@
 // SH20: collections L2-distance off std_colrej.kab. import "kab/std/std_coldist"
-// Do not grow std_colrej.kab. stdHostDeleteOk stays false.
+// Do not grow std_colrej.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColDist(a, b) {
     let s = 0

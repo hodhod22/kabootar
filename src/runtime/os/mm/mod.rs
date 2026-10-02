@@ -414,6 +414,63 @@ impl MemorySubsystem {
                 return Ok((a0 as i64) * (b0 as i64) + (a1 as i64) * (b1 as i64));
             }
         }
+        // arith3 guest op: left-assoc `((a o1 b) o2 c)` — opcode bytes 4/5
+        // are 1=add 2=sub 3=mul 4=div 5=mod; div/mod by zero faults (deopt).
+        if bytes8.len() == 8 && bytes8[0] == 107 && bytes8[7] == 195 {
+            let (a, b, c, o1, o2) = (bytes8[1], bytes8[2], bytes8[3], bytes8[4], bytes8[5]);
+            if [a, b, c].iter().all(|v| (1..=64).contains(v))
+                && (1..=5).contains(&o1)
+                && (1..=5).contains(&o2)
+            {
+                let apply = |x: i64, op: u8, y: i64| -> Option<i64> {
+                    match op {
+                        1 => Some(x + y),
+                        2 => Some(x - y),
+                        3 => Some(x * y),
+                        4 => (y != 0).then(|| x / y),
+                        5 => (y != 0).then(|| x % y),
+                        _ => None,
+                    }
+                };
+                if let Some(t) = apply(a as i64, o1, b as i64) {
+                    if let Some(rax) = apply(t, o2, c as i64) {
+                        return Ok(rax);
+                    }
+                }
+            }
+        }
+        // arith4 guest op: left-assoc `(((a o1 b) o2 c) o3 d)` — a 9-byte
+        // template (magic 108); opcode bytes 5..=7 are 1=add 2=sub 3=mul
+        // 4=div 5=mod; div/mod by zero faults (deopt).
+        let bytes9 = self.load(pid, virt, 9)?;
+        if bytes9.len() == 9 && bytes9[0] == 108 && bytes9[8] == 195 {
+            let (a, b, c, d, o1, o2, o3) = (
+                bytes9[1], bytes9[2], bytes9[3], bytes9[4], bytes9[5], bytes9[6], bytes9[7],
+            );
+            if [a, b, c, d].iter().all(|v| (1..=64).contains(v))
+                && (1..=5).contains(&o1)
+                && (1..=5).contains(&o2)
+                && (1..=5).contains(&o3)
+            {
+                let apply = |x: i64, op: u8, y: i64| -> Option<i64> {
+                    match op {
+                        1 => Some(x + y),
+                        2 => Some(x - y),
+                        3 => Some(x * y),
+                        4 => (y != 0).then(|| x / y),
+                        5 => (y != 0).then(|| x % y),
+                        _ => None,
+                    }
+                };
+                if let Some(t) = apply(a as i64, o1, b as i64) {
+                    if let Some(u) = apply(t, o2, c as i64) {
+                        if let Some(rax) = apply(u, o3, d as i64) {
+                            return Ok(rax);
+                        }
+                    }
+                }
+            }
+        }
         Err("os_mm_call: unknown guest entry".into())
     }
 

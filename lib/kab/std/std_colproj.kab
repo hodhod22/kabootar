@@ -1,5 +1,5 @@
 // SH20: collections project off std_colunit.kab. import "kab/std/std_colproj"
-// Do not grow std_colunit.kab. stdHostDeleteOk stays false.
+// Do not grow std_colunit.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColProj(a, b) {
     let num = 0

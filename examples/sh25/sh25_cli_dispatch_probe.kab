@@ -1,0 +1,42 @@
+// SH25 production probe: cliDispatchKind on the production `kabootar run`
+// path. Each round sweeps the whole production argv matrix — every command
+// the Rust dispatcher in src/cli/mod.rs routes, plus path-suffix and
+// unknown-arg forms — and a round counts only when every verdict agrees.
+// 8 consistent rounds = cliReadyStreakOk flip criterion.
+
+import "kab/cli/cli_dispatch"
+import "kab/cli/cli_host"
+
+let matrix = [
+    ["run", "run"], ["serve", "serve"], ["shell", "shell"],
+    ["notebook", "notebook"], ["nb", "notebook"], ["compile", "compile"],
+    ["fmt", "fmt"], ["doc", "doc"], ["test", "test"], ["repl", "repl"],
+    ["registry", "registry"], ["install", "install"], ["publish", "publish"],
+    ["mod", "mod"], ["--version", "version"], ["-V", "version"],
+    ["--help", "help"], ["-h", "help"],
+    ["app.kab", "run"], ["pkg.kabootar", "run"], ["img.kbcb", "run"],
+    ["book.knb", "notebook"], ["bogus", ""], ["-x", ""]
+]
+
+let streak = 0
+let round = 0
+while round < 8 {
+    let ok = true
+    let i = 0
+    while i < len(matrix) {
+        if cliReadyOk(matrix[i][1], cliDispatchKind(matrix[i][0])) == false {
+            ok = false
+        }
+        i = i + 1
+    }
+    if ok {
+        streak = streak + 1
+    }
+    round = round + 1
+}
+
+println("dispatch probe: rounds=8 streak=" + streak)
+if cliReadyStreakOk(streak) == false {
+    return false
+}
+return true

@@ -3,7 +3,7 @@ import "kab/cli/cli_cc"
 import "kab/cli/cli_fmt"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsRun("run") == false {
@@ -21,4 +21,4 @@ if cliIsCompile("compile") == false {
 if cliIsFmt("fmt") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

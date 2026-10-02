@@ -1,0 +1,29 @@
+// SH17 widen: translate+store for arith4 template.
+// import "kab/jit/jit_wr_loop_arith4"
+// Do not grow jit_wr_loop_arith3.kab.
+
+import "kab/jit/jit_patch_loop_arith4"
+import "kab/jit/jit_mm_loop_arith4"
+import "kab/jit/jit_mm_store_loop_arith4"
+import "kab/jit/jit_arith4"
+
+pub fn jitWrLoopArith4Ok(bytes, a, b, c, d, o1, o2, o3) {
+    if jitPatchLoopArith4Ok(bytes, a, b, c, d, o1, o2, o3) == false {
+        return false
+    }
+    let pid = jitMmLoopArith4Pid()
+    let virt = jitMmLoopArith4Virt()
+    let p0 = os_mm_translate(pid, virt)
+    if p0 <= 0 {
+        return false
+    }
+    let p8 = os_mm_translate(pid, virt + 8)
+    if p8 <= 0 {
+        return false
+    }
+    let w = jitMmStoreLoopArith4(bytes, a, b, c, d, o1, o2, o3)
+    if w != jitArith4Len() {
+        return false
+    }
+    return true
+}

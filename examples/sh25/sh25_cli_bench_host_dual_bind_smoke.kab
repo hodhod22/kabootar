@@ -2,7 +2,7 @@ import "kab/cli/cli_bench"
 import "kab/cli/cli_doc"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsDoc("doc") == false {
@@ -11,4 +11,4 @@ if cliIsDoc("doc") == false {
 if cliIsBench("bench") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

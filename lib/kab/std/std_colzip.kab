@@ -1,5 +1,5 @@
 // SH20: collections zip off std_coldrop.kab. import "kab/std/std_colzip"
-// Do not grow std_coldrop.kab. stdHostDeleteOk stays false.
+// Do not grow std_coldrop.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColZip(a, b) {
     let na = len(a)

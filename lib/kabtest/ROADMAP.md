@@ -1,6 +1,6 @@
 # kabtest — roadmap
 
-**Mål:** Kabootar testar **sig själv** och **andra språk** med en runner skriven i `.kab`. `cargo test` och `src/cli/test_runner.rs` är skuld.
+**Mål:** Kabootar testar **sig själv** och **andra språk** med en runner skriven i `.kab`. `cargo test` är skuld för `src/`; `src/cli/test_runner.rs` är raderad.
 
 **Klart när:** produkt-CI kör `kabootar test` via kabtest (inte rustc) för `.kab`-gates; minst en gästadapter (Kv8) och en process-adapter (golden stdout) är gröna.
 
@@ -33,8 +33,8 @@ KT0 inventering
 | **KT5** | Guest **Kv8**: eval källtext, assert resultat | En JS-lik fil i suite | ✅ subset: `kabtest/guest_kv8` + `ok.kv8`; `kv8/eval` DAG/`@version` deepen |
 | **KT6** | Guest **proc**: spawn, timeout, golden stdout/exit | t.ex. `python -c` *eller* Kab-binär — adapter, inte hårdkodat språk | ✅ subset: `kabtest/guest_proc` + `ok.golden`; `os_spawn`/timeout deepen |
 | **KT7** | Coverage: importerade moduler + rad-approx i Kab | Rapport utan `src/cli/test_runner` coverage | ✅ subset: `kabtest/cov` `ktCovPct` / `ktCovIsMod` / `ktCovLineHint`; instrumentation deepen |
-| **KT8** | `kabootar test` anropar kabtest; radera `test_runner.rs` | SH25 delete-gate | ✅ subset: `kabtest/cli` `ktCliIsTest` / `ktCliDefaultRoot` / `ktCliIsCoverage` / `ktCliExit` / `ktCliHostDeleteOk`; **CLI-bryggan är kopplad** — `test_cmd` monterar testroten i VFS (`/kt_test_root`, env `KAB_KT_ROOT`/`KAB_KT_FILE`/`KAB_KT_COV`) och evaluerar `kabtest/cli_main` på Kab-VM:n — `kabootar test tests/dx_smoke_test.kab` ger `1 passed` via `ktRunDir`. Rekursiv discovery via `ktWalk` (os_list-baserad, kastar aldrig på saknad dir). Kvar: `test_runner.rs` står kvar som fallback-skuld — `ktCliHostDeleteOk`/`gcHostDeleteOk`-gaten förblir false tills hela produktsviten körs grönt via Kab-vägen |
-| **KT9** | Produkt-CI: kabtest-gates; `cargo test` bara kvarvarande `src/`-skuld | SH28 närmare | ✅ subset: `kabtest/ci` `ktCiIsProductGate` / `ktCiCargoForSrcSkuld`; workflow utan rustc deepen |
+| **KT8** | `kabootar test` anropar kabtest; radera `test_runner.rs` | SH25 delete-gate | ✅ subset: `kabtest/cli` `ktCliIsTest` / `ktCliDefaultRoot` / `ktCliIsCoverage` / `ktCliExit` / `ktCliHostDeleteOk`; **CLI-bryggan är kopplad** — `test_cmd` monterar testroten i VFS (`/kt_test_root`, env `KAB_KT_ROOT`/`KAB_KT_FILE`/`KAB_KT_COV`) och evaluerar `kabtest/cli_main` på Kab-VM:n — `kabootar test tests/dx_smoke_test.kab` ger `1 passed` via `ktRunDir`. Rekursiv discovery via `ktWalk` (os_list-baserad, kastar aldrig på saknad dir). **`test_runner.rs` är raderad** — hela produktsviten är grön via Kab-vägen (`kabootar test tests` 1/1 + `kabootar test lib` 15/15) så `ktCliHostDeleteOk` är true, och `gcHostDeleteOk` flippade efter produktionsevidensen (`sh18_gc_production_probe`: 30 konsekutivt konsistenta collect-cykler på produktions-singletonen via naturliga nursery-charges vid op-gränser, minor+major-kadens) |
+| **KT9** | Produkt-CI: kabtest-gates; `cargo test` bara kvarvarande `src/`-skuld | SH28 närmare | ✅ subset: `kabtest/ci` `ktCiIsProductGate` / `ktCiCargoForSrcSkuld` + `.github/workflows/kabtest.yml` — produktsviten (`kabootar test tests` + `kabootar test lib`) gates via den Kab-nativa runnern på release-bygget; `cargo test` kvar i `self-host.yml` endast för bootstrap/self-host/kv8/kos `src/`-skuld |
 
 ## Adapters (KT5–KT6)
 

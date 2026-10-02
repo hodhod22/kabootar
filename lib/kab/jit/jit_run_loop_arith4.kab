@@ -1,0 +1,35 @@
+// SH17 widen: mmap+exec policy for arith4 template.
+// import "kab/jit/jit_run_loop_arith4"
+// Do not grow jit_run_loop_arith3.kab.
+
+import "kab/jit/jit_np"
+import "kab/jit/jit_exec"
+import "kab/jit/jit_mm_loop_arith4"
+import "kab/jit/jit_patch_loop_arith4"
+import "kab/jit/jit_arith4"
+
+pub fn jitRunLoopArith4Ok(base, kind, bytes, a, b, c, d, o1, o2, o3) {
+    if base <= 0 {
+        return false
+    }
+    if jitPatchLoopArith4Ok(bytes, a, b, c, d, o1, o2, o3) == false {
+        return false
+    }
+    let nb = len(bytes)
+    // arith4 is a 9-byte template — jitMmapLoopOk is pinned to the 8-byte
+    // loop8 contract, so the rwx/one-page policy is checked here directly.
+    if nb != jitArith4Len() || nb > 4096 {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    if jitOsMmapLoopArith4Ok(nb, kind, a, b, c, d, o1, o2, o3) == false {
+        return false
+    }
+    let pages = jitPagesFor(nb)
+    if jitExecOk(pages, kind) == false {
+        return false
+    }
+    return true
+}

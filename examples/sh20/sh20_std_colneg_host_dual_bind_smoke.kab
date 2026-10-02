@@ -4,7 +4,7 @@ import "kab/std/std_colfill"
 import "kab/std/std_colpush"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let n = stdColFill(1, 84)
@@ -21,4 +21,4 @@ let g = stdColNeg(v)
 if g[0] + 42 != 0 {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

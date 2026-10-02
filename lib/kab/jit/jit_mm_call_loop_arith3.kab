@@ -1,0 +1,22 @@
+// SH17 widen: guest call for arith3 template.
+// import "kab/jit/jit_mm_call_loop_arith3"
+// Do not grow jit_mm_call_loop_f64.kab.
+
+import "kab/jit/jit_mm_loop_arith3"
+import "kab/jit/jit_arith3"
+
+pub fn jitMmCallLoopArith3(bytes, a, b, c, o1, o2) {
+    if jitArith3Ok(a, b, c, o1, o2) == false {
+        return 0
+    }
+    if len(bytes) != jitArith3Len() {
+        return 0
+    }
+    let pid = jitMmLoopArith3Pid()
+    let virt = jitMmLoopArith3Virt()
+    let res = os_mm_call(pid, virt)
+    if res != jitArith3Rax(a, b, c, o1, o2) {
+        return 0
+    }
+    return res
+}

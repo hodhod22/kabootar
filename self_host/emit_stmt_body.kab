@@ -1620,16 +1620,19 @@ pub fn emitStmt_while(E) {
         } else {
             E["eWhileHead"] = E["eOpsN"]
         }
-        object_array_push(E, "eWhileHeads", E["eWhileHead"])
+        // Local copy — a nested while overwrites E["eWhileHead"], so the
+        // back-edge must be computed from the value captured here.
+        let whHead = E["eWhileHead"]
+        object_array_push(E, "eWhileHeads", whHead)
         eCallExpr(E, E["eCond"])
         eCallRet = pushJmpAtLen(E, "eIfJmpStack")
         emitOp(E, OP_JUMP_IF_FALSE, 0)
         eCallStmt(E, E["eThen"])
         if E["eInFn"] == 1 {
-            eCallRet = E["eWhileHead"] - E["eFnOpsN"]
+            eCallRet = whHead - E["eFnOpsN"]
             E["eJumpOff"] = eCallRet - 1
         } else {
-            eCallRet = E["eWhileHead"] - E["eOpsN"]
+            eCallRet = whHead - E["eOpsN"]
             E["eJumpOff"] = eCallRet - 1
         }
         emitOp(E, OP_JUMP, E["eJumpOff"])

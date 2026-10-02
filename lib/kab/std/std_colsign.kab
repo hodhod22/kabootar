@@ -1,5 +1,5 @@
 // SH20: collections sign off std_colabs.kab. import "kab/std/std_colsign"
-// Do not grow std_colabs.kab. stdHostDeleteOk stays false.
+// Do not grow std_colabs.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColSign(a) {
     let n = len(a)

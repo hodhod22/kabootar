@@ -1,0 +1,91 @@
+// SH17 widen: guest arith3 template (magic 107) — one guest op computes the
+// left-assoc chain ((a o1 b) o2 c) with op codes 1..5 = add/sub/mul/div/mod.
+// import "kab/jit/jit_arith3"
+// Do not grow jit_bits.kab or jit_f64.kab.
+
+/// Operand-op code for an arith op name; 0 when not fusible.
+pub fn jitArith3Code(name) {
+    if name == "add" {
+        return 1
+    }
+    if name == "sub" {
+        return 2
+    }
+    if name == "mul" {
+        return 3
+    }
+    if name == "div" {
+        return 4
+    }
+    if name == "mod" {
+        return 5
+    }
+    return 0
+}
+
+pub fn jitArith3MagicOk(magic) {
+    return magic == 107
+}
+
+/// Operand bounds match the guest template contract: a,b,c 1..=64 and both
+/// op codes legal; div/mod reject a zero right operand (fault → deopt).
+pub fn jitArith3Ok(a, b, c, o1, o2) {
+    if a <= 0 || a > 64 {
+        return false
+    }
+    if b <= 0 || b > 64 {
+        return false
+    }
+    if c <= 0 || c > 64 {
+        return false
+    }
+    if o1 < 1 || o1 > 5 {
+        return false
+    }
+    if o2 < 1 || o2 > 5 {
+        return false
+    }
+    return true
+}
+
+/// Mirror of the guest semantics for dual-bind checks. Kab integer div/mod
+/// semantics apply — a guest/mirror divergence rejects exec (deopt).
+fn jitArith3Apply(x, o, y) {
+    if o == 1 {
+        return x + y
+    }
+    if o == 2 {
+        return x - y
+    }
+    if o == 3 {
+        return x * y
+    }
+    if o == 4 {
+        return x / y
+    }
+    return x % y
+}
+
+pub fn jitArith3Rax(a, b, c, o1, o2) {
+    let t = jitArith3Apply(a, o1, b)
+    return jitArith3Apply(t, o2, c)
+}
+
+pub fn jitArith3Len() {
+    return 8
+}
+
+/// magic 107, a, b, c, o1, o2, pad, ret — same 8-byte layout as the other
+//  loop templates; simulated guest rax = jitArith3Rax.
+pub fn jitEmitI64Arith3(a, b, c, o1, o2) {
+    let b8 = []
+    b8 = push(b8, 107)
+    b8 = push(b8, a)
+    b8 = push(b8, b)
+    b8 = push(b8, c)
+    b8 = push(b8, o1)
+    b8 = push(b8, o2)
+    b8 = push(b8, 0)
+    b8 = push(b8, 195)
+    return b8
+}

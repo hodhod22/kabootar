@@ -1,5 +1,5 @@
 // SH20: collections reject off std_colproj.kab. import "kab/std/std_colrej"
-// Do not grow std_colproj.kab. stdHostDeleteOk stays false.
+// Do not grow std_colproj.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColRej(a, b) {
     let num = 0

@@ -1,5 +1,5 @@
 // SH20: collections sinh off std_colexpm1.kab. import "kab/std/std_colsinh"
-// Do not grow std_colexpm1.kab. stdHostDeleteOk stays false.
+// Do not grow std_colexpm1.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColSinh(a) {
     let n = len(a)

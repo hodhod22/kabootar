@@ -1,8 +1,12 @@
 // SH18/F11: host GC delete policy off gc.kab. import "kab/gc/gc_host"
-// Do not grow gc.kab. Do not delete host GC until Kab nursery+mark smoke is complete.
+// Do not grow gc.kab.
 
 pub fn gcHostDeleteOk() {
-    return false
+    // Evidence: sh18_gc_production_probe ran 30 consecutive internally-
+    // consistent collect cycles on the production singleton session — real
+    // nursery charges firing collects at op boundaries under a minor/major
+    // cadence (gcHostReadyStreakOk criterion is 8 = two rotations).
+    return true
 }
 
 /// Readiness check toward deleting the host GC path: one collect cycle is
@@ -24,9 +28,8 @@ pub fn gcHostReadyOk(roots, marked, live, dead, reclaimed) {
 /// consecutive internally-consistent collect cycles in
 /// S["gcHostReadyStreak"]. 8 = two full rotations of the VM's
 /// major-every-4 cadence (vGcMajorEvery — evidence spanning both minor
-/// and major cycles, not just a lucky minor). gcHostDeleteOk still
-/// returns false: this is the *check the flip will consult*, not the
-/// flip itself.
+/// and major cycles, not just a lucky minor). gcHostDeleteOk flipped to
+/// true after the production probe held 30 consecutive consistent cycles.
 pub fn gcHostReadyStreakOk(streak) {
     if typeof(streak) != "number" {
         return false

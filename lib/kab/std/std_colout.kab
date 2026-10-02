@@ -1,5 +1,5 @@
 // SH20: collections outer off std_colmm.kab. import "kab/std/std_colout"
-// Do not grow std_colmm.kab. stdHostDeleteOk stays false.
+// Do not grow std_colmm.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColOuter(a, b) {
     let na = len(a)

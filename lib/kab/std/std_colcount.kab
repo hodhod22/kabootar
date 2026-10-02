@@ -1,5 +1,5 @@
 // SH20: collections count off std_colindex.kab. import "kab/std/std_colcount"
-// Do not grow std_colindex.kab. stdHostDeleteOk stays false.
+// Do not grow std_colindex.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColCount(p, x) {
     let n = len(p)

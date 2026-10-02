@@ -1,5 +1,5 @@
 // SH20: collections column off std_colrow.kab. import "kab/std/std_colcol"
-// Do not grow std_colrow.kab. stdHostDeleteOk stays false.
+// Do not grow std_colrow.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColCol(rows, c) {
     let n = len(rows)

@@ -1,5 +1,5 @@
 // SH20: collections sin off std_colexp.kab. import "kab/std/std_colsin"
-// Do not grow std_colexp.kab. stdHostDeleteOk stays false.
+// Do not grow std_colexp.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColSin(a) {
     let n = len(a)

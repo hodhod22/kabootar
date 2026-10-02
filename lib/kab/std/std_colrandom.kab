@@ -1,5 +1,5 @@
 // SH20: collections random off std_colfmod.kab. import "kab/std/std_colrandom"
-// Do not grow std_colfmod.kab. stdHostDeleteOk stays false.
+// Do not grow std_colfmod.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColRandom(a) {
     let n = len(a)

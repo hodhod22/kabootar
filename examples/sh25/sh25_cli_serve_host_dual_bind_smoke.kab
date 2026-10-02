@@ -2,7 +2,7 @@ import "kab/cli/cli_serve"
 import "kab/cli/cli_cat"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsCat("cat") == false {
@@ -11,4 +11,4 @@ if cliIsCat("cat") == false {
 if cliIsServe("serve") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

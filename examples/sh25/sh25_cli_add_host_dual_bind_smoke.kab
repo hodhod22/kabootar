@@ -2,7 +2,7 @@ import "kab/cli/cli_add"
 import "kab/cli/cli_clean"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsClean("clean") == false {
@@ -11,4 +11,4 @@ if cliIsClean("clean") == false {
 if cliIsAdd("add") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

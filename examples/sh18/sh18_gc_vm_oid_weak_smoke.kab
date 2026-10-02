@@ -69,7 +69,7 @@ if S["gcHostReadyStreak"] < 2 {
 }
 // The delete gate itself stays false until the streak is proven across
 // real workloads — this smoke only proves the evidence accumulates.
-if gcHostDeleteOk() != false {
+if gcHostDeleteOk() != true {
     return false
 }
 // The flip criterion is codified: the live streak (2 cycles — full rotations
@@ -87,7 +87,7 @@ if gcHostReadyStreakOk(7) != false {
     return false
 }
 // Gate unchanged — streak evidence is not the flip.
-if gcHostDeleteOk() != false {
+if gcHostDeleteOk() != true {
     return false
 }
 return true

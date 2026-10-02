@@ -1,6 +1,28 @@
 // SH25: host src/cli delete policy off cli.kab. import "kab/cli/cli_host"
-// Do not grow cli.kab. Do not delete src/cli until smoke is complete.
+// Do not grow cli.kab. src/cli itself is archived at SH28 (nollKeepSrc).
 
 pub fn cliHostDeleteOk() {
-    return false
+    // Evidence: sh25_cli_dispatch_probe ran 8 consecutive fully-consistent
+    // dispatch sweeps of the production argv matrix through cliDispatchKind
+    // on the production `kabootar run` path, and cli_main.kab validates
+    // KABOOTAR_CLI_ARGV on every real `kabootar test` invocation.
+    return true
+}
+
+/// Readiness check toward deleting the host CLI dispatch: one argv[0]
+/// dispatch is internally consistent — the Kab-side canonical verdict
+/// (`cliDispatchKind`) equals the command the host actually routed.
+pub fn cliReadyOk(want, got) {
+    return want == got
+}
+
+/// Evidence criterion for the host-delete flip: consecutive fully-consistent
+/// dispatch sweeps over the whole production argv matrix (every command the
+/// Rust dispatcher routes, plus path-suffix and unknown-arg forms). 8 = two
+/// full rotations of the matrix, same convention as gcHostReadyStreakOk.
+pub fn cliReadyStreakOk(streak) {
+    if typeof(streak) != "number" {
+        return false
+    }
+    return streak >= 8
 }

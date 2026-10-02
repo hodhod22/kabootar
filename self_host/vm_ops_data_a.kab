@@ -36,7 +36,14 @@ pub fn vIterStepGenS(S, it, pool, globals, functions) {
         throw err
     }
     S["done"] = false
-    vNoteYsDelS(S, it)
+    // Once the delegate reports done the yield* loop exits — it must not stay
+    // armed as the abrupt-resume target or a later .throw/.return forwards
+    // into a dead generator and swallows the completion.
+    if r["done"] == true || r["done"] == 1 {
+        vNoteYsDelS(S, null)
+    } else {
+        vNoteYsDelS(S, it)
+    }
     vPushS(S, it)
     vPushS(S, r)
     vBumpIpS(S)
@@ -221,7 +228,11 @@ pub fn runOpDataOptionIter(S, name, arg, op, pool, globals, functions) {
         }
         if vObjGet(nfn, "vmFn") != undefined {
             let rNext = vCallBoundIterFnS(S, it, nfn, ysArgs, pool, globals, functions)
-            vNoteYsDelS(S, it)
+            if rNext["done"] == true || rNext["done"] == 1 {
+                vNoteYsDelS(S, null)
+            } else {
+                vNoteYsDelS(S, it)
+            }
             vPushS(S, it)
             vPushS(S, rNext)
             vBumpIpS(S)
@@ -229,14 +240,23 @@ pub fn runOpDataOptionIter(S, name, arg, op, pool, globals, functions) {
         }
         if vObjGet(nfn, "vmArrow") != undefined {
             let rArr = vCallBoundIterFnS(S, it, nfn, ysArgs, pool, globals, functions)
-            vNoteYsDelS(S, it)
+            if rArr["done"] == true || rArr["done"] == 1 {
+                vNoteYsDelS(S, null)
+            } else {
+                vNoteYsDelS(S, it)
+            }
             vPushS(S, it)
             vPushS(S, rArr)
             vBumpIpS(S)
             return 1
         }
         let pair = bytecode_iterator_step_in_place(it)
-        vNoteYsDelS(S, it)
+        let pres = pair[1]
+        if pres["done"] == true || pres["done"] == 1 {
+            vNoteYsDelS(S, null)
+        } else {
+            vNoteYsDelS(S, it)
+        }
         vPushS(S, pair[0])
         vPushS(S, pair[1])
         vBumpIpS(S)

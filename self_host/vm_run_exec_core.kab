@@ -21,6 +21,35 @@ pub fn runModuleImplBodyCore(bc) {
     return vModRun(S, bc)
 }
 
+/// SH18: read-only diagnostics for the production-workload delete evidence —
+/// the singleton session's consecutive internally-consistent collect count
+/// and total collects (gc_host `gcHostReadyStreakOk` consults the streak).
+pub fn vGcSessionReadyStreak() {
+    let s = S["gcHostReadyStreak"]
+    if typeof(s) != "number" {
+        return 0
+    }
+    return s
+}
+
+pub fn vGcSessionCollects() {
+    let c = S["gcCollects"]
+    if typeof(c) != "number" {
+        return 0
+    }
+    return c
+}
+
+/// Diagnostics/stress hook: override the nursery cap. Same machinery, denser
+/// cadence — the way a VM stress test runs many cycles against a small
+/// nursery instead of waiting minutes of interpreter time per collect.
+pub fn vGcSessionSetCap(n) {
+    if typeof(n) == "number" && n >= 64 {
+        S["gcCap"] = n
+    }
+    return
+}
+
 // SH27: host→session callback bridge. Host `call_value` routes {vmFn}/
 // {vmArrow}/… sentinel objects here so module-side callbacks re-enter this
 // session's own function tables (bcFns/bcPool/bcGlobals stash per module run).

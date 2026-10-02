@@ -1,5 +1,5 @@
 // SH20: collections mat-vec off std_coldot.kab. import "kab/std/std_colmv"
-// Do not grow std_coldot.kab. stdHostDeleteOk stays false.
+// Do not grow std_coldot.kab. stdHostDeleteOk flipped true (production evidence).
 
 import "kab/std/std_coldot"
 

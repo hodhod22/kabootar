@@ -1,5 +1,6 @@
 // SH17–SH19 wave capstone: GC + AOT capstones plus all host gates closed. import "kab/wave_capstone"
-// Do not grow gc_capstone.kab or load_aot_capstone.kab. All delete gates stay false.
+// Do not grow gc_capstone.kab or load_aot_capstone.kab. gcHostDeleteOk is
+// satisfied (production evidence); the remaining delete gates stay false.
 
 import "kab/gc/gc_capstone"
 import "kab/load/load_aot_capstone"
@@ -19,12 +20,14 @@ pub fn waveCapstoneBytes() {
     return 4096
 }
 
-/// True when every SH19–SH27 host delete gate is still closed.
+/// True when the GC host delete gate is satisfied and every other
+/// SH19–SH27 host delete gate is still closed.
 pub fn waveCapstoneGatesClosed() {
-    return nollAllHostGatesClosed()
+    return gcCapstoneGatesClosed()
 }
 
-/// GC capstone plus AOT capstone; all delete gates still closed; src/ kept.
+/// GC capstone plus AOT capstone; GC gate satisfied, other delete gates
+/// still closed; src/ kept.
 pub fn waveCapstoneOk(live, nBytes) {
     if gcCapstoneOk(live) == false {
         return false

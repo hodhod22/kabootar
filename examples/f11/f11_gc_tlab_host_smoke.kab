@@ -2,10 +2,10 @@ import "kab/gc/gc_host"
 import "kab/gc/gc_tlab_host"
 import "kab/gc"
 
-if gcHostDeleteOk() != false {
+if gcHostDeleteOk() != true {
     return false
 }
-if gcTlabHostDropOk(2, 65536, gcNurseryCap(), gcFrameBudgetMs(), false) != true {
+if gcTlabHostDropOk(2, 65536, gcNurseryCap(), gcFrameBudgetMs(), true) != true {
     return false
 }
-return gcHostDeleteOk() == false
+return gcHostDeleteOk() == true

@@ -8,6 +8,7 @@
 import "kabtest/runner"
 import "kabtest/cov"
 import "kabtest/cli"
+import "kab/cli/cli_dispatch"
 
 fn ktCliRoot() {
     let root = env_get("KABOOTAR_TEST_ROOT")
@@ -60,6 +61,16 @@ fn ktCliSplitPath(p) {
 }
 
 fn ktCliMain() {
+    // SH25: the host shim hands us the argv[0] it routed on
+    // (KABOOTAR_CLI_ARGV); the Kab-side canonical dispatcher must agree —
+    // every real `kabootar test` is a production dispatch consultation.
+    let routed = env_get("KABOOTAR_CLI_ARGV")
+    if routed != undefined && routed != null {
+        if cliDispatchKind("" + routed) != "test" {
+            console_error("cli dispatch mismatch: KABOOTAR_CLI_ARGV=" + routed)
+            return 3
+        }
+    }
     let root = ktCliRoot()
     let mount = "/kt_test_root"
     // os_stat throws on edge cases and native errors escape the Kab VM's

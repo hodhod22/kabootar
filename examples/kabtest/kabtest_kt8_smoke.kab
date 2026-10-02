@@ -17,7 +17,7 @@ if ktCliExit(true) != 0 {
 if ktCliExit(false) != 1 {
     return false
 }
-if ktCliHostDeleteOk() != false {
+if ktCliHostDeleteOk() != true {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

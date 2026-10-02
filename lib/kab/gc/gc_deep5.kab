@@ -1,6 +1,6 @@
 // SH18 deepen 5: rollup gc_deep4 + finalizer + ephemeron + pretenuring + SATB.
 // import "kab/gc/gc_deep5"
-// Do not grow gc_deep4.kab. gcHostDeleteOk stays false.
+// Do not grow gc_deep4.kab. gcHostDeleteOk flipped true (production evidence).
 
 import "kab/gc/gc_deep4"
 import "kab/gc/gc_final"

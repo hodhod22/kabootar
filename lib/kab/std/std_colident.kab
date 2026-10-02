@@ -1,5 +1,5 @@
 // SH20: collections identity off std_coldiag.kab. import "kab/std/std_colident"
-// Do not grow std_coldiag.kab. stdHostDeleteOk stays false.
+// Do not grow std_coldiag.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColIdent(n) {
     let out = []

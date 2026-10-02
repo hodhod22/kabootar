@@ -1,5 +1,5 @@
 // SH20: collections add off std_colscale.kab. import "kab/std/std_coladd"
-// Do not grow std_colscale.kab. stdHostDeleteOk stays false.
+// Do not grow std_colscale.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColAdd(a, b) {
     let n = len(a)

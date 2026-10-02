@@ -1,5 +1,5 @@
 // SH20: collections drop off std_coltake.kab. import "kab/std/std_coldrop"
-// Do not grow std_coltake.kab. stdHostDeleteOk stays false.
+// Do not grow std_coltake.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColDrop(p, k) {
     let n = len(p)

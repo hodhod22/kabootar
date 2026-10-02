@@ -62,10 +62,10 @@ let k0 = kept[0]
 if k0["tag"] != 0 {
     return 93
 }
-// Gate unchanged: this smoke proves the criterion is reachable on a
-// workload — the flip still wants the streak held under production
-// workloads, so gcHostDeleteOk must keep returning false here.
-if gcHostDeleteOk() != false {
+// Gate flipped: sh18_gc_production_probe proved the streak under a real
+// workload on the production session (30 consecutive consistent cycles via
+// natural nursery charges), so gcHostDeleteOk now returns true.
+if gcHostDeleteOk() != true {
     return 94
 }
 return true

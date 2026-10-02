@@ -11,7 +11,7 @@ Plan: [ROADMAP.md](ROADMAP.md). Befintlig tunn DX: [`import "test"`](../test.kab
 
 ## Varför egen modul
 
-`lib/test.kab` är asserts. `src/cli/test_runner.rs` hittar `*_test.kab` och kör med **Rust-compile + host-VM**. Det räcker inte för:
+`lib/test.kab` är asserts. `src/cli/test_runner.rs` (raderad — KT8/SH25-gaten passerad) hittade `*_test.kab` och körde med **Rust-compile + host-VM**. Det räcker inte för:
 
 - self-host / Kab-VM / SH-gates
 - gästspråk (Kv8, senare Python-klass, shell, …)
@@ -60,11 +60,11 @@ import "kabtest/self"      // KT4: 40+2 utan compile/boot-DAG
 import "kabtest/guest_kv8" // KT5: Kv8-adapter (eval-DAG deepen)
 import "kabtest/guest_proc" // KT6: golden stdout/exit (spawn deepen)
 import "kabtest/cov"        // KT7: module-hit / percent
-import "kabtest/cli"        // KT8: `kabootar test` argv (radera test_runner deepen)
+import "kabtest/cli"        // KT8: `kabootar test` argv (test_runner raderad)
 import "kabtest/ci"         // KT9: produkt-gate vs cargo src-skuld
 ```
 
-Idag: **KT1–KT8** subset. **KT9** subset: `import "kabtest/ci"` (`ktCiIsProductGate`). GitHub kör fortfarande `cargo test` för `src/`-skuld.
+Idag: **KT1–KT8** klara — `test_runner.rs` är raderad, `kabootar test` kör kabtest på Kab-VM. **KT9**: `import "kabtest/ci"` (`ktCiIsProductGate`) + `.github/workflows/kabtest.yml` kör `kabootar test` som produkt-gate; `cargo test` täcker bara `src/`-skuld.
 
 ## Relaterat
 

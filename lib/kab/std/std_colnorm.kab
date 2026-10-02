@@ -1,5 +1,5 @@
 // SH20: collections L2-norm off std_coldet.kab. import "kab/std/std_colnorm"
-// Do not grow std_coldet.kab. stdHostDeleteOk stays false.
+// Do not grow std_coldet.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColNorm(a) {
     let s = 0

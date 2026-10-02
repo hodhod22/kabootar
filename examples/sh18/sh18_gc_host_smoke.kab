@@ -1,6 +1,6 @@
 import "kab/gc/gc_host"
 
-if gcHostDeleteOk() {
+if gcHostDeleteOk() != true {
     return false
 }
 return true

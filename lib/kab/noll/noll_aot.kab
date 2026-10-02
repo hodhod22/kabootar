@@ -1,5 +1,16 @@
 // SH28: AOT-ready gate off noll.kab. import "kab/noll/noll_aot"
 // Do not grow noll.kab. Do not delete src/ while this is false.
+//
+// Honest state (verified): the emitted images exec through the simulated
+// guest MM (os_mm_call interprets magic bytes; os_spawn is a host process
+// table, not a real OS spawn). That proves the policy/persist/exec chain —
+// nollAotProcess is true — but the image is not yet a real executable that
+// can replace rustc as the bootstrap producer. Flip criteria, in order:
+//   1. image carries real machine code run by a real OS process;
+//   2. the emitted image covers the full Kabootar surface (compiler+VM),
+//      not only fused op templates;
+//   3. rustc leaves the build+CI path (nollRustcNotProcess, nollRustcCiGone);
+//   4. 6-month stability window on Kab's own feet (nollStableOk).
 
 pub fn nollAotReady() {
     return false

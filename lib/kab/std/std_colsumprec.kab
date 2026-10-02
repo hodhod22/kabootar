@@ -1,5 +1,5 @@
 // SH20: collections sumPrecise off std_colf16round.kab. import "kab/std/std_colsumprec"
-// Do not grow std_colf16round.kab. stdHostDeleteOk stays false.
+// Do not grow std_colf16round.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColSumPrecise(a) {
     return sumPrecise(a)

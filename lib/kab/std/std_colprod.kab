@@ -1,5 +1,5 @@
 // SH20: collections product off std_colmin.kab. import "kab/std/std_colprod"
-// Do not grow std_colmin.kab. stdHostDeleteOk stays false.
+// Do not grow std_colmin.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColProduct(p) {
     let s = 1

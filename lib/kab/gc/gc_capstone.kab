@@ -1,5 +1,6 @@
 // SH18 capstone: full GC chain plus host delete gates closed. import "kab/gc/gc_capstone"
-// Do not grow gc_chain.kab. gcHostDeleteOk stays false.
+// Do not grow gc_chain.kab. gcHostDeleteOk is satisfied (production evidence);
+// the remaining SH19–SH27 host gates stay closed.
 
 import "kab/gc/gc_chain"
 import "kab/gc/gc_host"
@@ -9,15 +10,17 @@ pub fn gcCapstoneLiveGray() {
     return gcChainLiveGray()
 }
 
-/// True when GC host delete gate and all SH19–SH27 gates are still closed.
+/// True when the GC host delete gate is satisfied (flipped after production
+/// evidence — sh18_gc_production_probe) and every other SH19–SH27 host gate
+/// is still closed.
 pub fn gcCapstoneGatesClosed() {
-    if gcHostDeleteOk() {
+    if gcHostDeleteOk() == false {
         return false
     }
-    return nollAllHostGatesClosed()
+    return nollPendingHostGatesClosed()
 }
 
-/// Full GC chain plus all host delete gates still closed.
+/// Full GC chain plus all GC gate satisfied, other host gates closed.
 pub fn gcCapstoneOk(live) {
     if gcChainOk(live) == false {
         return false
@@ -26,7 +29,7 @@ pub fn gcCapstoneOk(live) {
 }
 
 /// Full GC capstone including the deep leaves (tricolor/incr/rem/copy/sweep/
-/// @manual) — host delete gates still closed.
+/// @manual) — GC gate satisfied, other host gates closed.
 pub fn gcCapstoneDeepOk(live) {
     if gcChainDeepOk(live) == false {
         return false
@@ -35,7 +38,7 @@ pub fn gcCapstoneDeepOk(live) {
 }
 
 /// Full GC capstone including the deep-2 leaves (tenuring/card-scan/safepoint)
-/// — host delete gates still closed.
+/// — GC gate satisfied, other host gates closed.
 pub fn gcCapstoneDeep2Ok(live) {
     if gcChainDeep2Ok(live) == false {
         return false
@@ -44,7 +47,7 @@ pub fn gcCapstoneDeep2Ok(live) {
 }
 
 /// Full GC capstone including the deep-3 leaves (compact/LOS/free-list)
-/// — host delete gates still closed.
+/// — GC gate satisfied, other host gates closed.
 pub fn gcCapstoneDeep3Ok(live) {
     if gcChainDeep3Ok(live) == false {
         return false
@@ -53,7 +56,7 @@ pub fn gcCapstoneDeep3Ok(live) {
 }
 
 /// Full GC capstone including the deep-4 leaves (roots/pacing/weak)
-/// — host delete gates still closed.
+/// — GC gate satisfied, other host gates closed.
 pub fn gcCapstoneDeep4Ok(live) {
     if gcChainDeep4Ok(live) == false {
         return false
@@ -62,7 +65,7 @@ pub fn gcCapstoneDeep4Ok(live) {
 }
 
 /// Full GC capstone including the deep-5 leaves (final/eph/mature/SATB)
-/// — host delete gates still closed.
+/// — GC gate satisfied, other host gates closed.
 pub fn gcCapstoneDeep5Ok(live) {
     if gcChainDeep5Ok(live) == false {
         return false
@@ -71,7 +74,7 @@ pub fn gcCapstoneDeep5Ok(live) {
 }
 
 /// Full GC capstone including the deep-6 leaves (lazy/idle/minor)
-/// — host delete gates still closed.
+/// — GC gate satisfied, other host gates closed.
 pub fn gcCapstoneDeep6Ok(live) {
     if gcChainDeep6Ok(live) == false {
         return false

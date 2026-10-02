@@ -4,7 +4,7 @@ import "kab/std/std_colrange"
 import "kab/std/std_colfill"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let r = stdColRange(40, 43)
@@ -15,4 +15,4 @@ if stdColMin(r) != 40 {
 if stdColProduct(f) != 42 {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

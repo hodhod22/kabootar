@@ -1,5 +1,5 @@
 // SH20: collections median off std_colavg.kab. import "kab/std/std_colmed"
-// Do not grow std_colavg.kab. stdHostDeleteOk stays false.
+// Do not grow std_colavg.kab. stdHostDeleteOk flipped true (production evidence).
 // Sorting lives in std_colsort (merge sort, rebuild via push; no index-slot assign).
 
 import "kab/std/std_colsort"

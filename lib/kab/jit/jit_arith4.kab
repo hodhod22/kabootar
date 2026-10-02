@@ -1,0 +1,99 @@
+// SH17 widen: guest arith4 template (magic 108) — one guest op computes the
+// left-assoc chain (((a o1 b) o2 c) o3 d) with op codes 1..5 = add/sub/mul/
+// div/mod. import "kab/jit/jit_arith4"
+// Do not grow jit_arith3.kab or jit_bits.kab.
+
+/// Operand-op code for an arith op name; 0 when not fusible.
+pub fn jitArith4Code(name) {
+    if name == "add" {
+        return 1
+    }
+    if name == "sub" {
+        return 2
+    }
+    if name == "mul" {
+        return 3
+    }
+    if name == "div" {
+        return 4
+    }
+    if name == "mod" {
+        return 5
+    }
+    return 0
+}
+
+pub fn jitArith4MagicOk(magic) {
+    return magic == 108
+}
+
+/// Operand bounds match the guest template contract: a,b,c,d 1..=64 and all
+/// three op codes legal; div/mod reject a zero right operand (fault → deopt).
+pub fn jitArith4Ok(a, b, c, d, o1, o2, o3) {
+    if a <= 0 || a > 64 {
+        return false
+    }
+    if b <= 0 || b > 64 {
+        return false
+    }
+    if c <= 0 || c > 64 {
+        return false
+    }
+    if d <= 0 || d > 64 {
+        return false
+    }
+    if o1 < 1 || o1 > 5 {
+        return false
+    }
+    if o2 < 1 || o2 > 5 {
+        return false
+    }
+    if o3 < 1 || o3 > 5 {
+        return false
+    }
+    return true
+}
+
+/// Mirror of the guest semantics for dual-bind checks. Kab integer div/mod
+/// semantics apply — a guest/mirror divergence rejects exec (deopt).
+fn jitArith4Apply(x, o, y) {
+    if o == 1 {
+        return x + y
+    }
+    if o == 2 {
+        return x - y
+    }
+    if o == 3 {
+        return x * y
+    }
+    if o == 4 {
+        return x / y
+    }
+    return x % y
+}
+
+pub fn jitArith4Rax(a, b, c, d, o1, o2, o3) {
+    let t = jitArith4Apply(a, o1, b)
+    let u = jitArith4Apply(t, o2, c)
+    return jitArith4Apply(u, o3, d)
+}
+
+pub fn jitArith4Len() {
+    return 9
+}
+
+/// magic 108, a, b, c, d, o1, o2, o3, ret — a 9-byte template (one byte longer
+/// than the other loop templates); simulated guest rax = jitArith4Rax.
+pub fn jitEmitI64Arith4(a, b, c, d, o1, o2, o3) {
+    let b9 = []
+    b9 = push(b9, 108)
+    b9 = push(b9, a)
+    b9 = push(b9, b)
+    b9 = push(b9, c)
+    b9 = push(b9, d)
+    b9 = push(b9, o1)
+    b9 = push(b9, o2)
+    b9 = push(b9, o3)
+    b9 = push(b9, 195)
+    return b9
+}

@@ -2,7 +2,7 @@ import "kab/cli/cli_flag"
 import "kab/cli/cli_publish"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsPublish("publish") == false {
@@ -14,4 +14,4 @@ if cliIsVersionFlag("--version") == false {
 if cliIsHelpFlag("--help") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

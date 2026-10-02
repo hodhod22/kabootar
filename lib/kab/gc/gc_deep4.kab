@@ -1,6 +1,6 @@
 // SH18 deepen 4: rollup gc_deep3 + shadow-stack roots + pacing + weak refs.
 // import "kab/gc/gc_deep4"
-// Do not grow gc_deep3.kab. gcHostDeleteOk stays false.
+// Do not grow gc_deep3.kab. gcHostDeleteOk flipped true (production evidence).
 
 import "kab/gc/gc_deep3"
 import "kab/gc/gc_roots"

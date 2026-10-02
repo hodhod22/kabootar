@@ -2,7 +2,7 @@ import "kab/cli/cli_nb"
 import "kab/cli/cli_shell"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsShell("shell") == false {
@@ -14,4 +14,4 @@ if cliIsNotebook("notebook") == false {
 if cliIsNotebook("nb") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

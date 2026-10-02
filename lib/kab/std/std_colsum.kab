@@ -1,5 +1,5 @@
 // SH20: collections sum off std_colrange.kab. import "kab/std/std_colsum"
-// Do not grow std_colrange.kab. stdHostDeleteOk stays false.
+// Do not grow std_colrange.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColSum(p) {
     let s = 0

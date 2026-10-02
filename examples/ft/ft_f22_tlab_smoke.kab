@@ -1,10 +1,10 @@
 import "kab/gc/gc_host"
 import "kab/tlab"
 
-if gcHostDeleteOk() != false {
+if gcHostDeleteOk() != true {
     return false
 }
 if tlabOk(2) != true {
     return false
 }
-return gcHostDeleteOk() == false
+return gcHostDeleteOk() == true

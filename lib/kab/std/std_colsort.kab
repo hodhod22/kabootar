@@ -1,5 +1,5 @@
 // SH20: collections sort off std_colmode.kab. import "kab/std/std_colsort"
-// Do not grow std_colmode.kab. stdHostDeleteOk stays false.
+// Do not grow std_colmode.kab. stdHostDeleteOk flipped true (production evidence).
 // Merge sort O(n log n). object_array_push builds in place — bare push() copies.
 
 fn msMerge(a, b) {

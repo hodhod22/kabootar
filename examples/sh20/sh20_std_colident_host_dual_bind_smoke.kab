@@ -7,7 +7,7 @@ import "kab/std/std_colpush"
 import "kab/std/std_coleq"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let a = stdColRange(40, 42)
@@ -21,4 +21,4 @@ let e = stdColFill(2, 1)
 if stdColEq(stdColDiag(stdColIdent(2)), e) == false {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

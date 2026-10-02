@@ -1,4 +1,7 @@
 // SH28: bootstrap image is not the OS process — policy "image-is-process" is false.
+// `nollAotProcess` is true (kab/aot/aot_proc execs the image under an
+// os_spawn'd pid) — but that is exec *in* a process; the image itself is
+// still data, not a process. This flag stays false by design.
 // import "kab/noll/noll_imgproc"
 // Do not grow noll_aotproc.kab or noll_image.kab. Do not delete src/. nollAotReady stays false.
 

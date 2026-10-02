@@ -4,7 +4,7 @@ import "kab/std/std_colfill"
 import "kab/std/std_colpush"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let p = stdColFill(1, 1)
@@ -16,4 +16,4 @@ if stdColFind(p, 42) != 42 {
 if stdColFindLast(p, 1) != 1 {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

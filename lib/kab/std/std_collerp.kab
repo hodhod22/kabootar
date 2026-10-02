@@ -1,5 +1,5 @@
 // SH20: collections lerp off std_coldist.kab. import "kab/std/std_collerp"
-// Do not grow std_coldist.kab. stdHostDeleteOk stays false.
+// Do not grow std_coldist.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColLerp(a, b, t) {
     let n = len(a)

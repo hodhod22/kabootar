@@ -2,7 +2,7 @@ import "kab/gc/gc_host"
 import "kab/tlab"
 import "kab/tlab_prom"
 
-if gcHostDeleteOk() != false {
+if gcHostDeleteOk() != true {
     return false
 }
 if tlabOk(2) != true {
@@ -11,4 +11,4 @@ if tlabOk(2) != true {
 if tlabPromoteOk(65536, 65536) != true {
     return false
 }
-return gcHostDeleteOk() == false
+return gcHostDeleteOk() == true

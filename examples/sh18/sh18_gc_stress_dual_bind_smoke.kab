@@ -1,10 +1,10 @@
 import "kab/gc/gc_stress"
 import "kab/gc/gc_host"
 
-if gcHostDeleteOk() != false {
+if gcHostDeleteOk() != true {
     return false
 }
 if gcStressCyclesOk(2) == false {
     return false
 }
-return gcHostDeleteOk() == false
+return gcHostDeleteOk() == true

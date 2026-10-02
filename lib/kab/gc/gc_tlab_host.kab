@@ -1,5 +1,6 @@
 // F11 deepen: TLAB pause plus host-GC drop gate. import "kab/gc/gc_tlab_host"
-// Do not grow gc_tlab_pause.kab or gc_host.kab. gcHostDeleteOk stays false.
+// Do not grow gc_tlab_pause.kab or gc_host.kab. gcHostDeleteOk is satisfied
+// (production evidence); wantDelete must match.
 
 import "kab/gc/gc_tlab_pause"
 import "kab/gc/gc_host"

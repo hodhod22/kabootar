@@ -1,0 +1,76 @@
+// F10/SH28: OS-spawned process exec leg. import "kab/aot/aot_proc"
+// The persisted image stops exec'ing on the init process's guest-MM slot:
+// os_spawn creates a real OS process (own pid in the process table, own
+// virtual address space), the entry-resolved code bytes are mapped, stored
+// and called under THAT pid. The init-process MM is never touched — the
+// image executes in a process the OS spawned, which is the nollAotProcess
+// criterion.
+// Do not grow other aot_* leaves with this.
+
+import "kab/aot/aot_exec"
+import "kab/jit/jit_fuse_cmp"
+
+/// Spawned guest process name in the OS process table.
+pub fn aotProcName() {
+    return "aot-guest"
+}
+
+/// True when pid is a spawned (non-init) process listed running — init
+/// (kabootar-init, pid 1) must not be the exec context.
+pub fn aotProcListedOk(pid) {
+    if typeof(pid) != "number" {
+        return false
+    }
+    if pid <= aotExecPid() {
+        return false
+    }
+    let pl = os_process_list()
+    if typeof(pl) != "array" {
+        return false
+    }
+    let i = 0
+    while i < len(pl) {
+        let p = pl[i]
+        if p["pid"] == pid && p["state"] == "running" {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+/// Full spawned-process leg: emit entry image → persist → reload →
+/// resolve `entry:`/`_start` → os_spawn → mmap/store/call under the
+/// spawned pid — guest rax must equal the Kab mirror.
+pub fn aotProcExecOk(path, magic, n, k) {
+    let image = aotEntryImageEmit(magic, n, k)
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    if aotEntryStartOk(back) == false {
+        return false
+    }
+    let entry = aotEntryFieldNum(back, "entry")
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != jitFuseCmpLen() {
+        return false
+    }
+    let pid = os_spawn(aotProcName())
+    if aotProcListedOk(pid) == false {
+        return false
+    }
+    let base = os_mm_mmap(pid, aotExecVirt(), aotExecLen(), aotExecProt())
+    if base <= 0 {
+        return false
+    }
+    let w = os_mm_store(pid, aotExecVirt() + entry, bytes)
+    if w != len(bytes) {
+        return false
+    }
+    return os_mm_call(pid, aotExecVirt() + entry) == jitFuseCmpRax(n, k, magic)
+}

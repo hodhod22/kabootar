@@ -1,5 +1,5 @@
 // SH20: collections exp off std_collog10.kab. import "kab/std/std_colexp"
-// Do not grow std_collog10.kab. stdHostDeleteOk stays false.
+// Do not grow std_collog10.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColExp(a) {
     let n = len(a)

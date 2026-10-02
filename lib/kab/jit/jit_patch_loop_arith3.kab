@@ -1,0 +1,41 @@
+// SH17 widen: validate arith3 template.
+// import "kab/jit/jit_patch_loop_arith3"
+// Do not grow jit_patch_loop_f64.kab.
+
+import "kab/jit/jit_arith3"
+import "kab/jit/jit_check"
+
+pub fn jitPatchLoopArith3Ok(bytes, a, b, c, o1, o2) {
+    if jitArith3Ok(a, b, c, o1, o2) == false {
+        return false
+    }
+    let tpl = jitEmitI64Arith3(a, b, c, o1, o2)
+    if len(bytes) != jitArith3Len() {
+        return false
+    }
+    if len(tpl) != jitArith3Len() {
+        return false
+    }
+    if bytes[0] != tpl[0] {
+        return false
+    }
+    if bytes[1] != tpl[1] {
+        return false
+    }
+    if bytes[2] != tpl[2] {
+        return false
+    }
+    if bytes[3] != tpl[3] {
+        return false
+    }
+    if bytes[4] != tpl[4] {
+        return false
+    }
+    if bytes[5] != tpl[5] {
+        return false
+    }
+    if jitByteIsRet(bytes[7]) == false {
+        return false
+    }
+    return bytes[7] == tpl[7]
+}

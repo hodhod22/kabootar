@@ -1,5 +1,5 @@
 // SH20: collections clone off std_coleq.kab. import "kab/std/std_colclone"
-// Do not grow std_coleq.kab. stdHostDeleteOk stays false.
+// Do not grow std_coleq.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColClone(p) {
     let out = []

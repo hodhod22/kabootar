@@ -1,5 +1,10 @@
 name: Self-host bootstrap
 
+# KT9: cargo test here covers only remaining src/ debt — bootstrap image
+# heal/regen, self-host compiler gates, and the kv8/kos Rust-side libs.
+# Product `*_test.kab` coverage gates via the Kab-native kabtest runner in
+# .github/workflows/kabtest.yml (`kabootar test` → lib/kabtest/cli_main.kab).
+
 on:
   push:
     paths:

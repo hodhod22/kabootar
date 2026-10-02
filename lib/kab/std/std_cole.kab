@@ -1,5 +1,5 @@
 // SH20: collections e off std_colpi.kab. import "kab/std/std_cole"
-// Do not grow std_colpi.kab. stdHostDeleteOk stays false.
+// Do not grow std_colpi.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColE(a) {
     let n = len(a)

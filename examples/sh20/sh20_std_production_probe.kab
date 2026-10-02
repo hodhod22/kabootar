@@ -1,0 +1,81 @@
+// SH20 production probe: the Kab stdlib product surface on the production
+// `kabootar run` path. Each round sweeps core-API calls with known-correct
+// answers — collections, math, JSON codec, regex, objects — and a round
+// counts only when every verdict agrees. 8 consistent rounds =
+// stdReadyStreakOk flip criterion.
+
+import "kab/stdlib"
+import "kab/std/std_colsort"
+import "kab/std/std_colsum"
+import "kab/std/std_colunique"
+import "kab/std/std_colmax"
+import "kab/std/std_colindex"
+import "kab/std/std_colrev"
+import "kab/std/std_colrange"
+import "kab/std/std_json_codec"
+import "kab/std/std_re"
+import "kab/std/std_obj"
+import "kab/std/std_math"
+import "kab/std/std_host"
+
+fn stdSweepOk() {
+    if stdReadyOk(5, stdAdd(2, 3)) == false {
+        return false
+    }
+    if stdReadyOk(3, stdLen([1, 2, 3])) == false {
+        return false
+    }
+    if stdReadyOk(true, stdHas("kabootar", "boot")) == false {
+        return false
+    }
+    if stdReadyOk(42, stdMul(6, 7)) == false {
+        return false
+    }
+    let r = stdColRange(1, 5)
+    if stdReadyOk(4, len(r)) == false {
+        return false
+    }
+    if stdReadyOk(10, stdColSum(r)) == false {
+        return false
+    }
+    let s = stdColSort([5, 3, 1, 4, 2])
+    if stdReadyOk(1, s[0]) == false || stdReadyOk(5, s[4]) == false {
+        return false
+    }
+    if stdReadyOk(3, len(stdColUnique([1, 1, 2, 3, 3]))) == false {
+        return false
+    }
+    if stdReadyOk(9, stdColMax([7, 2, 9])) == false {
+        return false
+    }
+    if stdReadyOk(1, stdColIndex([4, 8, 15], 8)) == false {
+        return false
+    }
+    let v = stdColRev([1, 2, 3])
+    if stdReadyOk(3, v[0]) == false {
+        return false
+    }
+    let j = stdJsonParse("{\"a\":1}")
+    if stdReadyOk(1, stdObjGet(j, "a")) == false {
+        return false
+    }
+    if stdReadyOk(true, stdHas(stdJsonStringify(j), "\"a\":1")) == false {
+        return false
+    }
+    if stdReadyOk(true, stdReHit("abc123", "123")) == false {
+        return false
+    }
+    return true
+}
+
+let streak = 0
+let round = 0
+while round < 8 {
+    if stdSweepOk() {
+        streak = streak + 1
+    }
+    round = round + 1
+}
+
+println("std probe: rounds=8 streak=" + streak)
+return stdReadyStreakOk(streak)

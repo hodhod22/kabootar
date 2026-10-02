@@ -1,0 +1,39 @@
+// SH17 widen: arith4 guest mmap args. import "kab/jit/jit_mm_loop_arith4"
+// Do not grow jit_mm_loop_arith3.kab. Separate virt slot for arith4 exec.
+
+import "kab/jit/jit_arith4"
+
+pub fn jitMmLoopArith4Pid() {
+    return 1
+}
+
+pub fn jitMmLoopArith4Virt() {
+    return 688128
+}
+
+pub fn jitMmLoopArith4Len() {
+    return 4096
+}
+
+pub fn jitMmLoopArith4Prot() {
+    return 7
+}
+
+pub fn jitOsMmapLoopArith4Ok(nBytes, kind, a, b, c, d, o1, o2, o3) {
+    if jitArith4Ok(a, b, c, d, o1, o2, o3) == false {
+        return false
+    }
+    if nBytes != jitArith4Len() {
+        return false
+    }
+    if kind != "rwx" {
+        return false
+    }
+    if jitMmLoopArith4Len() != 4096 {
+        return false
+    }
+    if jitMmLoopArith4Prot() != 7 {
+        return false
+    }
+    return true
+}

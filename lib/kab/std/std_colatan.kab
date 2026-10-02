@@ -1,5 +1,5 @@
 // SH20: collections atan off std_colacos.kab. import "kab/std/std_colatan"
-// Do not grow std_colacos.kab. stdHostDeleteOk stays false.
+// Do not grow std_colacos.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColAtan(a) {
     let n = len(a)

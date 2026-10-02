@@ -4,7 +4,7 @@ import "kab/std/std_colfill"
 import "kab/std/std_colpush"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let sq = stdColFill(1, 1764)
@@ -19,4 +19,4 @@ let q = stdColSqr(v)
 if q[0] != 1764 {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

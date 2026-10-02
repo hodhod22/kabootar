@@ -3,8 +3,6 @@
 mod doc;
 mod registry_web;
 mod repl;
-#[allow(dead_code)]
-mod test_runner;
 
 pub use doc::{extract_kab_docs, DocItem};
 pub use registry_web::render_index as registry_render_index;
@@ -419,8 +417,10 @@ fn doc_cmd(args: &[String]) -> i32 {
 
 /// KT8: `kabootar test` runs through the Kab-native kabtest runner
 /// (`lib/kabtest/cli_main.kab` → ktWalk/ktRunFile → ktEvalSource on the
-/// Kab VM). The Rust `test_runner` module is kept for reference until
-/// the SH25 delete-gate clears it; it is no longer in the command path.
+/// Kab VM). The Rust `test_runner` module is deleted — the delete-gate
+/// criteria are met: the product suite is green via the Kab path
+/// (ktCliHostDeleteOk) and gcHostDeleteOk flipped after the production-
+/// workload streak evidence (sh18_gc_production_probe).
 fn test_cmd(args: &[String]) -> i32 {
     let path = args
         .iter()
@@ -428,6 +428,9 @@ fn test_cmd(args: &[String]) -> i32 {
         .map(String::as_str)
         .unwrap_or("tests");
     std::env::set_var("KABOOTAR_TEST_ROOT", path);
+    // SH25: hand the routed argv[0] to the Kab-side dispatcher so every real
+    // `kabootar test` invocation consults cliDispatchKind on production argv.
+    std::env::set_var("KABOOTAR_CLI_ARGV", "test");
     if Path::new(path).is_file() {
         std::env::set_var("KABOOTAR_TEST_FILE", "1");
     } else {

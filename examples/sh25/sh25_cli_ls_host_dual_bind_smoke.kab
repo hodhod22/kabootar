@@ -2,7 +2,7 @@ import "kab/cli/cli_ls"
 import "kab/cli/cli_mod"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsMod("mod") == false {
@@ -11,4 +11,4 @@ if cliIsMod("mod") == false {
 if cliIsLs("ls") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

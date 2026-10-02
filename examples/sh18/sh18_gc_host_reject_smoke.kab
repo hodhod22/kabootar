@@ -5,4 +5,4 @@ let left = gcMarkStep(3, 0)
 if left != 3 {
     return false
 }
-return gcHostDeleteOk() == false
+return gcHostDeleteOk() == true

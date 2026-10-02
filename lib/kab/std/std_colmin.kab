@@ -1,5 +1,5 @@
 // SH20: collections min off std_colmax.kab. import "kab/std/std_colmin"
-// Do not grow std_colmax.kab. stdHostDeleteOk stays false.
+// Do not grow std_colmax.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColMin(p) {
     let m = p[0]

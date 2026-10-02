@@ -1,0 +1,56 @@
+import "self_host/vm_run_exec_core"
+import "kab/gc/gc_host"
+
+// SH18 production-workload evidence for gcHostDeleteOk. This file IS the
+// workload: `kabootar run` executes it on the production singleton session
+// via the real ops loop — every object/array charge drives a natural
+// collect at op boundaries (no hand-driven vGcCollectBeginS/vGcSweepDeadS —
+// that is the difference from sh18_gc_streak_workload_smoke). exec_core's
+// module-level S is the session this program runs on, so the streak the
+// flip consults is read directly. The nursery cap is shrunk to 1024 B (16
+// shell-charges per collect) — the same mark/sweep/root machinery at a
+// stress-test cadence, the way GC suites shrink the nursery to span many
+// cycles in bounded time.
+println("probe: session imported")
+
+vGcSessionSetCap(1024)
+
+fn churn(n) {
+    let acc = 0
+    let keep = []
+    let i = 0
+    while i < n {
+        let o = { "v": i, "s": "x" + i }
+        acc = acc + o["v"] + len(o["s"])
+        if i % 13 == 0 {
+            keep = push(keep, o)
+        }
+        i = i + 1
+    }
+    return acc + len(keep)
+}
+
+// 320 publishes at 16 charges/collect ≈ 19+ consecutive cycles — far above
+// the gcHostReadyStreakOk(8) criterion (two full major-cadence rotations).
+println("probe: churn start, collects=" + vGcSessionCollects())
+let acc = churn(320)
+println("probe: churn done, acc=" + acc + " collects=" + vGcSessionCollects() + " streak=" + vGcSessionReadyStreak())
+
+// Result integrity — GC must not corrupt live data. churn(320) =
+// sum(0..319) + len-sum + keeps = 51040 + 1170 + 25 = 52235.
+if acc != 52235 {
+    return 1
+}
+let collects = vGcSessionCollects()
+if typeof(collects) != "number" || collects < 8 {
+    return 20
+}
+let streak = vGcSessionReadyStreak()
+if gcHostReadyStreakOk(streak) != true {
+    return 30
+}
+// This probe IS the evidence — the gate must now report true.
+if gcHostDeleteOk() != true {
+    return 90
+}
+return true

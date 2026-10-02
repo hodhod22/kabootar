@@ -17,14 +17,29 @@ pub fn nollHostDeleteOk() {
 }
 
 /// True when every SH19–SH27 delete gate is still closed (all false).
+/// Honestly false now: gcHostDeleteOk, cliHostDeleteOk and stdHostDeleteOk
+/// flipped after production evidence — the host-deletion phase has begun.
+/// Use nollPendingHostGatesClosed for the remaining gates.
 pub fn nollAllHostGatesClosed() {
-    if loadMainDeleteOk() {
+    if nollPendingHostGatesClosed() == false {
         return false
     }
     if gcHostDeleteOk() {
         return false
     }
+    if cliHostDeleteOk() {
+        return false
+    }
     if stdHostDeleteOk() {
+        return false
+    }
+    return true
+}
+
+/// True when every SH19–SH27 delete gate not yet satisfied by production
+/// evidence is still closed (all false). Satisfied today: gc, cli, std.
+pub fn nollPendingHostGatesClosed() {
+    if loadMainDeleteOk() {
         return false
     }
     if kabOsHostDeleteOk() {
@@ -37,9 +52,6 @@ pub fn nollAllHostGatesClosed() {
         return false
     }
     if httpHostDeleteOk() {
-        return false
-    }
-    if cliHostDeleteOk() {
         return false
     }
     if sciHostDeleteOk() {

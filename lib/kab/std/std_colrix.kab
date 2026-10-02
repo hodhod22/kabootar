@@ -1,5 +1,5 @@
 // SH20: collections rindex off std_colrfind.kab. import "kab/std/std_colrix"
-// Do not grow std_colrfind.kab. stdHostDeleteOk stays false.
+// Do not grow std_colrfind.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColRIndex(p, x) {
     let n = len(p)

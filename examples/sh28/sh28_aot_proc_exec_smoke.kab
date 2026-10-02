@@ -1,0 +1,33 @@
+// SH28: OS-spawned process exec — the persisted image's code bytes run
+// under a pid the OS spawned (os_spawn → process table → own VA space),
+// not the init process's guest-MM slot. This is the nollAotProcess leg:
+// guest rax must equal the Kab mirror for both predicate polarities.
+
+import "kab/aot/aot_proc"
+import "kab/jit/jit_fuse_cmp"
+
+// lt (87): 3 < 9 → guest/mirror 1 — exec under a spawned pid.
+if aotProcExecOk("_aot_proc_exec.kabi", 87, 3, 9) == false {
+    return 1
+}
+// ge (90): 9 >= 3 → 1 — different magic, same spawned-process roundtrip.
+if aotProcExecOk("_aot_proc_exec.kabi", 90, 9, 3) == false {
+    return 2
+}
+// Out-of-domain immediates (n=0) → emit refuses → no exec.
+if aotProcExecOk("_aot_proc_exec.kabi", 87, 0, 9) {
+    return 3
+}
+// Bad magic → emit refuses.
+if aotProcExecOk("_aot_proc_exec.kabi", 0, 3, 9) {
+    return 4
+}
+// Init's pid is never a listed spawned process.
+if aotProcListedOk(1) {
+    return 5
+}
+// A pid the OS did not spawn is not listed.
+if aotProcListedOk(999999) {
+    return 6
+}
+return 42

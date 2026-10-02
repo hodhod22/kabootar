@@ -2,10 +2,10 @@ import "kab/gc/gc_host"
 import "kab/gc/gc_tlab_nursery"
 import "kab/gc"
 
-if gcHostDeleteOk() != false {
+if gcHostDeleteOk() != true {
     return false
 }
 if gcTlabNurseryOk(2, 65536, gcNurseryCap()) != true {
     return false
 }
-return gcHostDeleteOk() == false
+return gcHostDeleteOk() == true

@@ -1,0 +1,76 @@
+// SH25: canonical top-level argv[0] dispatch in Kab — mirrors the Rust
+// match in src/cli/mod.rs arm for arm, in the same order. import "kab/cli/cli_dispatch"
+// Do not grow cli.kab. Host src/cli remains skuld until the delete-gate.
+
+import "kab/cli"
+import "kab/cli/cli_serve"
+import "kab/cli/cli_shell"
+import "kab/cli/cli_nb"
+import "kab/cli/cli_cc"
+import "kab/cli/cli_fmt"
+import "kab/cli/cli_doc"
+import "kab/cli/cli_registry"
+import "kab/cli/cli_install"
+import "kab/cli/cli_publish"
+import "kab/cli/cli_mod"
+import "kab/cli/cli_flag"
+import "kab/cli/cli_path"
+
+/// Canonical command kind for argv[0]. Returns the handler name the Rust
+/// dispatcher would route to, or "" for an unknown arg (Rust prints help
+/// and exits 1). Path forms resolve to the handler they route to:
+/// .kab/.kabootar/.kbcb → "run", .knb → "notebook".
+pub fn cliDispatchKind(arg) {
+    if cliIsRun(arg) {
+        return "run"
+    }
+    if cliIsServe(arg) {
+        return "serve"
+    }
+    if cliIsShell(arg) {
+        return "shell"
+    }
+    if cliIsNotebook(arg) {
+        return "notebook"
+    }
+    if cliIsCompile(arg) {
+        return "compile"
+    }
+    if cliIsFmt(arg) {
+        return "fmt"
+    }
+    if cliIsDoc(arg) {
+        return "doc"
+    }
+    if cliIsTest(arg) {
+        return "test"
+    }
+    if cliIsRepl(arg) {
+        return "repl"
+    }
+    if cliIsRegistry(arg) {
+        return "registry"
+    }
+    if cliIsInstall(arg) {
+        return "install"
+    }
+    if cliIsPublish(arg) {
+        return "publish"
+    }
+    if cliIsMod(arg) {
+        return "mod"
+    }
+    if cliIsVersionFlag(arg) {
+        return "version"
+    }
+    if cliIsHelpFlag(arg) {
+        return "help"
+    }
+    if cliIsRunPath(arg) {
+        return "run"
+    }
+    if cliIsNbPath(arg) {
+        return "notebook"
+    }
+    return ""
+}

@@ -1,6 +1,6 @@
 // SH18 deepen 2: rollup gc_deep + tenuring + card-scan + safepoint leaves.
 // import "kab/gc/gc_deep2"
-// Do not grow gc_deep.kab. gcHostDeleteOk stays false.
+// Do not grow gc_deep.kab. gcHostDeleteOk flipped true (production evidence).
 
 import "kab/gc/gc_deep"
 import "kab/gc/gc_age"

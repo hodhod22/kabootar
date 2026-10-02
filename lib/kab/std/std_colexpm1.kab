@@ -1,5 +1,5 @@
 // SH20: collections expm1 off std_collog1p.kab. import "kab/std/std_colexpm1"
-// Do not grow std_collog1p.kab. stdHostDeleteOk stays false.
+// Do not grow std_collog1p.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColExpm1(a) {
     let n = len(a)

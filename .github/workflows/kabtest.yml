@@ -1,0 +1,35 @@
+name: Kabtest product gate
+
+# KT9: product tests gate through the Kab-native kabtest runner
+# (`kabootar test` → lib/kabtest/cli_main.kab on the Kab VM).
+# `cargo test` remains only for the remaining src/ debt (see
+# self-host.yml); product `*_test.kab` coverage lives here.
+
+on:
+  push:
+    paths:
+      - "lib/**/*.kab"
+      - "tests/**/*.kab"
+      - "self_host/**"
+      - "src/**"
+      - ".github/workflows/kabtest.yml"
+  pull_request:
+    paths:
+      - "lib/**/*.kab"
+      - "tests/**/*.kab"
+      - "self_host/**"
+      - "src/**"
+      - ".github/workflows/kabtest.yml"
+
+jobs:
+  kabtest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build kabootar
+        run: cargo build --release
+      - name: kabtest product suite (tests/)
+        run: ./target/release/kabootar test tests
+      - name: kabtest product suite (lib/)
+        run: ./target/release/kabootar test lib

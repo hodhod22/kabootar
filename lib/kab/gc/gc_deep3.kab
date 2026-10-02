@@ -1,6 +1,6 @@
 // SH18 deepen 3: rollup gc_deep2 + compaction + LOS + free-list leaves.
 // import "kab/gc/gc_deep3"
-// Do not grow gc_deep2.kab. gcHostDeleteOk stays false.
+// Do not grow gc_deep2.kab. gcHostDeleteOk flipped true (production evidence).
 
 import "kab/gc/gc_deep2"
 import "kab/gc/gc_compact"

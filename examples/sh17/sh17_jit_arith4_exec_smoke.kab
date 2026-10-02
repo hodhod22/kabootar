@@ -1,0 +1,94 @@
+// SH17 widen: arith4 fusion through the REAL ops loop — a hot monomorphic
+// call site whose callee body is the left-assoc chain
+// `return a OP1 b OP2 c OP3 d` (8 ops, 4 params) compiles to the guest
+// arith4 template (magic 108): vJitClassifyS → vJitMaybeCompileS →
+// vJitOpsOfRec extracts the chain → jitFromOpsArith4Ok execs + mirror
+// validates instead of a frame.
+
+import "kab/jit/jit_from_ops_arith4"
+import "kab/jit/jit_from_ops_any"
+import "kab/jit/jit_from_ops_any_val"
+import "kab/jit/jit_arith4"
+
+// Direct dual-bind: the descriptor lowers to the guest template, execs via
+// os_mm_call, and the guest rax matches the Kab mirror.
+let d = ["const", "const", "const", "const", "mul", "add", "sub", "ret"]
+if jitArith4OpsOk(d) != true {
+    return 5
+}
+if jitFuseKind(d) != 7 {
+    return 6
+}
+if jitFromOpsArith4Ok(d, 6, 7, 8, 2) != true {
+    return 7
+}
+// Mirror: ((6*7)+8)-2 = 48; guest exec agreed (jitFromOpsArith4Ok true).
+if jitArith4Rax(6, 7, 8, 2, 3, 1, 2) != 48 {
+    return 8
+}
+// Dispatcher's value mirror returns the same result for kind 7.
+if jitFromOpsAnyVal(d, 6, 7, 8, 2, 0, 0) != 48 {
+    return 9
+}
+// Reject: a non-arith op in the chain stays cold.
+if jitArith4OpsOk(["const", "const", "const", "const", "mul", "concat", "sub", "ret"]) != false {
+    return 10
+}
+// Reject: an arith3-length chain is not arith4 (handled by kind 6).
+if jitArith4OpsOk(["const", "const", "const", "mul", "add", "ret"]) != false {
+    return 11
+}
+// mul+add+sub chain: (a * b) + c - d.
+fn macs(a, b, c, d) {
+    return a * b + c - d
+}
+
+// Drive the site hot: 12 calls at one ip compile the rec.
+let acc = 0
+let i = 0
+while i < 12 {
+    acc = macs(6, 7, 8, 2)
+    i = i + 1
+}
+// 6*7 + 8 - 2 = 48 — same value via template or frame.
+if acc != 48 {
+    return 1
+}
+
+// sub+add+sub chain: a - b + c - d is left-assoc at one precedence level.
+fn smad(a, b, c, d) {
+    return a - b + c - d
+}
+let s = 0
+let j = 0
+while j < 12 {
+    s = smad(40, 9, 11, 2)
+    j = j + 1
+}
+// ((40-9)+11)-2 = 40.
+if s != 40 {
+    return 2
+}
+
+// div+mod+add chain: (a / b) % c + d — the full op set is extractable.
+fn dmad(a, b, c, d) {
+    return a / b % c + d
+}
+let v = 0
+let q = 0
+while q < 12 {
+    v = dmad(50, 7, 5, 4)
+    q = q + 1
+}
+// 50/7 = 7 (int), 7 % 5 = 2, 2 + 4 = 6.
+if v != 6 {
+    return 3
+}
+
+// Out-of-domain operand (a > 64) deopts to the frame path — same value.
+let w = macs(100, 7, 8, 2)
+if w != 706 {
+    return 4
+}
+
+return 42

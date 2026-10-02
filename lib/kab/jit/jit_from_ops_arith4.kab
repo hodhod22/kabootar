@@ -1,0 +1,75 @@
+// SH17 widen: ops-driven arith4 fusion — the left-assoc chain
+// const/const/const/const/op/op/op/ret lowers to ONE guest arith4 template
+// (magic 108). Covers the real shape `return a OP1 b OP2 c OP3 d` (arity 4)
+// that the fixed 6-param L-chain cannot. import "kab/jit/jit_from_ops_arith4"
+// Do not grow jit_from_ops_arith3.kab.
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_arith4"
+import "kab/jit/jit_mm_loop_arith4"
+import "kab/jit/jit_call_loop_arith4"
+
+/// True when ops are exactly the fusible arith4 chain
+/// const/const/const/const/op/op/op/ret with all three ops in
+/// add/sub/mul/div/mod.
+pub fn jitArith4OpsOk(ops) {
+    if typeof(ops) != "array" {
+        return false
+    }
+    if len(ops) != 8 {
+        return false
+    }
+    if ops[0] != "const" {
+        return false
+    }
+    if ops[1] != "const" {
+        return false
+    }
+    if ops[2] != "const" {
+        return false
+    }
+    if ops[3] != "const" {
+        return false
+    }
+    if jitArith4Code(ops[4]) == 0 {
+        return false
+    }
+    if jitArith4Code(ops[5]) == 0 {
+        return false
+    }
+    if jitArith4Code(ops[6]) == 0 {
+        return false
+    }
+    if ops[7] != "ret" {
+        return false
+    }
+    return true
+}
+
+/// Compile a fusible arith4 chain into one guest template and exec it in
+/// the guest MMU; true when guest rax matches jitArith4Rax.
+pub fn jitFromOpsArith4Ok(ops, a, b, c, d) {
+    if jitCanCompile(ops) == false {
+        return false
+    }
+    if jitArith4OpsOk(ops) == false {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        if jitOpOk(ops[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    let o1 = jitArith4Code(ops[4])
+    let o2 = jitArith4Code(ops[5])
+    let o3 = jitArith4Code(ops[6])
+    if jitArith4Ok(a, b, c, d, o1, o2, o3) == false {
+        return false
+    }
+    let base = os_mm_mmap(jitMmLoopArith4Pid(), jitMmLoopArith4Virt(), jitMmLoopArith4Len(), jitMmLoopArith4Prot())
+    let bytes = jitEmitI64Arith4(a, b, c, d, o1, o2, o3)
+    return jitCallLoopArith4Ok(base, "rwx", a, b, c, d, o1, o2, o3, bytes)
+}

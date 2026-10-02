@@ -1,5 +1,5 @@
 // SH20: collections ceil off std_colfloor.kab. import "kab/std/std_colceil"
-// Do not grow std_colfloor.kab. stdHostDeleteOk stays false.
+// Do not grow std_colfloor.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColCeil(a) {
     let n = len(a)

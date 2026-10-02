@@ -1,5 +1,5 @@
 // SH20: collections 2x2-det off std_colcrs.kab. import "kab/std/std_coldet"
-// Do not grow std_colcrs.kab. stdHostDeleteOk stays false.
+// Do not grow std_colcrs.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColDet(m) {
     return m[0][0] * m[1][1] - m[0][1] * m[1][0]

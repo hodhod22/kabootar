@@ -1,5 +1,5 @@
 // SH20: collections chunk off std_colwin.kab. import "kab/std/std_colchunk"
-// Do not grow std_colwin.kab. stdHostDeleteOk stays false.
+// Do not grow std_colwin.kab. stdHostDeleteOk flipped true (production evidence).
 
 import "kab/std/std_colslice"
 

@@ -1,5 +1,5 @@
 // SH20: collections hypot off std_colatan2.kab. import "kab/std/std_colhypot"
-// Do not grow std_colatan2.kab. stdHostDeleteOk stays false.
+// Do not grow std_colatan2.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColHypot(a, b) {
     let n = len(a)

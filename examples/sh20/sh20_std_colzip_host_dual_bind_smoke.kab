@@ -5,7 +5,7 @@ import "kab/std/std_colfirst"
 import "kab/std/std_col"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let p = stdColPair("n", 42)
@@ -19,4 +19,4 @@ if stdColFirst(a) != "n" {
 if row[1] != 42 {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

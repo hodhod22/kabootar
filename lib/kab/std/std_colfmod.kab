@@ -1,5 +1,5 @@
 // SH20: collections fmod off std_colatanh.kab. import "kab/std/std_colfmod"
-// Do not grow std_colatanh.kab. stdHostDeleteOk stays false.
+// Do not grow std_colatanh.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColFmod(a, b) {
     let n = len(a)

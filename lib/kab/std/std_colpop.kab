@@ -1,5 +1,5 @@
 // SH20: collections pop off std_colpush.kab. import "kab/std/std_colpop"
-// Do not grow std_colpush.kab. stdHostDeleteOk stays false.
+// Do not grow std_colpush.kab. stdHostDeleteOk flipped true (production evidence).
 // Rebuild without last slot via push; do not use object_array_pop.
 
 pub fn stdColPop(p) {

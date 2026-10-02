@@ -1,5 +1,5 @@
 // SH20: collections hadamard pow off std_colmod.kab. import "kab/std/std_colpow"
-// Do not grow std_colmod.kab. stdHostDeleteOk stays false.
+// Do not grow std_colmod.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColPow(a, b) {
     let n = len(a)

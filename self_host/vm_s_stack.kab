@@ -343,10 +343,7 @@ pub fn vInstKeyS(v) {
 /// inst-valued write — a heaped dst gaining a young pointer must reach the
 /// remembered set or a minor collect can miss it.
 pub fn vMergeInstInPlace(S, dst, src) {
-    if typeof(dst) != "object" || dst == null {
-        return
-    }
-    if typeof(src) != "object" || src == null {
+    if vGcPlainObjS(dst) == false || vGcPlainObjS(src) == false {
         return
     }
     let keys = object_keys(src)
@@ -596,6 +593,22 @@ pub fn vGcObjIdS(v) {
     return gc_obj_id(v)
 }
 
+/// True only for a host-level plain object. typeof reports "object" for
+/// Option/Result/ClassInstance/BoundMethod/BytecodeFn/DOM handles too, and
+/// object_keys throws on every one of them — the host is_object native is
+/// the exact check (it also excludes map/set-tagged objects whose payloads
+/// are host-managed, not field-scannable). Falls back to the typeof guard
+/// when the native is absent from this env.
+pub fn vGcPlainObjS(v) {
+    if typeof(v) != "object" || v == null {
+        return false
+    }
+    if typeof(is_object) == "function" {
+        return is_object(v)
+    }
+    return true
+}
+
 pub fn vGcMarkValS(st, v) {
     let id = vInstId(v)
     if id == undefined {
@@ -605,7 +618,7 @@ pub fn vGcMarkValS(st, v) {
         // per-cycle dedup that mutates nothing and keeps the object outside
         // inst-id space (no heap-aliasing surface); without it, pushes stay
         // bounded by the roots cap so cyclic graphs still terminate.
-        if typeof(v) != "object" || v == null {
+        if vGcPlainObjS(v) == false {
             return st
         }
         let oid = vGcObjIdS(v)
@@ -806,7 +819,7 @@ pub fn vGcScanFieldsS(st, heap, rid) {
             }
         }
     }
-    if typeof(obj) != "object" || obj == null {
+    if vGcPlainObjS(obj) == false {
         return st
     }
     let keys = object_keys(obj)
@@ -959,7 +972,7 @@ pub fn vGcSweepSliceN() {
 /// cleared). Shared by lazy-sweep slices; mutates the shared object in
 /// place like the eager sweep did.
 pub fn vGcWeakClearObjS(obj, seen, minNew) {
-    if typeof(obj) != "object" || obj == null {
+    if vGcPlainObjS(obj) == false {
         return obj
     }
     let keys = object_keys(obj)
@@ -1062,7 +1075,16 @@ pub fn vGcSweepSliceS(S, budget) {
                 // old-space slot — a minor collect leaves it alone. An
                 // oid-keyed object (vmI==undefined) has no generation and
                 // may be reachable only through untraced old insts — minors
-                // must not tombstone it or that edge dangles.
+                // must not tombstone it or that edge dangles. A skipped
+                // slot that WAS marked still counts as live for the
+                // readiness check: gcHostReadyOk compares marked
+                // (heap-resolving roots, which include oid objects) against
+                // live (marked heap slots) — without this count every minor
+                // settles not-ready and the streak can never grow under a
+                // real minor/major cadence.
+                if seen[vInstKeyS(obj)] == true {
+                    live = live + 1
+                }
             } else if seen[vInstKeyS(obj)] == true {
                 live = live + 1
                 vGcWeakClearObjS(obj, seen, mn)

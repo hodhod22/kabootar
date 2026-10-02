@@ -1,0 +1,88 @@
+// SH17 widen: arith3 fusion through the REAL ops loop — a hot monomorphic
+// call site whose callee body is the left-assoc chain `return a OP1 b OP2 c`
+// (6 ops, 3 params) compiles to the guest arith3 template (magic 107):
+// vJitClassifyS → vJitMaybeCompileS → vJitOpsOfRec extracts the chain →
+// jitFromOpsArith3Ok execs + mirror validates instead of a frame.
+
+import "kab/jit/jit_from_ops_arith3"
+import "kab/jit/jit_from_ops_any"
+import "kab/jit/jit_from_ops_any_val"
+import "kab/jit/jit_arith3"
+
+// Direct dual-bind: the descriptor lowers to the guest template, execs via
+// os_mm_call, and the guest rax matches the Kab mirror.
+let d = ["const", "const", "const", "mul", "add", "ret"]
+if jitArith3OpsOk(d) != true {
+    return 5
+}
+if jitFuseKind(d) != 6 {
+    return 6
+}
+if jitFromOpsArith3Ok(d, 6, 7, 8) != true {
+    return 7
+}
+// Mirror: (6*7)+8 = 50; guest exec agreed (jitFromOpsArith3Ok true).
+if jitArith3Rax(6, 7, 8, 3, 1) != 50 {
+    return 8
+}
+// Dispatcher's value mirror returns the same result for kind 6.
+if jitFromOpsAnyVal(d, 6, 7, 8, 0, 0, 0) != 50 {
+    return 9
+}
+// Reject: a non-arith op in the chain stays cold.
+if jitArith3OpsOk(["const", "const", "const", "concat", "add", "ret"]) != false {
+    return 10
+}
+// mul+add chain: (a * b) + c — the shape the 6-param L-chain cannot cover.
+fn mac(a, b, c) {
+    return a * b + c
+}
+
+// Drive the site hot: 12 calls at one ip compile the rec.
+let acc = 0
+let i = 0
+while i < 12 {
+    acc = mac(6, 7, 8)
+    i = i + 1
+}
+// 6*7 + 8 = 50 — same value via template or frame.
+if acc != 50 {
+    return 1
+}
+
+// sub+add chain: a - b + c.
+fn sac(a, b, c) {
+    return a - b + c
+}
+let s = 0
+let j = 0
+while j < 12 {
+    s = sac(40, 9, 11)
+    j = j + 1
+}
+if s != 42 {
+    return 2
+}
+
+// div+mod chain: (a / b) % c — the full op set is extractable.
+fn dmc(a, b, c) {
+    return a / b % c
+}
+let v = 0
+let q = 0
+while q < 12 {
+    v = dmc(50, 7, 5)
+    q = q + 1
+}
+// 50/7 = 7 (int), 7 % 5 = 2.
+if v != 2 {
+    return 3
+}
+
+// Out-of-domain operand (a > 64) deopts to the frame path — same value.
+let w = mac(100, 7, 8)
+if w != 708 {
+    return 4
+}
+
+return 42

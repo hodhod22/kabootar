@@ -1,5 +1,5 @@
 // SH20: collections find-last off std_colfind.kab. import "kab/std/std_colrfind"
-// Do not grow std_colfind.kab. stdHostDeleteOk stays false.
+// Do not grow std_colfind.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColFindLast(p, x) {
     let n = len(p)

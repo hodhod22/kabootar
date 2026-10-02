@@ -1,5 +1,5 @@
 // SH20: collections contains off std_colrev.kab. import "kab/std/std_colcontains"
-// Do not grow std_colrev.kab. stdHostDeleteOk stays false.
+// Do not grow std_colrev.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColContains(p, x) {
     let n = len(p)

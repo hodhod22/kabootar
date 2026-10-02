@@ -3,7 +3,7 @@ import "kab/std/std_colmax"
 import "kab/std/std_colrange"
 import "kab/std/std_host"
 
-if stdHostDeleteOk() != false {
+if stdHostDeleteOk() != true {
     return false
 }
 let r = stdColRange(40, 43)
@@ -13,4 +13,4 @@ if stdColMax(r) != 42 {
 if stdColMin(r) != 40 {
     return false
 }
-return stdHostDeleteOk() == false
+return stdHostDeleteOk() == true

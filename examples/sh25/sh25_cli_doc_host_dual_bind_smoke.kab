@@ -2,7 +2,7 @@ import "kab/cli/cli_doc"
 import "kab/cli/cli_help"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsHelp("help") == false {
@@ -11,4 +11,4 @@ if cliIsHelp("help") == false {
 if cliIsDoc("doc") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

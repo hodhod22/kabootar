@@ -1,5 +1,5 @@
 // SH20: collections get off std_col.kab. import "kab/std/std_colget"
-// Do not grow std_col.kab. stdHostDeleteOk stays false.
+// Do not grow std_col.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColGet(p, i) {
     return p[i]

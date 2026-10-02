@@ -1,0 +1,47 @@
+// SH17 widen: validate arith4 template.
+// import "kab/jit/jit_patch_loop_arith4"
+// Do not grow jit_patch_loop_arith3.kab.
+
+import "kab/jit/jit_arith4"
+import "kab/jit/jit_check"
+
+pub fn jitPatchLoopArith4Ok(bytes, a, b, c, d, o1, o2, o3) {
+    if jitArith4Ok(a, b, c, d, o1, o2, o3) == false {
+        return false
+    }
+    let tpl = jitEmitI64Arith4(a, b, c, d, o1, o2, o3)
+    if len(bytes) != jitArith4Len() {
+        return false
+    }
+    if len(tpl) != jitArith4Len() {
+        return false
+    }
+    if bytes[0] != tpl[0] {
+        return false
+    }
+    if bytes[1] != tpl[1] {
+        return false
+    }
+    if bytes[2] != tpl[2] {
+        return false
+    }
+    if bytes[3] != tpl[3] {
+        return false
+    }
+    if bytes[4] != tpl[4] {
+        return false
+    }
+    if bytes[5] != tpl[5] {
+        return false
+    }
+    if bytes[6] != tpl[6] {
+        return false
+    }
+    if bytes[7] != tpl[7] {
+        return false
+    }
+    if jitByteIsRet(bytes[8]) == false {
+        return false
+    }
+    return bytes[8] == tpl[8]
+}

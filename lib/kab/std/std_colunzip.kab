@@ -1,5 +1,5 @@
 // SH20: collections unzip off std_colzip.kab. import "kab/std/std_colunzip"
-// Do not grow std_colzip.kab. stdHostDeleteOk stays false.
+// Do not grow std_colzip.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColUnzip(z) {
     let left = []

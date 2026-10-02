@@ -1,5 +1,5 @@
 // SH20: collections mat-mul off std_colmv.kab. import "kab/std/std_colmm"
-// Do not grow std_colmv.kab. stdHostDeleteOk stays false.
+// Do not grow std_colmv.kab. stdHostDeleteOk flipped true (production evidence).
 
 import "kab/std/std_coltr"
 import "kab/std/std_colmv"

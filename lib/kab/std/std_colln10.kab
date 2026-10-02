@@ -1,5 +1,5 @@
 // SH20: collections ln10 off std_colln2.kab. import "kab/std/std_colln10"
-// Do not grow std_colln2.kab. stdHostDeleteOk stays false.
+// Do not grow std_colln2.kab. stdHostDeleteOk flipped true (production evidence).
 
 pub fn stdColLn10(a) {
     let n = len(a)

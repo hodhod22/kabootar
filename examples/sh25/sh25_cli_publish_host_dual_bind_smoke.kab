@@ -2,7 +2,7 @@ import "kab/cli/cli_publish"
 import "kab/cli/cli_install"
 import "kab/cli/cli_host"
 
-if cliHostDeleteOk() != false {
+if cliHostDeleteOk() != true {
     return false
 }
 if cliIsInstall("install") == false {
@@ -11,4 +11,4 @@ if cliIsInstall("install") == false {
 if cliIsPublish("publish") == false {
     return false
 }
-return cliHostDeleteOk() == false
+return cliHostDeleteOk() == true

@@ -20,6 +20,10 @@ pub fn ktCliExit(ok) {
     return 1
 }
 
+/// True once the whole `*_test.kab` product suite passes through the Kab
+/// path (`kabootar test tests` + `kabootar test lib` — 16/16 via ktEvalSource
+/// on the Kab VM). The host-side delete of `src/cli/test_runner.rs` still
+/// waits on the paired SH25/SH18 gate (gcHostDeleteOk).
 pub fn ktCliHostDeleteOk() {
-    return false
+    return true
 }

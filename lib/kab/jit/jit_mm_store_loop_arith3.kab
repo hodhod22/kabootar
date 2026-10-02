@@ -1,0 +1,19 @@
+// SH17 widen: guest store for arith3 template.
+// import "kab/jit/jit_mm_store_loop_arith3"
+// Do not grow jit_mm_store_loop_f64.kab.
+
+import "kab/jit/jit_mm_loop_arith3"
+import "kab/jit/jit_arith3"
+
+pub fn jitMmStoreLoopArith3(bytes, a, b, c, o1, o2) {
+    if jitArith3Ok(a, b, c, o1, o2) == false {
+        return 0
+    }
+    if len(bytes) != jitArith3Len() {
+        return 0
+    }
+    let pid = jitMmLoopArith3Pid()
+    let virt = jitMmLoopArith3Virt()
+    let w = os_mm_store(pid, virt, bytes)
+    return w
+}

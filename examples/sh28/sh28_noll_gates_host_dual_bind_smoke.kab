@@ -9,7 +9,10 @@ if nollHostDeleteOk() != false {
 if nollAotReady() {
     return false
 }
-if nollAllHostGatesClosed() != true {
+if nollAllHostGatesClosed() != false {
+    return false
+}
+if nollPendingHostGatesClosed() != true {
     return false
 }
 if nollAllGatesClosedOk() != true {

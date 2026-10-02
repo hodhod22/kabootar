@@ -1,7 +1,12 @@
-// SH28: AOT binary is not the OS process — policy "aot-process" is false.
+// SH28: AOT image exec is an OS-spawned process — policy "aot-process" is true.
 // import "kab/noll/noll_aotproc"
+// Evidence: kab/aot/aot_proc `aotProcExecOk` runs the entry-resolved image
+// under an os_spawn'd pid (own process-table entry + own VA space), guest
+// rax == Kab mirror (sh28_aot_proc_exec_smoke). nollImageIsProcess and
+// nollMmapExecProcess stay false — the image/mmap are still not processes
+// themselves.
 // Do not grow noll_proc.kab or noll_aot.kab. Do not delete src/. nollAotReady stays false.
 
 pub fn nollAotProcess() {
-    return false
+    return true
 }

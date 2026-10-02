@@ -2557,6 +2557,39 @@ fn sh6_self_host_do_while_ok() {
     assert_eq!(formatted, "4");
 }
 
+/// SH6: emit regression — an inner `while` used to clobber `E["eWhileHead"]`,
+/// so the outer loop's back-edge jumped to the inner header and the outer
+/// condition never re-evaluated (infinite loop). The fix captures the head in
+/// a local before `eCallStmt` runs the body.
+#[test]
+fn sh6_self_host_nested_while_backedge_ok() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    ensure_compiler_image();
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = "fn run() {\n  let round = 0\n  while round < 8 {\n    let i = 0\n    while i < 2 {\n      i = i + 1\n    }\n    round = round + 1\n  }\n  return round\n}\nreturn run()";
+    let formatted = std::thread::Builder::new()
+        .name("sh6-nested-while".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program =
+                compile_source_self_host(src).map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("self-host nested while back-edge");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "8");
+}
+
 /// SH6: product self-host `switch` + explicit `fallthrough` + Kab VM (1+10, not default).
 #[test]
 fn sh6_self_host_switch_fallthrough_ok() {
@@ -25185,11 +25218,82 @@ fn sh17_jit_compile_trigger_smoke() {
     assert_eq!(formatted, "42");
 }
 
+/// SH17 widen: arith3 fusion — a hot mono call site whose callee body is the
+/// left-assoc chain `return a OP1 b OP2 c` (6 ops, arity 3) compiles to the
+/// guest arith3 template (magic 107) via vJitOpsOfRec; out-of-domain operands
+/// deopt to the frame path.
+#[test]
+fn sh17_jit_arith3_exec_smoke() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = std::fs::read_to_string(format!(
+        "{}/examples/sh17/sh17_jit_arith3_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read jit arith3 smoke");
+    let formatted = std::thread::Builder::new()
+        .name("sh17-jit-arith3".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program = compile_source_self_host(&src)
+                .map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("jit arith3 smoke");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH17 widen: arith4 fusion — a hot mono call site whose callee body is the
+/// left-assoc chain `return a OP1 b OP2 c OP3 d` (8 ops, arity 4) compiles to
+/// the guest arith4 template (magic 108) via vJitOpsOfRec; out-of-domain
+/// operands deopt to the frame path.
+#[test]
+fn sh17_jit_arith4_exec_smoke() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = std::fs::read_to_string(format!(
+        "{}/examples/sh17/sh17_jit_arith4_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read jit arith4 smoke");
+    let formatted = std::thread::Builder::new()
+        .name("sh17-jit-arith4".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program = compile_source_self_host(&src)
+                .map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("jit arith4 smoke");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
 /// F10/SH28 deepen: persisted-image exec leg — a Kab-emitted fused-cmp
 /// template blob is hex-encoded into an image, persisted through os_write,
 /// read back, decoded, mmap'd into a fresh guest-MM page, and called; guest
-/// rax must equal the Kab mirror. nollAotProcess stays false: exec is the
-/// in-process guest MM, not an OS-spawned process.
+/// rax must equal the Kab mirror.
 #[test]
 fn f10_aot_exec_round_smoke() {
     let path = format!(
@@ -25254,6 +25358,102 @@ fn kabtest_engine_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile kabtest engine smoke");
             let value = eval_program(&program, &mut env).expect("run kabtest engine smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 widen: bit/unary chain forms (magic 77-84) extracted in vJitOpsOfFn
+/// and exec'd through the existing loop pipelines — guest rax matches the
+/// Kab mirror for every binary and unary form.
+#[test]
+fn sh17_jit_bits_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh17/sh17_jit_bits_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-bits-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit bits exec smoke");
+            let value = eval_program(&program, &mut env).expect("run jit bits exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: guest x64 executor — real fetch-decode-execute of emitted bytes
+/// (mov/add/cmp/jcc/call/ret/frame/local + fault kinds), no os_mm_call
+/// template matching. Still in-process guest execution.
+#[test]
+fn sh28_aot_guest_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_guest_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-guest-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot guest exec smoke");
+            let value = eval_program(&program, &mut env).expect("run aot guest exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: guest executor over a relocation-applied multi-function image —
+/// symbol table + rel32 reloc records applied by the guest before entry
+/// resolution and cross-function exec.
+#[test]
+fn sh28_aot_guest_reloc_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_guest_reloc_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-guest-reloc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot guest reloc smoke");
+            let value = eval_program(&program, &mut env).expect("run aot guest reloc smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: OS-spawned process exec — the persisted image's code bytes run
+/// under a pid the OS spawned (os_spawn → process table → own VA space),
+/// not the init process's guest-MM slot. The nollAotProcess leg.
+#[test]
+fn sh28_aot_proc_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_proc_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-proc-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot proc exec smoke");
+            let value = eval_program(&program, &mut env).expect("run aot proc exec smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
         })
         .expect("spawn")
@@ -58317,14 +58517,18 @@ fn sh18_gc_conc_in_kab() {
     );
 }
 
-/// SH18: host GC delete gate stays false (no src/ GC delete yet).
+/// SH18: host GC delete gate is flipped — production evidence landed
+/// (sh18_gc_production_probe: 30 consecutive consistent cycles on the
+/// production singleton via real nursery charges).
 #[test]
 fn sh18_gc_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let h = std::fs::read_to_string(root.join("lib/kab/gc/gc_host.kab")).expect("gc_host.kab");
+    let gate_idx = h.find("pub fn gcHostDeleteOk").expect("gcHostDeleteOk gate");
+    let body = &h[gate_idx..];
     assert!(
-        h.contains("pub fn gcHostDeleteOk") && h.contains("false") && !h.contains("Rc::"),
-        "SH18 Kab gcHostDeleteOk delete gate"
+        body.contains("return true") && !h.contains("Rc::"),
+        "SH18 Kab gcHostDeleteOk delete gate flipped after production evidence"
     );
 }
 
@@ -58557,7 +58761,8 @@ fn sh18_gc_concurrent_stress_reject_in_kab() {
     );
 }
 
-/// SH18 capstone: full GC deepen chain plus host delete gates closed.
+/// SH18 capstone: full GC deepen chain plus host delete gates — the gc gate
+/// is satisfied (production evidence); the other SH19–SH27 gates stay closed.
 #[test]
 fn sh18_gc_capstone_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -58566,7 +58771,7 @@ fn sh18_gc_capstone_in_kab() {
         s.contains("pub fn gcCapstoneOk")
             && s.contains("pub fn gcCapstoneGatesClosed")
             && s.contains("gcChainOk")
-            && s.contains("nollAllHostGatesClosed")
+            && s.contains("nollPendingHostGatesClosed")
             && s.contains("gcHostDeleteOk")
             && !s.contains("Rc::"),
         "SH18 Kab gcCapstoneOk host gate rollup"
@@ -58654,7 +58859,7 @@ fn sh_wave_capstone_in_kab() {
             && s.contains("loadAotCapstoneOk")
             && s.contains("nollAotReady")
             && s.contains("nollKeepSrc")
-            && s.contains("nollAllHostGatesClosed")
+            && s.contains("gcCapstoneGatesClosed")
             && !s.contains("Rc::"),
         "SH wave capstone GC plus AOT rollup"
     );
@@ -59939,7 +60144,7 @@ fn sh28_self_host_seed_dual_bind() {
 /// SH18 deepen: oid-target weak-clear — a holder's weak_o → host-oid object
 /// must clear even when the oid value sits above the vmI watermark; the oid
 /// never enters the vmI freelist; gcHostReadyStreak accumulates evidence for
-/// the (still-false) gcHostDeleteOk gate.
+/// the gcHostDeleteOk gate (flipped after sh18_gc_production_probe).
 #[test]
 fn sh18_gc_vm_oid_weak_exec_smoke() {
     let path = format!(
@@ -59954,6 +60159,33 @@ fn sh18_gc_vm_oid_weak_exec_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile gc vm oid weak smoke");
             let value = eval_program(&program, &mut env).expect("run gc vm oid weak smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: streak evidence on a real workload — the smoke churns the
+/// inst heap for 8 consecutive internally-consistent collect cycles
+/// (gcHostReadyStreak >= 8, the gcHostReadyStreakOk flip criterion) while a
+/// permanently-retained keep survives every sweep. The gate flipped after
+/// sh18_gc_production_probe proved the streak on the production session
+/// under natural nursery charges (30 consecutive consistent cycles).
+#[test]
+fn sh18_gc_streak_workload_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18/sh18_gc_streak_workload_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-streak-workload".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc streak workload smoke");
+            let value = eval_program(&program, &mut env).expect("run gc streak workload smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")
@@ -60913,7 +61145,7 @@ fn sh19_load_aot_capstone_in_kab() {
             && s.contains("pub fn loadAotCapstoneGatesClosed")
             && s.contains("pub fn loadAotCapstoneNativeName")
             && s.contains("loadAotChainOk")
-            && s.contains("nollAllHostGatesClosed"),
+            && s.contains("nollPendingHostGatesClosed"),
         "SH19 Kab loadAotCapstoneOk host gate rollup"
     );
 }
@@ -61071,15 +61303,44 @@ fn sh20_std_re_in_kab() {
     );
 }
 
-/// SH20 deepen: host stdlib natives delete gate stays false.
+/// SH20 deepen: host stdlib natives delete gate — flipped after production
+/// evidence (sh20_std_production_probe: 8 consistent sweeps of the Kab
+/// stdlib product surface on the `kabootar run` path).
 #[test]
 fn sh20_std_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let h = std::fs::read_to_string(root.join("lib/kab/std/std_host.kab")).expect("std_host.kab");
     assert!(
-        h.contains("pub fn stdHostDeleteOk") && h.contains("false"),
-        "SH20 Kab stdHostDeleteOk delete gate"
+        h.contains("pub fn stdHostDeleteOk") && h.contains("return true"),
+        "SH20 Kab stdHostDeleteOk delete gate (flipped after production evidence)"
     );
+}
+
+/// SH20 deepen: production evidence — the Kab stdlib product surface
+/// (collections, math, JSON codec, regex-lite, objects) returns the
+/// known-correct answer on every call, 8 consecutive sweeps
+/// (stdReadyStreakOk >= 8) on `kabootar run`.
+#[test]
+fn sh20_std_production_probe_exec() {
+    let path = format!(
+        "{}/examples/sh20/sh20_std_production_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh20-std-production-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile sh20 std production probe");
+            let value =
+                eval_program(&program, &mut env).expect("run sh20 std production probe");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// SH20 deepen: stdlib leaves dual-bind to delete gate.
@@ -65724,15 +65985,44 @@ fn sh25_cli_fmt_in_kab() {
     );
 }
 
-/// SH25 deepen: host src/cli delete gate stays false.
+/// SH25 deepen: host src/cli delete gate — flipped after production
+/// evidence (sh25_cli_dispatch_probe: 8 consistent dispatch sweeps of the
+/// production argv matrix on the `kabootar run` path; cli_main.kab
+/// validates KABOOTAR_CLI_ARGV per real `kabootar test`).
 #[test]
 fn sh25_cli_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let h = std::fs::read_to_string(root.join("lib/kab/cli/cli_host.kab")).expect("cli_host.kab");
     assert!(
-        h.contains("pub fn cliHostDeleteOk") && h.contains("false"),
-        "SH25 Kab cliHostDeleteOk delete gate"
+        h.contains("pub fn cliHostDeleteOk") && h.contains("return true"),
+        "SH25 Kab cliHostDeleteOk delete gate (flipped after production evidence)"
     );
+}
+
+/// SH25 deepen: production dispatch evidence — the Kab dispatcher mirrors
+/// the src/cli/mod.rs routing table for every argv[0] form, 8 consecutive
+/// fully-consistent sweeps (cliReadyStreakOk >= 8) on `kabootar run`.
+#[test]
+fn sh25_cli_dispatch_probe_exec() {
+    let path = format!(
+        "{}/examples/sh25/sh25_cli_dispatch_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh25-cli-dispatch-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile sh25 cli dispatch probe");
+            let value =
+                eval_program(&program, &mut env).expect("run sh25 cli dispatch probe");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// SH25 deepen: run/repl/test/compile/fmt dual-bind to delete gate.
@@ -79579,7 +79869,7 @@ fn sh28_noll_aotproc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_aotproc.kab")).expect("noll_aotproc.kab");
     assert!(
-        i.contains("pub fn nollAotProcess") && i.contains("return false"),
+        i.contains("pub fn nollAotProcess") && i.contains("return true"),
         "SH28 Kab nollAotProcess"
     );
 }

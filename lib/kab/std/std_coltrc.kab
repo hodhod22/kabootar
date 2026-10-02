@@ -1,5 +1,5 @@
 // SH20: collections trace off std_colident.kab. import "kab/std/std_coltrc"
-// Do not grow std_colident.kab. stdHostDeleteOk stays false.
+// Do not grow std_colident.kab. stdHostDeleteOk flipped true (production evidence).
 
 import "kab/std/std_coldiag"
 import "kab/std/std_colsum"

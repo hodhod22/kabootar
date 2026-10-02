@@ -18,6 +18,8 @@ import "kab/jit/jit_from_ops_bits"
 import "kab/jit/jit_fuse_cmp"
 import "kab/jit/jit_f64"
 import "kab/jit/jit_bits"
+import "kab/jit/jit_arith3"
+import "kab/jit/jit_arith4"
 import "kab/jit/jit_osr"
 
 /// Per-ip site table key.
@@ -227,6 +229,63 @@ pub fn vJitOpsOfFn(f) {
         }
         return ["const", "const", cm, "jump_if_true", "ret"]
     }
+    // Arith3 chain: `return a OP1 b OP2 c` left-assoc — load0, load1, OP1,
+    // load2, OP2, ret (6 ops, 3 params) → kind 6 via the arith3 template.
+    if nOps == 6 && len(params) >= 3 && len(locals) >= 3 {
+        if locals[0] != params[0] || locals[1] != params[1] || locals[2] != params[2] {
+            return null
+        }
+        if ops[0]["op"] != "load_local" || ops[0]["arg"] != 0 {
+            return null
+        }
+        if ops[1]["op"] != "load_local" || ops[1]["arg"] != 1 {
+            return null
+        }
+        if ops[3]["op"] != "load_local" || ops[3]["arg"] != 2 {
+            return null
+        }
+        let o1 = ops[2]["op"]
+        let o2 = ops[4]["op"]
+        if jitArith3Code(o1) == 0 || jitArith3Code(o2) == 0 {
+            return null
+        }
+        let rop3 = ops[5]["op"]
+        if rop3 != "return" && rop3 != "ret" {
+            return null
+        }
+        return ["const", "const", "const", o1, o2, "ret"]
+    }
+    // Arith4 chain: `return a OP1 b OP2 c OP3 d` left-assoc — load0, load1,
+    // OP1, load2, OP2, load3, OP3, ret (8 ops, 4 params) → kind 7 via the
+    // arith4 template.
+    if nOps == 8 && len(params) >= 4 && len(locals) >= 4 {
+        if locals[0] != params[0] || locals[1] != params[1] || locals[2] != params[2] || locals[3] != params[3] {
+            return null
+        }
+        if ops[0]["op"] != "load_local" || ops[0]["arg"] != 0 {
+            return null
+        }
+        if ops[1]["op"] != "load_local" || ops[1]["arg"] != 1 {
+            return null
+        }
+        if ops[3]["op"] != "load_local" || ops[3]["arg"] != 2 {
+            return null
+        }
+        if ops[5]["op"] != "load_local" || ops[5]["arg"] != 3 {
+            return null
+        }
+        let p1 = jitArith4Code(ops[2]["op"])
+        let p2 = jitArith4Code(ops[4]["op"])
+        let p3 = jitArith4Code(ops[6]["op"])
+        if p1 == 0 || p2 == 0 || p3 == 0 {
+            return null
+        }
+        let rop4 = ops[7]["op"]
+        if rop4 != "return" && rop4 != "ret" {
+            return null
+        }
+        return ["const", "const", "const", "const", ops[2]["op"], ops[4]["op"], ops[6]["op"], "ret"]
+    }
     if nOps != 12 || len(params) < 6 || len(locals) < 6 {
         return null
     }
@@ -283,6 +342,12 @@ pub fn vJitOpsArity(jitOps) {
             return 1
         }
         return 2
+    }
+    if kind == 6 {
+        return 3
+    }
+    if kind == 7 {
+        return 4
     }
     return 0
 }

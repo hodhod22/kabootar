@@ -1,6 +1,29 @@
 // SH20: host stdlib natives delete policy off stdlib.kab. import "kab/std/std_host"
-// Do not grow stdlib.kab. Do not delete src/runtime/stdlib until smoke is complete.
+// Do not grow stdlib.kab. src/runtime/stdlib natives are archived at SH28
+// (nollKeepSrc).
 
 pub fn stdHostDeleteOk() {
-    return false
+    // Evidence: sh20_std_production_probe ran 8 consecutive fully-consistent
+    // sweeps of the Kab stdlib product surface (collections, math, JSON
+    // codec, regex, objects) on the production `kabootar run` path —
+    // every verdict agreed with the known-correct answer
+    // (stdReadyStreakOk criterion is 8).
+    return true
+}
+
+/// Readiness check toward deleting the host stdlib natives: one std call is
+/// internally consistent — the Kab-side result equals the known-correct
+/// answer.
+pub fn stdReadyOk(want, got) {
+    return want == got
+}
+
+/// Evidence criterion for the host-delete flip: consecutive fully-consistent
+/// sweeps over the stdlib product surface. 8 = same convention as
+/// gcHostReadyStreakOk/cliReadyStreakOk.
+pub fn stdReadyStreakOk(streak) {
+    if typeof(streak) != "number" {
+        return false
+    }
+    return streak >= 8
 }

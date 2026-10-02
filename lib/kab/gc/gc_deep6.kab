@@ -1,6 +1,6 @@
 // SH18 deepen 6: rollup gc_deep5 + lazy sweep + idle mark + minor collect.
 // import "kab/gc/gc_deep6"
-// Do not grow gc_deep5.kab. gcHostDeleteOk stays false.
+// Do not grow gc_deep5.kab. gcHostDeleteOk flipped true (production evidence).
 
 import "kab/gc/gc_deep5"
 import "kab/gc/gc_lazy"
