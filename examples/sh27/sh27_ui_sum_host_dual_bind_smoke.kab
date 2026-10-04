@@ -2,7 +2,7 @@ import "kab/ui/ui_sum"
 import "kab/ui/ui_card"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCard("card") != true {
@@ -11,4 +11,4 @@ if uiIsCard("card") != true {
 if uiIsSum("sum") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

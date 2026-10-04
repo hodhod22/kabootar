@@ -2,7 +2,7 @@ import "kab/ui/ui_alt_glyph_item"
 import "kab/ui/ui_alt_glyph_def"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsAltGlyphDef("altGlyphDef") == false {
@@ -11,4 +11,4 @@ if uiIsAltGlyphDef("altGlyphDef") == false {
 if uiIsAltGlyphItem("altGlyphItem") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

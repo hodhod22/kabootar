@@ -2,7 +2,7 @@ import "kab/ui/ui_inverse"
 import "kab/ui/ui_compose"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCompose("compose") == false {
@@ -11,4 +11,4 @@ if uiIsCompose("compose") == false {
 if uiIsInverse("inverse") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

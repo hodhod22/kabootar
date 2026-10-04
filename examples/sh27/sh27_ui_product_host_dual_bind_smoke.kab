@@ -2,7 +2,7 @@ import "kab/ui/ui_product"
 import "kab/ui/ui_sum"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSum("sum") != true {
@@ -11,4 +11,4 @@ if uiIsSum("sum") != true {
 if uiIsProduct("product") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

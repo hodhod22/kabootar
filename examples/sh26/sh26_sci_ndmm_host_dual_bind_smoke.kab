@@ -2,7 +2,7 @@ import "kab/sci/sci_ndmm"
 import "kab/sci/sci_ndsum"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 if sciNdSum([40, 2]) != 42 {
@@ -12,4 +12,4 @@ let r = sciNdMatMul([[21, 0], [0, 0]], [[2, 0], [0, 0]])
 if r[0][0] != 42 {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

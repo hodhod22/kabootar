@@ -2,7 +2,7 @@ import "kab/ui/ui_hgroup"
 import "kab/ui/ui_html"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsHtml("html") == false {
@@ -11,4 +11,4 @@ if uiIsHtml("html") == false {
 if uiIsHgroup("hgroup") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

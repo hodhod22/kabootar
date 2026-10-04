@@ -2,7 +2,7 @@ import "kab/sci/sci_cub"
 import "kab/sci/sci_sqr"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 if sciSqr(6) != 36 {
@@ -11,4 +11,4 @@ if sciSqr(6) != 36 {
 if sciCub(3) != 27 {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

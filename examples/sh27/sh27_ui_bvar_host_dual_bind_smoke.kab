@@ -2,7 +2,7 @@ import "kab/ui/ui_bvar"
 import "kab/ui/ui_bind"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsBind("bind") == false {
@@ -11,4 +11,4 @@ if uiIsBind("bind") == false {
 if uiIsBvar("bvar") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

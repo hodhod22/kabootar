@@ -1,10 +1,10 @@
 import "kab/ui/ui_span"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSpan("span") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

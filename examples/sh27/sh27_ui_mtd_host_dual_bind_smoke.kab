@@ -2,7 +2,7 @@ import "kab/ui/ui_mtd"
 import "kab/ui/ui_mtr"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMtr("mtr") == false {
@@ -11,4 +11,4 @@ if uiIsMtr("mtr") == false {
 if uiIsMtd("mtd") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_median"
 import "kab/ui/ui_variance"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsVariance("variance") != true {
@@ -11,4 +11,4 @@ if uiIsVariance("variance") != true {
 if uiIsMedian("median") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_gcd"
 import "kab/ui/ui_root"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsRoot("root") != true {
@@ -11,4 +11,4 @@ if uiIsRoot("root") != true {
 if uiIsGcd("gcd") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

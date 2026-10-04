@@ -1,0 +1,106 @@
+// SH22 production probe: the Kab SQL surface on the production
+// `kabootar run` path. Each round sweeps the in-memory store
+// (INSERT/SELECT-eq) and the query-shape classifiers — a round counts only
+// when every verdict agrees. 8 consistent rounds = sqlReadyStreakOk
+// flip criterion.
+
+import "kab/sql/sql_host"
+import "kab/sql/sql_exec"
+import "kab/sql/sql_store"
+import "kab/sql/sql_where"
+import "kab/sql/sql_limit"
+import "kab/sql/sql_order"
+import "kab/sql/sql_insert"
+import "kab/sql/sql_update"
+import "kab/sql/sql_delete"
+import "kab/sql/sql_create"
+import "kab/sql/sql_join"
+import "kab/sql/sql_group"
+import "kab/sql/sql_having"
+import "kab/sql/sql_dist"
+import "kab/sql/sql_union"
+
+fn sqlSweepOk(round) {
+    // In-memory store: INSERT + SELECT-eq return known data.
+    let db = sqlMemDb()
+    if sqlReadyOk(1, sqlInsert(db, "t", { "n": 7, "tag": "a" })) == false {
+        return false
+    }
+    if sqlReadyOk(2, sqlInsert(db, "t", { "n": 40, "tag": "b" })) == false {
+        return false
+    }
+    if sqlReadyOk(3, sqlInsert(db, "t", { "n": 40, "tag": "b" })) == false {
+        return false
+    }
+    if sqlReadyOk(40, sqlSelectEqOne(db, "t", "tag", "b", "n")) == false {
+        return false
+    }
+    if sqlReadyOk(2, len(sqlSelectEq(db, "t", "tag", "b"))) == false {
+        return false
+    }
+    if sqlReadyOk(0, len(sqlSelectEq(db, "t", "tag", "zz"))) == false {
+        return false
+    }
+    if sqlReadyOk(null, sqlSelectEqOne(db, "t", "tag", "zz", "n")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlExecOk()) == false {
+        return false
+    }
+    // Query-shape classifiers over the statement matrix.
+    if sqlReadyOk(true, sqlIsWhere("SELECT * FROM t WHERE n = 1")) == false {
+        return false
+    }
+    if sqlReadyOk(false, sqlIsWhere("SELECT * FROM t")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsLimit("SELECT * FROM t LIMIT 5")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsOrder("SELECT * FROM t ORDER BY n")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsInsert("INSERT INTO t VALUES (1)")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsUpdate("UPDATE t SET n = 2")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsDelete("DELETE FROM t")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsCreate("CREATE TABLE t (n)")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsJoin("SELECT * FROM a JOIN b")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsGroup("SELECT n FROM t GROUP BY n")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsHaving("SELECT n FROM t GROUP BY n HAVING n > 1")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsDistinct("SELECT DISTINCT n FROM t")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlIsUnion("SELECT n FROM a UNION SELECT n FROM b")) == false {
+        return false
+    }
+    if sqlReadyOk(true, sqlStoreOk(3)) == false {
+        return false
+    }
+    return true
+}
+
+let streak = 0
+let round = 0
+while round < 8 {
+    if sqlSweepOk(round) {
+        streak = streak + 1
+    }
+    round = round + 1
+}
+
+println("sql probe: rounds=8 streak=" + streak)
+return sqlReadyStreakOk(streak)

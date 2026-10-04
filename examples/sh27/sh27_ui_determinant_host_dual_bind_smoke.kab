@@ -2,7 +2,7 @@ import "kab/ui/ui_determinant"
 import "kab/ui/ui_transpose"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTranspose("transpose") != true {
@@ -11,4 +11,4 @@ if uiIsTranspose("transpose") != true {
 if uiIsDeterminant("determinant") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

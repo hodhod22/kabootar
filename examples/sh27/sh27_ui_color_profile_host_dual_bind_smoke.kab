@@ -2,7 +2,7 @@ import "kab/ui/ui_color_profile"
 import "kab/ui/ui_animate_color"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsAnimateColor("animateColor") != true {
@@ -11,4 +11,4 @@ if uiIsAnimateColor("animateColor") != true {
 if uiIsColorProfile("color-profile") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

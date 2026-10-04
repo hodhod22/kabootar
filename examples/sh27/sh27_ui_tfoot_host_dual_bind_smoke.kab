@@ -2,7 +2,7 @@ import "kab/ui/ui_tfoot"
 import "kab/ui/ui_tbody"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTbody("tbody") == false {
@@ -11,4 +11,4 @@ if uiIsTbody("tbody") == false {
 if uiIsTfoot("tfoot") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

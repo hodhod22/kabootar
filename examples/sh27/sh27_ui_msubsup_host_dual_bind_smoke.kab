@@ -2,7 +2,7 @@ import "kab/ui/ui_msubsup"
 import "kab/ui/ui_msup"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMsup("msup") == false {
@@ -11,4 +11,4 @@ if uiIsMsup("msup") == false {
 if uiIsMsubsup("msubsup") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

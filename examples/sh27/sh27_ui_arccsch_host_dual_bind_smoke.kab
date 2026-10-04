@@ -2,7 +2,7 @@ import "kab/ui/ui_arccsch"
 import "kab/ui/ui_arccsc"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsArccsc("arccsc") != true {
@@ -11,4 +11,4 @@ if uiIsArccsc("arccsc") != true {
 if uiIsArccsch("arccsch") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

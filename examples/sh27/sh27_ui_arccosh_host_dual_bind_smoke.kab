@@ -2,7 +2,7 @@ import "kab/ui/ui_arccosh"
 import "kab/ui/ui_arctan"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsArctan("arctan") != true {
@@ -11,4 +11,4 @@ if uiIsArctan("arctan") != true {
 if uiIsArccosh("arccosh") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

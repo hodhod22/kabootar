@@ -2,7 +2,7 @@ import "kab/ui/ui_flow_region"
 import "kab/ui/ui_flow_root"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFlowRoot("flowRoot") != true {
@@ -11,4 +11,4 @@ if uiIsFlowRoot("flowRoot") != true {
 if uiIsFlowRegion("flowRegion") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

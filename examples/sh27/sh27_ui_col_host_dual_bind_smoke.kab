@@ -2,7 +2,7 @@ import "kab/ui/ui_col"
 import "kab/ui/ui_colgroup"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsColgroup("colgroup") == false {
@@ -11,4 +11,4 @@ if uiIsColgroup("colgroup") == false {
 if uiIsCol("col") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

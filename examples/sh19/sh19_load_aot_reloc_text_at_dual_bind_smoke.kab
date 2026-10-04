@@ -4,7 +4,7 @@ import "kab/load/load_main"
 import "kab/load/load_aot_reloc_text_at"
 import "kab/noll/noll_aot"
 
-if loadMainDeleteOk() != false {
+if loadMainDeleteOk() != true {
     return false
 }
 if loadIsKab("app.kab") == false {
@@ -22,4 +22,4 @@ if loadAotRelocTextAt40Ok(8192) == false {
 if nollAotReady() {
     return false
 }
-return loadMainDeleteOk() == false
+return loadMainDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_shadow"
 import "kab/ui/ui_rbc"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsRbc("rbc") == false {
@@ -11,4 +11,4 @@ if uiIsRbc("rbc") == false {
 if uiIsShadow("shadow") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

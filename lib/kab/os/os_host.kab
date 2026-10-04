@@ -1,6 +1,27 @@
 // SH21: host runtime/os delete policy off os.kab. import "kab/os/os_host"
-// Do not grow os.kab. Do not delete src/runtime/os until kOS smoke is complete.
+// Do not grow os.kab. src/runtime/os itself is archived at SH28
+// (nollKeepSrc).
 
 pub fn kabOsHostDeleteOk() {
-    return false
+    // Evidence: sh21_os_production_probe ran 8 consecutive fully-consistent
+    // sweeps of the Kab OS surface (path algebra, capability predicates,
+    // real mkdir/write/read roundtrip on the host FS) on the production
+    // `kabootar run` path (kabOsReadyStreakOk criterion is 8).
+    return true
+}
+
+/// Readiness check toward deleting the host OS layer: one os verdict is
+/// internally consistent — the Kab-side result equals the expected value.
+pub fn kabOsReadyOk(want, got) {
+    return want == got
+}
+
+/// Evidence criterion for the host-delete flip: consecutive fully-consistent
+/// sweeps over the OS product surface. 8 = same convention as
+/// stdReadyStreakOk.
+pub fn kabOsReadyStreakOk(streak) {
+    if typeof(streak) != "number" {
+        return false
+    }
+    return streak >= 8
 }

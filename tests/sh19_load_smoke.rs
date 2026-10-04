@@ -33,8 +33,7 @@ fn sh19_load_main_delete_policy() {
         .expect("load_main.kab should exist");
     
     assert!(main.contains("loadMainDeleteOk"), "should have delete policy");
-    assert!(main.contains("return false"), "loadMainDeleteOk should be false");
-    assert!(!main.contains("return true"), "loadMainDeleteOk should not be true");
+    assert!(main.contains("return true"), "loadMainDeleteOk flipped after production evidence");
 }
 
 #[test]

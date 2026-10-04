@@ -16,9 +16,9 @@ pub use backend::{active_backend, set_backend, RenderBackend};
 pub use canvas2d::{bind_dom, blit_dom_canvas, canvas_id_for_dom, create, info as canvas_info, surface_meta, to_rgba_bytes};
 pub use layout::{LayoutBox, LayoutEngine};
 pub use paint::{paint_frame_html, paint_text_preview};
-pub use raster::{PixelBuffer, rasterize_tree};
+pub use raster::{PixelBuffer, parse_color, rasterize_tree};
 pub use gpu::{gpu_available, gpu_info_map, probe_gpu, upload_rgba};
-pub use text::{layout_text, measure_text, text_layout_to_object, TextStyle, WhiteSpace};
+pub use text::{layout_text, measure_text, paint_text, text_layout_to_object, TextStyle, WhiteSpace};
 
 use crate::runtime::kabootar_dom::DomNode;
 use crate::runtime::kstyle::Stylesheet;

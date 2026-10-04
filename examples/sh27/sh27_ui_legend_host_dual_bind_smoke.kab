@@ -2,7 +2,7 @@ import "kab/ui/ui_legend"
 import "kab/ui/ui_fieldset"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFieldset("fieldset") == false {
@@ -11,4 +11,4 @@ if uiIsFieldset("fieldset") == false {
 if uiIsLegend("legend") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

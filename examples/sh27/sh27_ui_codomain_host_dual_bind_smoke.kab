@@ -2,7 +2,7 @@ import "kab/ui/ui_codomain"
 import "kab/ui/ui_domain"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDomain("domain") == false {
@@ -11,4 +11,4 @@ if uiIsDomain("domain") == false {
 if uiIsCodomain("codomain") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

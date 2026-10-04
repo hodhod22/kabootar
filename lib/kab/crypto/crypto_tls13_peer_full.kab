@@ -7,6 +7,7 @@ import "kab/crypto/crypto_tls13_peer_fin"
 import "kab/crypto/crypto_tls13_peer_ecdsa"
 import "kab/crypto/crypto_tls13_peer_trust"
 import "kab/crypto/crypto_tls13_peer_chainall"
+import "kab/crypto/crypto_ecdsa_verify"
 
 pub fn tls13PeerFullEvalOk(port) {
     let s = tls13PeerHsClientOpen(port)

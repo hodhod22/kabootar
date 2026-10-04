@@ -2,7 +2,7 @@ import "kab/ui/ui_abbr"
 import "kab/ui/ui_var"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsVar("var") == false {
@@ -11,4 +11,4 @@ if uiIsVar("var") == false {
 if uiIsAbbr("abbr") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

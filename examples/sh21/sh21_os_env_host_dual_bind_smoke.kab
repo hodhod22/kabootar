@@ -1,10 +1,10 @@
 import "kab/os/os_env"
 import "kab/os/os_host"
 
-if kabOsHostDeleteOk() != false {
+if kabOsHostDeleteOk() != true {
     return false
 }
 if kabOsEnvOk("PATH") == false {
     return false
 }
-return kabOsHostDeleteOk() == false
+return kabOsHostDeleteOk() == true

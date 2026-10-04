@@ -2,7 +2,7 @@ import "kab/ui/ui_cursor"
 import "kab/ui/ui_solidcolor"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSolidcolor("solidcolor") == false {
@@ -11,4 +11,4 @@ if uiIsSolidcolor("solidcolor") == false {
 if uiIsCursor("cursor") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_flow_tref"
 import "kab/ui/ui_flow_line"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFlowLine("flowLine") != true {
@@ -11,4 +11,4 @@ if uiIsFlowLine("flowLine") != true {
 if uiIsFlowTref("flowTref") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

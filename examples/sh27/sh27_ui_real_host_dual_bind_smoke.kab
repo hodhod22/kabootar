@@ -2,7 +2,7 @@ import "kab/ui/ui_real"
 import "kab/ui/ui_arg"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsArg("arg") != true {
@@ -11,4 +11,4 @@ if uiIsArg("arg") != true {
 if uiIsReal("real") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

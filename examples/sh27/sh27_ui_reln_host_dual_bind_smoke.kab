@@ -2,7 +2,7 @@ import "kab/ui/ui_reln"
 import "kab/ui/ui_lambda"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsLambda("lambda") == false {
@@ -11,4 +11,4 @@ if uiIsLambda("lambda") == false {
 if uiIsReln("reln") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

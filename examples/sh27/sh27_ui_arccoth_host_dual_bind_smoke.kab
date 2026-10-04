@@ -2,7 +2,7 @@ import "kab/ui/ui_arccoth"
 import "kab/ui/ui_arccot"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsArccot("arccot") != true {
@@ -11,4 +11,4 @@ if uiIsArccot("arccot") != true {
 if uiIsArccoth("arccoth") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

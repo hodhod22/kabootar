@@ -2,7 +2,7 @@ import "kab/ui/ui_mtr"
 import "kab/ui/ui_mtable"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMtable("mtable") == false {
@@ -11,4 +11,4 @@ if uiIsMtable("mtable") == false {
 if uiIsMtr("mtr") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

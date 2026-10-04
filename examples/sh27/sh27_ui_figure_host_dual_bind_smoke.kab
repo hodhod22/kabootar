@@ -2,7 +2,7 @@ import "kab/ui/ui_figure"
 import "kab/ui/ui_aside"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsAside("aside") == false {
@@ -11,4 +11,4 @@ if uiIsAside("aside") == false {
 if uiIsFigure("figure") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

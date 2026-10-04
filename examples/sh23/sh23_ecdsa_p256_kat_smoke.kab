@@ -1,0 +1,17 @@
+// SH23: ECDSA P-256 known-answer smoke — openssl-generated vector.
+// verify must accept the valid signature and reject the altered one.
+// Regresses p16FromBe odd-length, p16HighBit limb bound,
+// p16MontMul t[16] reduction and jacAddM Z3.
+import "kab/crypto/crypto_ecdsa_eval"
+import "kab/crypto/crypto_ecdsa_verify"
+
+let qx = p16ParseHex("fd0129f61f79f9ed601897faf4fe56d089c4e88dc3c4cc736904b321d3e1d2a8")
+let qy = p16ParseHex("2e90dbf641469787aaa3bd30f088a38e3f0235f91c445c9e266e530d7c420ed7")
+let h  = p16ParseHex("1ee6585ffffe1989ac5155e9d9c48d894a6715362087ed583b8f13526c3f4467")
+let rB = p16ParseHex("0090cbf225cf73c1110c834b7326e80642e3d0135af1f0950a3c13a8e67716b4ed")
+let sB = p16ParseHex("008ed5831de912d6b8b8221e9a35845f717ab0525c81013a1d39a66275ffd63076")
+let sBad = p16ParseHex("008ed5831de912d6b8b8221e9a35845f717ab0525c81013a1d39a66275ffd63077")
+
+let ok = ecdsaP256Verify(h, rB, sB, qx, qy)
+let bad = ecdsaP256Verify(h, rB, sBad, qx, qy)
+return ok == true && bad == false

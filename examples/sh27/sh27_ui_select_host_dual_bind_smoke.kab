@@ -2,7 +2,7 @@ import "kab/ui/ui_select"
 import "kab/ui/ui_textarea"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTextarea("textarea") == false {
@@ -11,4 +11,4 @@ if uiIsTextarea("textarea") == false {
 if uiIsSelect("select") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

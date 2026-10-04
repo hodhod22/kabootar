@@ -2,7 +2,7 @@ import "kab/ui/ui_path"
 import "kab/ui/ui_polygon"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPolygon("polygon") == false {
@@ -11,4 +11,4 @@ if uiIsPolygon("polygon") == false {
 if uiIsPath("path") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

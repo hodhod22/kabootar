@@ -2,7 +2,7 @@ import "kab/ui/ui_param"
 import "kab/ui/ui_object"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsObject("object") == false {
@@ -11,4 +11,4 @@ if uiIsObject("object") == false {
 if uiIsParam("param") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

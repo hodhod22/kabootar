@@ -2,7 +2,7 @@ import "kab/ui/ui_progress"
 import "kab/ui/ui_meter"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMeter("meter") == false {
@@ -11,4 +11,4 @@ if uiIsMeter("meter") == false {
 if uiIsProgress("progress") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

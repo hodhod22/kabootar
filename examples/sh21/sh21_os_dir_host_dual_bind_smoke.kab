@@ -2,7 +2,7 @@ import "kab/os/os_dir"
 import "kab/os/os_cwd"
 import "kab/os/os_host"
 
-if kabOsHostDeleteOk() != false {
+if kabOsHostDeleteOk() != true {
     return false
 }
 if kabOsCwdOk("/apps") == false {
@@ -11,4 +11,4 @@ if kabOsCwdOk("/apps") == false {
 if kabOsIsDir("/apps") == false {
     return false
 }
-return kabOsHostDeleteOk() == false
+return kabOsHostDeleteOk() == true

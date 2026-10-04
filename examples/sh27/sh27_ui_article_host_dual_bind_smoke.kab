@@ -2,7 +2,7 @@ import "kab/ui/ui_article"
 import "kab/ui/ui_section"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSection("section") == false {
@@ -11,4 +11,4 @@ if uiIsSection("section") == false {
 if uiIsArticle("article") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

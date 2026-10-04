@@ -2,7 +2,7 @@ import "kab/ui/ui_or"
 import "kab/ui/ui_and"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsAnd("and") != true {
@@ -11,4 +11,4 @@ if uiIsAnd("and") != true {
 if uiIsOr("or") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

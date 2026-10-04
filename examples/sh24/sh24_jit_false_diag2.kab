@@ -1,0 +1,9 @@
+import "kab/http/http_host"
+
+let r = 0
+while r < 12 {
+    let a = httpHostDeleteOk()
+    println("r=" + r + " a=" + a)
+    r = r + 1
+}
+return true

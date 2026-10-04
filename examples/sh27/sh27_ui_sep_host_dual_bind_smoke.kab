@@ -2,7 +2,7 @@ import "kab/ui/ui_sep"
 import "kab/ui/ui_domainofapplication"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDomainofapplication("domainofapplication") != true {
@@ -11,4 +11,4 @@ if uiIsDomainofapplication("domainofapplication") != true {
 if uiIsSep("sep") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

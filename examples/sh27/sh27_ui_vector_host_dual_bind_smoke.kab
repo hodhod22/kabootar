@@ -2,7 +2,7 @@ import "kab/ui/ui_vector"
 import "kab/ui/ui_list"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsList("list") == false {
@@ -11,4 +11,4 @@ if uiIsList("list") == false {
 if uiIsVector("vector") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

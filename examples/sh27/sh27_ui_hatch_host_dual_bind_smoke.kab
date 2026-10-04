@@ -2,7 +2,7 @@ import "kab/ui/ui_hatch"
 import "kab/ui/ui_desc"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDesc("desc") == false {
@@ -11,4 +11,4 @@ if uiIsDesc("desc") == false {
 if uiIsHatch("hatch") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

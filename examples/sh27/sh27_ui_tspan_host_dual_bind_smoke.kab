@@ -2,7 +2,7 @@ import "kab/ui/ui_tspan"
 import "kab/ui/ui_text"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsText("text") == false {
@@ -11,4 +11,4 @@ if uiIsText("text") == false {
 if uiIsTspan("tspan") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

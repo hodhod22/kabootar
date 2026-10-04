@@ -27,6 +27,5 @@ pub fn tls13ClientGetCfg(cfg) {
         return false
     }
     let body = tls13ClientGet(s, cfg["path"])
-    tcp_close(s["sock"])
     return body
 }

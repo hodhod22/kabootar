@@ -2,7 +2,7 @@ import "kab/ui/ui_matrix"
 import "kab/ui/ui_vector"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsVector("vector") == false {
@@ -11,4 +11,4 @@ if uiIsVector("vector") == false {
 if uiIsMatrix("matrix") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/sci/sci_ndsum"
 import "kab/sci/sci_nddot"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 if sciNdDot([21, 0], [2, 42]) != 42 {
@@ -11,4 +11,4 @@ if sciNdDot([21, 0], [2, 42]) != 42 {
 if sciNdSum([40, 2]) != 42 {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

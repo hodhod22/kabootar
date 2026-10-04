@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_tile"
 import "kab/ui/ui_fe_spot_light"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeSpotLight("feSpotLight") == false {
@@ -11,4 +11,4 @@ if uiIsFeSpotLight("feSpotLight") == false {
 if uiIsFeTile("feTile") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

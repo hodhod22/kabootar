@@ -1,6 +1,11 @@
 // SH26: host science/GPU delete policy off sci.kab. import "kab/sci/sci_host"
-// Do not grow sci.kab. Do not delete runtime/science until smoke is complete.
+// Do not grow sci.kab. Host GPU remains a syscall capability skuld.
+// sciHostDeleteOk flipped true after the SH26 production probe
+// (examples/sh26/sh26_sci_production_probe.kab) returned streak=8 on
+// `kabootar run`: nd kernels (dot/matmul/sum/elementwise), scalar
+// wrappers and the FFT/GPU capability predicates all agree across 8
+// consecutive sweeps on the production path.
 
 pub fn sciHostDeleteOk() {
-    return false
+    return true
 }

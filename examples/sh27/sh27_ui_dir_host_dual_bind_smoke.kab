@@ -2,7 +2,7 @@ import "kab/ui/ui_dir"
 import "kab/ui/ui_nobr"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsNobr("nobr") == false {
@@ -11,4 +11,4 @@ if uiIsNobr("nobr") == false {
 if uiIsDir("dir") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_csymbol"
 import "kab/ui/ui_cn"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCn("cn") == false {
@@ -11,4 +11,4 @@ if uiIsCn("cn") == false {
 if uiIsCsymbol("csymbol") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

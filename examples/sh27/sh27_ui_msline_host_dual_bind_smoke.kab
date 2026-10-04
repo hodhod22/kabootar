@@ -2,7 +2,7 @@ import "kab/ui/ui_msline"
 import "kab/ui/ui_mscarry"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMscarry("mscarry") == false {
@@ -11,4 +11,4 @@ if uiIsMscarry("mscarry") == false {
 if uiIsMsline("msline") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

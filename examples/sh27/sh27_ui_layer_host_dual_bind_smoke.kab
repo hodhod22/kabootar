@@ -2,7 +2,7 @@ import "kab/ui/ui_layer"
 import "kab/ui/ui_nextid"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsNextid("nextid") == false {
@@ -11,4 +11,4 @@ if uiIsNextid("nextid") == false {
 if uiIsLayer("layer") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

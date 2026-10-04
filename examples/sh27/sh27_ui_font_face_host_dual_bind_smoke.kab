@@ -2,7 +2,7 @@ import "kab/ui/ui_font_face"
 import "kab/ui/ui_missing_glyph"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMissingGlyph("missing-glyph") == false {
@@ -11,4 +11,4 @@ if uiIsMissingGlyph("missing-glyph") == false {
 if uiIsFontFace("font-face") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

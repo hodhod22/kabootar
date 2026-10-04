@@ -2,7 +2,7 @@ import "kab/ui/ui_card"
 import "kab/ui/ui_setdiff"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSetdiff("setdiff") != true {
@@ -11,4 +11,4 @@ if uiIsSetdiff("setdiff") != true {
 if uiIsCard("card") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

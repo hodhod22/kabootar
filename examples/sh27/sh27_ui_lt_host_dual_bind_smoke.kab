@@ -2,7 +2,7 @@ import "kab/ui/ui_lt"
 import "kab/ui/ui_neq"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsNeq("neq") != true {
@@ -11,4 +11,4 @@ if uiIsNeq("neq") != true {
 if uiIsLt("lt") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

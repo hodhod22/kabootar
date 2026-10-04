@@ -2,7 +2,7 @@ import "kab/ui/ui_audio"
 import "kab/ui/ui_video"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsVideo("video") == false {
@@ -11,4 +11,4 @@ if uiIsVideo("video") == false {
 if uiIsAudio("audio") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

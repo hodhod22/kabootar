@@ -2,7 +2,7 @@ import "kab/ui/ui_exp"
 import "kab/ui/ui_ln"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsLn("ln") != true {
@@ -11,4 +11,4 @@ if uiIsLn("ln") != true {
 if uiIsExp("exp") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

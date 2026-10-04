@@ -2,7 +2,7 @@ import "kab/ui/ui_font_face_format"
 import "kab/ui/ui_font_face_uri"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFontFaceUri("font-face-uri") == false {
@@ -11,4 +11,4 @@ if uiIsFontFaceUri("font-face-uri") == false {
 if uiIsFontFaceFormat("font-face-format") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

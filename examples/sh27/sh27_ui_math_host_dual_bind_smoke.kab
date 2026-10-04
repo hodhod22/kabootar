@@ -2,7 +2,7 @@ import "kab/ui/ui_math"
 import "kab/ui/ui_svg"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSvg("svg") == false {
@@ -11,4 +11,4 @@ if uiIsSvg("svg") == false {
 if uiIsMath("math") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

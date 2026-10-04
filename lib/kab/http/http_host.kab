@@ -1,6 +1,28 @@
 // SH24: host runtime/http delete policy off http.kab. import "kab/http/http_host"
-// Do not grow http.kab. Do not delete runtime/http.rs until smoke is complete.
+// Do not grow http.kab. runtime/http.rs itself is archived at SH28
+// (nollKeepSrc).
 
 pub fn httpHostDeleteOk() {
-    return false
+    // Flipped after sh24_http_production_probe: 8 consecutive fully-
+    // consistent sweeps (rounds=8 streak=8) over the Kab HTTP surface —
+    // method/content-type classifiers plus the in-process req/res/route
+    // pipeline — on `kabootar run`. The probe also caught a real host
+    // Cranelift-JIT miscompile (returns_i64 gate added in jit.rs).
+    return true
+}
+
+/// Readiness check toward deleting the host HTTP layer: one verdict is
+/// internally consistent — the Kab-side result equals the expected value.
+pub fn httpReadyOk(want, got) {
+    return want == got
+}
+
+/// Evidence criterion for the host-delete flip: consecutive fully-consistent
+/// sweeps over the HTTP product surface. 8 = same convention as
+/// stdReadyStreakOk.
+pub fn httpReadyStreakOk(streak) {
+    if typeof(streak) != "number" {
+        return false
+    }
+    return streak >= 8
 }

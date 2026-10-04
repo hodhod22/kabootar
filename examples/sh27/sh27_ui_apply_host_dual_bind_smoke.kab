@@ -2,7 +2,7 @@ import "kab/ui/ui_apply"
 import "kab/ui/ui_csymbol"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCsymbol("csymbol") == false {
@@ -11,4 +11,4 @@ if uiIsCsymbol("csymbol") == false {
 if uiIsApply("apply") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

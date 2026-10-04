@@ -2,7 +2,7 @@ import "kab/ui/ui_noembed"
 import "kab/ui/ui_menuitem"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMenuitem("menuitem") == false {
@@ -11,4 +11,4 @@ if uiIsMenuitem("menuitem") == false {
 if uiIsNoembed("noembed") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

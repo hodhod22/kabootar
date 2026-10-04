@@ -2,7 +2,7 @@ import "kab/ui/ui_mover"
 import "kab/ui/ui_munder"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMunder("munder") == false {
@@ -11,4 +11,4 @@ if uiIsMunder("munder") == false {
 if uiIsMover("mover") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

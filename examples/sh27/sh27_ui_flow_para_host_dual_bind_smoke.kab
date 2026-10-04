@@ -2,7 +2,7 @@ import "kab/ui/ui_flow_para"
 import "kab/ui/ui_flow_div"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFlowDiv("flowDiv") != true {
@@ -11,4 +11,4 @@ if uiIsFlowDiv("flowDiv") != true {
 if uiIsFlowPara("flowPara") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

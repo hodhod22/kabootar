@@ -2,7 +2,7 @@ import "kab/ui/ui_imaginaryi"
 import "kab/ui/ui_exponentiale"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsExponentiale("exponentiale") != true {
@@ -11,4 +11,4 @@ if uiIsExponentiale("exponentiale") != true {
 if uiIsImaginaryi("imaginaryi") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

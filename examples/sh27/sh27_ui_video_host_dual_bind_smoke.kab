@@ -2,7 +2,7 @@ import "kab/ui/ui_video"
 import "kab/ui/ui_blockquote"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsBlockquote("blockquote") == false {
@@ -11,4 +11,4 @@ if uiIsBlockquote("blockquote") == false {
 if uiIsVideo("video") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

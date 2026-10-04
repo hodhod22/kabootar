@@ -2,7 +2,7 @@ import "kab/ui/ui_imaginary"
 import "kab/ui/ui_real"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsReal("real") != true {
@@ -11,4 +11,4 @@ if uiIsReal("real") != true {
 if uiIsImaginary("imaginary") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

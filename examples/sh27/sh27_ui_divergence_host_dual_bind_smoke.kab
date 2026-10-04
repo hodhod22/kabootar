@@ -2,7 +2,7 @@ import "kab/ui/ui_divergence"
 import "kab/ui/ui_curl"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCurl("curl") != true {
@@ -11,4 +11,4 @@ if uiIsCurl("curl") != true {
 if uiIsDivergence("divergence") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_marquee"
 import "kab/ui/ui_noframes"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsNoframes("noframes") == false {
@@ -11,4 +11,4 @@ if uiIsNoframes("noframes") == false {
 if uiIsMarquee("marquee") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

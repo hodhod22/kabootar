@@ -2,7 +2,7 @@ import "kab/ui/ui_fieldset"
 import "kab/ui/ui_iframe"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsIframe("iframe") == false {
@@ -11,4 +11,4 @@ if uiIsIframe("iframe") == false {
 if uiIsFieldset("fieldset") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

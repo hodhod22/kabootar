@@ -312,6 +312,9 @@ mod host {
         if func.params.len() > 1 {
             return None;
         }
+        if !returns_i64(func) || !i64_const_domain(func) {
+            return None;
+        }
         let key = fingerprint(func);
         let argc = func.params.len();
         let ready = with_state(|st| hot_enough(st, key))?;
@@ -407,7 +410,7 @@ mod host {
         }
         if wants_index {
             if let Some(buf) = flatten_i64_array(args.first()?) {
-                if !extra_param_unread(func) {
+                if !extra_param_unread(func) || !returns_i64(func) || !i64_const_domain(func) {
                     return None;
                 }
                 let ptr = match with_state(|st| {
@@ -437,7 +440,7 @@ mod host {
             }
             return try_run_str_char_index(func, args, key);
         }
-        if !extra_param_unread(func) {
+        if !extra_param_unread(func) || !returns_i64(func) || !i64_const_domain(func) {
             return None;
         }
         let len = crate::value::container_len(args.first()?).ok()?;
@@ -463,6 +466,48 @@ mod host {
             f(len)
         };
         Some(Ok((KabVal::Number(ret), Vec::new())))
+    }
+
+    /// i64-domain gate for the Number-wrapping return path: the value
+    /// reaching each Return/Halt must be produced by an i64-typed op —
+    /// a numeric Const, an arith op, or a local slot. Const(Bool/Null/
+    /// String) or a cmp result would be wrapped as `Number(ret)` and
+    /// silently coerce the callee's return type (`return false` → 0).
+    fn returns_i64(func: &BytecodeFnDef) -> bool {
+        for (i, op) in func.code.iter().enumerate() {
+            if matches!(op, Opcode::Return | Opcode::Halt) {
+                match i.checked_sub(1).and_then(|p| func.code.get(p)) {
+                    Some(Opcode::Const(ci)) => match func.constants.get(*ci as usize) {
+                        Some(Constant::Number(_)) | Some(Constant::Float(_)) => {}
+                        _ => return false,
+                    },
+                    Some(
+                        Opcode::Add
+                        | Opcode::Sub
+                        | Opcode::Mul
+                        | Opcode::LoadLocal(_)
+                        | Opcode::AccAddLocal(_)
+                        | Opcode::LenLocal(_)
+                        | Opcode::IndexGetLocal(_),
+                    ) => {}
+                    _ => return false,
+                }
+            }
+        }
+        true
+    }
+
+    /// Bool/Null consts have no honest i64 lowering — they can leak into
+    /// locals (`store_local`) or comparisons where the boxed VM would
+    /// keep them typed. String consts stay: the string-char path never
+    /// wraps results as Number.
+    fn i64_const_domain(func: &BytecodeFnDef) -> bool {
+        !func.code.iter().any(|op| {
+            matches!(op, Opcode::Const(i) if !matches!(
+                func.constants.get(*i as usize),
+                Some(Constant::Number(_)) | Some(Constant::Float(_)) | Some(Constant::String(_))
+            ))
+        })
     }
 
     fn refs_string_const(func: &BytecodeFnDef) -> bool {

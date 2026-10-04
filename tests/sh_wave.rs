@@ -60430,6 +60430,33 @@ fn sh19_load_src_exec_smoke() {
         .expect("join");
 }
 
+/// SH19 deepen: production evidence — the Kab loader surface (argv
+/// dispatch, extension dispatch, source compile+eval, .kbc/.kbcb disk
+/// roundtrips, kbcb header validation) is internally consistent on every
+/// call, 8 consecutive sweeps (loadReadyStreakOk >= 8) on `kabootar run`.
+#[test]
+fn sh19_load_production_probe_exec() {
+    let path = format!(
+        "{}/examples/sh19/sh19_load_production_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh19-load-production-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile sh19 load production probe");
+            let value =
+                eval_program(&program, &mut env).expect("run sh19 load production probe");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH20: JSON parse/stringify in Kab (eval, not string-gate).
 #[test]
 fn sh20_std_json_codec_exec_smoke() {
@@ -60474,6 +60501,33 @@ fn sh21_os_rw_exec_smoke() {
         .expect("join");
 }
 
+/// SH21 deepen: production evidence — the Kab OS surface (path algebra,
+/// capability predicates, real mkdir/write/read FS roundtrip) is
+/// internally consistent on every call, 8 consecutive sweeps
+/// (kabOsReadyStreakOk >= 8) on `kabootar run`.
+#[test]
+fn sh21_os_production_probe_exec() {
+    let path = format!(
+        "{}/examples/sh21/sh21_os_production_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh21-os-production-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile sh21 os production probe");
+            let value =
+                eval_program(&program, &mut env).expect("run sh21 os production probe");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH22: in-memory INSERT + SELECT eq (eval, not string-gate).
 #[test]
 fn sh22_sql_exec_smoke() {
@@ -60489,6 +60543,63 @@ fn sh22_sql_exec_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile sql exec smoke");
             let value = eval_program(&program, &mut env).expect("run sql exec smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH22 deepen: production evidence — the Kab SQL surface (exec
+/// roundtrips, projection/filter/aggregate verdicts, query classifiers)
+/// is internally consistent on every call, 8 consecutive sweeps
+/// (sqlReadyStreakOk >= 8) on `kabootar run`.
+#[test]
+fn sh22_sql_production_probe_exec() {
+    let path = format!(
+        "{}/examples/sh22/sh22_sql_production_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh22-sql-production-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile sh22 sql production probe");
+            let value =
+                eval_program(&program, &mut env).expect("run sh22 sql production probe");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH24 deepen: production evidence — the Kab HTTP surface (method and
+/// content-type classifiers, in-process req/res/route pipeline, worker
+/// drop-gate composition) is internally consistent on every call, 8
+/// consecutive sweeps (httpReadyStreakOk >= 8) on `kabootar run`. The
+/// probe also caught a real host Cranelift-JIT miscompile
+/// (`return false` → `Number(0)`; `returns_i64`/`i64_const_domain`
+/// gates added in bytecode/jit.rs).
+#[test]
+fn sh24_http_production_probe_exec() {
+    let path = format!(
+        "{}/examples/sh24/sh24_http_production_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh24-http-production-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile sh24 http production probe");
+            let value =
+                eval_program(&program, &mut env).expect("run sh24 http production probe");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")
@@ -60564,8 +60675,8 @@ fn sh19_load_main_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let m = std::fs::read_to_string(root.join("lib/kab/load/load_main.kab")).expect("load_main.kab");
     assert!(
-        m.contains("pub fn loadMainDeleteOk") && m.contains("false") && !m.contains("std::process"),
-        "SH19 Kab loadMainDeleteOk delete gate"
+        m.contains("pub fn loadMainDeleteOk") && m.contains("return true") && !m.contains("std::process"),
+        "SH19 Kab loadMainDeleteOk delete gate (flipped after production evidence)"
     );
 }
 
@@ -64371,14 +64482,16 @@ fn sh21_os_proc_in_kab() {
     );
 }
 
-/// SH21 deepen: host runtime/os delete gate stays false.
+/// SH21 deepen: host runtime/os delete gate — flipped after production
+/// evidence (sh21_os_production_probe: 8 consistent sweeps of the Kab OS
+/// surface incl. real FS roundtrip on `kabootar run`).
 #[test]
 fn sh21_os_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let h = std::fs::read_to_string(root.join("lib/kab/os/os_host.kab")).expect("os_host.kab");
     assert!(
-        h.contains("pub fn kabOsHostDeleteOk") && h.contains("false"),
-        "SH21 Kab kabOsHostDeleteOk delete gate"
+        h.contains("pub fn kabOsHostDeleteOk") && h.contains("return true"),
+        "SH21 Kab kabOsHostDeleteOk delete gate (flipped after production evidence)"
     );
 }
 
@@ -64684,14 +64797,16 @@ fn sh22_sql_store_in_kab() {
     );
 }
 
-/// SH22 deepen: host src/sql delete gate stays false.
+/// SH22 deepen: host src/sql delete gate — flipped after production
+/// evidence (sh22_sql_production_probe: 8 consistent sweeps of the Kab
+/// SQL surface on `kabootar run`).
 #[test]
 fn sh22_sql_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let h = std::fs::read_to_string(root.join("lib/kab/sql/sql_host.kab")).expect("sql_host.kab");
     assert!(
-        h.contains("pub fn sqlHostDeleteOk") && h.contains("false"),
-        "SH22 Kab sqlHostDeleteOk delete gate"
+        h.contains("pub fn sqlHostDeleteOk") && h.contains("return true"),
+        "SH22 Kab sqlHostDeleteOk delete gate (flipped after production evidence)"
     );
 }
 
@@ -65142,6 +65257,29 @@ fn sh23_crypto_sha_eval_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile sha eval smoke");
             let value = eval_program(&program, &mut env).expect("run sha eval smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH23: ECDSA P-256 known-answer vector via Kab eval — accepts the
+/// valid openssl-generated signature, rejects the altered one.
+#[test]
+fn sh23_crypto_ecdsa_kat_smoke() {
+    let path = format!(
+        "{}/examples/sh23/sh23_ecdsa_p256_kat_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-ecdsa-kat".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile ecdsa kat smoke");
+            let value = eval_program(&program, &mut env).expect("run ecdsa kat smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
         })
         .expect("spawn")
@@ -65747,14 +65885,17 @@ fn sh24_http_ct_in_kab() {
     );
 }
 
-/// SH24 deepen: host runtime/http delete gate stays false.
+/// SH24 deepen: host runtime/http delete gate — flipped after production
+/// evidence (sh24_http_production_probe: 8 consistent sweeps of the Kab
+/// HTTP surface on `kabootar run`; the probe also caught the host
+/// Cranelift-JIT return-type miscompile fixed in jit.rs).
 #[test]
 fn sh24_http_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let h = std::fs::read_to_string(root.join("lib/kab/http_host.kab")).expect("http_host.kab");
     assert!(
-        h.contains("pub fn httpHostDeleteOk") && h.contains("false"),
-        "SH24 Kab httpHostDeleteOk delete gate"
+        h.contains("pub fn httpHostDeleteOk") && h.contains("return true"),
+        "SH24 Kab httpHostDeleteOk delete gate (flipped after production evidence)"
     );
 }
 
@@ -66715,15 +66856,42 @@ fn sh26_sci_fft_in_kab() {
     );
 }
 
-/// SH26 deepen: host science/GPU delete gate stays false.
+/// SH26 deepen: host science/GPU delete gate flipped after production
+/// evidence (sh26_sci_production_probe streak=8 on `kabootar run`).
 #[test]
 fn sh26_sci_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let h = std::fs::read_to_string(root.join("lib/kab/sci/sci_host.kab")).expect("sci_host.kab");
     assert!(
-        h.contains("pub fn sciHostDeleteOk") && h.contains("false"),
+        h.contains("pub fn sciHostDeleteOk") && h.contains("return true"),
         "SH26 Kab sciHostDeleteOk delete gate"
     );
+}
+
+/// SH26 production evidence: the Kab science surface (nd kernels,
+/// scalar wrappers, FFT/GPU capability predicates) is internally
+/// consistent on every call, 8 consecutive sweeps on `kabootar run`.
+#[test]
+fn sh26_sci_production_probe_exec() {
+    let path = format!(
+        "{}/examples/sh26/sh26_sci_production_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh26-sci-production-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile sh26 sci production probe");
+            let value =
+                eval_program(&program, &mut env).expect("run sh26 sci production probe");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// SH26 deepen: add/mul/nd/fft dual-bind to delete gate.
@@ -67529,15 +67697,44 @@ fn sh27_ui_fps_in_kab() {
     );
 }
 
-/// SH27 deepen: host browser/game delete gate stays false.
+/// SH27 deepen: host browser/game delete gate flipped after production
+/// evidence (sh27_ui_production_probe streak=8 on `kabootar run` — the Kab
+/// display list feeds the framebuffer and kv8 eval runs on lib/kv8).
 #[test]
 fn sh27_ui_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let h = std::fs::read_to_string(root.join("lib/kab/ui/ui_host.kab")).expect("ui_host.kab");
     assert!(
-        h.contains("pub fn uiHostDeleteOk") && h.contains("false"),
+        h.contains("pub fn uiHostDeleteOk") && h.contains("return true"),
         "SH27 Kab uiHostDeleteOk delete gate"
     );
+}
+
+/// SH27 production evidence: kdom/document.paint presents the Kab
+/// display list through kframe_present_ops (published frame carries
+/// backend "kab-displaylist") and kb_run_kv8 routes the .kv8 module
+/// script through kv8RunPage — 8 consecutive sweeps on `kabootar run`.
+#[test]
+fn sh27_ui_production_probe_exec() {
+    let path = format!(
+        "{}/examples/sh27/sh27_ui_production_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh27-ui-production-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile sh27 ui production probe");
+            let value =
+                eval_program(&program, &mut env).expect("run sh27 ui production probe");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// SH27 deepen: div/canvas/fps dual-bind to delete gate.

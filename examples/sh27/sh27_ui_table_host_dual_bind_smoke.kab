@@ -2,7 +2,7 @@ import "kab/ui/ui_table"
 import "kab/ui/ui_option"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsOption("option") == false {
@@ -11,4 +11,4 @@ if uiIsOption("option") == false {
 if uiIsTable("table") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

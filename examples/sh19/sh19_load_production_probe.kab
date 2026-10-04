@@ -1,0 +1,79 @@
+// SH19 production probe: the Kab loader surface on the production
+// `kabootar run` path. Each round sweeps the argv[0] dispatch, extension
+// dispatch, source compile+eval, and .kbc/.kbcb disk roundtrips — a round
+// counts only when every verdict agrees. 8 consistent rounds =
+// loadReadyStreakOk flip criterion.
+
+import "kab/load"
+import "kab/load/load_main"
+import "kab/load/load_argv"
+import "kab/load/load_src"
+import "kab/load/load_file"
+import "kab/load/load_kbcb"
+import "kab/load/load_validate"
+
+fn loadSweepOk(round) {
+    // argv[0] dispatch: runnable path, notebook, CLI subcommand, unknown.
+    if loadReadyOk("run", loadArgvKind("app.kab")) == false {
+        return false
+    }
+    if loadReadyOk("nb", loadArgvKind("notes.knb")) == false {
+        return false
+    }
+    if loadReadyOk("cli", loadArgvKind("test")) == false {
+        return false
+    }
+    if loadReadyOk("", loadArgvKind("bogus")) == false {
+        return false
+    }
+    // Extension dispatch across the three image kinds + reject.
+    if loadReadyOk("kab", loadKind("x.kab")) == false {
+        return false
+    }
+    if loadReadyOk("kbc", loadKind("x.kbc")) == false {
+        return false
+    }
+    if loadReadyOk("kbcb", loadKind("x.kbcb")) == false {
+        return false
+    }
+    if loadReadyOk("", loadKind("x.txt")) == false {
+        return false
+    }
+    // In-memory source compile + eval on Kab-VM.
+    if loadReadyOk(true, loadEvalKabSource("return 40 + 2", 42)) == false {
+        return false
+    }
+    // Disk roundtrips: write .kab → load → compile → eval; compile →
+    // write .kbc → load → eval; packed .kbcb image roundtrip.
+    if loadReadyOk(true, loadEvalKabRoundtripOk("sh19_prod_probe_rt.kab", "return 40 + 2", 42)) == false {
+        return false
+    }
+    if loadReadyOk(true, loadEvalKbcRoundtripOk("sh19_prod_probe_rt.kbc", "return 40 + 2", 42)) == false {
+        return false
+    }
+    if loadReadyOk(true, loadEvalKbcbRoundtripOk("sh19_prod_probe_rt.kbcb", 42)) == false {
+        return false
+    }
+    // Header validation on the image the roundtrip just produced.
+    let bytes = loadBodyToBytes(os_read("sh19_prod_probe_rt.kbcb"))
+    let h = loadKbcbHeaderOk(bytes)
+    if loadReadyOk(true, h["ok"]) == false {
+        return false
+    }
+    if loadReadyOk(2, h["version"]) == false {
+        return false
+    }
+    return true
+}
+
+let streak = 0
+let round = 0
+while round < 8 {
+    if loadSweepOk(round) {
+        streak = streak + 1
+    }
+    round = round + 1
+}
+
+println("load probe: rounds=8 streak=" + streak)
+return loadReadyStreakOk(streak)

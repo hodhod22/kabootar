@@ -2,7 +2,7 @@ import "kab/ui/ui_eulergamma"
 import "kab/ui/ui_pi"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPi("pi") != true {
@@ -11,4 +11,4 @@ if uiIsPi("pi") != true {
 if uiIsEulergamma("eulergamma") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

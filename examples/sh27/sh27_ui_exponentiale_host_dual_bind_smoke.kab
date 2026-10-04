@@ -2,7 +2,7 @@ import "kab/ui/ui_exponentiale"
 import "kab/ui/ui_primes"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPrimes("primes") != true {
@@ -11,4 +11,4 @@ if uiIsPrimes("primes") != true {
 if uiIsExponentiale("exponentiale") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/sci/sci_min"
 import "kab/sci/sci_max"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 if sciMax(7, 42) != 42 {
@@ -11,4 +11,4 @@ if sciMax(7, 42) != 42 {
 if sciMin(42, 99) != 42 {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

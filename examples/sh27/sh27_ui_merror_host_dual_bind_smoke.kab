@@ -2,7 +2,7 @@ import "kab/ui/ui_merror"
 import "kab/ui/ui_mstyle"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMstyle("mstyle") == false {
@@ -11,4 +11,4 @@ if uiIsMstyle("mstyle") == false {
 if uiIsMerror("merror") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_ul"
 import "kab/ui/ui_a"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsA("a") == false {
@@ -11,4 +11,4 @@ if uiIsA("a") == false {
 if uiIsUl("ul") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

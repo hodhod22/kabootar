@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_image"
 import "kab/ui/ui_fe_func_r"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeFuncR("feFuncR") == false {
@@ -11,4 +11,4 @@ if uiIsFeFuncR("feFuncR") == false {
 if uiIsFeImage("feImage") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

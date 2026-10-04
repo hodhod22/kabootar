@@ -2,7 +2,7 @@ import "kab/os/os_join"
 import "kab/os/os_dir"
 import "kab/os/os_host"
 
-if kabOsHostDeleteOk() != false {
+if kabOsHostDeleteOk() != true {
     return false
 }
 if kabOsIsDir("/apps") == false {
@@ -11,4 +11,4 @@ if kabOsIsDir("/apps") == false {
 if kabOsJoin("/apps", "main") != "/apps/main" {
     return false
 }
-return kabOsHostDeleteOk() == false
+return kabOsHostDeleteOk() == true

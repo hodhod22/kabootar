@@ -2,7 +2,7 @@ import "kab/ui/ui_dd"
 import "kab/ui/ui_dt"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDt("dt") == false {
@@ -11,4 +11,4 @@ if uiIsDt("dt") == false {
 if uiIsDd("dd") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_cos"
 import "kab/ui/ui_sin"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSin("sin") != true {
@@ -11,4 +11,4 @@ if uiIsSin("sin") != true {
 if uiIsCos("cos") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_sinh"
 import "kab/ui/ui_cot"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCot("cot") != true {
@@ -11,4 +11,4 @@ if uiIsCot("cot") != true {
 if uiIsSinh("sinh") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

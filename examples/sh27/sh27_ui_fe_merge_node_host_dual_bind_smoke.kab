@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_merge_node"
 import "kab/ui/ui_fe_merge"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeMerge("feMerge") == false {
@@ -11,4 +11,4 @@ if uiIsFeMerge("feMerge") == false {
 if uiIsFeMergeNode("feMergeNode") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

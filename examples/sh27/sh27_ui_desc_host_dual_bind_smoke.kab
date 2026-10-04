@@ -2,7 +2,7 @@ import "kab/ui/ui_desc"
 import "kab/ui/ui_metadata"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMetadata("metadata") == false {
@@ -11,4 +11,4 @@ if uiIsMetadata("metadata") == false {
 if uiIsDesc("desc") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

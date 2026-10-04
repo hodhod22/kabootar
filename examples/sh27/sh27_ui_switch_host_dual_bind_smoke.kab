@@ -2,7 +2,7 @@ import "kab/ui/ui_switch"
 import "kab/ui/ui_foreign_object"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsForeignObject("foreignObject") == false {
@@ -11,4 +11,4 @@ if uiIsForeignObject("foreignObject") == false {
 if uiIsSwitch("switch") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

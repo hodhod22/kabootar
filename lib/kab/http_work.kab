@@ -1,4 +1,6 @@
-// F14: host-HTTP drop gate (still false).
+// F14: host-HTTP drop gate stub — the real kab/http/http_host gate
+// flipped true after sh24_http_production_probe; this leaf stays a
+// shadow stub for the work-drop composition.
 pub fn httpWorkDropOk() {
     let httpHostDeleteOk = false
     let workParOk = false

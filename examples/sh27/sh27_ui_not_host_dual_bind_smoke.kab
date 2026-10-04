@@ -2,7 +2,7 @@ import "kab/ui/ui_not"
 import "kab/ui/ui_xor"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsXor("xor") != true {
@@ -11,4 +11,4 @@ if uiIsXor("xor") != true {
 if uiIsNot("not") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

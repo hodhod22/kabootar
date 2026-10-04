@@ -2,7 +2,7 @@ import "kab/ui/ui_momentabout"
 import "kab/ui/ui_moment"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMoment("moment") != true {
@@ -11,4 +11,4 @@ if uiIsMoment("moment") != true {
 if uiIsMomentabout("momentabout") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

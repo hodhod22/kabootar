@@ -4,8 +4,15 @@
 
 import "kab/crypto/crypto_tls13_peer_full"
 import "kab/crypto/crypto_tls13_peer_get"
+import "kab/crypto/crypto_tls13_peer_fin"
 import "kab/crypto/crypto_tls13_peer_appdata"
 import "kab/crypto/crypto_http_get"
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_chainall"
+import "kab/crypto/crypto_tls13_peer_ecdsa"
+import "kab/crypto/crypto_tls13_peer_trust"
+import "kab/crypto/crypto_ecdsa_verify"
+import "kab/http/http_util"
 
 // Connect to a TLS 1.3 server on host:port and validate the full handshake.
 // Returns a session object on success, or false on failure.

@@ -2,7 +2,7 @@ import "kab/ui/ui_mprescripts"
 import "kab/ui/ui_mmultiscripts"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMmultiscripts("mmultiscripts") == false {
@@ -11,4 +11,4 @@ if uiIsMmultiscripts("mmultiscripts") == false {
 if uiIsMprescripts("mprescripts") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -1,0 +1,9 @@
+// SH23 production evidence probe: evals the env-gated rustls-peer
+// aggregate (TLS 1.2 peer :28291, TLS 1.3 peer :28296 with multiple
+// sequential connects, plus the no-rustls Kab loopback). The harness
+// sets KAB_TLS_PEERS=1 and spawns the peers; the probe returns the
+// evidence verdict.
+
+import "kab/crypto/crypto_host"
+
+return cryptoTlsPeerEvidenceOk()

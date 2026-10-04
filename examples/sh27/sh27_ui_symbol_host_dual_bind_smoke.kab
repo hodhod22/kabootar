@@ -2,7 +2,7 @@ import "kab/ui/ui_symbol"
 import "kab/ui/ui_defs"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDefs("defs") == false {
@@ -11,4 +11,4 @@ if uiIsDefs("defs") == false {
 if uiIsSymbol("symbol") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

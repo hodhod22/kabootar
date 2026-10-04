@@ -2,7 +2,7 @@ import "kab/ui/ui_embed"
 import "kab/ui/ui_area"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsArea("area") == false {
@@ -11,4 +11,4 @@ if uiIsArea("area") == false {
 if uiIsEmbed("embed") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

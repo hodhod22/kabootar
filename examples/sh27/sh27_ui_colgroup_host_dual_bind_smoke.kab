@@ -2,7 +2,7 @@ import "kab/ui/ui_colgroup"
 import "kab/ui/ui_param"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsParam("param") == false {
@@ -11,4 +11,4 @@ if uiIsParam("param") == false {
 if uiIsColgroup("colgroup") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

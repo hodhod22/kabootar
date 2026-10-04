@@ -2,7 +2,7 @@ import "kab/ui/ui_power"
 import "kab/ui/ui_divide"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDivide("divide") != true {
@@ -11,4 +11,4 @@ if uiIsDivide("divide") != true {
 if uiIsPower("power") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_definition_src"
 import "kab/ui/ui_color_profile"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsColorProfile("color-profile") != true {
@@ -11,4 +11,4 @@ if uiIsColorProfile("color-profile") != true {
 if uiIsDefinitionSrc("definition-src") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

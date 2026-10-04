@@ -2,7 +2,7 @@ import "kab/ui/ui_aside"
 import "kab/ui/ui_article"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsArticle("article") == false {
@@ -11,4 +11,4 @@ if uiIsArticle("article") == false {
 if uiIsAside("aside") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

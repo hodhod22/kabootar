@@ -2,7 +2,7 @@ import "kab/ui/ui_outerproduct"
 import "kab/ui/ui_scalarproduct"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsScalarproduct("scalarproduct") != true {
@@ -11,4 +11,4 @@ if uiIsScalarproduct("scalarproduct") != true {
 if uiIsOuterproduct("outerproduct") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

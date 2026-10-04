@@ -2,7 +2,7 @@ import "kab/load/load_src"
 import "kab/load/load_file"
 import "kab/load/load_main"
 
-if loadMainDeleteOk() != false {
+if loadMainDeleteOk() != true {
     return false
 }
 if loadKind("app.kab") != "kab" {
@@ -14,4 +14,4 @@ if loadKind("app.kbc") != "kbc" {
 if loadEvalKabSource("return 7", 7) == false {
     return false
 }
-return loadMainDeleteOk() == false
+return loadMainDeleteOk() == true

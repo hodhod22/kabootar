@@ -2,7 +2,7 @@ import "kab/ui/ui_meta"
 import "kab/ui/ui_link"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsLink("link") == false {
@@ -11,4 +11,4 @@ if uiIsLink("link") == false {
 if uiIsMeta("meta") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

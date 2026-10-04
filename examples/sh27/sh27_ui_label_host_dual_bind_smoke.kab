@@ -2,7 +2,7 @@ import "kab/ui/ui_label"
 import "kab/ui/ui_form"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsForm("form") == false {
@@ -11,4 +11,4 @@ if uiIsForm("form") == false {
 if uiIsLabel("label") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_center"
 import "kab/ui/ui_font"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFont("font") == false {
@@ -11,4 +11,4 @@ if uiIsFont("font") == false {
 if uiIsCenter("center") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

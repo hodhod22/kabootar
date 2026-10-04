@@ -1,0 +1,83 @@
+// SH27 production probe: the Kab browser/UI surface on the production
+// `kabootar run` path. Each round exercises both gate criteria:
+//   1. the Kab display list feeds the framebuffer — kdom/document.paint
+//      presents krender/displaylist ops through kframe_present_ops, so the
+//      published compositor frame carries backend "kab-displaylist" and
+//      Kab-op-derived pixels (rasterize→pixels stays the host capability).
+//   2. kv8 eval runs on lib/kv8 — navGo loads a .kv8 module off the VFS
+//      and kb_run_kv8 routes the script through kv8RunPage (evalRoute kab).
+// 8 consistent sweeps = the flip criterion used by the other host gates.
+
+import "kab/ui/ui_host"
+import "kdom/document"
+import "krender/displaylist"
+import "kbrowser/nav"
+import "kbrowser/session"
+import "kos/vfs"
+import "kv8/run"
+
+fn uiReadyOk(want, got) {
+    return want == got
+}
+
+fn uiSweepOk(round) {
+    // 1) Kab display list → framebuffer.
+    let doc = el("document")
+    let body = el("body")
+    let h1 = el("h1")
+    attr(h1, "style", "background:#ff0000;height:30px")
+    kdom_append(h1, text("probe" + round))
+    attach(body, h1, true)
+    attach(doc, body, true)
+    let live = kdom_get_by_id(kdom_id(doc))
+    let ops = buildDisplayList(live, 200, 200)
+    if len(ops) < 2 {
+        return false
+    }
+    let frame = paint(doc, 200, 200, "")
+    let kabFrame = frame["kabFrame"]
+    if kabFrame == null || kabFrame == undefined {
+        return false
+    }
+    if uiReadyOk("kab-displaylist", kabFrame["backend"]) == false {
+        return false
+    }
+    // The published frame — what display_present/last_frame_* observe —
+    // must be the Kab-ops-derived one.
+    let px = kb_pixels()
+    if px == null || px == undefined {
+        return false
+    }
+    if uiReadyOk("kab-displaylist", px["backend"]) == false {
+        return false
+    }
+    if px["bytes"] <= 0 {
+        return false
+    }
+    // 2) kv8 script eval on lib/kv8 via the product path (kb_run_kv8 →
+    // eval_provider → kv8RunPage, evalRoute["kab"] counter).
+    write("/apps/sh27_probe.kv8", "---kml---\n<html><body><p>probe</p></body></html>\n---script---\n1 + 1")
+    navGo("kabootar://vfs/apps/sh27_probe.kv8")
+    let kabBefore = evalRoute["kab"]
+    let ran = kb_run_kv8()
+    if ran != true {
+        return false
+    }
+    if evalRoute["kab"] <= kabBefore {
+        return false
+    }
+    return true
+}
+
+bootNav("kabootar://home")
+let streak = 0
+let round = 0
+while round < 8 {
+    if uiSweepOk(round) {
+        streak = streak + 1
+    }
+    round = round + 1
+}
+
+println("ui probe: rounds=8 streak=" + streak)
+return streak >= 8

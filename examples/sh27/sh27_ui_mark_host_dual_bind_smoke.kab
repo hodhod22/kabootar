@@ -2,7 +2,7 @@ import "kab/ui/ui_mark"
 import "kab/ui/ui_cite"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCite("cite") == false {
@@ -11,4 +11,4 @@ if uiIsCite("cite") == false {
 if uiIsMark("mark") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

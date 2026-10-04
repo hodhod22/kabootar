@@ -2,7 +2,7 @@ import "kab/ui/ui_summary"
 import "kab/ui/ui_details"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDetails("details") == false {
@@ -11,4 +11,4 @@ if uiIsDetails("details") == false {
 if uiIsSummary("summary") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

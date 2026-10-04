@@ -2,7 +2,7 @@ import "kab/os/os_ext"
 import "kab/os/os_base"
 import "kab/os/os_host"
 
-if kabOsHostDeleteOk() != false {
+if kabOsHostDeleteOk() != true {
     return false
 }
 if kabOsBase("/apps/main") != "main" {
@@ -11,4 +11,4 @@ if kabOsBase("/apps/main") != "main" {
 if kabOsExt("/apps/main.kab") != ".kab" {
     return false
 }
-return kabOsHostDeleteOk() == false
+return kabOsHostDeleteOk() == true

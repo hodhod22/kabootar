@@ -2,7 +2,7 @@ import "kab/ui/ui_diff"
 import "kab/ui/ui_int"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsInt("int") != true {
@@ -11,4 +11,4 @@ if uiIsInt("int") != true {
 if uiIsDiff("diff") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

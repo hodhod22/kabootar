@@ -2,7 +2,7 @@ import "kab/ui/ui_td"
 import "kab/ui/ui_th"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTh("th") == false {
@@ -11,4 +11,4 @@ if uiIsTh("th") == false {
 if uiIsTd("td") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

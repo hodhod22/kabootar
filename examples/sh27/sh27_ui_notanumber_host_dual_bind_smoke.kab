@@ -2,7 +2,7 @@ import "kab/ui/ui_notanumber"
 import "kab/ui/ui_infinity"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsInfinity("infinity") != true {
@@ -11,4 +11,4 @@ if uiIsInfinity("infinity") != true {
 if uiIsNotanumber("notanumber") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

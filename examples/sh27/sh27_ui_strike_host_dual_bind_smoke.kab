@@ -2,7 +2,7 @@ import "kab/ui/ui_strike"
 import "kab/ui/ui_tt"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTt("tt") == false {
@@ -11,4 +11,4 @@ if uiIsTt("tt") == false {
 if uiIsStrike("strike") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

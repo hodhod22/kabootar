@@ -2,7 +2,7 @@ import "kab/ui/ui_semantics"
 import "kab/ui/ui_menclose"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMenclose("menclose") == false {
@@ -11,4 +11,4 @@ if uiIsMenclose("menclose") == false {
 if uiIsSemantics("semantics") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

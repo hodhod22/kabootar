@@ -2,7 +2,7 @@ import "kab/ui/ui_metadata"
 import "kab/ui/ui_view"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsView("view") == false {
@@ -11,4 +11,4 @@ if uiIsView("view") == false {
 if uiIsMetadata("metadata") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

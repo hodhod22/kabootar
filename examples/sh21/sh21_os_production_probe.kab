@@ -1,0 +1,82 @@
+// SH21 production probe: the Kab OS surface on the production
+// `kabootar run` path. Each round sweeps path ops plus a real
+// mkdir/write/read roundtrip on the host FS — a round counts only when
+// every verdict agrees. 8 consistent rounds = kabOsReadyStreakOk
+// flip criterion.
+
+import "kab/os"
+import "kab/os/os_host"
+import "kab/os/os_join"
+import "kab/os/os_norm"
+import "kab/os/os_abs"
+import "kab/os/os_base"
+import "kab/os/os_ext"
+import "kab/os/os_dn"
+import "kab/os/os_rel"
+import "kab/os/os_dir"
+import "kab/os/os_fs"
+import "kab/os/os_rw"
+import "kab/os/os_env"
+import "kab/os/os_cwd"
+import "kab/os/os_proc"
+
+fn kabOsSweepOk(round) {
+    // Pure-Kab path algebra.
+    if kabOsReadyOk("a/b/c.kab", kabOsJoin("a/b", "c.kab")) == false {
+        return false
+    }
+    if kabOsReadyOk("a/b/c", kabOsNorm("a//b///c")) == false {
+        return false
+    }
+    if kabOsReadyOk("c.kab", kabOsBase("a/b/c.kab")) == false {
+        return false
+    }
+    if kabOsReadyOk(".kab", kabOsExt("a/b/c.kab")) == false {
+        return false
+    }
+    if kabOsReadyOk("a/b", kabOsDirname("a/b/c.kab")) == false {
+        return false
+    }
+    if kabOsReadyOk("d/e", kabOsRel("a/b", "a/b/d/e")) == false {
+        return false
+    }
+    if kabOsReadyOk("/w/rel/x", kabOsAbs("/w", "rel/x")) == false {
+        return false
+    }
+    if kabOsReadyOk("/abs/x", kabOsAbs("/w", "/abs/x")) == false {
+        return false
+    }
+    // Capability/classifier predicates.
+    if kabOsReadyOk(true, kabOsIsFile("a/b.txt")) == false {
+        return false
+    }
+    if kabOsReadyOk(true, kabOsIsDir("a/b")) == false {
+        return false
+    }
+    if kabOsReadyOk(true, kabOsArgvOk(2)) == false {
+        return false
+    }
+    if kabOsReadyOk(true, kabOsEnvOk("PATH")) == false {
+        return false
+    }
+    if kabOsReadyOk(true, kabOsCwdOk("/repo/root")) == false {
+        return false
+    }
+    // Real host-FS roundtrip through the Kab capability layer.
+    if kabOsReadyOk(true, kabOsWriteReadOk("sh21_prod_probe_dir", "probe.txt", "sh21-probe-body")) == false {
+        return false
+    }
+    return true
+}
+
+let streak = 0
+let round = 0
+while round < 8 {
+    if kabOsSweepOk(round) {
+        streak = streak + 1
+    }
+    round = round + 1
+}
+
+println("os probe: rounds=8 streak=" + streak)
+return kabOsReadyStreakOk(streak)

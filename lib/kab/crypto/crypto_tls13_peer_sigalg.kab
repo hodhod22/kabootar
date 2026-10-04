@@ -32,8 +32,9 @@ pub fn tls13PeerSigAlgOk(bytes, alg) {
         return next["end"] == alg["end"]
     }
     // ecdsaWithSHA256: 1.2.840.10045.4.3.2
+    // DER: 2A 86 48 CE 3D 04 03 02 (840 = 86 48; 10045 = CE 3D).
     if oid["len"] == 8 {
-        let ecdsa = [42, 134, 72, 134, 247, 13, 3, 2, 2]
+        let ecdsa = [42, 134, 72, 206, 61, 4, 3, 2]
         let i = 0
         while i < 8 {
             if (bytes["" + (oid["body"] + i)] & 255) != ecdsa[i] {
@@ -41,8 +42,10 @@ pub fn tls13PeerSigAlgOk(bytes, alg) {
             }
             i = i + 1
         }
-        let next = cryptoDerTlv(bytes, oid["end"])
-        return next == false || next["end"] == alg["end"]
+        // ECDSA params must be absent — the OID is the last field of alg.
+        // (cryptoDerTlv at oid["end"] would parse the following TBS field,
+        // not a missing-params sentinel.)
+        return oid["end"] == alg["end"]
     }
     return false
 }

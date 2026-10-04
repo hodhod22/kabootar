@@ -2,7 +2,7 @@ import "kab/ui/ui_annotation"
 import "kab/ui/ui_semantics"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSemantics("semantics") == false {
@@ -11,4 +11,4 @@ if uiIsSemantics("semantics") == false {
 if uiIsAnnotation("annotation") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

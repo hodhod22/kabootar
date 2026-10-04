@@ -10,4 +10,4 @@ if loadEvalKabFile("note.txt") != false {
 if loadEvalKabSource("return 1", 2) {
     return false
 }
-return loadMainDeleteOk() == false
+return loadMainDeleteOk() == true

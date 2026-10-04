@@ -2,7 +2,7 @@ import "kab/ui/ui_flow_region_exclude"
 import "kab/ui/ui_flow_tref"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFlowTref("flowTref") != true {
@@ -11,4 +11,4 @@ if uiIsFlowTref("flowTref") != true {
 if uiIsFlowRegionExclude("flowRegionExclude") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

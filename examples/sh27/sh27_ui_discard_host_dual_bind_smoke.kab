@@ -2,7 +2,7 @@ import "kab/ui/ui_discard"
 import "kab/ui/ui_meshpatch"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMeshpatch("meshpatch") == false {
@@ -11,4 +11,4 @@ if uiIsMeshpatch("meshpatch") == false {
 if uiIsDiscard("discard") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

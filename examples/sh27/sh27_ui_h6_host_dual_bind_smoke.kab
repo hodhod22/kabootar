@@ -2,7 +2,7 @@ import "kab/ui/ui_h6"
 import "kab/ui/ui_h5"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsH5("h5") == false {
@@ -11,4 +11,4 @@ if uiIsH5("h5") == false {
 if uiIsH6("h6") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

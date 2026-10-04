@@ -2,7 +2,7 @@ import "kab/ui/ui_flow_image"
 import "kab/ui/ui_flow_region_exclude"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFlowRegionExclude("flowRegionExclude") != true {
@@ -11,4 +11,4 @@ if uiIsFlowRegionExclude("flowRegionExclude") != true {
 if uiIsFlowImage("flowImage") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

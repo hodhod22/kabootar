@@ -2,7 +2,7 @@ import "kab/ui/ui_fn"
 import "kab/ui/ui_reln"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsReln("reln") == false {
@@ -11,4 +11,4 @@ if uiIsReln("reln") == false {
 if uiIsFn("fn") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

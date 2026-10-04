@@ -2,7 +2,7 @@ import "kab/ui/ui_times"
 import "kab/ui/ui_minus"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMinus("minus") != true {
@@ -11,4 +11,4 @@ if uiIsMinus("minus") != true {
 if uiIsTimes("times") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

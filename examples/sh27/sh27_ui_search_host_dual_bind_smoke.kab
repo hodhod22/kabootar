@@ -2,7 +2,7 @@ import "kab/ui/ui_search"
 import "kab/ui/ui_menu"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMenu("menu") == false {
@@ -11,4 +11,4 @@ if uiIsMenu("menu") == false {
 if uiIsSearch("search") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

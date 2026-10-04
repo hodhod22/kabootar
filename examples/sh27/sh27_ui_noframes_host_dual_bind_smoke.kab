@@ -2,7 +2,7 @@ import "kab/ui/ui_noframes"
 import "kab/ui/ui_frame"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFrame("frame") == false {
@@ -11,4 +11,4 @@ if uiIsFrame("frame") == false {
 if uiIsNoframes("noframes") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

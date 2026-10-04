@@ -2,7 +2,7 @@ import "kab/ui/ui_view"
 import "kab/ui/ui_mpath"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMpath("mpath") == false {
@@ -11,4 +11,4 @@ if uiIsMpath("mpath") == false {
 if uiIsView("view") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

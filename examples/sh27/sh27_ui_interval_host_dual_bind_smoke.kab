@@ -2,7 +2,7 @@ import "kab/ui/ui_interval"
 import "kab/ui/ui_fn"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFn("fn") == false {
@@ -11,4 +11,4 @@ if uiIsFn("fn") == false {
 if uiIsInterval("interval") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

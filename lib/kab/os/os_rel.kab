@@ -1,5 +1,5 @@
 // SH21: path rel leaf off os_abs.kab. import "kab/os/os_rel"
-// Do not grow os_abs.kab. kabOsHostDeleteOk stays false.
+// Do not grow os_abs.kab. kabOsHostDeleteOk flipped true (production evidence).
 
 import "kab/os/os_norm"
 

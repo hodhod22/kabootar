@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_color_matrix"
 import "kab/ui/ui_fe_blend"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeBlend("feBlend") == false {
@@ -11,4 +11,4 @@ if uiIsFeBlend("feBlend") == false {
 if uiIsFeColorMatrix("feColorMatrix") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

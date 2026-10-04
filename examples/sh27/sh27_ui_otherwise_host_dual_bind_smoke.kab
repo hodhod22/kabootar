@@ -2,7 +2,7 @@ import "kab/ui/ui_otherwise"
 import "kab/ui/ui_piece"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPiece("piece") == false {
@@ -11,4 +11,4 @@ if uiIsPiece("piece") == false {
 if uiIsOtherwise("otherwise") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_noscript"
 import "kab/ui/ui_slot"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSlot("slot") == false {
@@ -11,4 +11,4 @@ if uiIsSlot("slot") == false {
 if uiIsNoscript("noscript") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

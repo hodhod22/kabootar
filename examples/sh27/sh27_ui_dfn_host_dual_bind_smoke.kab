@@ -2,7 +2,7 @@ import "kab/ui/ui_dfn"
 import "kab/ui/ui_data"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsData("data") == false {
@@ -11,4 +11,4 @@ if uiIsData("data") == false {
 if uiIsDfn("dfn") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

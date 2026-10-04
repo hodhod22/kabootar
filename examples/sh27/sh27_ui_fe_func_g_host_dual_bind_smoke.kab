@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_func_g"
 import "kab/ui/ui_fe_func_b"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeFuncB("feFuncB") == false {
@@ -11,4 +11,4 @@ if uiIsFeFuncB("feFuncB") == false {
 if uiIsFeFuncG("feFuncG") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

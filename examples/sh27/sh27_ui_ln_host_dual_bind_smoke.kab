@@ -2,7 +2,7 @@ import "kab/ui/ui_ln"
 import "kab/ui/ui_log"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsLog("log") != true {
@@ -11,4 +11,4 @@ if uiIsLog("log") != true {
 if uiIsLn("ln") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

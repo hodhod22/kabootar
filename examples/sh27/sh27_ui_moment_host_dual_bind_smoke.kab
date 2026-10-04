@@ -2,7 +2,7 @@ import "kab/ui/ui_moment"
 import "kab/ui/ui_mode"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMode("mode") != true {
@@ -11,4 +11,4 @@ if uiIsMode("mode") != true {
 if uiIsMoment("moment") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

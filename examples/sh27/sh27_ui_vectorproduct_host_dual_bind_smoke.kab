@@ -2,7 +2,7 @@ import "kab/ui/ui_vectorproduct"
 import "kab/ui/ui_cartesianproduct"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCartesianproduct("cartesianproduct") != true {
@@ -11,4 +11,4 @@ if uiIsCartesianproduct("cartesianproduct") != true {
 if uiIsVectorproduct("vectorproduct") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

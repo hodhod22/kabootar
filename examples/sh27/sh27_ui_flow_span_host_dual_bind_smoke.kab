@@ -2,7 +2,7 @@ import "kab/ui/ui_flow_span"
 import "kab/ui/ui_flow_para"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFlowPara("flowPara") != true {
@@ -11,4 +11,4 @@ if uiIsFlowPara("flowPara") != true {
 if uiIsFlowSpan("flowSpan") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

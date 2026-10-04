@@ -2,7 +2,7 @@ import "kab/sci/sci_pow"
 import "kab/sci/sci_clmp"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 if sciClamp(99, 0, 42) != 42 {
@@ -11,4 +11,4 @@ if sciClamp(99, 0, 42) != 42 {
 if sciPow(42, 1) != 42 {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

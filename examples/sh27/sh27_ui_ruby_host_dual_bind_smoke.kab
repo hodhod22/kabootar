@@ -2,7 +2,7 @@ import "kab/ui/ui_ruby"
 import "kab/ui/ui_wbr"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsWbr("wbr") == false {
@@ -11,4 +11,4 @@ if uiIsWbr("wbr") == false {
 if uiIsRuby("ruby") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

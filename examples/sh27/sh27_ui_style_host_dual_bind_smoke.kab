@@ -2,7 +2,7 @@ import "kab/ui/ui_style"
 import "kab/ui/ui_script"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsScript("script") == false {
@@ -11,4 +11,4 @@ if uiIsScript("script") == false {
 if uiIsStyle("style") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

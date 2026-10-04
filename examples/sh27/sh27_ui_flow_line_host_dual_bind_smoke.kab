@@ -2,7 +2,7 @@ import "kab/ui/ui_flow_line"
 import "kab/ui/ui_flow_span"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFlowSpan("flowSpan") != true {
@@ -11,4 +11,4 @@ if uiIsFlowSpan("flowSpan") != true {
 if uiIsFlowLine("flowLine") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

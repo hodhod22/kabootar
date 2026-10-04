@@ -61,9 +61,10 @@ pub fn domExtra(mode, a, b) {
 }
 
 // css: pass "" to skip; non-empty uses Kabootar parseAndApply (H0)
-// The frame carries the Kab-owned display list (krender/displaylist) alongside
-// the host-rasterized layers — the incremental merge point where the raster
-// boundary can later consume Kab ops instead of re-walking the DOM in Rust.
+// The Kab-owned display list (krender/displaylist) is presented through
+// kframe_present_ops — the ops are the draw source for the published
+// frame (rasterize→pixels + publish stay the host capability), so the
+// framebuffer slot carries backend "kab-displaylist" after paint().
 pub fn paint(node, width, height, css) {
     if css != "" {
         parseAndApply(css)
@@ -73,6 +74,8 @@ pub fn paint(node, width, height, css) {
     if live == null || live == undefined {
         live = node
     }
-    frame["kabDisplayList"] = buildDisplayList(live, width, height)
+    let ops = buildDisplayList(live, width, height)
+    frame["kabDisplayList"] = ops
+    frame["kabFrame"] = kframe_present_ops(ops, width, height)
     return frame
 }

@@ -3,7 +3,7 @@ import "kab/load/load_kbc"
 import "kab/load/load_img"
 import "kab/load/load_main"
 
-if loadMainDeleteOk() != false {
+if loadMainDeleteOk() != true {
     return false
 }
 if loadIsKab("app.kab") == false {
@@ -18,4 +18,4 @@ if loadImageName() != "compiler.kbcb" {
 if loadEntry() != "main" {
     return false
 }
-return loadMainDeleteOk() == false
+return loadMainDeleteOk() == true

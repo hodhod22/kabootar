@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_morphology"
 import "kab/ui/ui_fe_merge_node"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeMergeNode("feMergeNode") == false {
@@ -11,4 +11,4 @@ if uiIsFeMergeNode("feMergeNode") == false {
 if uiIsFeMorphology("feMorphology") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

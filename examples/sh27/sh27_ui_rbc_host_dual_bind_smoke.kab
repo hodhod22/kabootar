@@ -2,7 +2,7 @@ import "kab/ui/ui_rbc"
 import "kab/ui/ui_rtc"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsRtc("rtc") == false {
@@ -11,4 +11,4 @@ if uiIsRtc("rtc") == false {
 if uiIsRbc("rbc") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_map"
 import "kab/ui/ui_picture"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPicture("picture") == false {
@@ -11,4 +11,4 @@ if uiIsPicture("picture") == false {
 if uiIsMap("map") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

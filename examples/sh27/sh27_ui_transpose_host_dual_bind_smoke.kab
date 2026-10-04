@@ -2,7 +2,7 @@ import "kab/ui/ui_transpose"
 import "kab/ui/ui_outerproduct"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsOuterproduct("outerproduct") != true {
@@ -11,4 +11,4 @@ if uiIsOuterproduct("outerproduct") != true {
 if uiIsTranspose("transpose") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

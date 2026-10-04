@@ -2,7 +2,7 @@ import "kab/ui/ui_stop"
 import "kab/ui/ui_radial_gradient"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsRadialGradient("radialGradient") == false {
@@ -11,4 +11,4 @@ if uiIsRadialGradient("radialGradient") == false {
 if uiIsStop("stop") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

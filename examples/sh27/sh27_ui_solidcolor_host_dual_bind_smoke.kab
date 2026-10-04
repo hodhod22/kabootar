@@ -2,7 +2,7 @@ import "kab/ui/ui_solidcolor"
 import "kab/ui/ui_hatchpath"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsHatchpath("hatchpath") == false {
@@ -11,4 +11,4 @@ if uiIsHatchpath("hatchpath") == false {
 if uiIsSolidcolor("solidcolor") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

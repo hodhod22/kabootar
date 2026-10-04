@@ -2,7 +2,7 @@ import "kab/ui/ui_animate_color"
 import "kab/ui/ui_eq"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsEq("eq") != true {
@@ -11,4 +11,4 @@ if uiIsEq("eq") != true {
 if uiIsAnimateColor("animateColor") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_address"
 import "kab/ui/ui_hgroup"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsHgroup("hgroup") == false {
@@ -11,4 +11,4 @@ if uiIsHgroup("hgroup") == false {
 if uiIsAddress("address") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_notsubset"
 import "kab/ui/ui_prsubset"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPrsubset("prsubset") != true {
@@ -11,4 +11,4 @@ if uiIsPrsubset("prsubset") != true {
 if uiIsNotsubset("notsubset") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

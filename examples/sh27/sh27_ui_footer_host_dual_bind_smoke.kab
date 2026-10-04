@@ -2,7 +2,7 @@ import "kab/ui/ui_footer"
 import "kab/ui/ui_header"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsHeader("header") == false {
@@ -11,4 +11,4 @@ if uiIsHeader("header") == false {
 if uiIsFooter("footer") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

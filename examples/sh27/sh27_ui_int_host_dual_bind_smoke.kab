@@ -2,7 +2,7 @@ import "kab/ui/ui_int"
 import "kab/ui/ui_tendsto"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTendsto("tendsto") != true {
@@ -11,4 +11,4 @@ if uiIsTendsto("tendsto") != true {
 if uiIsInt("int") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -3,7 +3,7 @@ import "kab/ui/ui_cv"
 import "kab/ui/ui_fps"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDiv("div") == false {
@@ -21,4 +21,4 @@ if uiIsCanvas("canvas") == false {
 if uiFpsOk(16) == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

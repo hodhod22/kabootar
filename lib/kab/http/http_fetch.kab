@@ -9,7 +9,7 @@
 // Generic loopback HTTPS after import "kab/crypto/crypto_tls13_client_generic".
 // Those paths return promise_resolve(dict with status/body/headers) so http_status/http_body/http_header/http_headers match rustls httpFetch.
 // Host http_response drops headers, so Kab-TLS stays a dict; wrappers try dict fields then saved natives.
-// Non-loopback URLs still http_fetch_async. httpHostDeleteOk stays false.
+// Non-loopback URLs still http_fetch_async. httpHostDeleteOk flipped true (production evidence).
 
 import "kab/http/http_nat"
 import "kab/http/http_client"

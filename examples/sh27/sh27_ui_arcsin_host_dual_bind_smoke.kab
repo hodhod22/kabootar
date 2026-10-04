@@ -2,7 +2,7 @@ import "kab/ui/ui_arcsin"
 import "kab/ui/ui_coth"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCoth("coth") != true {
@@ -11,4 +11,4 @@ if uiIsCoth("coth") != true {
 if uiIsArcsin("arcsin") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

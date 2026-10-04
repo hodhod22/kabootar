@@ -2,7 +2,7 @@ import "kab/ui/ui_uplimit"
 import "kab/ui/ui_lowlimit"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsLowlimit("lowlimit") != true {
@@ -11,4 +11,4 @@ if uiIsLowlimit("lowlimit") != true {
 if uiIsUplimit("uplimit") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

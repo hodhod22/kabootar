@@ -2,7 +2,7 @@ import "kab/ui/ui_cerror"
 import "kab/ui/ui_declare"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDeclare("declare") != true {
@@ -11,4 +11,4 @@ if uiIsDeclare("declare") != true {
 if uiIsCerror("cerror") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

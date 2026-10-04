@@ -2,7 +2,7 @@ import "kab/ui/ui_domainofapplication"
 import "kab/ui/ui_false"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFalse("false") != true {
@@ -11,4 +11,4 @@ if uiIsFalse("false") != true {
 if uiIsDomainofapplication("domainofapplication") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

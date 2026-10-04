@@ -2,7 +2,7 @@ import "kab/ui/ui_animate"
 import "kab/ui/ui_fe_drop_shadow"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeDropShadow("feDropShadow") == false {
@@ -11,4 +11,4 @@ if uiIsFeDropShadow("feDropShadow") == false {
 if uiIsAnimate("animate") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

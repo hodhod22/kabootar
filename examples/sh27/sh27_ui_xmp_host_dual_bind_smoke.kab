@@ -2,7 +2,7 @@ import "kab/ui/ui_xmp"
 import "kab/ui/ui_listing"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsListing("listing") == false {
@@ -11,4 +11,4 @@ if uiIsListing("listing") == false {
 if uiIsXmp("xmp") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

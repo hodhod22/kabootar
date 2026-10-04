@@ -2,7 +2,7 @@ import "kab/ui/ui_font_face_src"
 import "kab/ui/ui_font_face"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFontFace("font-face") == false {
@@ -11,4 +11,4 @@ if uiIsFontFace("font-face") == false {
 if uiIsFontFaceSrc("font-face-src") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

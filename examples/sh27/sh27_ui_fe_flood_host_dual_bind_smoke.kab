@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_flood"
 import "kab/ui/ui_fe_displacement_map"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeDisplacementMap("feDisplacementMap") == false {
@@ -11,4 +11,4 @@ if uiIsFeDisplacementMap("feDisplacementMap") == false {
 if uiIsFeFlood("feFlood") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

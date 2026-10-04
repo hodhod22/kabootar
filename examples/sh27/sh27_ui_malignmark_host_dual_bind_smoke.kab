@@ -2,7 +2,7 @@ import "kab/ui/ui_malignmark"
 import "kab/ui/ui_maligngroup"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMaligngroup("maligngroup") == false {
@@ -11,4 +11,4 @@ if uiIsMaligngroup("maligngroup") == false {
 if uiIsMalignmark("malignmark") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

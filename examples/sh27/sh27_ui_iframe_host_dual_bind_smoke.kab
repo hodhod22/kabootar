@@ -2,7 +2,7 @@ import "kab/ui/ui_iframe"
 import "kab/ui/ui_track"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTrack("track") == false {
@@ -11,4 +11,4 @@ if uiIsTrack("track") == false {
 if uiIsIframe("iframe") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

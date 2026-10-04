@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_diffuse_lighting"
 import "kab/ui/ui_fe_convolve_matrix"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeConvolveMatrix("feConvolveMatrix") == false {
@@ -11,4 +11,4 @@ if uiIsFeConvolveMatrix("feConvolveMatrix") == false {
 if uiIsFeDiffuseLighting("feDiffuseLighting") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

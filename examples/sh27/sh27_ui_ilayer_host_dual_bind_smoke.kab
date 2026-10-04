@@ -2,7 +2,7 @@ import "kab/ui/ui_ilayer"
 import "kab/ui/ui_layer"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsLayer("layer") == false {
@@ -11,4 +11,4 @@ if uiIsLayer("layer") == false {
 if uiIsIlayer("ilayer") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

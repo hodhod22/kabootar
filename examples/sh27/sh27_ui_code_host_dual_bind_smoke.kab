@@ -2,7 +2,7 @@ import "kab/ui/ui_code"
 import "kab/ui/ui_pre"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPre("pre") == false {
@@ -11,4 +11,4 @@ if uiIsPre("pre") == false {
 if uiIsCode("code") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

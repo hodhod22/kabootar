@@ -2,7 +2,7 @@ import "kab/ui/ui_maligngroup"
 import "kab/ui/ui_mlabeledtr"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMlabeledtr("mlabeledtr") == false {
@@ -11,4 +11,4 @@ if uiIsMlabeledtr("mlabeledtr") == false {
 if uiIsMaligngroup("maligngroup") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/os/os_norm"
 import "kab/os/os_dn"
 import "kab/os/os_host"
 
-if kabOsHostDeleteOk() != false {
+if kabOsHostDeleteOk() != true {
     return false
 }
 if kabOsDirname("/apps/main.kab") != "/apps" {
@@ -11,4 +11,4 @@ if kabOsDirname("/apps/main.kab") != "/apps" {
 if kabOsNorm("/apps//main") != "/apps/main" {
     return false
 }
-return kabOsHostDeleteOk() == false
+return kabOsHostDeleteOk() == true

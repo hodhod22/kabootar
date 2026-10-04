@@ -1,5 +1,5 @@
 // SH21: path dirname leaf off os_ext.kab. import "kab/os/os_dn"
-// Do not grow os_ext.kab. kabOsHostDeleteOk stays false.
+// Do not grow os_ext.kab. kabOsHostDeleteOk flipped true (production evidence).
 
 pub fn kabOsDirname(path) {
     let n = len(path)

@@ -2,7 +2,7 @@ import "kab/ui/ui_plaintext"
 import "kab/ui/ui_xmp"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsXmp("xmp") == false {
@@ -11,4 +11,4 @@ if uiIsXmp("xmp") == false {
 if uiIsPlaintext("plaintext") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

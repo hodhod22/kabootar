@@ -2,7 +2,7 @@ import "kab/ui/ui_caption"
 import "kab/ui/ui_col"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCol("col") == false {
@@ -11,4 +11,4 @@ if uiIsCol("col") == false {
 if uiIsCaption("caption") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

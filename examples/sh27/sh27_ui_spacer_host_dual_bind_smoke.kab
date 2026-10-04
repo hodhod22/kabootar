@@ -2,7 +2,7 @@ import "kab/ui/ui_spacer"
 import "kab/ui/ui_noembed"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsNoembed("noembed") == false {
@@ -11,4 +11,4 @@ if uiIsNoembed("noembed") == false {
 if uiIsSpacer("spacer") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

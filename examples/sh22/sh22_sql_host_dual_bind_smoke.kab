@@ -3,7 +3,7 @@ import "kab/sql/sql_where"
 import "kab/sql/sql_store"
 import "kab/sql/sql_host"
 
-if sqlHostDeleteOk() != false {
+if sqlHostDeleteOk() != true {
     return false
 }
 if sqlIsSelect("SELECT 1") == false {
@@ -18,4 +18,4 @@ if sqlIsWhere("SELECT 1 WHERE x = 1") == false {
 if sqlStoreOk(0) == false {
     return false
 }
-return sqlHostDeleteOk() == false
+return sqlHostDeleteOk() == true

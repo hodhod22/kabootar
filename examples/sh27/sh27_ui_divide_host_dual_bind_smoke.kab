@@ -2,7 +2,7 @@ import "kab/ui/ui_divide"
 import "kab/ui/ui_times"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTimes("times") != true {
@@ -11,4 +11,4 @@ if uiIsTimes("times") != true {
 if uiIsDivide("divide") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

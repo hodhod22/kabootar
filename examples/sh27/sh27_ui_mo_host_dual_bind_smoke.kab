@@ -2,7 +2,7 @@ import "kab/ui/ui_mo"
 import "kab/ui/ui_mn"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMn("mn") == false {
@@ -11,4 +11,4 @@ if uiIsMn("mn") == false {
 if uiIsMo("mo") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

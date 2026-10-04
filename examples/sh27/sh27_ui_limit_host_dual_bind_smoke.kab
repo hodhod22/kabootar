@@ -2,7 +2,7 @@ import "kab/ui/ui_limit"
 import "kab/ui/ui_product"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsProduct("product") != true {
@@ -11,4 +11,4 @@ if uiIsProduct("product") != true {
 if uiIsLimit("limit") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

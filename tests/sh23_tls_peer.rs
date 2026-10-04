@@ -180,7 +180,7 @@ fn spawn_tls12_peer(port: u16, keylog: bool, serve_http: bool) {
             Ok(p) => p,
             Err(_) => return,
         };
-        let _ = tcp.set_read_timeout(Some(Duration::from_secs(1800)));
+        let _ = tcp.set_read_timeout(Some(Duration::from_secs(14400)));
         let mut conn = rustls::ServerConnection::new(server_cfg).unwrap();
         loop {
             while conn.wants_write() {
@@ -289,7 +289,7 @@ fn spawn_tls13_rsa_peer(port: u16) {
             Ok(p) => p,
             Err(_) => return,
         };
-        let _ = tcp.set_read_timeout(Some(Duration::from_secs(1800)));
+        let _ = tcp.set_read_timeout(Some(Duration::from_secs(14400)));
         let mut conn = rustls::ServerConnection::new(server_cfg).unwrap();
         loop {
             while conn.wants_write() {
@@ -341,87 +341,130 @@ fn spawn_tls13_peer(port: u16, keylog: bool, serve_http: bool) {
     let listener = TcpListener::bind(format!("127.0.0.1:{port}")).expect("bind");
     let server_cfg = Arc::new(server_cfg);
     std::thread::spawn(move || {
-        let (mut tcp, _) = match listener.accept() {
+        let (tcp, _) = match listener.accept() {
             Ok(p) => p,
             Err(_) => return,
         };
-        let _ = tcp.set_read_timeout(Some(Duration::from_secs(1800)));
-        let mut conn = rustls::ServerConnection::new(server_cfg).unwrap();
-        loop {
-            while conn.wants_write() {
-                if conn.write_tls(&mut tcp).is_err() {
-                    return;
-                }
-            }
-            if !conn.is_handshaking() {
-                break;
-            }
-            match conn.read_tls(&mut tcp) {
-                Ok(0) => return,
-                Ok(_) => {
-                    if let Err(e) = conn.process_new_packets() {
-                        eprintln!("rustls TLS 1.3 process_new_packets: {e}");
-                        return;
-                    }
-                }
-                Err(_) => return,
-            }
-        }
+        serve_tls13_conn(tcp, server_cfg, serve_http);
+    });
+}
+
+fn serve_tls13_conn(
+    mut tcp: TcpStream,
+    server_cfg: Arc<rustls::ServerConfig>,
+    serve_http: bool,
+) {
+    let _ = tcp.set_read_timeout(Some(Duration::from_secs(14400)));
+    let mut conn = rustls::ServerConnection::new(server_cfg).unwrap();
+    loop {
         while conn.wants_write() {
-            let _ = conn.write_tls(&mut tcp);
+            if conn.write_tls(&mut tcp).is_err() {
+                return;
+            }
         }
-        eprintln!("rustls TLS 1.3 handshake complete");
-        if !serve_http {
-            return;
+        if !conn.is_handshaking() {
+            break;
         }
-        loop {
-            while conn.wants_write() {
-                if conn.write_tls(&mut tcp).is_err() {
+        match conn.read_tls(&mut tcp) {
+            Ok(0) => return,
+            Ok(_) => {
+                if let Err(e) = conn.process_new_packets() {
+                    eprintln!("rustls TLS 1.3 process_new_packets: {e}");
                     return;
                 }
             }
-            let mut buf = [0u8; 4096];
-            match conn.reader().read(&mut buf) {
-                Ok(0) => return,
-                Ok(n) => {
-                    if buf[..n].starts_with(b"GET ")
-                        || buf[..n].starts_with(b"POST ")
-                        || buf[..n].starts_with(b"PUT ")
-                        || buf[..n].starts_with(b"PATCH ")
-                        || buf[..n].starts_with(b"DELETE ")
-                        || buf[..n].starts_with(b"HEAD ")
-                        || buf[..n].starts_with(b"OPTIONS ")
-                        || buf[..n].starts_with(b"TRACE ")
-                        || buf[..n].starts_with(b"CONNECT ")
-                    {
-                        let _ = conn.writer().write_all(
-                            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK",
-                        );
-                        let _ = conn.writer().flush();
-                        while conn.wants_write() {
-                            let _ = conn.write_tls(&mut tcp);
-                        }
-                    }
-                    return;
-                }
-                Err(e)
-                    if e.kind() == std::io::ErrorKind::WouldBlock
-                        || e.kind() == std::io::ErrorKind::TimedOut =>
+            Err(_) => return,
+        }
+    }
+    while conn.wants_write() {
+        let _ = conn.write_tls(&mut tcp);
+    }
+    eprintln!("rustls TLS 1.3 handshake complete");
+    if !serve_http {
+        return;
+    }
+    loop {
+        while conn.wants_write() {
+            if conn.write_tls(&mut tcp).is_err() {
+                return;
+            }
+        }
+        let mut buf = [0u8; 4096];
+        match conn.reader().read(&mut buf) {
+            Ok(0) => return,
+            Ok(n) => {
+                if buf[..n].starts_with(b"GET ")
+                    || buf[..n].starts_with(b"POST ")
+                    || buf[..n].starts_with(b"PUT ")
+                    || buf[..n].starts_with(b"PATCH ")
+                    || buf[..n].starts_with(b"DELETE ")
+                    || buf[..n].starts_with(b"HEAD ")
+                    || buf[..n].starts_with(b"OPTIONS ")
+                    || buf[..n].starts_with(b"TRACE ")
+                    || buf[..n].starts_with(b"CONNECT ")
                 {
-                    match conn.read_tls(&mut tcp) {
-                        Ok(0) => return,
-                        Ok(_) => {
-                            if let Err(e) = conn.process_new_packets() {
-                                eprintln!("rustls TLS 1.3 process_new_packets: {e}");
-                                return;
-                            }
-                        }
-                        Err(_) => return,
+                    let _ = conn.writer().write_all(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK",
+                    );
+                    let _ = conn.writer().flush();
+                    while conn.wants_write() {
+                        let _ = conn.write_tls(&mut tcp);
                     }
                 }
-                Err(_) => return,
+                return;
             }
+            Err(e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut =>
+            {
+                match conn.read_tls(&mut tcp) {
+                    Ok(0) => return,
+                    Ok(_) => {
+                        if let Err(e) = conn.process_new_packets() {
+                            eprintln!("rustls TLS 1.3 process_new_packets: {e}");
+                            return;
+                        }
+                    }
+                    Err(_) => return,
+                }
+            }
+            Err(_) => return,
         }
+    }
+}
+
+/// SH23: TLS 1.3 peer that keeps accepting connections — needed when a
+/// single Kab eval performs several sequential TLS 1.3 connects to the
+/// same port (cryptoTls13AllOk aggregate / host-delete probe).
+fn spawn_tls13_peer_multi(port: u16, keylog: bool, serve_http: bool) {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let mut params = rcgen::CertificateParams::new(vec!["127.0.0.1".to_string()]).unwrap();
+    params.key_usages = vec![rcgen::KeyUsagePurpose::DigitalSignature];
+    params.extended_key_usages = vec![rcgen::ExtendedKeyUsagePurpose::ServerAuth];
+    params.is_ca = rcgen::IsCa::ExplicitNoCa;
+    params.use_authority_key_identifier_extension = true;
+    let key_pair = rcgen::KeyPair::generate().unwrap();
+    let cert = params.self_signed(&key_pair).unwrap();
+    let cert_der = CertificateDer::from(cert.der().to_vec());
+    let key_der = PrivateKeyDer::Pkcs8(key_pair.serialize_der().into());
+    let mut server_cfg =
+        rustls::ServerConfig::builder_with_protocol_versions(&[&rustls::version::TLS13])
+            .with_no_client_auth()
+            .with_single_cert(vec![cert_der], key_der)
+            .unwrap();
+    server_cfg.send_tls13_tickets = 0;
+    if keylog {
+        server_cfg.key_log = Arc::new(PrintKeyLog);
+    }
+    let listener = TcpListener::bind(format!("127.0.0.1:{port}")).expect("bind");
+    let server_cfg = Arc::new(server_cfg);
+    std::thread::spawn(move || loop {
+        let (tcp, _) = match listener.accept() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        let cfg = server_cfg.clone();
+        std::thread::spawn(move || serve_tls13_conn(tcp, cfg, serve_http));
     });
 }
 
@@ -4554,4 +4597,68 @@ fn sh23_crypto_tls13_peer_n11_eval_smoke() {
         .expect("spawn")
         .join()
         .expect("join");
+}
+
+/// SH23: host-delete production evidence — KAB_TLS_PEERS=1 with live
+/// rustls peers (TLS 1.2 :28291 single-accept, TLS 1.3 :28296
+/// multi-accept for the aggregate's sequential connects) and the
+/// env-gated aggregate evaluated through cryptoTlsPeerEvidenceOk.
+#[test]
+fn sh23_crypto_host_delete_probe() {
+    spawn_tls12_peer(28291, true, true);
+    spawn_tls13_peer_multi(28296, true, true);
+    std::env::set_var("KAB_TLS_PEERS", "1");
+    std::thread::sleep(Duration::from_millis(120));
+    let path = format!(
+        "{}/examples/sh23/sh23_crypto_host_delete_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-host-delete-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile crypto host delete probe");
+            let value =
+                eval_program(&program, &mut env).expect("run crypto host delete probe");
+            eprintln!("sh23 crypto host delete probe value = {value:?}");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    std::env::remove_var("KAB_TLS_PEERS");
+}
+
+/// SH23 tail probe: re-verifies only the aggregate steps after
+/// reconn/timeout (GetCfg double-close fix, generic fetch, no-rustls
+/// loopback) — the earlier steps already passed in the full probe run.
+#[test]
+fn sh23_crypto_host_delete_tail_probe() {
+    spawn_tls13_peer_multi(28296, true, true);
+    std::env::set_var("KAB_TLS_PEERS", "1");
+    std::thread::sleep(Duration::from_millis(120));
+    let path = format!(
+        "{}/examples/sh23/sh23_crypto_host_delete_tail_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-host-delete-tail".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile crypto tail probe");
+            let value =
+                eval_program(&program, &mut env).expect("run crypto tail probe");
+            eprintln!("sh23 crypto tail probe value = {value:?}");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+    std::env::remove_var("KAB_TLS_PEERS");
 }

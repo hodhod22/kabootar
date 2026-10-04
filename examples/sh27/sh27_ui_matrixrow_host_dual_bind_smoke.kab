@@ -2,7 +2,7 @@ import "kab/ui/ui_matrixrow"
 import "kab/ui/ui_matrix"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMatrix("matrix") == false {
@@ -11,4 +11,4 @@ if uiIsMatrix("matrix") == false {
 if uiIsMatrixrow("matrixrow") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

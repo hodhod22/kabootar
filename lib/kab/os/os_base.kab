@@ -1,5 +1,5 @@
 // SH21: path basename leaf off os_join.kab. import "kab/os/os_base"
-// Do not grow os_join.kab. kabOsHostDeleteOk stays false.
+// Do not grow os_join.kab. kabOsHostDeleteOk flipped true (production evidence).
 
 pub fn kabOsBase(path) {
     let n = len(path)

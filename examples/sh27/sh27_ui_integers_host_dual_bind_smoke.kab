@@ -2,7 +2,7 @@ import "kab/ui/ui_integers"
 import "kab/ui/ui_emptyset"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsEmptyset("emptyset") != true {
@@ -11,4 +11,4 @@ if uiIsEmptyset("emptyset") != true {
 if uiIsIntegers("integers") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

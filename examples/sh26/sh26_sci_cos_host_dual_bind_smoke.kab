@@ -2,7 +2,7 @@ import "kab/sci/sci_cos"
 import "kab/sci/sci_sin"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 if sciSin(0) + 42 != 42 {
@@ -11,4 +11,4 @@ if sciSin(0) + 42 != 42 {
 if sciCos(0) * 42 != 42 {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

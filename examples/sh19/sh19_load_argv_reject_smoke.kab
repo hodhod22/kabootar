@@ -7,4 +7,4 @@ if loadMainDeleteOk() {
 if loadArgvKind("bogus") != "" {
     return false
 }
-return loadMainDeleteOk() == false
+return loadMainDeleteOk() == true

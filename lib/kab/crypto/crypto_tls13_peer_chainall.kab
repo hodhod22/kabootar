@@ -6,6 +6,7 @@
 import "kab/crypto/crypto_tls13_peer_cv"
 import "kab/crypto/crypto_tls13_peer_fin"
 import "kab/crypto/crypto_root"
+import "kab/crypto/crypto_tls_hs"
 
 // Extract one cert DER from the chain list body, returning {der, nextOff} or false.
 pub fn tls13PeerChainDerAt(bytes, off, end) {
@@ -26,9 +27,20 @@ pub fn tls13PeerChainDerAt(bytes, off, end) {
         i = i + 1
     }
     der["n"] = certLen
+    // TLS 1.3 CertificateEntry carries a per-entry extensions block
+    // (u16 length + data) after the cert — skip it for the next offset.
+    let extOff = off + 3 + certLen
+    if extOff + 2 > end {
+        return false
+    }
+    let extLen = ((bytes["" + extOff] << 8) | bytes["" + (extOff + 1)]) & 65535
+    let nextOff = extOff + 2 + extLen
+    if nextOff > end {
+        return false
+    }
     let o = {}
     o["der"] = der
-    o["nextOff"] = off + 3 + certLen
+    o["nextOff"] = nextOff
     return o
 }
 

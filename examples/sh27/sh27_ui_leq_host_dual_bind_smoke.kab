@@ -2,7 +2,7 @@ import "kab/ui/ui_leq"
 import "kab/ui/ui_gt"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsGt("gt") != true {
@@ -11,4 +11,4 @@ if uiIsGt("gt") != true {
 if uiIsLeq("leq") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

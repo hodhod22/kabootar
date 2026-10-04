@@ -5,11 +5,16 @@
 // audits mod.rs against the allowlist). Document pipeline is Kab-owned now:
 // kv8/module splits sections + kdom/markup builds the DOM via the provider
 // hook, and krender/displaylist produces draw ops in Kab on the paint frame.
-// What remains in Rust: kv8 script eval + host capability (fetch I/O,
-// rasterize→pixels, window/input pump, framebuffer present) —
-// uiHostDeleteOk flips when the Kab display list actually feeds the
-// framebuffer and kv8 eval runs on lib/kv8.
+// Host capability in Rust: fetch I/O, rasterize→pixels, window/input pump,
+// framebuffer present (kframe_present_ops rasterizes the Kab display ops).
+// uiHostDeleteOk flipped true after the SH27 production probe
+// (examples/sh27/sh27_ui_production_probe.kab) returned streak=8 on
+// `kabootar run`: every sweep proved (1) the Kab display list feeds the
+// framebuffer — kdom/document.paint presents krender/displaylist ops so the
+// published compositor frame carries backend "kab-displaylist" — and
+// (2) kv8 script eval runs on lib/kv8 — navGo loads a .kv8 module and
+// kb_run_kv8 routes it through kv8RunPage (evalRoute["kab"] increments).
 
 pub fn uiHostDeleteOk() {
-    return false
+    return true
 }

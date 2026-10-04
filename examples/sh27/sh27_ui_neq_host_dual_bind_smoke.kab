@@ -2,7 +2,7 @@ import "kab/ui/ui_neq"
 import "kab/ui/ui_msgroup"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMsgroup("msgroup") != true {
@@ -11,4 +11,4 @@ if uiIsMsgroup("msgroup") != true {
 if uiIsNeq("neq") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

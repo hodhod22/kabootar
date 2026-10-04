@@ -2,7 +2,7 @@ import "kab/sci/sci_sin"
 import "kab/sci/sci_log"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 if sciLog(1) + 42 != 42 {
@@ -11,4 +11,4 @@ if sciLog(1) + 42 != 42 {
 if sciSin(0) + 42 != 42 {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

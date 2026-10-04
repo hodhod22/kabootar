@@ -2,7 +2,7 @@ import "kab/ui/ui_title"
 import "kab/ui/ui_meta"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMeta("meta") == false {
@@ -11,4 +11,4 @@ if uiIsMeta("meta") == false {
 if uiIsTitle("title") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

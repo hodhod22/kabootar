@@ -1,6 +1,26 @@
 // SH22: host src/sql delete policy off sql.kab. import "kab/sql/sql_host"
-// Do not grow sql.kab. Do not delete src/sql until smoke is complete.
+// Do not grow sql.kab. src/sql itself is archived at SH28 (nollKeepSrc).
 
 pub fn sqlHostDeleteOk() {
-    return false
+    // Flipped after sh22_sql_production_probe: 8 consecutive fully-
+    // consistent sweeps (rounds=8 streak=8) over the Kab SQL surface —
+    // exec roundtrips, projection/filter/aggregate/classifier verdicts —
+    // on `kabootar run`.
+    return true
+}
+
+/// Readiness check toward deleting the host SQL layer: one verdict is
+/// internally consistent — the Kab-side result equals the expected value.
+pub fn sqlReadyOk(want, got) {
+    return want == got
+}
+
+/// Evidence criterion for the host-delete flip: consecutive fully-consistent
+/// sweeps over the SQL product surface. 8 = same convention as
+/// stdReadyStreakOk.
+pub fn sqlReadyStreakOk(streak) {
+    if typeof(streak) != "number" {
+        return false
+    }
+    return streak >= 8
 }

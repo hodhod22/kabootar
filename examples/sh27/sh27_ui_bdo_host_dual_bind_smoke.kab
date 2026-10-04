@@ -2,7 +2,7 @@ import "kab/ui/ui_bdo"
 import "kab/ui/ui_bdi"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsBdi("bdi") == false {
@@ -11,4 +11,4 @@ if uiIsBdi("bdi") == false {
 if uiIsBdo("bdo") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -1,5 +1,5 @@
 // SH24: TRACE method gate off http_opt.kab. import "kab/http/http_trc"
-// Do not grow http_opt.kab. httpHostDeleteOk stays false. No TCP.
+// Do not grow http_opt.kab. httpHostDeleteOk flipped true (production evidence). No TCP.
 
 pub fn httpIsTrace(m) {
     return m == "TRACE"

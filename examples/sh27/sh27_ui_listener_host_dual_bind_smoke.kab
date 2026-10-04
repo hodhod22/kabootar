@@ -2,7 +2,7 @@ import "kab/ui/ui_listener"
 import "kab/ui/ui_handler"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsHandler("handler") != true {
@@ -11,4 +11,4 @@ if uiIsHandler("handler") != true {
 if uiIsListener("listener") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

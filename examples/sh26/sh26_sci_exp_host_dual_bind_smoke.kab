@@ -2,7 +2,7 @@ import "kab/sci/sci_exp"
 import "kab/sci/sci_trunc"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 if sciTrunc(42.9) != 42 {
@@ -11,4 +11,4 @@ if sciTrunc(42.9) != 42 {
 if sciExp(0) * 42 != 42 {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

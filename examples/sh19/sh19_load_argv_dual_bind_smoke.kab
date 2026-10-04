@@ -1,7 +1,7 @@
 import "kab/load/load_argv"
 import "kab/load/load_main"
 
-if loadMainDeleteOk() != false {
+if loadMainDeleteOk() != true {
     return false
 }
 if loadArgvKind("app.kab") != "run" {
@@ -13,4 +13,4 @@ if loadArgvKind("nb.knb") != "nb" {
 if loadArgvKind("run") != "cli" {
     return false
 }
-return loadMainDeleteOk() == false
+return loadMainDeleteOk() == true

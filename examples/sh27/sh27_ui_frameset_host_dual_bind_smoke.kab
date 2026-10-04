@@ -2,7 +2,7 @@ import "kab/ui/ui_frameset"
 import "kab/ui/ui_fencedframe"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFencedframe("fencedframe") == false {
@@ -11,4 +11,4 @@ if uiIsFencedframe("fencedframe") == false {
 if uiIsFrameset("frameset") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

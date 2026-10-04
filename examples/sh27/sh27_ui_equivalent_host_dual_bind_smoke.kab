@@ -2,7 +2,7 @@ import "kab/ui/ui_equivalent"
 import "kab/ui/ui_exists"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsExists("exists") != true {
@@ -11,4 +11,4 @@ if uiIsExists("exists") != true {
 if uiIsEquivalent("equivalent") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

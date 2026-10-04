@@ -1,5 +1,5 @@
 // SH21: path norm leaf off os_dn.kab. import "kab/os/os_norm"
-// Do not grow os_dn.kab. kabOsHostDeleteOk stays false.
+// Do not grow os_dn.kab. kabOsHostDeleteOk flipped true (production evidence).
 
 pub fn kabOsNorm(path) {
     let n = len(path)

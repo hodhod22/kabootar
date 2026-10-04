@@ -2,7 +2,7 @@ import "kab/ui/ui_condition"
 import "kab/ui/ui_share"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsShare("share") == false {
@@ -11,4 +11,4 @@ if uiIsShare("share") == false {
 if uiIsCondition("condition") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,6 +2,7 @@
 // Sends a close_notify alert before socket close. Host rustls remains skuld.
 
 import "kab/crypto/crypto_tls13_peer_get"
+import "kab/crypto/crypto_tls13_peer_fin"
 
 // Build a close_notify alert record (0x15 = alert, level 1 = warning, 0 = close_notify).
 pub fn tls13ClientCloseNotify() {

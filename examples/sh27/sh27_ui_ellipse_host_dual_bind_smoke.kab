@@ -2,7 +2,7 @@ import "kab/ui/ui_ellipse"
 import "kab/ui/ui_circle"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCircle("circle") == false {
@@ -11,4 +11,4 @@ if uiIsCircle("circle") == false {
 if uiIsEllipse("ellipse") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

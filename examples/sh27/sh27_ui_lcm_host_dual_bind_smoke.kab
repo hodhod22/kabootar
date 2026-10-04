@@ -2,7 +2,7 @@ import "kab/ui/ui_lcm"
 import "kab/ui/ui_max"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMax("max") != true {
@@ -11,4 +11,4 @@ if uiIsMax("max") != true {
 if uiIsLcm("lcm") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

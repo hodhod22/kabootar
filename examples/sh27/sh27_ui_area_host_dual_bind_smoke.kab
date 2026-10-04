@@ -2,7 +2,7 @@ import "kab/ui/ui_area"
 import "kab/ui/ui_map"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMap("map") == false {
@@ -11,4 +11,4 @@ if uiIsMap("map") == false {
 if uiIsArea("area") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

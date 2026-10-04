@@ -2,7 +2,7 @@ import "kab/ui/ui_sub"
 import "kab/ui/ui_em"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsEm("em") == false {
@@ -11,4 +11,4 @@ if uiIsEm("em") == false {
 if uiIsSub("sub") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

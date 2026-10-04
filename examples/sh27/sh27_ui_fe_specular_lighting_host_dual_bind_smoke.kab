@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_specular_lighting"
 import "kab/ui/ui_fe_point_light"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFePointLight("fePointLight") == false {
@@ -11,4 +11,4 @@ if uiIsFePointLight("fePointLight") == false {
 if uiIsFeSpecularLighting("feSpecularLighting") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

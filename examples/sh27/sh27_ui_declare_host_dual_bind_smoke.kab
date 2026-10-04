@@ -2,7 +2,7 @@ import "kab/ui/ui_declare"
 import "kab/ui/ui_sep"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSep("sep") != true {
@@ -11,4 +11,4 @@ if uiIsSep("sep") != true {
 if uiIsDeclare("declare") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

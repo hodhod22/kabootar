@@ -2,7 +2,7 @@ import "kab/ui/ui_minus"
 import "kab/ui/ui_plus"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPlus("plus") != true {
@@ -11,4 +11,4 @@ if uiIsPlus("plus") != true {
 if uiIsMinus("minus") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

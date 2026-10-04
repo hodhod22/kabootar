@@ -2,7 +2,7 @@ import "kab/ui/ui_root"
 import "kab/ui/ui_power"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPower("power") != true {
@@ -11,4 +11,4 @@ if uiIsPower("power") != true {
 if uiIsRoot("root") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

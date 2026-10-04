@@ -2,7 +2,7 @@ import "kab/ui/ui_ci"
 import "kab/ui/ui_mglyph"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMglyph("mglyph") == false {
@@ -11,4 +11,4 @@ if uiIsMglyph("mglyph") == false {
 if uiIsCi("ci") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

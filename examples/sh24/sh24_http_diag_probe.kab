@@ -1,0 +1,46 @@
+import "kab/http/http_host"
+import "kab/http/http_post"
+import "kab/http/http_put"
+import "kab/http/http_patch"
+import "kab/http/http_head"
+import "kab/http/http_delete"
+import "kab/http/http_opt"
+import "kab/http/http_trc"
+import "kab/http/http_cn"
+import "kab/http/http_ct"
+import "kab/http/http_req"
+import "kab/http/http_res"
+import "kab/http/http_st"
+import "kab/http/http_bd"
+import "kab/http/http_hd"
+import "kab/http/http_hg"
+import "kab/http/http_rt"
+import "kab/http/http_work"
+import "kab/work"
+
+fn httpDiagSweep(round) {
+    if httpIsPost("POST") != true { return "isPost" }
+    if httpIsPut("PUT") != true { return "isPut" }
+    if httpIsPatch("PATCH") != true { return "isPatch" }
+    if httpIsHead("HEAD") != true { return "isHead" }
+    if httpIsDelete("DELETE") != true { return "isDelete" }
+    if httpIsOptions("OPTIONS") != true { return "isOptions" }
+    if httpIsTrace("TRACE") != true { return "isTrace" }
+    if httpIsConnect("CONNECT") != true { return "isConnect" }
+    if httpIsPost("GET") != false { return "isPostGet" }
+    if httpIsJson("application/json") != true { return "isJson" }
+    if httpIsJson("text/plain") != false { return "isJsonPlain" }
+    if httpStatusOf(200, "ok") != 200 { return "statusOf" }
+    if httpBodyOf(200, "ok") != "ok" { return "bodyOf" }
+    if httpRouteOk("GET", "/probe") != true { return "routeOk" }
+    if httpWorkDropOk(2, true, false, 2, httpHostDeleteOk()) != true { return "workDrop" }
+    return "ok"
+}
+
+let r = 0
+while r < 30 {
+    let d = httpDiagSweep(r)
+    println("round " + r + ": " + d)
+    r = r + 1
+}
+return true

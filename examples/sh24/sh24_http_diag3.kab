@@ -1,0 +1,19 @@
+import "kab/http/http_work"
+import "kab/http/http_host"
+import "kab/work"
+import "kab/esc_manual"
+import "kab/tlab"
+import "kab/esc"
+
+let r = 0
+while r < 12 {
+    let gate = httpHostDeleteOk()
+    let esc = escFitsFrame(2)
+    let rel = escManualReleaseOk(2, true, false)
+    let tlab = tlabOk(2)
+    let par = workParOk(2, true, false, 2)
+    let drop = httpWorkDropOk(2, true, false, 2, gate)
+    println("r=" + r + " gate=" + gate + " esc=" + esc + " rel=" + rel + " tlab=" + tlab + " par=" + par + " drop=" + drop)
+    r = r + 1
+}
+return true

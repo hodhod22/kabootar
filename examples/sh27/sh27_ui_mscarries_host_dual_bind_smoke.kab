@@ -2,7 +2,7 @@ import "kab/ui/ui_mscarries"
 import "kab/ui/ui_msrow"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMsrow("msrow") == false {
@@ -11,4 +11,4 @@ if uiIsMsrow("msrow") == false {
 if uiIsMscarries("mscarries") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

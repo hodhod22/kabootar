@@ -2,7 +2,7 @@ import "kab/ui/ui_share"
 import "kab/ui/ui_bvar"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsBvar("bvar") == false {
@@ -11,4 +11,4 @@ if uiIsBvar("bvar") == false {
 if uiIsShare("share") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

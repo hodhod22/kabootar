@@ -2,7 +2,7 @@ import "kab/ui/ui_compose"
 import "kab/ui/ui_ident"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsIdent("ident") == false {
@@ -11,4 +11,4 @@ if uiIsIdent("ident") == false {
 if uiIsCompose("compose") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

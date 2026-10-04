@@ -2,7 +2,7 @@ import "kab/sci/sci_gpu"
 import "kab/sci/sci_ndmm"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 let r = sciNdMatMul([[21, 0], [0, 0]], [[2, 0], [0, 0]])
@@ -15,4 +15,4 @@ if sciGpuKernelOk("matmul") == false {
 if sciGpuKernelOk("conv2d") == true {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_missing_glyph"
 import "kab/ui/ui_glyph"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsGlyph("glyph") == false {
@@ -11,4 +11,4 @@ if uiIsGlyph("glyph") == false {
 if uiIsMissingGlyph("missing-glyph") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

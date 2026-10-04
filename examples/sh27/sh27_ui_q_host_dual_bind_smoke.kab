@@ -2,7 +2,7 @@ import "kab/ui/ui_q"
 import "kab/ui/ui_time"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTime("time") == false {
@@ -11,4 +11,4 @@ if uiIsTime("time") == false {
 if uiIsQ("q") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

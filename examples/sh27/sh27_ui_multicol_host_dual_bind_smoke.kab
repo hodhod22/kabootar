@@ -2,7 +2,7 @@ import "kab/ui/ui_multicol"
 import "kab/ui/ui_nolayer"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsNolayer("nolayer") == false {
@@ -11,4 +11,4 @@ if uiIsNolayer("nolayer") == false {
 if uiIsMulticol("multicol") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

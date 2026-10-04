@@ -2,7 +2,7 @@ import "kab/ui/ui_rect"
 import "kab/ui/ui_div"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDiv("div") == false {
@@ -11,4 +11,4 @@ if uiIsDiv("div") == false {
 if uiIsRect("rect") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

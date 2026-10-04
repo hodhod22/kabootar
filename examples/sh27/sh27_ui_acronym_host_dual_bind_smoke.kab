@@ -2,7 +2,7 @@ import "kab/ui/ui_acronym"
 import "kab/ui/ui_bgsound"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsBgsound("bgsound") == false {
@@ -11,4 +11,4 @@ if uiIsBgsound("bgsound") == false {
 if uiIsAcronym("acronym") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

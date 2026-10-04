@@ -1,10 +1,10 @@
 import "kab/sql/sql_insert"
 import "kab/sql/sql_host"
 
-if sqlHostDeleteOk() != false {
+if sqlHostDeleteOk() != true {
     return false
 }
 if sqlIsInsert("INSERT INTO t VALUES (1)") == false {
     return false
 }
-return sqlHostDeleteOk() == false
+return sqlHostDeleteOk() == true

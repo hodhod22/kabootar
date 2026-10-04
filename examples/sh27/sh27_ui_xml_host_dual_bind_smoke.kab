@@ -2,7 +2,7 @@ import "kab/ui/ui_xml"
 import "kab/ui/ui_comment"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsComment("comment") == false {
@@ -11,4 +11,4 @@ if uiIsComment("comment") == false {
 if uiIsXml("xml") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

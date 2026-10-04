@@ -4,6 +4,9 @@ use crate::kml::{parse_kml, render_kml};
 use crate::runtime::kstyle::{parse_stylesheet, Stylesheet};
 use crate::runtime::render::{frame_to_object, RenderEngine};
 use crate::runtime::render::{layout_text, measure_text, text_layout_to_object, TextStyle, WhiteSpace};
+use crate::runtime::render::{
+    paint_text, parse_color, CompositorFrame, PixelBuffer, RenderLayer,
+};
 use crate::value::{Environment, Value};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -667,6 +670,10 @@ pub fn kabootar_dom_globals(env: &mut Environment) {
     env.set("kml".to_string(), Value::NativeFunction(kml_native));
     env.set("kdom_render".to_string(), Value::NativeFunction(kdom_render_native));
     env.set("kdom_paint".to_string(), Value::NativeFunction(kdom_paint_native));
+    env.set(
+        "kframe_present_ops".to_string(),
+        Value::NativeFunction(kframe_present_ops_native),
+    );
     env.set("kdom_create".to_string(), Value::NativeFunction(kdom_create_native));
     env.set("kdom_append".to_string(), Value::NativeFunction(kdom_append_native));
     env.set("kdom_set_attr".to_string(), Value::NativeFunction(kdom_set_attr_native));
@@ -801,6 +808,112 @@ fn kdom_paint_native(args: &[Value], env: &mut Environment) -> Result<Value, Str
     let mut engine = RenderEngine::with_viewport(w, h);
     engine.set_stylesheet(global_stylesheet(env));
     let frame = engine.compose(&node);
+    crate::runtime::frame_buffer::publish_frame(frame.clone());
+    Ok(Value::from_object(frame_to_object(&frame)))
+}
+
+// SH27: present a Kab display list (krender/displaylist ops) through the
+// compositor frame buffer — the Kab ops are the draw source; rasterize→pixels
+// and publish stay the host capability. The published frame carries backend
+// "kab-displaylist" so kb_pixels/last_frame_* observe Kab-driven pixels.
+fn kframe_present_ops_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let ops = match args.first() {
+        Some(Value::Array(items)) => items.clone(),
+        _ => return Err("kframe_present_ops() expects a display-ops array".into()),
+    };
+    let num_arg = |i: usize, d: f64| -> f64 {
+        args.get(i)
+            .and_then(|v| match v {
+                Value::Number(n) => Some(*n as f64),
+                Value::Float(f) => Some(*f),
+                _ => None,
+            })
+            .unwrap_or(d)
+    };
+    let w = num_arg(1, 1280.0).max(1.0);
+    let h = num_arg(2, 720.0).max(1.0);
+    let field = |o: &std::rc::Rc<HashMap<String, Value>>, k: &str| -> Option<Value> {
+        o.get(k).cloned()
+    };
+    let num_field = |o: &std::rc::Rc<HashMap<String, Value>>, k: &str| -> f64 {
+        match field(o, k) {
+            Some(Value::Number(n)) => n as f64,
+            Some(Value::Float(f)) => f,
+            _ => 0.0,
+        }
+    };
+    let str_field = |o: &std::rc::Rc<HashMap<String, Value>>, k: &str| -> String {
+        match field(o, k) {
+            Some(Value::String(s)) => s,
+            _ => String::new(),
+        }
+    };
+    let mut pb = PixelBuffer::new(w as u32, h as u32, 0xffffffff);
+    let mut layers = Vec::new();
+    let mut text_preview = String::new();
+    for (z, op) in ops.iter().enumerate() {
+        let Value::Object(o) = op else { continue };
+        let kind = str_field(o, "kind");
+        let (x, y, ow, oh) = (
+            num_field(o, "x"),
+            num_field(o, "y"),
+            num_field(o, "w"),
+            num_field(o, "h"),
+        );
+        if kind == "rect" {
+            let color = str_field(o, "color");
+            if !color.is_empty() {
+                let px = parse_color(&color);
+                let x0 = (x as i32).max(0);
+                let y0 = (y as i32).max(0);
+                let x1 = ((x + ow) as i32).min(pb.width as i32);
+                let y1 = ((y + oh) as i32).min(pb.height as i32);
+                for py in y0..y1 {
+                    for pxi in x0..x1 {
+                        pb.pixels[py as usize * pb.width as usize + pxi as usize] = px;
+                    }
+                }
+            }
+        } else if kind == "text" {
+            let text = str_field(o, "text");
+            if !text.is_empty() {
+                let style = TextStyle {
+                    font_size: 16.0,
+                    line_height: 1.25,
+                    max_width: Some(ow as f32),
+                    white_space: WhiteSpace::Normal,
+                    color: 0xff202124,
+                };
+                let layout = layout_text(&text, &style);
+                paint_text(&mut pb, &layout, x as f32, y as f32, &style);
+                if !text_preview.is_empty() {
+                    text_preview.push(' ');
+                }
+                text_preview.push_str(&text);
+            }
+        }
+        layers.push(RenderLayer {
+            node_id: 0,
+            tag: str_field(o, "tag"),
+            x,
+            y,
+            w: ow,
+            h: oh,
+            z: z as i32,
+        });
+    }
+    let node_count = layers.len();
+    let frame = CompositorFrame {
+        width: w as i64,
+        height: h as i64,
+        html: String::new(),
+        text_preview,
+        node_count,
+        layers,
+        pixels_rgba: pb.to_rgba_bytes(),
+        backend: "kab-displaylist".into(),
+        gpu_handle: None,
+    };
     crate::runtime::frame_buffer::publish_frame(frame.clone());
     Ok(Value::from_object(frame_to_object(&frame)))
 }

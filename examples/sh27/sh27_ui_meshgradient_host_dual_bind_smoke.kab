@@ -2,7 +2,7 @@ import "kab/ui/ui_meshgradient"
 import "kab/ui/ui_vkern"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsVkern("vkern") == false {
@@ -11,4 +11,4 @@ if uiIsVkern("vkern") == false {
 if uiIsMeshgradient("meshgradient") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

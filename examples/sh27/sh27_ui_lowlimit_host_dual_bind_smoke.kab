@@ -2,7 +2,7 @@ import "kab/ui/ui_lowlimit"
 import "kab/ui/ui_partialdiff"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPartialdiff("partialdiff") != true {
@@ -11,4 +11,4 @@ if uiIsPartialdiff("partialdiff") != true {
 if uiIsLowlimit("lowlimit") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

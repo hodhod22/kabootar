@@ -2,7 +2,7 @@ import "kab/ui/ui_menu"
 import "kab/ui/ui_dd"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDd("dd") == false {
@@ -11,4 +11,4 @@ if uiIsDd("dd") == false {
 if uiIsMenu("menu") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_server"
 import "kab/ui/ui_image"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsImage("image") == false {
@@ -11,4 +11,4 @@ if uiIsImage("image") == false {
 if uiIsServer("server") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

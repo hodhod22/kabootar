@@ -2,7 +2,7 @@ import "kab/ui/ui_details"
 import "kab/ui/ui_figcaption"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFigcaption("figcaption") == false {
@@ -11,4 +11,4 @@ if uiIsFigcaption("figcaption") == false {
 if uiIsDetails("details") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

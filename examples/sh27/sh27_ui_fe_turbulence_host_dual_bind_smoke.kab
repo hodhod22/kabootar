@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_turbulence"
 import "kab/ui/ui_fe_tile"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeTile("feTile") == false {
@@ -11,4 +11,4 @@ if uiIsFeTile("feTile") == false {
 if uiIsFeTurbulence("feTurbulence") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

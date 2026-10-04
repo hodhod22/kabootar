@@ -2,7 +2,7 @@ import "kab/ui/ui_html"
 import "kab/ui/ui_body"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsBody("body") == false {
@@ -11,4 +11,4 @@ if uiIsBody("body") == false {
 if uiIsHtml("html") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_strong"
 import "kab/ui/ui_small"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSmall("small") == false {
@@ -11,4 +11,4 @@ if uiIsSmall("small") == false {
 if uiIsStrong("strong") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

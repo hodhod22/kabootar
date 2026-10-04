@@ -2,7 +2,7 @@ import "kab/ui/ui_basefont"
 import "kab/ui/ui_applet"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsApplet("applet") == false {
@@ -11,4 +11,4 @@ if uiIsApplet("applet") == false {
 if uiIsBasefont("basefont") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

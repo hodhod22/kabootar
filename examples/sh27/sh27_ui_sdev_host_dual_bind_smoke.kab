@@ -2,7 +2,7 @@ import "kab/ui/ui_sdev"
 import "kab/ui/ui_mean"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMean("mean") != true {
@@ -11,4 +11,4 @@ if uiIsMean("mean") != true {
 if uiIsSdev("sdev") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

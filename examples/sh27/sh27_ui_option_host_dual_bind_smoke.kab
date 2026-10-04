@@ -2,7 +2,7 @@ import "kab/ui/ui_option"
 import "kab/ui/ui_select"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSelect("select") == false {
@@ -11,4 +11,4 @@ if uiIsSelect("select") == false {
 if uiIsOption("option") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

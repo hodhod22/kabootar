@@ -2,7 +2,7 @@ import "kab/ui/ui_small"
 import "kab/ui/ui_mark"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMark("mark") == false {
@@ -11,4 +11,4 @@ if uiIsMark("mark") == false {
 if uiIsSmall("small") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

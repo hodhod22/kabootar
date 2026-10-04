@@ -3,7 +3,7 @@ import "kab/sci/sci_nd"
 import "kab/sci/sci_fft"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 if sciAdd(40, 2) != 42 {
@@ -21,4 +21,4 @@ if sciNdLenOk(0) == false {
 if sciFftPow2(8) == false {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

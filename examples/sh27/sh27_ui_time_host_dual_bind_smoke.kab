@@ -2,7 +2,7 @@ import "kab/ui/ui_time"
 import "kab/ui/ui_sup"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSup("sup") == false {
@@ -11,4 +11,4 @@ if uiIsSup("sup") == false {
 if uiIsTime("time") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

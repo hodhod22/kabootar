@@ -2,7 +2,7 @@ import "kab/ui/ui_mlongdiv"
 import "kab/ui/ui_maction"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMaction("maction") == false {
@@ -11,4 +11,4 @@ if uiIsMaction("maction") == false {
 if uiIsMlongdiv("mlongdiv") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

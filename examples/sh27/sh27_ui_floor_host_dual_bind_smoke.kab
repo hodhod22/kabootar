@@ -2,7 +2,7 @@ import "kab/ui/ui_floor"
 import "kab/ui/ui_imaginary"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsImaginary("imaginary") != true {
@@ -11,4 +11,4 @@ if uiIsImaginary("imaginary") != true {
 if uiIsFloor("floor") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

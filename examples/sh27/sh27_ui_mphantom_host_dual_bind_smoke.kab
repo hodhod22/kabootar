@@ -2,7 +2,7 @@ import "kab/ui/ui_mphantom"
 import "kab/ui/ui_mpadded"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMpadded("mpadded") == false {
@@ -11,4 +11,4 @@ if uiIsMpadded("mpadded") == false {
 if uiIsMphantom("mphantom") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

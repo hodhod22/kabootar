@@ -2,7 +2,7 @@ import "kab/ui/ui_alt_glyph"
 import "kab/ui/ui_tref"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTref("tref") == false {
@@ -11,4 +11,4 @@ if uiIsTref("tref") == false {
 if uiIsAltGlyph("altGlyph") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_primes"
 import "kab/ui/ui_naturalnumbers"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsNaturalnumbers("naturalnumbers") != true {
@@ -11,4 +11,4 @@ if uiIsNaturalnumbers("naturalnumbers") != true {
 if uiIsPrimes("primes") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

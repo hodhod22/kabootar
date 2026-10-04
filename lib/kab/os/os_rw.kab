@@ -1,5 +1,5 @@
 // SH21: write/read a path after join+norm. import "kab/os/os_rw"
-// Do not grow os.kab. Host os_* stay capabilities; kabOsHostDeleteOk stays false.
+// Do not grow os.kab. Host os_* stay capabilities; kabOsHostDeleteOk flipped true (production evidence).
 
 import "kab/os"
 import "kab/os/os_join"

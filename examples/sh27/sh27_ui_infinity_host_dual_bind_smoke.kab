@@ -2,7 +2,7 @@ import "kab/ui/ui_infinity"
 import "kab/ui/ui_eulergamma"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsEulergamma("eulergamma") != true {
@@ -11,4 +11,4 @@ if uiIsEulergamma("eulergamma") != true {
 if uiIsInfinity("infinity") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

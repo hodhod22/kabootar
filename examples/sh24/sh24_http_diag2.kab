@@ -1,0 +1,11 @@
+import "kab/http/http_work"
+import "kab/http/http_host"
+import "kab/work"
+
+let r = 0
+while r < 12 {
+    let d = httpWorkDropOk(2, true, false, 2, httpHostDeleteOk())
+    println("round " + r + ": workDrop=" + d)
+    r = r + 1
+}
+return true

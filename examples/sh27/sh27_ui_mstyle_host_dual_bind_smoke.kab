@@ -2,7 +2,7 @@ import "kab/ui/ui_mstyle"
 import "kab/ui/ui_malignmark"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMalignmark("malignmark") == false {
@@ -11,4 +11,4 @@ if uiIsMalignmark("malignmark") == false {
 if uiIsMstyle("mstyle") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

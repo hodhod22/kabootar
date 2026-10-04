@@ -5,6 +5,7 @@
 import "kab/crypto/crypto_http_get"
 import "kab/crypto/crypto_gcm_eval"
 import "kab/crypto/crypto_aes_eval"
+import "kab/http/http_util"
 
 pub fn httpSlice(o, start, n) {
     let out = {}

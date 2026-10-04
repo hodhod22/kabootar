@@ -1,0 +1,23 @@
+// SH23 tail probe: the three aggregate steps after reconn/timeout —
+// tls13ClientGetCfg (double-close fix), tls13ClientGenericFetch and the
+// no-rustls Kab loopback. The earlier steps passed in the full probe.
+
+import "kab/crypto/crypto_tls13_client_config"
+import "kab/crypto/crypto_tls13_client_generic"
+import "kab/crypto/crypto_tls13_client_loop"
+
+let cfg = {}
+cfg["host"] = "127.0.0.1"
+cfg["port"] = 28296
+cfg["path"] = "/v?q=1"
+
+if tls13ClientGetCfg(cfg) == false {
+    return false
+}
+if tls13ClientGenericFetch("GET", "https://127.0.0.1:28296/v?q=1", "", {}, 0) == false {
+    return false
+}
+if tls13ClientNoRustlsEvalOk() == false {
+    return false
+}
+return true

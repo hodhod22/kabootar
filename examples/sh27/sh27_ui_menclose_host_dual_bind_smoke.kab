@@ -2,7 +2,7 @@ import "kab/ui/ui_menclose"
 import "kab/ui/ui_mfenced"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMfenced("mfenced") == false {
@@ -11,4 +11,4 @@ if uiIsMfenced("mfenced") == false {
 if uiIsMenclose("menclose") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

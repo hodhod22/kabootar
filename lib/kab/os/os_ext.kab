@@ -1,5 +1,5 @@
 // SH21: path ext leaf off os_base.kab. import "kab/os/os_ext"
-// Do not grow os_base.kab. kabOsHostDeleteOk stays false.
+// Do not grow os_base.kab. kabOsHostDeleteOk flipped true (production evidence).
 
 import "kab/os/os_base"
 

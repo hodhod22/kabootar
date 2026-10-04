@@ -4,6 +4,7 @@
 import "kab/crypto/crypto_tls13_hs"
 import "kab/crypto/crypto_tls_hs"
 import "kab/crypto/crypto_hmac_eval"
+import "kab/crypto/crypto_tls_prf"
 
 pub fn tls13PeerBuildClientHello(random, pubKey) {
     let head = tlsConcatObj(tlsHexToObj("0303"), tlsConcatObj(random, tlsHexToObj("00000213010100")))

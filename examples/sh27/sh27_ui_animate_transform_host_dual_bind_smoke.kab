@@ -2,7 +2,7 @@ import "kab/ui/ui_animate_transform"
 import "kab/ui/ui_animate_motion"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsAnimateMotion("animateMotion") == false {
@@ -11,4 +11,4 @@ if uiIsAnimateMotion("animateMotion") == false {
 if uiIsAnimateTransform("animateTransform") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

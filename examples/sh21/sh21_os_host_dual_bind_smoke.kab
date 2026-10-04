@@ -3,7 +3,7 @@ import "kab/os/os_fs"
 import "kab/os/os_proc"
 import "kab/os/os_host"
 
-if kabOsHostDeleteOk() != false {
+if kabOsHostDeleteOk() != true {
     return false
 }
 if kabOsIsVfs("/apps/note.txt") == false {
@@ -21,4 +21,4 @@ if kabOsIsFile("app.kab") == false {
 if kabOsArgvOk(1) == false {
     return false
 }
-return kabOsHostDeleteOk() == false
+return kabOsHostDeleteOk() == true

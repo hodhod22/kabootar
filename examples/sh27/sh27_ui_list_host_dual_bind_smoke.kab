@@ -2,7 +2,7 @@ import "kab/ui/ui_list"
 import "kab/ui/ui_interval"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsInterval("interval") == false {
@@ -11,4 +11,4 @@ if uiIsInterval("interval") == false {
 if uiIsList("list") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

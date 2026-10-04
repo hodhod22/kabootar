@@ -2,7 +2,7 @@ import "kab/ui/ui_forall"
 import "kab/ui/ui_implies"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsImplies("implies") != true {
@@ -11,4 +11,4 @@ if uiIsImplies("implies") != true {
 if uiIsForall("forall") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

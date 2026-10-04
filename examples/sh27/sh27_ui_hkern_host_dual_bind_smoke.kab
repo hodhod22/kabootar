@@ -2,7 +2,7 @@ import "kab/ui/ui_hkern"
 import "kab/ui/ui_font_face_name"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFontFaceName("font-face-name") == false {
@@ -11,4 +11,4 @@ if uiIsFontFaceName("font-face-name") == false {
 if uiIsHkern("hkern") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

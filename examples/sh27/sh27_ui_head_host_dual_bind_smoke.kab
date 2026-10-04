@@ -2,7 +2,7 @@ import "kab/ui/ui_head"
 import "kab/ui/ui_base"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsBase("base") == false {
@@ -11,4 +11,4 @@ if uiIsBase("base") == false {
 if uiIsHead("head") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

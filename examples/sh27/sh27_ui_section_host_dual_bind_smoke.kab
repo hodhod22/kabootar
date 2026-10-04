@@ -2,7 +2,7 @@ import "kab/ui/ui_section"
 import "kab/ui/ui_main"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMain("main") == false {
@@ -11,4 +11,4 @@ if uiIsMain("main") == false {
 if uiIsSection("section") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

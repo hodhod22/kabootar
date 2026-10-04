@@ -2,7 +2,7 @@ import "kab/ui/ui_keygen"
 import "kab/ui/ui_isindex"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsIsindex("isindex") == false {
@@ -11,4 +11,4 @@ if uiIsIsindex("isindex") == false {
 if uiIsKeygen("keygen") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

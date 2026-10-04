@@ -2,7 +2,7 @@ import "kab/ui/ui_mroot"
 import "kab/ui/ui_msqrt"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMsqrt("msqrt") == false {
@@ -11,4 +11,4 @@ if uiIsMsqrt("msqrt") == false {
 if uiIsMroot("mroot") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

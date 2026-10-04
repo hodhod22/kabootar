@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_convolve_matrix"
 import "kab/ui/ui_fe_composite"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeComposite("feComposite") == false {
@@ -11,4 +11,4 @@ if uiIsFeComposite("feComposite") == false {
 if uiIsFeConvolveMatrix("feConvolveMatrix") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

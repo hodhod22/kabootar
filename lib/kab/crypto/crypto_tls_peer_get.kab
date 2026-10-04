@@ -8,6 +8,7 @@ import "kab/crypto/crypto_hmac_eval"
 import "kab/crypto/crypto_gcm_eval"
 import "kab/crypto/crypto_http_resp"
 import "kab/crypto/crypto_http_get"
+import "kab/http/http_util"
 
 pub fn tlsPeerAadObj(seq, typ, ptLen) {
     let o = {}

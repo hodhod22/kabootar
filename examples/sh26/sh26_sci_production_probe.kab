@@ -1,0 +1,147 @@
+// SH26 production probe: the Kab science surface on the production
+// `kabootar run` path. Each round sweeps the nd kernels (dot, matmul,
+// sum, elementwise) plus the scalar wrappers and GPU/FFT capability
+// predicates — a round counts only when every verdict agrees. 8
+// consistent rounds = the flip criterion used by the other host gates.
+
+import "kab/sci/sci_host"
+import "kab/sci/sci_nd"
+import "kab/sci/sci_nddot"
+import "kab/sci/sci_ndmm"
+import "kab/sci/sci_ndsum"
+import "kab/sci/sci_ndadd"
+import "kab/sci/sci_ndsub"
+import "kab/sci/sci_ndmul"
+import "kab/sci/sci_nddiv"
+import "kab/sci/sci_sin"
+import "kab/sci/sci_cos"
+import "kab/sci/sci_abs"
+import "kab/sci/sci_sqrt"
+import "kab/sci/sci_pow"
+import "kab/sci/sci_max"
+import "kab/sci/sci_min"
+import "kab/sci/sci_sqr"
+import "kab/sci/sci_cub"
+import "kab/sci/sci_neg"
+import "kab/sci/sci_sub"
+import "kab/sci/sci_div"
+import "kab/sci/sci_fft"
+import "kab/sci/sci_gpu"
+
+fn sciReadyOk(want, got) {
+    return want == got
+}
+
+fn sciSweepOk(round) {
+    // nd kernels — real Kab loops over data.
+    if sciReadyOk(12, sciNdDot([1, 2, 3], [4, 1, 2])) == false {
+        return false
+    }
+    let mm = sciNdMatMul([[1, 2], [3, 4]], [[1, 0], [0, 1]])
+    if sciReadyOk(1, mm[0][0]) == false {
+        return false
+    }
+    if sciReadyOk(4, mm[1][1]) == false {
+        return false
+    }
+    if sciReadyOk(10, sciNdSum([1, 2, 3, 4])) == false {
+        return false
+    }
+    let add = sciNdAdd([1, 2], [3, 4])
+    if sciReadyOk(4, add[0]) == false {
+        return false
+    }
+    if sciReadyOk(6, add[1]) == false {
+        return false
+    }
+    let sub = sciNdSub([5, 9], [2, 4])
+    if sciReadyOk(3, sub[0]) == false {
+        return false
+    }
+    if sciReadyOk(5, sub[1]) == false {
+        return false
+    }
+    let mul = sciNdMul([2, 3], [4, 5])
+    if sciReadyOk(8, mul[0]) == false {
+        return false
+    }
+    if sciReadyOk(15, mul[1]) == false {
+        return false
+    }
+    let dv = sciNdDiv([8, 15], [2, 3])
+    if sciReadyOk(4, dv[0]) == false {
+        return false
+    }
+    if sciReadyOk(5, dv[1]) == false {
+        return false
+    }
+    if sciReadyOk(true, sciNdLenOk(4)) == false {
+        return false
+    }
+    if sciReadyOk(false, sciNdLenOk(-1)) == false {
+        return false
+    }
+    // Scalar wrappers — same results as the math contract.
+    if sciReadyOk(5, sciAbs(-5)) == false {
+        return false
+    }
+    if sciReadyOk(0, sciSin(0)) == false {
+        return false
+    }
+    if sciReadyOk(1, sciCos(0)) == false {
+        return false
+    }
+    if sciReadyOk(4, sciSqrt(16)) == false {
+        return false
+    }
+    if sciReadyOk(8, sciPow(2, 3)) == false {
+        return false
+    }
+    if sciReadyOk(7, sciMax(3, 7)) == false {
+        return false
+    }
+    if sciReadyOk(3, sciMin(3, 7)) == false {
+        return false
+    }
+    if sciReadyOk(9, sciSqr(3)) == false {
+        return false
+    }
+    if sciReadyOk(27, sciCub(3)) == false {
+        return false
+    }
+    if sciReadyOk(-4, sciNeg(4)) == false {
+        return false
+    }
+    if sciReadyOk(2, sciSub(7, 5)) == false {
+        return false
+    }
+    if sciReadyOk(3, sciDiv(9, 3)) == false {
+        return false
+    }
+    // Capability predicates — FFT sizes and GPU kernel names.
+    if sciReadyOk(true, sciFftPow2(8)) == false {
+        return false
+    }
+    if sciReadyOk(false, sciFftPow2(3)) == false {
+        return false
+    }
+    if sciReadyOk(true, sciGpuKernelOk("dot")) == false {
+        return false
+    }
+    if sciReadyOk(false, sciGpuKernelOk("bogus")) == false {
+        return false
+    }
+    return true
+}
+
+let streak = 0
+let round = 0
+while round < 8 {
+    if sciSweepOk(round) {
+        streak = streak + 1
+    }
+    round = round + 1
+}
+
+println("sci probe: rounds=8 streak=" + streak)
+return streak >= 8

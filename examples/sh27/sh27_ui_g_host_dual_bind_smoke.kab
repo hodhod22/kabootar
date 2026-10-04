@@ -2,7 +2,7 @@ import "kab/ui/ui_g"
 import "kab/ui/ui_path"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsPath("path") == false {
@@ -11,4 +11,4 @@ if uiIsPath("path") == false {
 if uiIsG("g") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

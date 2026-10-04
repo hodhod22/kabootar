@@ -2,7 +2,7 @@ import "kab/ui/ui_vkern"
 import "kab/ui/ui_hkern"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsHkern("hkern") == false {
@@ -11,4 +11,4 @@ if uiIsHkern("hkern") == false {
 if uiIsVkern("vkern") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

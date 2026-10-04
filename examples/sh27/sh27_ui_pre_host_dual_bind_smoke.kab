@@ -2,7 +2,7 @@ import "kab/ui/ui_pre"
 import "kab/ui/ui_dialog"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDialog("dialog") == false {
@@ -11,4 +11,4 @@ if uiIsDialog("dialog") == false {
 if uiIsPre("pre") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

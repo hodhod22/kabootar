@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_gaussian_blur"
 import "kab/ui/ui_filter"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFilter("filter") == false {
@@ -11,4 +11,4 @@ if uiIsFilter("filter") == false {
 if uiIsFeGaussianBlur("feGaussianBlur") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

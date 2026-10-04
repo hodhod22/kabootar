@@ -2,7 +2,7 @@ import "kab/ui/ui_blink"
 import "kab/ui/ui_dir"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDir("dir") == false {
@@ -11,4 +11,4 @@ if uiIsDir("dir") == false {
 if uiIsBlink("blink") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

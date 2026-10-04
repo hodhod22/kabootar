@@ -2,7 +2,7 @@ import "kab/ui/ui_max"
 import "kab/ui/ui_min"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMin("min") != true {
@@ -11,4 +11,4 @@ if uiIsMin("min") != true {
 if uiIsMax("max") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/ui/ui_mspace"
 import "kab/ui/ui_ms"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMs("ms") == false {
@@ -11,4 +11,4 @@ if uiIsMs("ms") == false {
 if uiIsMspace("mspace") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

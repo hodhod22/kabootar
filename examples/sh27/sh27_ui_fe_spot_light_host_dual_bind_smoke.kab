@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_spot_light"
 import "kab/ui/ui_fe_specular_lighting"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeSpecularLighting("feSpecularLighting") == false {
@@ -11,4 +11,4 @@ if uiIsFeSpecularLighting("feSpecularLighting") == false {
 if uiIsFeSpotLight("feSpotLight") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

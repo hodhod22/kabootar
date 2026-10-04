@@ -2,7 +2,7 @@ import "kab/ui/ui_implies"
 import "kab/ui/ui_not"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsNot("not") != true {
@@ -11,4 +11,4 @@ if uiIsNot("not") != true {
 if uiIsImplies("implies") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

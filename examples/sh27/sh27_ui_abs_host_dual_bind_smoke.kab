@@ -2,7 +2,7 @@ import "kab/ui/ui_abs"
 import "kab/ui/ui_arctanh"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsArctanh("arctanh") != true {
@@ -11,4 +11,4 @@ if uiIsArctanh("arctanh") != true {
 if uiIsAbs("abs") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

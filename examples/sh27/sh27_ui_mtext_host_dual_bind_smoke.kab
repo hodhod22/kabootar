@@ -2,7 +2,7 @@ import "kab/ui/ui_mtext"
 import "kab/ui/ui_mo"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMo("mo") == false {
@@ -11,4 +11,4 @@ if uiIsMo("mo") == false {
 if uiIsMtext("mtext") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

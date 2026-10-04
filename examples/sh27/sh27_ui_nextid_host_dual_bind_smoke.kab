@@ -2,7 +2,7 @@ import "kab/ui/ui_nextid"
 import "kab/ui/ui_element"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsElement("element") == false {
@@ -11,4 +11,4 @@ if uiIsElement("element") == false {
 if uiIsNextid("nextid") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

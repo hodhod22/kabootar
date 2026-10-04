@@ -2,7 +2,7 @@ import "kab/ui/ui_msgroup"
 import "kab/ui/ui_cbytes"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCbytes("cbytes") != true {
@@ -11,4 +11,4 @@ if uiIsCbytes("cbytes") != true {
 if uiIsMsgroup("msgroup") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -5,6 +5,7 @@ import "kab/load/load_ship"
 import "kab/load/load_ship_loaded"
 import "kab/load/load_main"
 import "kab/noll/noll_aot"
+import "kab/noll/noll_host"
 import "kab/noll/noll_keep"
 
 pub fn loadAotReadyNativeName() {
@@ -19,7 +20,8 @@ pub fn loadAotReadyGateClosed() {
     return true
 }
 
-/// Full loaded cycles pass; AOT-ready and main delete gates still closed; src/ kept.
+/// Full loaded cycles pass; AOT-ready still closed, remaining host delete
+/// gates still closed (loadMain satisfied by production evidence); src/ kept.
 pub fn loadAotReadyOk(nBytes) {
     if loadShipLoadedOk(nBytes) == false {
         return false
@@ -30,5 +32,8 @@ pub fn loadAotReadyOk(nBytes) {
     if nollKeepSrc() == false {
         return false
     }
-    return loadMainDeleteOk() == false
+    if loadMainDeleteOk() == false {
+        return false
+    }
+    return nollPendingHostGatesClosed()
 }

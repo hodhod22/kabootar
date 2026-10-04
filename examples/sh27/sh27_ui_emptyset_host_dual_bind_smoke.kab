@@ -2,7 +2,7 @@ import "kab/ui/ui_emptyset"
 import "kab/ui/ui_laplacian"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsLaplacian("laplacian") != true {
@@ -11,4 +11,4 @@ if uiIsLaplacian("laplacian") != true {
 if uiIsEmptyset("emptyset") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

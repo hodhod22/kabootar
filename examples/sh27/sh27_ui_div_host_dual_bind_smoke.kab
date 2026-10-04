@@ -2,7 +2,7 @@ import "kab/ui/ui_div"
 import "kab/ui/ui_server"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsServer("server") == false {
@@ -11,4 +11,4 @@ if uiIsServer("server") == false {
 if uiIsDiv("div") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

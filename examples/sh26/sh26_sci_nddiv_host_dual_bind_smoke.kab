@@ -2,7 +2,7 @@ import "kab/sci/sci_nddiv"
 import "kab/sci/sci_ndmul"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 let m = sciNdMul([21, 2], [2, 21])
@@ -13,4 +13,4 @@ let r = sciNdDiv([84, 42], [2, 1])
 if r[0] != 42 {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

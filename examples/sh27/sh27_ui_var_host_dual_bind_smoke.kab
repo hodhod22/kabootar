@@ -2,7 +2,7 @@ import "kab/ui/ui_var"
 import "kab/ui/ui_samp"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsSamp("samp") == false {
@@ -11,4 +11,4 @@ if uiIsSamp("samp") == false {
 if uiIsVar("var") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

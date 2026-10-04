@@ -2,7 +2,7 @@ import "kab/ui/ui_min"
 import "kab/ui/ui_ceiling"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCeiling("ceiling") != true {
@@ -11,4 +11,4 @@ if uiIsCeiling("ceiling") != true {
 if uiIsMin("min") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

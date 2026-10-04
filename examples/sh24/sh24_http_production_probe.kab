@@ -1,0 +1,90 @@
+// SH24 production probe: the Kab HTTP surface on the production
+// `kabootar run` path. Each round sweeps the method/content-type
+// classifiers plus the in-process request/response/route pipeline — a
+// round counts only when every verdict agrees. 8 consistent rounds =
+// httpReadyStreakOk flip criterion. No TCP, no serve — the in-process
+// pipeline only.
+
+import "kab/http/http_host"
+import "kab/http/http_post"
+import "kab/http/http_put"
+import "kab/http/http_patch"
+import "kab/http/http_head"
+import "kab/http/http_delete"
+import "kab/http/http_opt"
+import "kab/http/http_trc"
+import "kab/http/http_cn"
+import "kab/http/http_ct"
+import "kab/http/http_req"
+import "kab/http/http_res"
+import "kab/http/http_st"
+import "kab/http/http_bd"
+import "kab/http/http_hd"
+import "kab/http/http_hg"
+import "kab/http/http_rt"
+import "kab/http/http_work"
+import "kab/work"
+
+fn httpSweepOk(round) {
+    // Method classifiers over the verb matrix.
+    if httpReadyOk(true, httpIsPost("POST")) == false {
+        return false
+    }
+    if httpReadyOk(true, httpIsPut("PUT")) == false {
+        return false
+    }
+    if httpReadyOk(true, httpIsPatch("PATCH")) == false {
+        return false
+    }
+    if httpReadyOk(true, httpIsHead("HEAD")) == false {
+        return false
+    }
+    if httpReadyOk(true, httpIsDelete("DELETE")) == false {
+        return false
+    }
+    if httpReadyOk(true, httpIsOptions("OPTIONS")) == false {
+        return false
+    }
+    if httpReadyOk(true, httpIsTrace("TRACE")) == false {
+        return false
+    }
+    if httpReadyOk(true, httpIsConnect("CONNECT")) == false {
+        return false
+    }
+    if httpReadyOk(false, httpIsPost("GET")) == false {
+        return false
+    }
+    // Content-type + in-process response readers.
+    if httpReadyOk(true, httpIsJson("application/json")) == false {
+        return false
+    }
+    if httpReadyOk(false, httpIsJson("text/plain")) == false {
+        return false
+    }
+    if httpReadyOk(200, httpStatusOf(200, "ok")) == false {
+        return false
+    }
+    if httpReadyOk("ok", httpBodyOf(200, "ok")) == false {
+        return false
+    }
+    if httpReadyOk(true, httpRouteOk("GET", "/probe")) == false {
+        return false
+    }
+    // Worker-pool + drop-gate composition (wantDelete tracks the live flag).
+    if httpReadyOk(true, httpWorkDropOk(2, true, false, 2, httpHostDeleteOk())) == false {
+        return false
+    }
+    return true
+}
+
+let streak = 0
+let round = 0
+while round < 8 {
+    if httpSweepOk(round) {
+        streak = streak + 1
+    }
+    round = round + 1
+}
+
+println("http probe: rounds=8 streak=" + streak)
+return httpReadyStreakOk(streak)

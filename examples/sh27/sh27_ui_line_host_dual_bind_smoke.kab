@@ -2,7 +2,7 @@ import "kab/ui/ui_line"
 import "kab/ui/ui_ellipse"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsEllipse("ellipse") == false {
@@ -11,4 +11,4 @@ if uiIsEllipse("ellipse") == false {
 if uiIsLine("line") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

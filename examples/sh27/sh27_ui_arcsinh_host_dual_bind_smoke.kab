@@ -2,7 +2,7 @@ import "kab/ui/ui_arcsinh"
 import "kab/ui/ui_arcsech"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsArcsech("arcsech") != true {
@@ -11,4 +11,4 @@ if uiIsArcsech("arcsech") != true {
 if uiIsArcsinh("arcsinh") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

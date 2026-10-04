@@ -2,7 +2,7 @@ import "kab/ui/ui_element"
 import "kab/ui/ui_content"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsContent("content") == false {
@@ -11,4 +11,4 @@ if uiIsContent("content") == false {
 if uiIsElement("element") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

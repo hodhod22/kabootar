@@ -2,7 +2,7 @@ import "kab/ui/ui_big"
 import "kab/ui/ui_acronym"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsAcronym("acronym") == false {
@@ -11,4 +11,4 @@ if uiIsAcronym("acronym") == false {
 if uiIsBig("big") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

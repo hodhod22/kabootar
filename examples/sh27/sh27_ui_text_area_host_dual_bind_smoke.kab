@@ -2,7 +2,7 @@ import "kab/ui/ui_text_area"
 import "kab/ui/ui_tbreak"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsTbreak("tbreak") != true {
@@ -11,4 +11,4 @@ if uiIsTbreak("tbreak") != true {
 if uiIsTextArea("textArea") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

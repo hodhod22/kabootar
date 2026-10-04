@@ -2,7 +2,7 @@ import "kab/ui/ui_arg"
 import "kab/ui/ui_conjugate"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsConjugate("conjugate") != true {
@@ -11,4 +11,4 @@ if uiIsConjugate("conjugate") != true {
 if uiIsArg("arg") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

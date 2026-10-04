@@ -2,7 +2,7 @@ import "kab/ui/ui_image"
 import "kab/ui/ui_xml"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsXml("xml") == false {
@@ -11,4 +11,4 @@ if uiIsXml("xml") == false {
 if uiIsImage("image") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -1,0 +1,29 @@
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_tls13_peer_cv"
+import "kab/crypto/crypto_tls13_peer_ecdsa"
+import "kab/crypto/crypto_tls13_peer_trust"
+import "kab/crypto/crypto_ecdsa_verify"
+
+let s = tls13PeerHsClientOpen(28296)
+if s == false {
+    println("open failed")
+    return false
+}
+let der = tls13PeerCertDer(s["cert"])
+let pt = tls13PeerP256Point(der)
+let cv = tls13PeerCvParse(s["cv"])
+let tr = tls13PeerTrBeforeCv(s["tr"], s["cv"])
+println("pt=" + (pt != false) + " cv=" + (cv != false) + " tr=" + (tr != false))
+if cv != false {
+    println("cvscheme=" + cv["scheme"])
+    let rs = tls13PeerEcdsaSig(cv["sig"])
+    println("rs=" + (rs != false))
+    if rs != false {
+        let hash = tls13PeerCvSignedHash(tr)
+        println("hash=" + (hash != false))
+        if hash != false {
+            println("verify=" + ecdsaP256Verify(hash, rs["r"], rs["s"], pt["x"], pt["y"]))
+        }
+    }
+}
+return true

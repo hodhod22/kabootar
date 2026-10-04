@@ -2,7 +2,7 @@ import "kab/ui/ui_fe_distant_light"
 import "kab/ui/ui_fe_turbulence"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsFeTurbulence("feTurbulence") == false {
@@ -11,4 +11,4 @@ if uiIsFeTurbulence("feTurbulence") == false {
 if uiIsFeDistantLight("feDistantLight") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

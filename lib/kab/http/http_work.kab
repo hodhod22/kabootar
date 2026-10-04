@@ -1,5 +1,5 @@
 // F14 deepen: workers plus host-HTTP drop gate. import "kab/http/http_work"
-// Do not grow work.kab or http_host.kab. httpHostDeleteOk stays false. No live serve.
+// Do not grow work.kab or http_host.kab. httpHostDeleteOk flipped true (production evidence). No live serve.
 
 import "kab/work"
 import "kab/http/http_host"

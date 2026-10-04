@@ -2,7 +2,7 @@ import "kab/ui/ui_mode"
 import "kab/ui/ui_median"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMedian("median") != true {
@@ -11,4 +11,4 @@ if uiIsMedian("median") != true {
 if uiIsMode("mode") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

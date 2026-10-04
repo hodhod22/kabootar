@@ -2,7 +2,7 @@ import "kab/ui/ui_grad"
 import "kab/ui/ui_divergence"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDivergence("divergence") != true {
@@ -11,4 +11,4 @@ if uiIsDivergence("divergence") != true {
 if uiIsGrad("grad") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

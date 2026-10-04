@@ -2,7 +2,7 @@ import "kab/ui/ui_tanh"
 import "kab/ui/ui_cosh"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCosh("cosh") != true {
@@ -11,4 +11,4 @@ if uiIsCosh("cosh") != true {
 if uiIsTanh("tanh") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

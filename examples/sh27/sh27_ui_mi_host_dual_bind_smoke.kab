@@ -2,7 +2,7 @@ import "kab/ui/ui_mi"
 import "kab/ui/ui_mrow"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsMrow("mrow") == false {
@@ -11,4 +11,4 @@ if uiIsMrow("mrow") == false {
 if uiIsMi("mi") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

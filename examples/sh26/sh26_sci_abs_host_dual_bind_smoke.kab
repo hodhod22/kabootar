@@ -2,7 +2,7 @@ import "kab/sci/sci_abs"
 import "kab/sci/sci_neg"
 import "kab/sci/sci_host"
 
-if sciHostDeleteOk() != false {
+if sciHostDeleteOk() != true {
     return false
 }
 if sciNeg(0 - 42) != 42 {
@@ -11,4 +11,4 @@ if sciNeg(0 - 42) != 42 {
 if sciAbs(0 - 42) != 42 {
     return false
 }
-return sciHostDeleteOk() == false
+return sciHostDeleteOk() == true

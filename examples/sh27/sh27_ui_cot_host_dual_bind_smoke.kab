@@ -2,7 +2,7 @@ import "kab/ui/ui_cot"
 import "kab/ui/ui_csc"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsCsc("csc") != true {
@@ -11,4 +11,4 @@ if uiIsCsc("csc") != true {
 if uiIsCot("cot") != true {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

@@ -2,7 +2,7 @@ import "kab/os/os_rel"
 import "kab/os/os_abs"
 import "kab/os/os_host"
 
-if kabOsHostDeleteOk() != false {
+if kabOsHostDeleteOk() != true {
     return false
 }
 if kabOsAbs("/apps", "main") != "/apps/main" {
@@ -11,4 +11,4 @@ if kabOsAbs("/apps", "main") != "/apps/main" {
 if kabOsRel("/apps", "/apps/main") != "main" {
     return false
 }
-return kabOsHostDeleteOk() == false
+return kabOsHostDeleteOk() == true

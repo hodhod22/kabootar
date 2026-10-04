@@ -103,7 +103,7 @@ pub fn p16MontMul(a, b, n, np) {
         r["" + i] = t[i]
         i = i + 1
     }
-    r["16"] = 0
+    r["16"] = t[16]
     r["n"] = 17
     n["16"] = 0
     if p16Gte(r, n) == true {
@@ -240,7 +240,7 @@ pub fn jacAddM(P, Q, field, np) {
     x3 = montSub(x3, montAdd(v, v, field), field)
     let y3 = p16MontMul(r, montSub(v, x3, field), field, np)
     y3 = montSub(y3, p16MontMul(s1, hhh, field, np), field)
-    let z3 = p16MontMul(montSub(montAdd(z1, z2, field), montAdd(z1z1, z2z2, field), field), h, field, np)
+    let z3 = p16MontMul(p16MontMul(z1, z2, field, np), h, field, np)
     let o = {}
     o["x"] = x3
     o["y"] = y3

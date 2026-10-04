@@ -2,7 +2,7 @@ import "kab/ui/ui_unknown"
 import "kab/ui/ui_discard"
 import "kab/ui/ui_host"
 
-if uiHostDeleteOk() != false {
+if uiHostDeleteOk() != true {
     return false
 }
 if uiIsDiscard("discard") == false {
@@ -11,4 +11,4 @@ if uiIsDiscard("discard") == false {
 if uiIsUnknown("unknown") == false {
     return false
 }
-return uiHostDeleteOk() == false
+return uiHostDeleteOk() == true

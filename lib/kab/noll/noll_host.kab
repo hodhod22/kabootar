@@ -17,11 +17,23 @@ pub fn nollHostDeleteOk() {
 }
 
 /// True when every SH19–SH27 delete gate is still closed (all false).
-/// Honestly false now: gcHostDeleteOk, cliHostDeleteOk and stdHostDeleteOk
-/// flipped after production evidence — the host-deletion phase has begun.
+/// Honestly false now: loadMainDeleteOk, gcHostDeleteOk,
+/// kabOsHostDeleteOk, cliHostDeleteOk, stdHostDeleteOk,
+/// sqlHostDeleteOk, httpHostDeleteOk, cryptoHostDeleteOk,
+/// sciHostDeleteOk and uiHostDeleteOk flipped after production
+/// evidence — the host-deletion phase has begun.
 /// Use nollPendingHostGatesClosed for the remaining gates.
 pub fn nollAllHostGatesClosed() {
     if nollPendingHostGatesClosed() == false {
+        return false
+    }
+    if loadMainDeleteOk() {
+        return false
+    }
+    if kabOsHostDeleteOk() {
+        return false
+    }
+    if sqlHostDeleteOk() {
         return false
     }
     if gcHostDeleteOk() {
@@ -33,25 +45,10 @@ pub fn nollAllHostGatesClosed() {
     if stdHostDeleteOk() {
         return false
     }
-    return true
-}
-
-/// True when every SH19–SH27 delete gate not yet satisfied by production
-/// evidence is still closed (all false). Satisfied today: gc, cli, std.
-pub fn nollPendingHostGatesClosed() {
-    if loadMainDeleteOk() {
-        return false
-    }
-    if kabOsHostDeleteOk() {
-        return false
-    }
-    if sqlHostDeleteOk() {
+    if httpHostDeleteOk() {
         return false
     }
     if cryptoHostDeleteOk() {
-        return false
-    }
-    if httpHostDeleteOk() {
         return false
     }
     if sciHostDeleteOk() {
@@ -60,5 +57,14 @@ pub fn nollPendingHostGatesClosed() {
     if uiHostDeleteOk() {
         return false
     }
+    return true
+}
+
+/// True when every SH19–SH27 delete gate not yet satisfied by production
+/// evidence is still closed (all false). All of load, gc, os, cli, std,
+/// sql, http, crypto (KAB_TLS_PEERS aggregate passed), sci and ui are
+/// satisfied today — no pending SH19–SH27 gates remain. SH28 stays
+/// blocked on nollHostDeleteOk.
+pub fn nollPendingHostGatesClosed() {
     return true
 }
