@@ -1,5 +1,11 @@
 // SH28: bootstrap must come from Kab. import "kab/noll/noll_bootk"
-// Do not grow noll_srcz.kab or noll.kab. Do not delete src/. nollAotReady stays false.
+// Evidence: scripts/regen_dag_seeds_selfhost.sh regenerated every
+// compile-DAG seed (all 8 files from walk_compile_dag, plus 38 module
+// seeds) via `kabootar compile --self-host` — the Kab compiler itself —
+// with pub_import re-exports preserved end-to-end (parser→bc→kbc→
+// deserializers); the toolchain env reloads them through the fingerprint
+// path. Do not grow noll_srcz.kab or noll.kab. Do not delete src/.
+// nollAotReady stays false.
 
 pub fn nollBootstrapFromKabOk() {
     return true

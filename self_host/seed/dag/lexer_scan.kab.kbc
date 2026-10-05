@@ -7906,3 +7906,4 @@ halt
 source=self_host/lexer_scan.kab
 statements=1786
 fingerprint=66b99723c579efbd
+compiler=c1b7778351710b92

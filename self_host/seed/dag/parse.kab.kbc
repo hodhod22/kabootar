@@ -30,5 +30,6 @@ code
 halt
 
 source=self_host/parse.kab
-statements=4
+statements=6
 fingerprint=2cc42270c75d8a50
+compiler=c1b7778351710b92

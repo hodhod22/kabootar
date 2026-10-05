@@ -17,3 +17,4 @@ halt
 source=self_host/ownership.kab
 statements=1
 fingerprint=47a47fe97d1b67b9
+compiler=c1b7778351710b92

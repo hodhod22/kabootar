@@ -9147,3 +9147,4 @@ halt
 source=self_host/emit_stmt_body.kab
 statements=1949
 fingerprint=658b4580ad4792c4
+compiler=c1b7778351710b92

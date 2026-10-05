@@ -5,7 +5,10 @@
 // rax == Kab mirror (sh28_aot_proc_exec_smoke). A REAL OS-process leg now
 // exists too: `aotNativeProcExecOk` spawns `kabootar exec-image` through
 // run_command and the child maps+jumps into the image's machine code
-// (sh28_aot_native_exec_smoke). nollImageIsProcess and nollMmapExecProcess
+// (sh28_aot_native_exec_smoke). The exec-image verb also takes a real i64
+// argument across the host ABI (win64/sysv variants emitted honestly —
+// abi:mismatch refused), so runtime input now crosses process argv AND the
+// ABI boundary into image code. nollImageIsProcess and nollMmapExecProcess
 // stay false — the image/mmap are still not processes themselves.
 // Do not grow noll_proc.kab or noll_aot.kab. Do not delete src/. nollAotReady stays false.
 

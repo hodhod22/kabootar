@@ -990,9 +990,13 @@ pub fn emitMainInitMeta(E) {
     object_array_clear(E, "eBindingTypes")
     object_array_clear(E, "eExports")
     E["eImports"] = []
+    E["ePubImports"] = []
     E["eProg"] = 0
     if E["eProgram"]["imports"] != undefined {
         E["eImports"] = E["eProgram"]["imports"]
+    }
+    if E["eProgram"]["pubImports"] != undefined {
+        E["ePubImports"] = E["eProgram"]["pubImports"]
     }
 }
 
@@ -1039,7 +1043,8 @@ pub fn emitMain(E, program) {
         "locals": [],
         "genericMethodTemplates": E["eGenericMethodTemplates"],
         "exports": E["eExports"],
-        "imports": E["eImports"]
+        "imports": E["eImports"],
+        "pub_imports": E["ePubImports"]
     }
 }
 
@@ -1713,6 +1718,7 @@ pub fn serAppendGlobals(out, globals) {
 pub fn serAppendBcTailRest(out, bc) {
     out = serAppendNamedList(out, "exports=0", "exports=", "export", bc.exports)
     out = serAppendNamedList(out, "imports=0", "imports=", "import", bc.imports)
+    out = serAppendNamedList(out, "pub_imports=0", "pub_imports=", "pub_import", bc["pub_imports"])
     out = serAppendInterfaces(out, bc["interfaces"])
     out = serAppendClasses(out, bc.classes)
     out = serAppendEnums(out, bc["enums"])

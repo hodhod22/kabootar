@@ -10,7 +10,7 @@ pub fn deserCode(st, line) {
 }
 
 pub fn deserMisc(st, line) {
-    if starts_with(line, "constants=") || starts_with(line, "exports=") || starts_with(line, "imports=") {
+    if starts_with(line, "constants=") || starts_with(line, "exports=") || starts_with(line, "imports=") || starts_with(line, "pub_imports=") {
         return "ok"
     }
     if starts_with(line, "const ") {
@@ -46,6 +46,13 @@ pub fn deserMisc(st, line) {
             "catchStart": parse_int(parts[3]),
             "errLocal": parse_int(parts[4])
         })
+        return "ok"
+    }
+    if starts_with(line, "pub_import ") {
+        let rest = str_slice(line, 11, len(line))
+        let sp = str_index_of(rest, " ")
+        let name = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
+        st["pub_imports"] = push(st["pub_imports"], name)
         return "ok"
     }
     if starts_with(line, "import ") {

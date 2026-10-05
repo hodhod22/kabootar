@@ -397,7 +397,7 @@ fn kbcbModule(r) {
     kbcbIfaces(r)
     let enums = kbcbEnums(r)
     let imports = kbcbStrs(r)
-    let pubSkip = kbcbStrs(r)
+    let pubImports = kbcbStrs(r)
     let expSkip = kbcbStrs(r)
     return {
         "constants": constants,
@@ -407,6 +407,7 @@ fn kbcbModule(r) {
         "classes": classes,
         "enums": enums,
         "imports": imports,
+        "pub_imports": pubImports,
         "arrows": arrows,
         "tryRegions": tryRegions,
         "ops": ops

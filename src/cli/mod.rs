@@ -111,10 +111,20 @@ Examples:
 /// real-OS-process leg of the AOT gate (child of run_command callers).
 fn exec_image_cmd(args: &[String]) -> i32 {
     let Some(path) = args.first() else {
-        eprintln!("Usage: kabootar exec-image <native-image>");
+        eprintln!("Usage: kabootar exec-image <native-image> [arg]");
         return 2;
     };
-    match crate::runtime::native_exec::exec_image_arg(path) {
+    let entry_arg = match args.get(1) {
+        Some(s) => match s.parse::<i64>() {
+            Ok(v) => v,
+            Err(_) => {
+                eprintln!("exec-image: bad arg {s}");
+                return 2;
+            }
+        },
+        None => 0,
+    };
+    match crate::runtime::native_exec::exec_image_arg(path, entry_arg) {
         Ok(v) => {
             println!("{v}");
             0

@@ -7496,4 +7496,5 @@ halt
 
 source=self_host/compile.kab
 statements=1626
-fingerprint=eefc1ea6a55a20f5
+fingerprint=2a4f6ffad9084b96
+compiler=c1b7778351710b92

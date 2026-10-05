@@ -1,7 +1,7 @@
 kabootar-bytecode/1
 constants=0
 global 0 emitMainExec
-local 0 emit
+global 1 emit
 functions=0
 arrows=0
 imports=1
@@ -15,10 +15,10 @@ classes=0
 enums=0
 code
 load_global 0
-store_local 0
-load_local 0
+store_global 1
 halt
 
 source=self_host/emit.kab
 statements=2
 fingerprint=38e1f8d9db2355b8
+compiler=c1b7778351710b92

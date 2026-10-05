@@ -17,3 +17,4 @@ halt
 source=self_host/ast_defs.kab
 statements=1
 fingerprint=b37d5963bfcb4331
+compiler=c1b7778351710b92

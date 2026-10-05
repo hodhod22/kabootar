@@ -103,3 +103,77 @@ pub fn aotX64EmitCountdown(n) {
 pub fn aotX64CountdownLen() {
     return 11
 }
+
+/// Real x64 intra-image call: _start: mov eax,n; call _dbl; ret; _dbl:
+/// add eax,eax; ret → rax = 2n. Proves rel32 call + ret chaining executes
+/// on the host CPU — a multi-function image, not a straight-line snippet.
+/// Domain: n 1..=64 (jitLoopNOk).
+pub fn aotX64EmitCallAdd(n) {
+    if jitLoopNOk(n) == false {
+        return []
+    }
+    let b = []
+    b = push(b, 184)
+    b = x64PushImm32(b, n)
+    // E8 rel32: target _dbl at offset 11, next insn at 10 → rel = 1.
+    b = push(b, 232)
+    b = push(b, 1)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    b = push(b, 1)
+    b = push(b, 192)
+    b = push(b, 195)
+    return b
+}
+
+// mov eax,imm32 (5) + call rel32 (5) + ret (1) + add eax,eax (2) + ret (1).
+pub fn aotX64CallAddLen() {
+    return 14
+}
+
+/// Real x64 arg-taking entry + callee: _start: [sysv: mov ecx,edi] call
+/// _dbl; ret; _dbl: mov eax,ecx; add eax,eax; ret → rax = 2*arg where arg
+/// arrives from the HOST across the ABI — rcx on win64, rdi on sysv (the
+/// sysv prologue copies rdi→ecx so _dbl is identical). First emitter whose
+/// input is runtime-supplied, not a compile-time constant. abi must be
+/// "win64" or "sysv"; [] otherwise. Domain on the runtime arg:
+/// 0..=2147483647 keeps 2*arg inside the unsigned 32-bit eax result.
+pub fn aotX64EmitArgDbl(abi) {
+    if abi != "win64" && abi != "sysv" {
+        return []
+    }
+    let b = []
+    if abi == "sysv" {
+        // 89 F9 = mov ecx,edi — normalize the SysV arg into ecx.
+        b = push(b, 137)
+        b = push(b, 249)
+    }
+    // E8 rel32: _dbl sits one byte past the next insn → rel = 1 either way.
+    b = push(b, 232)
+    b = push(b, 1)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    // _dbl: 89 C8 mov eax,ecx; 01 C0 add eax,eax; C3 ret.
+    b = push(b, 137)
+    b = push(b, 200)
+    b = push(b, 1)
+    b = push(b, 192)
+    b = push(b, 195)
+    return b
+}
+
+// win64: call (5) + ret (1) + mov (2) + add (2) + ret (1) = 11;
+// sysv adds the 2-byte mov ecx,edi prologue = 13.
+pub fn aotX64ArgDblLen(abi) {
+    if abi == "sysv" {
+        return 13
+    }
+    if abi == "win64" {
+        return 11
+    }
+    return 0
+}

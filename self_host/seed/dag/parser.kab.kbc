@@ -1,7 +1,7 @@
 kabootar-bytecode/1
 constants=0
 global 0 parseTokensExec
-local 0 parseTokens
+global 1 parseTokens
 functions=0
 arrows=0
 imports=1
@@ -12,12 +12,13 @@ export 0 parseTokens
 memory_mode=gc
 interfaces=0
 classes=0
+enums=0
 code
 load_global 0
-store_local 0
-load_local 0
+store_global 1
 halt
 
 source=self_host/parser.kab
 statements=2
 fingerprint=f5d788de09703fb9
+compiler=c1b7778351710b92

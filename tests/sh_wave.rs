@@ -25512,7 +25512,10 @@ fn sh28_aot_guest_reloc_smoke() {
 /// SH28: REAL machine-code exec — image code:x64 bytes run on the host CPU
 /// (os_native_exec → anonymous RX mapping + direct call), and the
 /// child-process leg spawns `kabootar exec-image` via run_command with the
-/// image carried on argv. Distinct from os_mm_call template interpretation.
+/// image carried on argv. The arg legs pass a real i64 across the host ABI
+/// (win64/sysv variants; abi-mismatched images are refused) — the first
+/// runtime-supplied input into image code. Distinct from os_mm_call
+/// template interpretation.
 #[test]
 fn sh28_aot_native_exec_smoke() {
     // Locate the built binary matching this test profile so the

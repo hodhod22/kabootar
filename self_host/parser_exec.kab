@@ -22,6 +22,7 @@ fn pSessionInit_core(sess) {
     sess["pPopI"] = 0
     sess["pPopNew"] = []
     sess["pImports"] = []
+    sess["pPubImports"] = []
     sess["pIsPub"] = 0
     sess["pFnPub"] = 0
     sess["pInAddSub"] = 0
@@ -238,6 +239,7 @@ pub fn parseMain(sess, tokens) {
     sess["pSymPool"] = []
     sess["pSymN"] = 0
     sess["pImports"] = []
+    sess["pPubImports"] = []
     sess["pCondStack"] = []
     sess["pCondDepth"] = 0
     sess["pAddLeftStack"] = []
@@ -265,7 +267,19 @@ pub fn parseMain(sess, tokens) {
             if sess["pPos"] + 1 < sess["pToksLen"] {
                 importNext = sess["pToks"][sess["pPos"] + 1].type
             }
-            if sess["pTok"].type == TOKEN_IMPORT && importNext == TOKEN_STRING {
+            // `pub import "x"` — re-export facades (SH5 splits); the import
+            // list is visibility-agnostic here, so record it identically.
+            if sess["pTok"].type == TOKEN_PUB && importNext == TOKEN_IMPORT && sess["pPos"] + 2 < sess["pToksLen"] && sess["pToks"][sess["pPos"] + 2].type == TOKEN_STRING {
+                bump(sess)
+                bump(sess)
+                sess["pTok"] = sess["pCur"]
+                bump(sess)
+                sess["pImports"] = push(sess["pImports"], sess["pTok"].value)
+                sess["pPubImports"] = push(sess["pPubImports"], sess["pTok"].value)
+                if sess["pCur"].type == ";" {
+                    bump(sess)
+                }
+            } else if sess["pTok"].type == TOKEN_IMPORT && importNext == TOKEN_STRING {
                 bump(sess)
                 sess["pTok"] = sess["pCur"]
                 bump(sess)
@@ -289,7 +303,7 @@ pub fn parseMain(sess, tokens) {
     sess["pBody"] = st[len(st) - 1]
     sess["pBodyStack"] = slice(st, 0, len(st) - 1)
     sess["pBodyDepth"] = sess["pBodyDepth"] - 1
-    return { "kind": AST_PROGRAM, "body": programBody, "imports": sess["pImports"] }
+    return { "kind": AST_PROGRAM, "body": programBody, "imports": sess["pImports"], "pubImports": sess["pPubImports"] }
 }
 
 pub fn parseTokensExec(tokens) {

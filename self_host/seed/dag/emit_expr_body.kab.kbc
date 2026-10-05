@@ -9367,3 +9367,4 @@ halt
 source=self_host/emit_expr_body.kab
 statements=2063
 fingerprint=59e93d7276b28e00
+compiler=c1b7778351710b92

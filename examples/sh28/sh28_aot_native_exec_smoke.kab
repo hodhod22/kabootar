@@ -25,6 +25,16 @@ if aotNativeExecOk("_aot_native_exec.kabi", 91, 5, 6) == false {
 if aotNativeLoopExecOk("_aot_native_loop.kabi", 5) == false {
     return 5
 }
+// Call chain: mov eax,6 ; call _dbl (add eax,eax; ret) → rax 12 — a real
+// rel32 call between functions in one image, on the host CPU.
+if aotNativeCallExecOk("_aot_native_call.kabi", 6) == false {
+    return 10
+}
+// Host-arg chain: the HOST passes 21 across the ABI (rcx win64 / rdi
+// sysv) into _start → call _dbl → rax 42 — first runtime-supplied input.
+if aotNativeArgExecOk("_aot_native_arg.kabi", 21) == false {
+    return 11
+}
 // Out-of-domain (n=0) → emit refuses → no exec.
 if aotNativeExecOk("_aot_native_exec.kabi", 87, 0, 9) {
     return 6
@@ -43,6 +53,10 @@ let exe = env_get("KABOOTAR_EXE")
 if typeof(exe) == "string" && len(exe) > 0 {
     if aotNativeProcExecOk("_aot_native_proc.kabi", 87, 3, 9) == false {
         return 7
+    }
+    // Child-process arg leg: 33 crosses argv AND the ABI → rax 66.
+    if aotNativeArgProcExecOk(33) == false {
+        return 12
     }
 }
 return 42

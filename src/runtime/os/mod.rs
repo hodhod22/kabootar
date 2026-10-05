@@ -918,7 +918,17 @@ fn os_native_exec_native(args: &[Value], _env: &mut Environment) -> Result<Value
             .collect::<Result<Vec<_>, _>>()?,
         _ => return Err("os_native_exec expects byte array".to_string()),
     };
-    Ok(Value::Number(crate::runtime::native_exec::exec_bytes(&data)?))
+    // Optional second arg: a real i64 handed to the entry across the host
+    // ABI (rcx on win64, rdi on SysV). Arg-taking images must emit the
+    // matching prologue; arg-agnostic images ignore it.
+    let arg = match args.get(1) {
+        Some(Value::Number(n)) => *n,
+        Some(_) => return Err("os_native_exec arg expects number".to_string()),
+        None => 0,
+    };
+    Ok(Value::Number(crate::runtime::native_exec::exec_bytes_arg(
+        &data, arg,
+    )?))
 }
 
 fn os_process_list_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {

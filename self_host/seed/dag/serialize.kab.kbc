@@ -1,7 +1,7 @@
 kabootar-bytecode/1
 constants=0
 global 0 serSerializeBc
-local 0 serialize_bc
+global 1 serialize_bc
 functions=0
 arrows=0
 imports=1
@@ -15,10 +15,10 @@ classes=0
 enums=0
 code
 load_global 0
-store_local 0
-load_local 0
+store_global 1
 halt
 
 source=self_host/serialize.kab
 statements=2
 fingerprint=f2da432defb6c056
+compiler=c1b7778351710b92
