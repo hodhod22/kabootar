@@ -1,0 +1,21 @@
+// SH17 widen: guest call for loop-pow template. import
+// "kab/jit/jit_mm_call_loop_pow". Do not grow jit_mm_call_loop_mod.kab.
+
+import "kab/jit/jit_mm_loop_pow"
+import "kab/jit/jit_loop_pow"
+
+pub fn jitMmCallLoopPow(bytes, n, k) {
+    if jitLoopPowOk(n, k) == false {
+        return 0
+    }
+    if len(bytes) != jitLoopPowLen() {
+        return 0
+    }
+    let pid = jitMmLoopPowPid()
+    let virt = jitMmLoopPowVirt()
+    let rax = os_mm_call(pid, virt)
+    if rax != jitLoopPowRax(n, k) {
+        return 0
+    }
+    return rax
+}

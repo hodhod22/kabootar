@@ -1,0 +1,35 @@
+// SH17 widen: ops-driven mod fusion — `return a % b` (load0, load1, mod,
+// ret) extracts to const/const/mod/ret and lowers to the existing loop-mod
+// L-template (magic 76, n%r). import "kab/jit/jit_from_ops_mod"
+// Do not grow jit_from_ops_bits.kab or jit_from_ops_simd.kab.
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_mod"
+import "kab/jit/jit_loop_mod"
+import "kab/jit/jit_mm_loop_mod"
+import "kab/jit/jit_call_loop_mod"
+
+/// Compile a fusible mod chain into the loop-mod template and exec it in
+/// the guest MMU; true when guest rax matches jitModRax.
+pub fn jitFromOpsModOk(ops, n, r) {
+    if jitCanCompile(ops) == false {
+        return false
+    }
+    if jitModOpsOk(ops) == false {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        if jitOpOk(ops[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    if jitModArgsOk(n, r) == false {
+        return false
+    }
+    let bytes = jitEmitI64LoopModN(n, r)
+    let m = os_mm_mmap(jitMmLoopModPid(), jitMmLoopModVirt(), jitMmLoopModLen(), jitMmLoopModProt())
+    return jitCallLoopModOk(m, "rwx", n, r, bytes)
+}

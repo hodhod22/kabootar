@@ -414,6 +414,18 @@ impl MemorySubsystem {
                 return Ok((a0 as i64) * (b0 as i64) + (a1 as i64) * (b1 as i64));
             }
         }
+        // pow guest op: `n ** k` via checked_pow — overflow or out-of-domain
+        // immediates fault so the fused callee deopts to the interpreter
+        // (which may answer Float/BigInt for the same source expression).
+        if bytes8.len() == 8 && bytes8[0] == 109 && bytes8[7] == 195 {
+            let n = bytes8[1];
+            let k = bytes8[2];
+            if (1..=64).contains(&n) && (1..=64).contains(&k) {
+                if let Some(rax) = (n as i64).checked_pow(k as u32) {
+                    return Ok(rax);
+                }
+            }
+        }
         // arith3 guest op: left-assoc `((a o1 b) o2 c)` — opcode bytes 4/5
         // are 1=add 2=sub 3=mul 4=div 5=mod; div/mod by zero faults (deopt).
         if bytes8.len() == 8 && bytes8[0] == 107 && bytes8[7] == 195 {

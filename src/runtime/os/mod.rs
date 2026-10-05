@@ -904,6 +904,23 @@ fn os_spawn_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
     Ok(Value::Number(get_os(env)?.spawn(&name)? as i64))
 }
 
+/// SH28: run a byte array as REAL machine code on the host CPU — the AOT
+/// image's x64 text executes natively (anonymous RX mapping + direct call),
+/// unlike os_mm_call which interprets template bytes in the simulated MM.
+fn os_native_exec_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let data: Vec<u8> = match args.first() {
+        Some(Value::Array(vals)) => vals
+            .iter()
+            .map(|v| match v {
+                Value::Number(n) => Ok(*n as u8),
+                _ => Err("os_native_exec expects byte array".to_string()),
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        _ => return Err("os_native_exec expects byte array".to_string()),
+    };
+    Ok(Value::Number(crate::runtime::native_exec::exec_bytes(&data)?))
+}
+
 fn os_process_list_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
     let list = get_os(env)?.process_list()?;
     Ok(Value::from_array(
@@ -1703,6 +1720,10 @@ pub fn os_globals(env: &mut Environment) {
     env.set(
         "os_process_list".to_string(),
         Value::NativeFunction(os_process_list_native),
+    );
+    env.set(
+        "os_native_exec".to_string(),
+        Value::NativeFunction(os_native_exec_native),
     );
     env.set(
         "os_window_create".to_string(),

@@ -11,10 +11,14 @@ import "kab/jit/jit_from_ops_simd"
 import "kab/jit/jit_from_ops_bits"
 import "kab/jit/jit_from_ops_arith3"
 import "kab/jit/jit_from_ops_arith4"
+import "kab/jit/jit_mod"
+import "kab/jit/jit_from_ops_mod"
+import "kab/jit/jit_pow"
+import "kab/jit/jit_from_ops_pow"
 
 /// 1 = arith fuse, 2 = cmp+branch fuse, 3 = f64 fuse, 4 = SIMD fuse,
-/// 5 = bits/unary fuse, 6 = arith3 fuse, 7 = arith4 fuse,
-/// 0 = no fusible shape.
+/// 5 = bits/unary fuse, 6 = arith3 fuse, 7 = arith4 fuse, 8 = mod fuse,
+/// 9 = pow fuse, 0 = no fusible shape.
 pub fn jitFuseKind(ops) {
     if jitFuseOpsOk(ops) {
         return 1
@@ -36,6 +40,12 @@ pub fn jitFuseKind(ops) {
     }
     if jitArith4OpsOk(ops) {
         return 7
+    }
+    if jitModOpsOk(ops) {
+        return 8
+    }
+    if jitPowOpsOk(ops) {
+        return 9
     }
     return 0
 }
@@ -61,6 +71,12 @@ pub fn jitFromOpsAnyExecOk(ops, n, k, s, m, d, r) {
     }
     if kind == 7 {
         return jitFromOpsArith4Ok(ops, n, k, s, m)
+    }
+    if kind == 8 {
+        return jitFromOpsModOk(ops, n, k)
+    }
+    if kind == 9 {
+        return jitFromOpsPowOk(ops, n, k)
     }
     return false
 }

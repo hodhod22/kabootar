@@ -1,0 +1,48 @@
+// SH28: REAL machine-code exec — the persisted image's code:x64 bytes are
+// actual x86-64 run by the host CPU (os_native_exec), and the child-process
+// leg runs `kabootar exec-image` via run_command (real OS process, KABOOTAR_EXE).
+// This is distinct from the simulated guest-MM templates (aot_exec/aot_proc).
+
+import "kab/aot/aot_native"
+
+// In-process native exec: lt (87) — 3 < 9 → rax 1 on the real CPU.
+if aotNativeExecOk("_aot_native_exec.kabi", 87, 3, 9) == false {
+    return 1
+}
+// ge (90): 9 >= 3 → 1 — reload+resolve+decode+native-exec roundtrip.
+if aotNativeExecOk("_aot_native_exec.kabi", 90, 9, 3) == false {
+    return 2
+}
+// eq (85): 7 == 7 → 1.
+if aotNativeExecOk("_aot_native_exec.kabi", 85, 7, 7) == false {
+    return 3
+}
+// test (91): 5 & 6 = 4 != 0 → 1.
+if aotNativeExecOk("_aot_native_exec.kabi", 91, 5, 6) == false {
+    return 4
+}
+// Countdown: mov eax,5 ; sub/jne backward loop on the real CPU → rax 0.
+if aotNativeLoopExecOk("_aot_native_loop.kabi", 5) == false {
+    return 5
+}
+// Out-of-domain (n=0) → emit refuses → no exec.
+if aotNativeExecOk("_aot_native_exec.kabi", 87, 0, 9) {
+    return 6
+}
+// Bad magic → emit refuses.
+if aotNativeExecOk("_aot_native_exec.kabi", 0, 3, 9) {
+    return 8
+}
+// Countdown out-of-domain (n=0 would spin 2^32 iterations) → refuses.
+if aotNativeLoopExecOk("_aot_native_loop.kabi", 0) {
+    return 9
+}
+// Real child-process exec — when KABOOTAR_EXE is set the leg MUST pass;
+// unset → env-gated skip (like KAB_TLS_PEERS).
+let exe = env_get("KABOOTAR_EXE")
+if typeof(exe) == "string" && len(exe) > 0 {
+    if aotNativeProcExecOk("_aot_native_proc.kabi", 87, 3, 9) == false {
+        return 7
+    }
+}
+return 42

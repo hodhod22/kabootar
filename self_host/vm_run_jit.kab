@@ -208,6 +208,24 @@ pub fn vJitOpsOfFn(f) {
                         }
                     }
                 }
+                // mod chain: `return a % b` lowers to the loop-mod L-template
+                // (magic 76, n%r — kind 8). Rejected divisor/base domains
+                // stay cold and deopt to the interpreter.
+                if cm == "mod" {
+                    let rop4c = ops[3]["op"]
+                    if rop4c == "return" || rop4c == "ret" {
+                        return ["const", "const", "mod", "ret"]
+                    }
+                }
+                // pow chain: `return a ** b` lowers to the pow template
+                // (magic 109, checked_pow — kind 9). BigInt/Float/overflow
+                // operands stay cold: the interpreter answers those.
+                if cm == "pow" {
+                    let rop4d = ops[3]["op"]
+                    if rop4d == "return" || rop4d == "ret" {
+                        return ["const", "const", "pow", "ret"]
+                    }
+                }
             }
             return null
         }
@@ -348,6 +366,12 @@ pub fn vJitOpsArity(jitOps) {
     }
     if kind == 7 {
         return 4
+    }
+    if kind == 8 {
+        return 2
+    }
+    if kind == 9 {
+        return 2
     }
     return 0
 }
@@ -514,7 +538,7 @@ pub fn vJitExecOk(S, c, ordered) {
 // --- vm_jit_osr ---
 /// Back-edge landing on a loop header (ip moved backwards): count the hit in
 /// S["jitLoopHits"][" "+ip]; once jitOsrOk says the header is hot, mark it
-/// armed in S["jitOsrArmed"] so vJitOsrStepS may run the fused header.
+/// armed in S["jitOsrArmIps"] so vJitOsrStepS may run the fused header.
 pub fn vJitBackEdgeS(S, ip) {
     let hits = S["jitLoopHits"]
     if hits == undefined {
@@ -529,12 +553,34 @@ pub fn vJitBackEdgeS(S, ip) {
     h = h + 1
     hits[key] = h
     if jitOsrOk(ip, h) == true {
+        // Observable armed map — written once per header (cheap); tests and
+        // diagnostics read S["jitOsrArmed"][" "+ip].
         let armed = S["jitOsrArmed"]
         if armed == undefined {
             armed = {}
             S["jitOsrArmed"] = armed
         }
         armed[key] = true
+        // Hot-path mirror: a number array vJitOsrStepS scans per op —
+        // armed sets are tiny (a few loop headers), so a linear scan beats
+        // a " "+ip concat + map hash on EVERY op once anything is armed.
+        let armIps = S["jitOsrArmIps"]
+        if armIps == undefined {
+            armIps = []
+        }
+        let ai = 0
+        let dup = false
+        while ai < len(armIps) {
+            if armIps[ai] == ip {
+                dup = true
+                break
+            }
+            ai = ai + 1
+        }
+        if dup == false {
+            armIps = push(armIps, ip)
+            S["jitOsrArmIps"] = armIps
+        }
     }
 }
 
@@ -570,11 +616,21 @@ pub fn vJitOsrStepS(S, ops, pool) {
     if ip <= 0 {
         return 0
     }
-    let armed = S["jitOsrArmed"]
+    let armed = S["jitOsrArmIps"]
     if armed == undefined {
         return 0
     }
-    if vObjGet(armed, " " + ip) != true {
+    let ai = 0
+    let hit = false
+    let an = len(armed)
+    while ai < an {
+        if armed[ai] == ip {
+            hit = true
+            break
+        }
+        ai = ai + 1
+    }
+    if hit == false {
         return 0
     }
     if ip + 3 >= len(ops) {

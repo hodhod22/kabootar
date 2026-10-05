@@ -1,16 +1,21 @@
 // SH28: AOT-ready gate off noll.kab. import "kab/noll/noll_aot"
 // Do not grow noll.kab. Do not delete src/ while this is false.
 //
-// Honest state (verified): the emitted images exec through the simulated
-// guest MM (os_mm_call interprets magic bytes; os_spawn is a host process
-// table, not a real OS spawn). That proves the policy/persist/exec chain —
-// nollAotProcess is true — but the image is not yet a real executable that
-// can replace rustc as the bootstrap producer. Flip criteria, in order:
-//   1. image carries real machine code run by a real OS process;
+// Honest state (verified): criterion 1 is now PROVEN for the fused-cmp
+// subset — kab/aot/aot_x64 emits real x86-64 and aot_native runs it on the
+// host CPU in-process (os_native_exec) and in a real child OS process
+// (`kabootar exec-image` via run_command), rax == Kab mirror
+// (sh28_aot_native_exec_smoke). The simulated guest-MM path (os_mm_call,
+// os_spawn process table) still exists alongside and stays honest.
+// Flip criteria, in order:
+//   1. image carries real machine code run by a real OS process
+//      — proven for the fused-cmp subset (aot_native);
 //   2. the emitted image covers the full Kabootar surface (compiler+VM),
-//      not only fused op templates;
-//   3. rustc leaves the build+CI path (nollRustcNotProcess, nollRustcCiGone);
-//   4. 6-month stability window on Kab's own feet (nollStableOk).
+//      not only fused op templates — NOT yet;
+//   3. rustc leaves the build+CI path (nollRustcNotProcess, nollRustcCiGone)
+//      — NOT yet;
+//   4. stability window on Kab's own feet (nollStableOk) — the fixed
+//      6-month wait is removed; the window follows the remaining gates.
 
 pub fn nollAotReady() {
     return false

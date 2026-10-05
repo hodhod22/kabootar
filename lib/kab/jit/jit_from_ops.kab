@@ -50,6 +50,9 @@ fn jitOpsIsHot(name) {
     if name == "mod" {
         return true
     }
+    if name == "pow" {
+        return true
+    }
     if name == "neg" {
         return true
     }

@@ -1,0 +1,24 @@
+// SH17 widen: loop-pow wr+run+call pipeline. import
+// "kab/jit/jit_call_loop_pow". Do not grow jit_call_loop_mod.kab.
+
+import "kab/jit/jit_wr_loop_pow"
+import "kab/jit/jit_run_loop_pow"
+import "kab/jit/jit_mm_call_loop_pow"
+import "kab/jit/jit_loop_pow"
+
+pub fn jitCallLoopPowOk(base, kind, n, k, bytes) {
+    if jitLoopPowOk(n, k) == false {
+        return false
+    }
+    if jitWrLoopPowOk(bytes, n, k) == false {
+        return false
+    }
+    if jitRunLoopPowOk(base, kind, bytes, n, k) == false {
+        return false
+    }
+    let rax = jitMmCallLoopPow(bytes, n, k)
+    if rax != jitLoopPowRax(n, k) {
+        return false
+    }
+    return true
+}

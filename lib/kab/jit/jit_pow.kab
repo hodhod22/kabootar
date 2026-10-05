@@ -1,0 +1,40 @@
+// SH17 widen: fusible binary pow chain — const/const/pow/ret lowers to the
+// guest pow template (magic 109, n**k via checked_pow). import
+// "kab/jit/jit_pow". Do not grow jit_mod.kab or jit_loop_pow.kab.
+
+import "kab/jit/jit_loop_pow"
+
+/// True when ops are exactly the fusible pow chain const/const/pow/ret.
+pub fn jitPowOpsOk(ops) {
+    if typeof(ops) != "array" {
+        return false
+    }
+    if len(ops) != 4 {
+        return false
+    }
+    if ops[0] != "const" {
+        return false
+    }
+    if ops[1] != "const" {
+        return false
+    }
+    if ops[2] != "pow" {
+        return false
+    }
+    if ops[3] != "ret" {
+        return false
+    }
+    return true
+}
+
+/// Operand domain mirrors the guest checked_pow contract: base/exponent
+/// 1..=64 and n**k must fit i64 (host eval_pow yields Float otherwise —
+/// that case stays cold and the interpreter answers it).
+pub fn jitPowArgsOk(n, k) {
+    return jitLoopPowOk(n, k)
+}
+
+/// Mirror of the guest semantics for the pow chain.
+pub fn jitPowRax(n, k) {
+    return jitLoopPowRax(n, k)
+}

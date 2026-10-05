@@ -26,6 +26,7 @@ pub mod net;
 pub mod tcp;
 pub mod udp;
 pub mod host_cmd;
+pub mod native_exec;
 pub mod ws;
 pub mod open_kv;
 pub mod unix_sock;

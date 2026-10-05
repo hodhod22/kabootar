@@ -1,0 +1,111 @@
+// SH28: native exec legs — the AOT image carries REAL machine code run by
+// the actual CPU (os_native_exec in-process; `kabootar exec-image` in a
+// real child process). import "kab/aot/aot_native"
+// Do not grow aot_exec.kab — it covers the simulated guest-MM leg.
+
+import "kab/aot/aot_x64"
+import "kab/aot/aot_exec"
+import "kab/jit/jit_fuse_cmp"
+
+/// Wrap real code bytes in a kabootar-native/1 record — same shape as
+/// aotEntryImageEmit. "" when the payload is empty.
+pub fn aotNativeImageWrap(bytes) {
+    if len(bytes) == 0 {
+        return ""
+    }
+    return "kabootar-native/1|x64|abi:win64|entry:0|page:4096|text:rx|rodata:r|data:rw|code:x64:" + aotHexEncode(bytes) + "|syms:sym:text:0:_start:x64"
+}
+
+/// kabootar-native/1 image whose code:x64 payload is REAL machine code —
+/// same record shape as aotEntryImageEmit. "" when out of domain.
+pub fn aotNativeImageEmit(magic, n, k) {
+    if jitFuseCmpMagicOk(magic) == false {
+        return ""
+    }
+    if jitFuseCmpOk(n, k) == false {
+        return ""
+    }
+    return aotNativeImageWrap(aotX64EmitCmp(magic, n, k))
+}
+
+/// In-process native leg: emit image → persist → reload → resolve entry +
+/// _start → decode code bytes → os_native_exec on the real CPU — rax must
+/// equal the Kab mirror jitFuseCmpRax. False on any stage.
+pub fn aotNativeExecOk(path, magic, n, k) {
+    let image = aotNativeImageEmit(magic, n, k)
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    if aotEntryStartOk(back) == false {
+        return false
+    }
+    if aotEntryFieldNum(back, "entry") != 0 {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64CmpLen() {
+        return false
+    }
+    let rax = os_native_exec(bytes)
+    return rax == jitFuseCmpRax(n, k, magic)
+}
+
+/// In-process native leg for the countdown emitter — proves a real
+/// backward conditional jump (jne) executes on the host CPU; rax must be 0.
+pub fn aotNativeLoopExecOk(path, n) {
+    let image = aotNativeImageWrap(aotX64EmitCountdown(n))
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64CountdownLen() {
+        return false
+    }
+    return os_native_exec(bytes) == 0
+}
+
+/// Real-OS-process leg: `kabootar exec-image` is spawned through
+/// run_command — the image record travels on argv (Kab writes land in the
+/// sandboxed VFS, unreachable by a child process), and the CHILD process
+/// maps and jumps into the image's machine code. stdout carries rax;
+/// compare to the mirror. KABOOTAR_EXE must point at a built binary (tests
+/// set it to the release target); absent → false (env-gated like
+/// KAB_TLS_PEERS).
+pub fn aotNativeProcExecOk(path, magic, n, k) {
+    let exe = env_get("KABOOTAR_EXE")
+    if typeof(exe) != "string" || len(exe) == 0 {
+        return false
+    }
+    let image = aotNativeImageEmit(magic, n, k)
+    if image == "" {
+        return false
+    }
+    let r = run_command(exe, ["exec-image", image])
+    if typeof(r) != "object" {
+        return false
+    }
+    if r["success"] != true {
+        return false
+    }
+    let out = r["stdout"]
+    let nl = str_index_of(out, "\n")
+    let num = out
+    if nl >= 0 {
+        num = str_slice(out, 0, nl)
+    }
+    if len(num) == 0 {
+        return false
+    }
+    let got = parse_int(num)
+    return got == jitFuseCmpRax(n, k, magic)
+}

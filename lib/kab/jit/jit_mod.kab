@@ -1,0 +1,40 @@
+// SH17 widen: fusible binary mod chain — const/const/mod/ret lowers to the
+// existing L-template mod slot (magic 76, n%r). import "kab/jit/jit_mod"
+// Do not grow jit_bits.kab or jit_loop_mod.kab.
+
+import "kab/jit/jit_loop_mod"
+
+/// True when ops are exactly the fusible mod chain const/const/mod/ret.
+pub fn jitModOpsOk(ops) {
+    if typeof(ops) != "array" {
+        return false
+    }
+    if len(ops) != 4 {
+        return false
+    }
+    if ops[0] != "const" {
+        return false
+    }
+    if ops[1] != "const" {
+        return false
+    }
+    if ops[2] != "mod" {
+        return false
+    }
+    if ops[3] != "ret" {
+        return false
+    }
+    return true
+}
+
+/// Operand domain reuses the guest L-template mod contract: n 1..=64 and
+/// r 1..=64 with r < n (the loop-mod emit bakes [76,n,0,0,0,0,r,195]).
+/// Outside the domain the chain stays cold and the interpreter runs it.
+pub fn jitModArgsOk(n, r) {
+    return jitLoopModOk(n, r)
+}
+
+/// Mirror of the guest semantics for the mod chain.
+pub fn jitModRax(n, r) {
+    return jitLoopModRax(n, r)
+}

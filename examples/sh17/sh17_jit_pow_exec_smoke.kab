@@ -1,0 +1,56 @@
+// SH17 widen: pow fusion through the REAL ops loop — a hot monomorphic call
+// site whose callee body is `return a ** b` compiles to the guest pow
+// template (magic 109, checked_pow — kind 9): vJitClassifyS →
+// vJitMaybeCompileS → vJitOpsOfRec extracts const/const/pow/ret →
+// jitFromOpsPowOk execs + mirror validates instead of a frame.
+
+// powOf computes a ** b — the binary pow chain shape.
+fn powOf(a, b) {
+    return a ** b
+}
+
+// Drive the site hot: 12 calls at one ip compile the rec.
+let acc = 0
+let i = 0
+while i < 12 {
+    acc = powOf(2, 10)
+    i = i + 1
+}
+// 2 ** 10 = 1024 — same value via template or frame.
+if acc != 1024 {
+    return 1
+}
+
+// Second pow site: 3 ** 5 = 243 (base/exp inside the guest contract).
+let acc2 = 0
+let j = 0
+while j < 12 {
+    acc2 = powOf(3, 5)
+    j = j + 1
+}
+if acc2 != 243 {
+    return 2
+}
+
+// Large-but-fitting: 2 ** 62 = 4611686018427387904 (max i64 domain).
+let w = powOf(2, 62)
+if w != 4611686018427387904 {
+    return 3
+}
+
+// Overflow result (2 ** 63 > i64::MAX) deopts — guest checked_pow would
+// fault so the chain stays cold; the interpreter answers the saturated
+// Number i64::MAX (eval_pow's f64→i64 cast).
+let z = powOf(2, 63)
+if z != 9223372036854775807 {
+    return 4
+}
+
+// Zero exponent stays cold (guest contract is exp 1..=64) — the
+// interpreter answers 1.
+let e0 = powOf(9, 0)
+if e0 != 1 {
+    return 5
+}
+
+return 42

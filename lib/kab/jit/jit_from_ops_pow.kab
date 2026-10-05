@@ -1,0 +1,35 @@
+// SH17 widen: ops-driven pow fusion — `return a ** b` (load0, load1, pow,
+// ret) extracts to const/const/pow/ret and lowers to the guest pow
+// template (magic 109, n**k via checked_pow). import
+// "kab/jit/jit_from_ops_pow". Do not grow jit_from_ops_mod.kab.
+
+import "kab/jit"
+import "kab/jit/jit_from_ops"
+import "kab/jit/jit_pow"
+import "kab/jit/jit_loop_pow"
+import "kab/jit/jit_mm_loop_pow"
+import "kab/jit/jit_call_loop_pow"
+
+/// Compile a fusible pow chain into the pow template and exec it in the
+/// guest MMU; true when guest rax matches jitPowRax.
+pub fn jitFromOpsPowOk(ops, n, k) {
+    if jitCanCompile(ops) == false {
+        return false
+    }
+    if jitPowOpsOk(ops) == false {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        if jitOpOk(ops[i]) == false {
+            return false
+        }
+        i = i + 1
+    }
+    if jitPowArgsOk(n, k) == false {
+        return false
+    }
+    let bytes = jitEmitI64LoopPowN(n, k)
+    let m = os_mm_mmap(jitMmLoopPowPid(), jitMmLoopPowVirt(), jitMmLoopPowLen(), jitMmLoopPowProt())
+    return jitCallLoopPowOk(m, "rwx", n, k, bytes)
+}

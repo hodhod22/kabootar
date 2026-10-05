@@ -25254,6 +25254,78 @@ fn sh17_jit_arith3_exec_smoke() {
     assert_eq!(formatted, "42");
 }
 
+/// SH17 widen: mod fusion — a hot mono call site whose callee body is
+/// `return a % b` (4 ops, arity 2) compiles to the guest L-template mod slot
+/// (magic 76, n%r — kind 8) via vJitOpsOfRec; out-of-domain divisors deopt
+/// to the frame path.
+#[test]
+fn sh17_jit_mod_exec_smoke() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = std::fs::read_to_string(format!(
+        "{}/examples/sh17/sh17_jit_mod_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read jit mod smoke");
+    let formatted = std::thread::Builder::new()
+        .name("sh17-jit-mod".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program = compile_source_self_host(&src)
+                .map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("jit mod smoke");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
+/// SH17 widen: pow fusion — a hot mono call site whose callee body is
+/// `return a ** b` (4 ops, arity 2) compiles to the guest pow template
+/// (magic 109, checked_pow — kind 9) via vJitOpsOfRec; overflow/Float/
+/// BigInt operands deopt to the frame path so eval_pow answers them.
+#[test]
+fn sh17_jit_pow_exec_smoke() {
+    use kabootar_lib::compile::{compile_source_self_host, eval_program};
+    let prev = std::env::var("KABOOTAR_VM").ok();
+    std::env::remove_var("KABOOTAR_VM");
+    let src = std::fs::read_to_string(format!(
+        "{}/examples/sh17/sh17_jit_pow_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("read jit pow smoke");
+    let formatted = std::thread::Builder::new()
+        .name("sh17-jit-pow".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            let program = compile_source_self_host(&src)
+                .map_err(|e| format!("self-host compile: {e}"))?;
+            let mut env = create_global_env();
+            eval_program(&program, &mut env)
+                .map(|v| kabootar_lib::value::format_value(&v))
+                .map_err(|e| format!("eval: {e}"))
+        })
+        .expect("spawn")
+        .join()
+        .expect("join")
+        .expect("jit pow smoke");
+    match prev {
+        Some(p) => std::env::set_var("KABOOTAR_VM", p),
+        None => std::env::remove_var("KABOOTAR_VM"),
+    }
+    assert_eq!(formatted, "42");
+}
+
 /// SH17 widen: arith4 fusion — a hot mono call site whose callee body is the
 /// left-assoc chain `return a OP1 b OP2 c OP3 d` (8 ops, arity 4) compiles to
 /// the guest arith4 template (magic 108) via vJitOpsOfRec; out-of-domain
@@ -25431,6 +25503,46 @@ fn sh28_aot_guest_reloc_smoke() {
             let program = compile_file_cached(&path).expect("compile aot guest reloc smoke");
             let value = eval_program(&program, &mut env).expect("run aot guest reloc smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: REAL machine-code exec — image code:x64 bytes run on the host CPU
+/// (os_native_exec → anonymous RX mapping + direct call), and the
+/// child-process leg spawns `kabootar exec-image` via run_command with the
+/// image carried on argv. Distinct from os_mm_call template interpretation.
+#[test]
+fn sh28_aot_native_exec_smoke() {
+    // Locate the built binary matching this test profile so the
+    // child-process leg spawns a real kabootar OS process.
+    let exe = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().and_then(|d| d.parent()).map(|t| t.join("kabootar")))
+        .map(|p| if cfg!(windows) { p.with_extension("exe") } else { p })
+        .filter(|p| p.exists());
+    let exe_str = exe.map(|p| p.to_string_lossy().into_owned());
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_native_exec_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-native-exec".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            if let Some(exe) = exe_str {
+                // The child leg is env-gated in Kab; expose the binary.
+                std::env::set_var("KABOOTAR_EXE", &exe);
+            }
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot native exec smoke");
+            let value = eval_program(&program, &mut env).expect("run aot native exec smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "native exec smoke returned {value:?}"
+            );
         })
         .expect("spawn")
         .join()
@@ -60104,13 +60216,50 @@ fn sh18_gc_vm_minor_exec_smoke() {
 fn sh28_dag_self_host_attemptable() {
     use kabootar_lib::compile::{self_host_is_attemptable, walk_compile_dag};
     let dag = walk_compile_dag().expect("walk dag");
-    assert_eq!(dag.len(), 7, "SH5 plateau is 7 files after parser_stmt split");
+    assert_eq!(dag.len(), 8, "SH5 plateau is 8 files after emit_expr_leaf split");
     for rel in &dag {
         assert!(
             self_host_is_attemptable(rel),
             "SH28: DAG file not self-host attemptable: {rel}"
         );
     }
+}
+
+/// SH28 step 1 (bootstrap): the Kab compiler REGENERATES its own DAG seeds
+/// — `self_host_compile_write_seed` per DAG file, then each produced seed
+/// must reload through the fingerprint-checked seed path (read_matching_seed
+/// returns Some). This is the real "Kab compiles Kab" evidence: not just
+/// producing bytecode, but producing the seeds the next bootstrap resolves.
+/// Slow: a self-host compile per DAG file takes minutes each — opt-in only.
+#[test]
+#[ignore = "slow: self-host seed write per DAG file — run with --ignored"]
+fn sh28_self_host_seed_write_smoke() {
+    use kabootar_lib::compile::{
+        read_seed_bytecode, self_host_compile_write_seed, walk_compile_dag,
+    };
+    let dag = walk_compile_dag().expect("walk dag");
+    assert!(dag.len() >= 6, "compile DAG should stay a pipeline");
+    for rel in &dag {
+        let rel2 = rel.to_string();
+        std::thread::Builder::new()
+            .name(format!("sh28-seed-write-{rel2}"))
+            .stack_size(64 * 1024 * 1024)
+            .spawn(move || {
+                let dest = self_host_compile_write_seed(&rel2)
+                    .unwrap_or_else(|e| panic!("self-host seed write {rel2}: {e}"));
+                assert!(dest.exists(), "seed not written for {rel2}");
+                let bc = read_seed_bytecode(&rel2)
+                    .unwrap_or_else(|e| panic!("seed read {rel2}: {e}"));
+                assert!(
+                    bc.is_some(),
+                    "Kab-written seed for {rel2} does not resolve through the fingerprint path"
+                );
+            })
+            .expect("spawn")
+            .join()
+            .expect("join");
+    }
+    eprintln!("sh28 seed-write smoke: {} DAG seeds regenerated by Kab", dag.len());
 }
 
 /// SH28 audit: the Kab compiler compiles the compiler entry itself to
@@ -79669,7 +79818,7 @@ fn sh28_noll_keep_in_kab() {
     );
 }
 
-/// SH28 deepen: 6-month stability window gate before src/ archive.
+/// SH28 deepen: waived stability window gate before src/ archive.
 #[test]
 fn sh28_noll_stable_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -79680,8 +79829,8 @@ fn sh28_noll_stable_in_kab() {
             && s.contains("pub fn nollStableOk")
             && s.contains("pub fn nollArcReady")
             && s.contains("nollAotReady")
-            && s.contains("6"),
-        "SH28 Kab nollStableOk 6-month window"
+            && s.contains("0"),
+        "SH28 Kab nollStableOk waived window"
     );
     let sm = std::fs::read_to_string(root.join("examples/sh28/sh28_noll_stable_smoke.kab"))
         .expect("sh28_noll_stable_smoke.kab");

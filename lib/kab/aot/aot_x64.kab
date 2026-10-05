@@ -1,0 +1,105 @@
+// SH28: real x86-64 emitters — the AOT image's code:x64 payload is actual
+// machine code, not simulated guest-template magic. import
+// "kab/aot/aot_x64". Domain mirrors the simulated templates (n,k 1..=64).
+
+import "kab/jit/jit_fuse_cmp"
+import "kab/jit/jit_loop_n"
+
+/// Push a little-endian imm32.
+fn x64PushImm32(b, v) {
+    b = push(b, v % 256)
+    b = push(b, (v / 256) % 256)
+    b = push(b, (v / 65536) % 256)
+    b = push(b, (v / 16777216) % 256)
+    return b
+}
+
+/// setcc opcode byte for a predicate magic: 85 eq→94, 86 ne→95, 87 lt→9C,
+/// 88 gt→9F, 89 le→9E, 90 ge→9D, 91 test→95 (setne on the AND result).
+/// 0 when the magic is not a predicate.
+pub fn aotX64Setcc(magic) {
+    if magic == 85 {
+        return 148
+    }
+    if magic == 86 {
+        return 149
+    }
+    if magic == 87 {
+        return 156
+    }
+    if magic == 88 {
+        return 159
+    }
+    if magic == 89 {
+        return 158
+    }
+    if magic == 90 {
+        return 157
+    }
+    if magic == 91 {
+        return 149
+    }
+    return 0
+}
+
+/// Real x64 fused-cmp code: mov eax,n; mov ecx,k; cmp eax,ecx (test:
+/// 85 C1); setCC al; movzx eax,al; ret → rax = jitFuseCmpRax(n,k,magic).
+/// SysV/Win64-agnostic (no args, no stack use, callee-saved untouched).
+pub fn aotX64EmitCmp(magic, n, k) {
+    if jitFuseCmpMagicOk(magic) == false {
+        return []
+    }
+    if jitFuseCmpOk(n, k) == false {
+        return []
+    }
+    let b = []
+    b = push(b, 184)
+    b = x64PushImm32(b, n)
+    b = push(b, 185)
+    b = x64PushImm32(b, k)
+    // 39 C8 = CMP eax,ecx (r/m=eax, reg=ecx); 85 C8 = TEST eax,ecx.
+    if magic == 91 {
+        b = push(b, 133)
+    } else {
+        b = push(b, 57)
+    }
+    b = push(b, 200)
+    b = push(b, 15)
+    b = push(b, aotX64Setcc(magic))
+    b = push(b, 192)
+    b = push(b, 15)
+    b = push(b, 182)
+    b = push(b, 192)
+    b = push(b, 195)
+    return b
+}
+
+// mov eax,imm32 (5) + mov ecx,imm32 (5) + cmp/test (2) + setcc (3) +
+// movzx (3) + ret (1).
+pub fn aotX64CmpLen() {
+    return 19
+}
+
+/// Real x64 countdown: mov eax,n; loop: sub eax,1; jne loop; ret → rax = 0.
+/// Proves a real backward conditional jump executes on the host CPU.
+/// Domain: n 1..=64 (jitLoopNOk); n=0 would spin ~2^32 iterations.
+pub fn aotX64EmitCountdown(n) {
+    if jitLoopNOk(n) == false {
+        return []
+    }
+    let b = []
+    b = push(b, 184)
+    b = x64PushImm32(b, n)
+    b = push(b, 131)
+    b = push(b, 232)
+    b = push(b, 1)
+    b = push(b, 117)
+    b = push(b, 251)
+    b = push(b, 195)
+    return b
+}
+
+// mov eax,imm32 (5) + sub eax,1 (3) + jne -5 (2) + ret (1).
+pub fn aotX64CountdownLen() {
+    return 11
+}

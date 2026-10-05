@@ -1,0 +1,48 @@
+// SH17 widen: mod fusion through the REAL ops loop — a hot monomorphic call
+// site whose callee body is `return a % b` compiles to the guest L-template
+// mod slot (magic 76, n%r): vJitClassifyS → vJitMaybeCompileS → vJitOpsOfRec
+// extracts const/const/mod/ret (kind 8) → jitFromOpsModOk execs + mirror
+// validates instead of a frame.
+
+// rem computes a % b — the binary mod chain shape.
+fn rem(a, b) {
+    return a % b
+}
+
+// Drive the site hot: 12 calls at one ip compile the rec.
+let acc = 0
+let i = 0
+while i < 12 {
+    acc = rem(30, 7)
+    i = i + 1
+}
+// 30 % 7 = 2 — same value via template or frame.
+if acc != 2 {
+    return 1
+}
+
+// Second mod site: 17 % 5 = 2 (r < n inside the guest contract).
+let acc2 = 0
+let j = 0
+while j < 12 {
+    acc2 = rem(17, 5)
+    j = j + 1
+}
+if acc2 != 2 {
+    return 2
+}
+
+// Out-of-domain divisor (r >= n) deopts to the frame path — same value.
+let w = rem(3, 7)
+if w != 3 {
+    return 3
+}
+
+// Out-of-domain divisor zero would fault in the guest — the interpreter
+// raises instead, so verify only the still-legal zero-free case here.
+let z = rem(9, 4)
+if z != 1 {
+    return 4
+}
+
+return 42

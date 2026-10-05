@@ -104,7 +104,9 @@ pub fn runOpsPlainNewS(S, name, arg, op, pool, globals, functions) {
 }
 
 // --- vm_run_ops_step_raw ---
-/// Dispatch tagged family, else plain/new then call. Returns raw st (0/1/2).
+/// Dispatch tagged family, else plain/new then call. Returns raw st (0/1/2)
+/// — no result object: this runs once per op and a {st,name} alloc per op
+/// was pure overhead; the name is recoverable as ops[ipBefore]["op"].
 pub fn runOpsStepRawS(S, ops, pool, globals, functions) {
     let op = ops[S["ip"]]
     let name = op["op"]
@@ -120,16 +122,15 @@ pub fn runOpsStepRawS(S, ops, pool, globals, functions) {
             st = runOpCallS(S, name, arg, op, pool, globals, functions)
         }
     }
-    return { "st": st, "name": name }
+    return st
 }
 
 // --- vm_run_ops_step ---
 pub fn runOpsStepS(S, ops, pool, globals, functions) {
     let ipBefore = S["ip"]
-    let r = runOpsStepRawS(S, ops, pool, globals, functions)
-    let st = r["st"]
+    let st = runOpsStepRawS(S, ops, pool, globals, functions)
     if st == 0 {
-        throw "vm unsupported opcode: " + r["name"]
+        throw "vm unsupported opcode: " + ops[ipBefore]["op"]
     }
     // Back-edge: any jump landing below its own ip hits a loop header —
     // count it; jitOsrOk arms the header once hot (OSR compile gate).

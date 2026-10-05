@@ -1,0 +1,28 @@
+// SH17 widen: translate+store for loop-pow template. import
+// "kab/jit/jit_wr_loop_pow". Do not grow jit_wr_loop_mod.kab.
+
+import "kab/jit/jit_patch_loop_pow"
+import "kab/jit/jit_mm_loop_pow"
+import "kab/jit/jit_mm_store_loop_pow"
+import "kab/jit/jit_loop_pow"
+
+pub fn jitWrLoopPowOk(bytes, n, k) {
+    if jitPatchLoopPowOk(bytes, n, k) == false {
+        return false
+    }
+    let pid = jitMmLoopPowPid()
+    let virt = jitMmLoopPowVirt()
+    let p0 = os_mm_translate(pid, virt)
+    if p0 <= 0 {
+        return false
+    }
+    let p7 = os_mm_translate(pid, virt + 7)
+    if p7 <= 0 {
+        return false
+    }
+    let w = jitMmStoreLoopPow(bytes, n, k)
+    if w != jitLoopPowLen() {
+        return false
+    }
+    return true
+}

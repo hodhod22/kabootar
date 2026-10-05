@@ -38,6 +38,9 @@ pub fn run(args: &[String]) -> i32 {
         "install" => install_cmd(&args[1..]),
         "publish" => publish_cmd(&args[1..]),
         "mod" => mod_cmd(&args[1..]),
+        // SH28 real-process leg: `kabootar exec-image <native-image>` runs
+        // the image's machine-code section on the host CPU and prints rax.
+        "exec-image" => exec_image_cmd(&args[1..]),
         "--version" | "-V" => {
             println!("Kabootar v{VERSION}");
             0
@@ -101,6 +104,26 @@ Examples:
   kabootar serve --watch main.kab
 "
     );
+}
+
+/// SH28: `kabootar exec-image <path>` — load a `kabootar-native/1` image,
+/// exec its host-arch code section on the real CPU, print rax. This is the
+/// real-OS-process leg of the AOT gate (child of run_command callers).
+fn exec_image_cmd(args: &[String]) -> i32 {
+    let Some(path) = args.first() else {
+        eprintln!("Usage: kabootar exec-image <native-image>");
+        return 2;
+    };
+    match crate::runtime::native_exec::exec_image_arg(path) {
+        Ok(v) => {
+            println!("{v}");
+            0
+        }
+        Err(e) => {
+            eprintln!("exec-image: {e}");
+            1
+        }
+    }
 }
 
 fn notebook_cmd(args: &[String]) -> i32 {

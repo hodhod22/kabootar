@@ -186,6 +186,25 @@ functions=17
 fn 0 parseStmt_class_field
 fn_params 0 sess
 fn_locals 0 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6,__kab_a7,__kab_a8
+fn_const 0 0 string pCur
+fn_const 0 1 string pTok
+fn_const 0 2 string type
+fn_const 0 3 string Expected\sfield\sname
+fn_const 0 4 null
+fn_const 0 5 string value
+fn_const 0 6 string pSaveSym
+fn_const 0 7 string 
+fn_const 0 8 string pFieldType
+fn_const 0 9 string :
+fn_const 0 10 string Expected\sfield\stype
+fn_const 0 11 string pFieldDefault
+fn_const 0 12 string =
+fn_const 0 13 string ;
+fn_const 0 14 string name
+fn_const 0 15 string default
+fn_const 0 16 string pVal
+fn_const 0 17 string pClassFields
+fn_const 0 18 number 0
 fn_op 0 load_local 0
 fn_op 0 get_member 0
 fn_op 0 store_local 1
@@ -354,6 +373,29 @@ fn_arrows 0 0
 fn 1 parseStmt_class_assoc
 fn_params 1 sess
 fn_locals 1 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3
+fn_const 1 0 string pCur
+fn_const 1 1 string pTok
+fn_const 1 2 string type
+fn_const 1 3 string Expected\sfield\sname
+fn_const 1 4 null
+fn_const 1 5 string value
+fn_const 1 6 string pSaveSym
+fn_const 1 7 string 
+fn_const 1 8 string pFieldType
+fn_const 1 9 string :
+fn_const 1 10 string Expected\sfield\stype
+fn_const 1 11 string pFieldDefault
+fn_const 1 12 string =
+fn_const 1 13 string ;
+fn_const 1 14 string name
+fn_const 1 15 string default
+fn_const 1 16 string pVal
+fn_const 1 17 string pClassFields
+fn_const 1 18 number 0
+fn_const 1 19 string Expected\sassociated\stype\sname
+fn_const 1 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 1 21 string Expected\sassociated\stype\svalue
+fn_const 1 22 string pClassAssoc
 fn_op 1 load_local 0
 fn_op 1 load_global 1
 fn_op 1 call 1
@@ -464,6 +506,52 @@ fn_arrows 1 0
 fn 2 parseStmt_class_method_body
 fn_params 2 sess
 fn_locals 2 sess,methParams,mpi,methParamTypes,methParamDefaults,methRest,methSym,methWhere,methTypeParams,methBody,__kab_a0,__kab_a1
+fn_const 2 0 string pCur
+fn_const 2 1 string pTok
+fn_const 2 2 string type
+fn_const 2 3 string Expected\sfield\sname
+fn_const 2 4 null
+fn_const 2 5 string value
+fn_const 2 6 string pSaveSym
+fn_const 2 7 string 
+fn_const 2 8 string pFieldType
+fn_const 2 9 string :
+fn_const 2 10 string Expected\sfield\stype
+fn_const 2 11 string pFieldDefault
+fn_const 2 12 string =
+fn_const 2 13 string ;
+fn_const 2 14 string name
+fn_const 2 15 string default
+fn_const 2 16 string pVal
+fn_const 2 17 string pClassFields
+fn_const 2 18 number 0
+fn_const 2 19 string Expected\sassociated\stype\sname
+fn_const 2 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 2 21 string Expected\sassociated\stype\svalue
+fn_const 2 22 string pClassAssoc
+fn_const 2 23 string {
+fn_const 2 24 string Expected\s{
+fn_const 2 25 string pMethParams
+fn_const 2 26 undefined
+fn_const 2 27 number 1
+fn_const 2 28 string pMethParamTypes
+fn_const 2 29 string pMethParamDefaults
+fn_const 2 30 string pMethRest
+fn_const 2 31 string pFnSym
+fn_const 2 32 string pMethWhere
+fn_const 2 33 string pMethTypeParams
+fn_const 2 34 string Unclosed\sblock
+fn_const 2 35 string sym
+fn_const 2 36 string typeParams
+fn_const 2 37 string params
+fn_const 2 38 string paramTypes
+fn_const 2 39 string paramDefaults
+fn_const 2 40 string rest
+fn_const 2 41 string returnType
+fn_const 2 42 string whereClause
+fn_const 2 43 string kind
+fn_const 2 44 string body
+fn_const 2 45 string pClassMethods
 fn_op 2 load_local 0
 fn_op 2 get_member 0
 fn_op 2 get_member 2
@@ -674,6 +762,65 @@ fn_arrows 2 0
 fn 3 parseStmt_class_method_params
 fn_params 3 sess
 fn_locals 3 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3,sawDefault,__kab_a4,__kab_a5,restName,__kab_a6,__kab_a7,__kab_a8,__kab_a9,__kab_a10,__kab_a11,__kab_a12,__kab_a13,__kab_a14,def,__kab_a15
+fn_const 3 0 string pCur
+fn_const 3 1 string pTok
+fn_const 3 2 string type
+fn_const 3 3 string Expected\sfield\sname
+fn_const 3 4 null
+fn_const 3 5 string value
+fn_const 3 6 string pSaveSym
+fn_const 3 7 string 
+fn_const 3 8 string pFieldType
+fn_const 3 9 string :
+fn_const 3 10 string Expected\sfield\stype
+fn_const 3 11 string pFieldDefault
+fn_const 3 12 string =
+fn_const 3 13 string ;
+fn_const 3 14 string name
+fn_const 3 15 string default
+fn_const 3 16 string pVal
+fn_const 3 17 string pClassFields
+fn_const 3 18 number 0
+fn_const 3 19 string Expected\sassociated\stype\sname
+fn_const 3 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 3 21 string Expected\sassociated\stype\svalue
+fn_const 3 22 string pClassAssoc
+fn_const 3 23 string {
+fn_const 3 24 string Expected\s{
+fn_const 3 25 string pMethParams
+fn_const 3 26 undefined
+fn_const 3 27 number 1
+fn_const 3 28 string pMethParamTypes
+fn_const 3 29 string pMethParamDefaults
+fn_const 3 30 string pMethRest
+fn_const 3 31 string pFnSym
+fn_const 3 32 string pMethWhere
+fn_const 3 33 string pMethTypeParams
+fn_const 3 34 string Unclosed\sblock
+fn_const 3 35 string sym
+fn_const 3 36 string typeParams
+fn_const 3 37 string params
+fn_const 3 38 string paramTypes
+fn_const 3 39 string paramDefaults
+fn_const 3 40 string rest
+fn_const 3 41 string returnType
+fn_const 3 42 string whereClause
+fn_const 3 43 string kind
+fn_const 3 44 string body
+fn_const 3 45 string pClassMethods
+fn_const 3 46 string )
+fn_const 3 47 bool true
+fn_const 3 48 string &
+fn_const 3 49 string mut
+fn_const 3 50 string Expected\sself\safter\s&
+fn_const 3 51 string ...
+fn_const 3 52 string Expected\srest\sparameter\sname
+fn_const 3 53 string ,
+fn_const 3 54 string Rest\sparameter\smust\sbe\slast
+fn_const 3 55 string Expected\sparameter\sname
+fn_const 3 56 string pParamType
+fn_const 3 57 string Expected\sparameter\stype
+fn_const 3 58 string Non-default\sparameter\safter\sdefault\sparameter
 fn_op 3 make_array 0
 fn_op 3 store_local 1
 fn_op 3 load_local 0
@@ -1039,6 +1186,73 @@ fn_arrows 3 0
 fn 4 parseStmt_enum_name
 fn_params 4 sess
 fn_locals 4 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6,__kab_a7,__kab_a8
+fn_const 4 0 string pCur
+fn_const 4 1 string pTok
+fn_const 4 2 string type
+fn_const 4 3 string Expected\sfield\sname
+fn_const 4 4 null
+fn_const 4 5 string value
+fn_const 4 6 string pSaveSym
+fn_const 4 7 string 
+fn_const 4 8 string pFieldType
+fn_const 4 9 string :
+fn_const 4 10 string Expected\sfield\stype
+fn_const 4 11 string pFieldDefault
+fn_const 4 12 string =
+fn_const 4 13 string ;
+fn_const 4 14 string name
+fn_const 4 15 string default
+fn_const 4 16 string pVal
+fn_const 4 17 string pClassFields
+fn_const 4 18 number 0
+fn_const 4 19 string Expected\sassociated\stype\sname
+fn_const 4 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 4 21 string Expected\sassociated\stype\svalue
+fn_const 4 22 string pClassAssoc
+fn_const 4 23 string {
+fn_const 4 24 string Expected\s{
+fn_const 4 25 string pMethParams
+fn_const 4 26 undefined
+fn_const 4 27 number 1
+fn_const 4 28 string pMethParamTypes
+fn_const 4 29 string pMethParamDefaults
+fn_const 4 30 string pMethRest
+fn_const 4 31 string pFnSym
+fn_const 4 32 string pMethWhere
+fn_const 4 33 string pMethTypeParams
+fn_const 4 34 string Unclosed\sblock
+fn_const 4 35 string sym
+fn_const 4 36 string typeParams
+fn_const 4 37 string params
+fn_const 4 38 string paramTypes
+fn_const 4 39 string paramDefaults
+fn_const 4 40 string rest
+fn_const 4 41 string returnType
+fn_const 4 42 string whereClause
+fn_const 4 43 string kind
+fn_const 4 44 string body
+fn_const 4 45 string pClassMethods
+fn_const 4 46 string )
+fn_const 4 47 bool true
+fn_const 4 48 string &
+fn_const 4 49 string mut
+fn_const 4 50 string Expected\sself\safter\s&
+fn_const 4 51 string ...
+fn_const 4 52 string Expected\srest\sparameter\sname
+fn_const 4 53 string ,
+fn_const 4 54 string Rest\sparameter\smust\sbe\slast
+fn_const 4 55 string Expected\sparameter\sname
+fn_const 4 56 string pParamType
+fn_const 4 57 string Expected\sparameter\stype
+fn_const 4 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 4 59 string pVariantName
+fn_const 4 60 string None
+fn_const 4 61 string Some
+fn_const 4 62 string Ok
+fn_const 4 63 string Err
+fn_const 4 64 string True
+fn_const 4 65 string False
+fn_const 4 66 string Expected\svariant\sname
 fn_op 4 load_local 0
 fn_op 4 get_member 0
 fn_op 4 store_local 1
@@ -1214,6 +1428,81 @@ fn_arrows 4 0
 fn 5 parseStmt_fn_where
 fn_params 5 sess
 fn_locals 5 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5
+fn_const 5 0 string pCur
+fn_const 5 1 string pTok
+fn_const 5 2 string type
+fn_const 5 3 string Expected\sfield\sname
+fn_const 5 4 null
+fn_const 5 5 string value
+fn_const 5 6 string pSaveSym
+fn_const 5 7 string 
+fn_const 5 8 string pFieldType
+fn_const 5 9 string :
+fn_const 5 10 string Expected\sfield\stype
+fn_const 5 11 string pFieldDefault
+fn_const 5 12 string =
+fn_const 5 13 string ;
+fn_const 5 14 string name
+fn_const 5 15 string default
+fn_const 5 16 string pVal
+fn_const 5 17 string pClassFields
+fn_const 5 18 number 0
+fn_const 5 19 string Expected\sassociated\stype\sname
+fn_const 5 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 5 21 string Expected\sassociated\stype\svalue
+fn_const 5 22 string pClassAssoc
+fn_const 5 23 string {
+fn_const 5 24 string Expected\s{
+fn_const 5 25 string pMethParams
+fn_const 5 26 undefined
+fn_const 5 27 number 1
+fn_const 5 28 string pMethParamTypes
+fn_const 5 29 string pMethParamDefaults
+fn_const 5 30 string pMethRest
+fn_const 5 31 string pFnSym
+fn_const 5 32 string pMethWhere
+fn_const 5 33 string pMethTypeParams
+fn_const 5 34 string Unclosed\sblock
+fn_const 5 35 string sym
+fn_const 5 36 string typeParams
+fn_const 5 37 string params
+fn_const 5 38 string paramTypes
+fn_const 5 39 string paramDefaults
+fn_const 5 40 string rest
+fn_const 5 41 string returnType
+fn_const 5 42 string whereClause
+fn_const 5 43 string kind
+fn_const 5 44 string body
+fn_const 5 45 string pClassMethods
+fn_const 5 46 string )
+fn_const 5 47 bool true
+fn_const 5 48 string &
+fn_const 5 49 string mut
+fn_const 5 50 string Expected\sself\safter\s&
+fn_const 5 51 string ...
+fn_const 5 52 string Expected\srest\sparameter\sname
+fn_const 5 53 string ,
+fn_const 5 54 string Rest\sparameter\smust\sbe\slast
+fn_const 5 55 string Expected\sparameter\sname
+fn_const 5 56 string pParamType
+fn_const 5 57 string Expected\sparameter\stype
+fn_const 5 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 5 59 string pVariantName
+fn_const 5 60 string None
+fn_const 5 61 string Some
+fn_const 5 62 string Ok
+fn_const 5 63 string Err
+fn_const 5 64 string True
+fn_const 5 65 string False
+fn_const 5 66 string Expected\svariant\sname
+fn_const 5 67 string pWhereClause
+fn_const 5 68 string Expected\stype\sparameter\sin\swhere
+fn_const 5 69 string pWhereParam
+fn_const 5 70 string Expected\s:\sin\swhere
+fn_const 5 71 string Expected\strait\sname\sin\swhere
+fn_const 5 72 string pWhereTrait
+fn_const 5 73 string typeParam
+fn_const 5 74 string traitName
 fn_op 5 make_array 0
 fn_op 5 store_local 1
 fn_op 5 load_local 0
@@ -1354,6 +1643,83 @@ fn_arrows 5 0
 fn 6 parseStmt_iface_assoc
 fn_params 6 sess
 fn_locals 6 sess,__kab_a0,__kab_a1
+fn_const 6 0 string pCur
+fn_const 6 1 string pTok
+fn_const 6 2 string type
+fn_const 6 3 string Expected\sfield\sname
+fn_const 6 4 null
+fn_const 6 5 string value
+fn_const 6 6 string pSaveSym
+fn_const 6 7 string 
+fn_const 6 8 string pFieldType
+fn_const 6 9 string :
+fn_const 6 10 string Expected\sfield\stype
+fn_const 6 11 string pFieldDefault
+fn_const 6 12 string =
+fn_const 6 13 string ;
+fn_const 6 14 string name
+fn_const 6 15 string default
+fn_const 6 16 string pVal
+fn_const 6 17 string pClassFields
+fn_const 6 18 number 0
+fn_const 6 19 string Expected\sassociated\stype\sname
+fn_const 6 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 6 21 string Expected\sassociated\stype\svalue
+fn_const 6 22 string pClassAssoc
+fn_const 6 23 string {
+fn_const 6 24 string Expected\s{
+fn_const 6 25 string pMethParams
+fn_const 6 26 undefined
+fn_const 6 27 number 1
+fn_const 6 28 string pMethParamTypes
+fn_const 6 29 string pMethParamDefaults
+fn_const 6 30 string pMethRest
+fn_const 6 31 string pFnSym
+fn_const 6 32 string pMethWhere
+fn_const 6 33 string pMethTypeParams
+fn_const 6 34 string Unclosed\sblock
+fn_const 6 35 string sym
+fn_const 6 36 string typeParams
+fn_const 6 37 string params
+fn_const 6 38 string paramTypes
+fn_const 6 39 string paramDefaults
+fn_const 6 40 string rest
+fn_const 6 41 string returnType
+fn_const 6 42 string whereClause
+fn_const 6 43 string kind
+fn_const 6 44 string body
+fn_const 6 45 string pClassMethods
+fn_const 6 46 string )
+fn_const 6 47 bool true
+fn_const 6 48 string &
+fn_const 6 49 string mut
+fn_const 6 50 string Expected\sself\safter\s&
+fn_const 6 51 string ...
+fn_const 6 52 string Expected\srest\sparameter\sname
+fn_const 6 53 string ,
+fn_const 6 54 string Rest\sparameter\smust\sbe\slast
+fn_const 6 55 string Expected\sparameter\sname
+fn_const 6 56 string pParamType
+fn_const 6 57 string Expected\sparameter\stype
+fn_const 6 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 6 59 string pVariantName
+fn_const 6 60 string None
+fn_const 6 61 string Some
+fn_const 6 62 string Ok
+fn_const 6 63 string Err
+fn_const 6 64 string True
+fn_const 6 65 string False
+fn_const 6 66 string Expected\svariant\sname
+fn_const 6 67 string pWhereClause
+fn_const 6 68 string Expected\stype\sparameter\sin\swhere
+fn_const 6 69 string pWhereParam
+fn_const 6 70 string Expected\s:\sin\swhere
+fn_const 6 71 string Expected\strait\sname\sin\swhere
+fn_const 6 72 string pWhereTrait
+fn_const 6 73 string typeParam
+fn_const 6 74 string traitName
+fn_const 6 75 string pAssocTypes
+fn_const 6 76 string Expected\s;\safter\sassociated\stype
 fn_op 6 load_local 0
 fn_op 6 get_member 0
 fn_op 6 get_member 2
@@ -1432,6 +1798,90 @@ fn_arrows 6 0
 fn 7 parseStmt_iface_meth_sig
 fn_params 7 sess
 fn_locals 7 sess,__kab_a0,__kab_a1
+fn_const 7 0 string pCur
+fn_const 7 1 string pTok
+fn_const 7 2 string type
+fn_const 7 3 string Expected\sfield\sname
+fn_const 7 4 null
+fn_const 7 5 string value
+fn_const 7 6 string pSaveSym
+fn_const 7 7 string 
+fn_const 7 8 string pFieldType
+fn_const 7 9 string :
+fn_const 7 10 string Expected\sfield\stype
+fn_const 7 11 string pFieldDefault
+fn_const 7 12 string =
+fn_const 7 13 string ;
+fn_const 7 14 string name
+fn_const 7 15 string default
+fn_const 7 16 string pVal
+fn_const 7 17 string pClassFields
+fn_const 7 18 number 0
+fn_const 7 19 string Expected\sassociated\stype\sname
+fn_const 7 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 7 21 string Expected\sassociated\stype\svalue
+fn_const 7 22 string pClassAssoc
+fn_const 7 23 string {
+fn_const 7 24 string Expected\s{
+fn_const 7 25 string pMethParams
+fn_const 7 26 undefined
+fn_const 7 27 number 1
+fn_const 7 28 string pMethParamTypes
+fn_const 7 29 string pMethParamDefaults
+fn_const 7 30 string pMethRest
+fn_const 7 31 string pFnSym
+fn_const 7 32 string pMethWhere
+fn_const 7 33 string pMethTypeParams
+fn_const 7 34 string Unclosed\sblock
+fn_const 7 35 string sym
+fn_const 7 36 string typeParams
+fn_const 7 37 string params
+fn_const 7 38 string paramTypes
+fn_const 7 39 string paramDefaults
+fn_const 7 40 string rest
+fn_const 7 41 string returnType
+fn_const 7 42 string whereClause
+fn_const 7 43 string kind
+fn_const 7 44 string body
+fn_const 7 45 string pClassMethods
+fn_const 7 46 string )
+fn_const 7 47 bool true
+fn_const 7 48 string &
+fn_const 7 49 string mut
+fn_const 7 50 string Expected\sself\safter\s&
+fn_const 7 51 string ...
+fn_const 7 52 string Expected\srest\sparameter\sname
+fn_const 7 53 string ,
+fn_const 7 54 string Rest\sparameter\smust\sbe\slast
+fn_const 7 55 string Expected\sparameter\sname
+fn_const 7 56 string pParamType
+fn_const 7 57 string Expected\sparameter\stype
+fn_const 7 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 7 59 string pVariantName
+fn_const 7 60 string None
+fn_const 7 61 string Some
+fn_const 7 62 string Ok
+fn_const 7 63 string Err
+fn_const 7 64 string True
+fn_const 7 65 string False
+fn_const 7 66 string Expected\svariant\sname
+fn_const 7 67 string pWhereClause
+fn_const 7 68 string Expected\stype\sparameter\sin\swhere
+fn_const 7 69 string pWhereParam
+fn_const 7 70 string Expected\s:\sin\swhere
+fn_const 7 71 string Expected\strait\sname\sin\swhere
+fn_const 7 72 string pWhereTrait
+fn_const 7 73 string typeParam
+fn_const 7 74 string traitName
+fn_const 7 75 string pAssocTypes
+fn_const 7 76 string Expected\s;\safter\sassociated\stype
+fn_const 7 77 string Expected\smethod\sname
+fn_const 7 78 string (
+fn_const 7 79 string Expected\s(\sat\s
+fn_const 7 80 string line
+fn_const 7 81 string column
+fn_const 7 82 string \stok=
+fn_const 7 83 string Expected\s)
 fn_op 7 load_local 0
 fn_op 7 load_global 1
 fn_op 7 call 1
@@ -1526,6 +1976,93 @@ fn_arrows 7 0
 fn 8 parseStmt_iface_meth_tail
 fn_params 8 sess
 fn_locals 8 sess,ifaceMethParams,ifaceMethSym,ifaceMethDefaults,ifaceMethRest,defBody,__kab_a0,__kab_a1
+fn_const 8 0 string pCur
+fn_const 8 1 string pTok
+fn_const 8 2 string type
+fn_const 8 3 string Expected\sfield\sname
+fn_const 8 4 null
+fn_const 8 5 string value
+fn_const 8 6 string pSaveSym
+fn_const 8 7 string 
+fn_const 8 8 string pFieldType
+fn_const 8 9 string :
+fn_const 8 10 string Expected\sfield\stype
+fn_const 8 11 string pFieldDefault
+fn_const 8 12 string =
+fn_const 8 13 string ;
+fn_const 8 14 string name
+fn_const 8 15 string default
+fn_const 8 16 string pVal
+fn_const 8 17 string pClassFields
+fn_const 8 18 number 0
+fn_const 8 19 string Expected\sassociated\stype\sname
+fn_const 8 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 8 21 string Expected\sassociated\stype\svalue
+fn_const 8 22 string pClassAssoc
+fn_const 8 23 string {
+fn_const 8 24 string Expected\s{
+fn_const 8 25 string pMethParams
+fn_const 8 26 undefined
+fn_const 8 27 number 1
+fn_const 8 28 string pMethParamTypes
+fn_const 8 29 string pMethParamDefaults
+fn_const 8 30 string pMethRest
+fn_const 8 31 string pFnSym
+fn_const 8 32 string pMethWhere
+fn_const 8 33 string pMethTypeParams
+fn_const 8 34 string Unclosed\sblock
+fn_const 8 35 string sym
+fn_const 8 36 string typeParams
+fn_const 8 37 string params
+fn_const 8 38 string paramTypes
+fn_const 8 39 string paramDefaults
+fn_const 8 40 string rest
+fn_const 8 41 string returnType
+fn_const 8 42 string whereClause
+fn_const 8 43 string kind
+fn_const 8 44 string body
+fn_const 8 45 string pClassMethods
+fn_const 8 46 string )
+fn_const 8 47 bool true
+fn_const 8 48 string &
+fn_const 8 49 string mut
+fn_const 8 50 string Expected\sself\safter\s&
+fn_const 8 51 string ...
+fn_const 8 52 string Expected\srest\sparameter\sname
+fn_const 8 53 string ,
+fn_const 8 54 string Rest\sparameter\smust\sbe\slast
+fn_const 8 55 string Expected\sparameter\sname
+fn_const 8 56 string pParamType
+fn_const 8 57 string Expected\sparameter\stype
+fn_const 8 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 8 59 string pVariantName
+fn_const 8 60 string None
+fn_const 8 61 string Some
+fn_const 8 62 string Ok
+fn_const 8 63 string Err
+fn_const 8 64 string True
+fn_const 8 65 string False
+fn_const 8 66 string Expected\svariant\sname
+fn_const 8 67 string pWhereClause
+fn_const 8 68 string Expected\stype\sparameter\sin\swhere
+fn_const 8 69 string pWhereParam
+fn_const 8 70 string Expected\s:\sin\swhere
+fn_const 8 71 string Expected\strait\sname\sin\swhere
+fn_const 8 72 string pWhereTrait
+fn_const 8 73 string typeParam
+fn_const 8 74 string traitName
+fn_const 8 75 string pAssocTypes
+fn_const 8 76 string Expected\s;\safter\sassociated\stype
+fn_const 8 77 string Expected\smethod\sname
+fn_const 8 78 string (
+fn_const 8 79 string Expected\s(\sat\s
+fn_const 8 80 string line
+fn_const 8 81 string column
+fn_const 8 82 string \stok=
+fn_const 8 83 string Expected\s)
+fn_const 8 84 string Unclosed\sdefault\smethod\sbody
+fn_const 8 85 string pIfaceMethods
+fn_const 8 86 string Expected\s;\sor\sdefault\smethod\sbody
 fn_op 8 load_local 0
 fn_op 8 get_member 25
 fn_op 8 store_local 1
@@ -1662,6 +2199,93 @@ fn_arrows 8 0
 fn 9 parseStmt_class_method
 fn_params 9 sess
 fn_locals 9 sess,__kab_a0,__kab_a1,__kab_a2,snapMethWhere,wpi,__kab_a3
+fn_const 9 0 string pCur
+fn_const 9 1 string pTok
+fn_const 9 2 string type
+fn_const 9 3 string Expected\sfield\sname
+fn_const 9 4 null
+fn_const 9 5 string value
+fn_const 9 6 string pSaveSym
+fn_const 9 7 string 
+fn_const 9 8 string pFieldType
+fn_const 9 9 string :
+fn_const 9 10 string Expected\sfield\stype
+fn_const 9 11 string pFieldDefault
+fn_const 9 12 string =
+fn_const 9 13 string ;
+fn_const 9 14 string name
+fn_const 9 15 string default
+fn_const 9 16 string pVal
+fn_const 9 17 string pClassFields
+fn_const 9 18 number 0
+fn_const 9 19 string Expected\sassociated\stype\sname
+fn_const 9 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 9 21 string Expected\sassociated\stype\svalue
+fn_const 9 22 string pClassAssoc
+fn_const 9 23 string {
+fn_const 9 24 string Expected\s{
+fn_const 9 25 string pMethParams
+fn_const 9 26 undefined
+fn_const 9 27 number 1
+fn_const 9 28 string pMethParamTypes
+fn_const 9 29 string pMethParamDefaults
+fn_const 9 30 string pMethRest
+fn_const 9 31 string pFnSym
+fn_const 9 32 string pMethWhere
+fn_const 9 33 string pMethTypeParams
+fn_const 9 34 string Unclosed\sblock
+fn_const 9 35 string sym
+fn_const 9 36 string typeParams
+fn_const 9 37 string params
+fn_const 9 38 string paramTypes
+fn_const 9 39 string paramDefaults
+fn_const 9 40 string rest
+fn_const 9 41 string returnType
+fn_const 9 42 string whereClause
+fn_const 9 43 string kind
+fn_const 9 44 string body
+fn_const 9 45 string pClassMethods
+fn_const 9 46 string )
+fn_const 9 47 bool true
+fn_const 9 48 string &
+fn_const 9 49 string mut
+fn_const 9 50 string Expected\sself\safter\s&
+fn_const 9 51 string ...
+fn_const 9 52 string Expected\srest\sparameter\sname
+fn_const 9 53 string ,
+fn_const 9 54 string Rest\sparameter\smust\sbe\slast
+fn_const 9 55 string Expected\sparameter\sname
+fn_const 9 56 string pParamType
+fn_const 9 57 string Expected\sparameter\stype
+fn_const 9 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 9 59 string pVariantName
+fn_const 9 60 string None
+fn_const 9 61 string Some
+fn_const 9 62 string Ok
+fn_const 9 63 string Err
+fn_const 9 64 string True
+fn_const 9 65 string False
+fn_const 9 66 string Expected\svariant\sname
+fn_const 9 67 string pWhereClause
+fn_const 9 68 string Expected\stype\sparameter\sin\swhere
+fn_const 9 69 string pWhereParam
+fn_const 9 70 string Expected\s:\sin\swhere
+fn_const 9 71 string Expected\strait\sname\sin\swhere
+fn_const 9 72 string pWhereTrait
+fn_const 9 73 string typeParam
+fn_const 9 74 string traitName
+fn_const 9 75 string pAssocTypes
+fn_const 9 76 string Expected\s;\safter\sassociated\stype
+fn_const 9 77 string Expected\smethod\sname
+fn_const 9 78 string (
+fn_const 9 79 string Expected\s(\sat\s
+fn_const 9 80 string line
+fn_const 9 81 string column
+fn_const 9 82 string \stok=
+fn_const 9 83 string Expected\s)
+fn_const 9 84 string Unclosed\sdefault\smethod\sbody
+fn_const 9 85 string pIfaceMethods
+fn_const 9 86 string Expected\s;\sor\sdefault\smethod\sbody
 fn_op 9 load_local 0
 fn_op 9 get_member 0
 fn_op 9 get_member 2
@@ -1823,6 +2447,98 @@ fn_arrows 9 0
 fn 10 parseStmt_enum_variant
 fn_params 10 sess
 fn_locals 10 sess,__kab_a0,__kab_a1,__kab_a2,__kab_a3
+fn_const 10 0 string pCur
+fn_const 10 1 string pTok
+fn_const 10 2 string type
+fn_const 10 3 string Expected\sfield\sname
+fn_const 10 4 null
+fn_const 10 5 string value
+fn_const 10 6 string pSaveSym
+fn_const 10 7 string 
+fn_const 10 8 string pFieldType
+fn_const 10 9 string :
+fn_const 10 10 string Expected\sfield\stype
+fn_const 10 11 string pFieldDefault
+fn_const 10 12 string =
+fn_const 10 13 string ;
+fn_const 10 14 string name
+fn_const 10 15 string default
+fn_const 10 16 string pVal
+fn_const 10 17 string pClassFields
+fn_const 10 18 number 0
+fn_const 10 19 string Expected\sassociated\stype\sname
+fn_const 10 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 10 21 string Expected\sassociated\stype\svalue
+fn_const 10 22 string pClassAssoc
+fn_const 10 23 string {
+fn_const 10 24 string Expected\s{
+fn_const 10 25 string pMethParams
+fn_const 10 26 undefined
+fn_const 10 27 number 1
+fn_const 10 28 string pMethParamTypes
+fn_const 10 29 string pMethParamDefaults
+fn_const 10 30 string pMethRest
+fn_const 10 31 string pFnSym
+fn_const 10 32 string pMethWhere
+fn_const 10 33 string pMethTypeParams
+fn_const 10 34 string Unclosed\sblock
+fn_const 10 35 string sym
+fn_const 10 36 string typeParams
+fn_const 10 37 string params
+fn_const 10 38 string paramTypes
+fn_const 10 39 string paramDefaults
+fn_const 10 40 string rest
+fn_const 10 41 string returnType
+fn_const 10 42 string whereClause
+fn_const 10 43 string kind
+fn_const 10 44 string body
+fn_const 10 45 string pClassMethods
+fn_const 10 46 string )
+fn_const 10 47 bool true
+fn_const 10 48 string &
+fn_const 10 49 string mut
+fn_const 10 50 string Expected\sself\safter\s&
+fn_const 10 51 string ...
+fn_const 10 52 string Expected\srest\sparameter\sname
+fn_const 10 53 string ,
+fn_const 10 54 string Rest\sparameter\smust\sbe\slast
+fn_const 10 55 string Expected\sparameter\sname
+fn_const 10 56 string pParamType
+fn_const 10 57 string Expected\sparameter\stype
+fn_const 10 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 10 59 string pVariantName
+fn_const 10 60 string None
+fn_const 10 61 string Some
+fn_const 10 62 string Ok
+fn_const 10 63 string Err
+fn_const 10 64 string True
+fn_const 10 65 string False
+fn_const 10 66 string Expected\svariant\sname
+fn_const 10 67 string pWhereClause
+fn_const 10 68 string Expected\stype\sparameter\sin\swhere
+fn_const 10 69 string pWhereParam
+fn_const 10 70 string Expected\s:\sin\swhere
+fn_const 10 71 string Expected\strait\sname\sin\swhere
+fn_const 10 72 string pWhereTrait
+fn_const 10 73 string typeParam
+fn_const 10 74 string traitName
+fn_const 10 75 string pAssocTypes
+fn_const 10 76 string Expected\s;\safter\sassociated\stype
+fn_const 10 77 string Expected\smethod\sname
+fn_const 10 78 string (
+fn_const 10 79 string Expected\s(\sat\s
+fn_const 10 80 string line
+fn_const 10 81 string column
+fn_const 10 82 string \stok=
+fn_const 10 83 string Expected\s)
+fn_const 10 84 string Unclosed\sdefault\smethod\sbody
+fn_const 10 85 string pIfaceMethods
+fn_const 10 86 string Expected\s;\sor\sdefault\smethod\sbody
+fn_const 10 87 string pVariantSym
+fn_const 10 88 string pVariantFields
+fn_const 10 89 string Expected\svariant\sfield\stype
+fn_const 10 90 string pVariants
+fn_const 10 91 string fields
 fn_op 10 load_local 0
 fn_op 10 load_global 21
 fn_op 10 call 1
@@ -1952,6 +2668,99 @@ fn_arrows 10 0
 fn 11 parseStmt_iface_meth
 fn_params 11 sess
 fn_locals 11 sess
+fn_const 11 0 string pCur
+fn_const 11 1 string pTok
+fn_const 11 2 string type
+fn_const 11 3 string Expected\sfield\sname
+fn_const 11 4 null
+fn_const 11 5 string value
+fn_const 11 6 string pSaveSym
+fn_const 11 7 string 
+fn_const 11 8 string pFieldType
+fn_const 11 9 string :
+fn_const 11 10 string Expected\sfield\stype
+fn_const 11 11 string pFieldDefault
+fn_const 11 12 string =
+fn_const 11 13 string ;
+fn_const 11 14 string name
+fn_const 11 15 string default
+fn_const 11 16 string pVal
+fn_const 11 17 string pClassFields
+fn_const 11 18 number 0
+fn_const 11 19 string Expected\sassociated\stype\sname
+fn_const 11 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 11 21 string Expected\sassociated\stype\svalue
+fn_const 11 22 string pClassAssoc
+fn_const 11 23 string {
+fn_const 11 24 string Expected\s{
+fn_const 11 25 string pMethParams
+fn_const 11 26 undefined
+fn_const 11 27 number 1
+fn_const 11 28 string pMethParamTypes
+fn_const 11 29 string pMethParamDefaults
+fn_const 11 30 string pMethRest
+fn_const 11 31 string pFnSym
+fn_const 11 32 string pMethWhere
+fn_const 11 33 string pMethTypeParams
+fn_const 11 34 string Unclosed\sblock
+fn_const 11 35 string sym
+fn_const 11 36 string typeParams
+fn_const 11 37 string params
+fn_const 11 38 string paramTypes
+fn_const 11 39 string paramDefaults
+fn_const 11 40 string rest
+fn_const 11 41 string returnType
+fn_const 11 42 string whereClause
+fn_const 11 43 string kind
+fn_const 11 44 string body
+fn_const 11 45 string pClassMethods
+fn_const 11 46 string )
+fn_const 11 47 bool true
+fn_const 11 48 string &
+fn_const 11 49 string mut
+fn_const 11 50 string Expected\sself\safter\s&
+fn_const 11 51 string ...
+fn_const 11 52 string Expected\srest\sparameter\sname
+fn_const 11 53 string ,
+fn_const 11 54 string Rest\sparameter\smust\sbe\slast
+fn_const 11 55 string Expected\sparameter\sname
+fn_const 11 56 string pParamType
+fn_const 11 57 string Expected\sparameter\stype
+fn_const 11 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 11 59 string pVariantName
+fn_const 11 60 string None
+fn_const 11 61 string Some
+fn_const 11 62 string Ok
+fn_const 11 63 string Err
+fn_const 11 64 string True
+fn_const 11 65 string False
+fn_const 11 66 string Expected\svariant\sname
+fn_const 11 67 string pWhereClause
+fn_const 11 68 string Expected\stype\sparameter\sin\swhere
+fn_const 11 69 string pWhereParam
+fn_const 11 70 string Expected\s:\sin\swhere
+fn_const 11 71 string Expected\strait\sname\sin\swhere
+fn_const 11 72 string pWhereTrait
+fn_const 11 73 string typeParam
+fn_const 11 74 string traitName
+fn_const 11 75 string pAssocTypes
+fn_const 11 76 string Expected\s;\safter\sassociated\stype
+fn_const 11 77 string Expected\smethod\sname
+fn_const 11 78 string (
+fn_const 11 79 string Expected\s(\sat\s
+fn_const 11 80 string line
+fn_const 11 81 string column
+fn_const 11 82 string \stok=
+fn_const 11 83 string Expected\s)
+fn_const 11 84 string Unclosed\sdefault\smethod\sbody
+fn_const 11 85 string pIfaceMethods
+fn_const 11 86 string Expected\s;\sor\sdefault\smethod\sbody
+fn_const 11 87 string pVariantSym
+fn_const 11 88 string pVariantFields
+fn_const 11 89 string Expected\svariant\sfield\stype
+fn_const 11 90 string pVariants
+fn_const 11 91 string fields
+fn_const 11 92 string Expected\sfn\sin\sinterface
 fn_op 11 load_local 0
 fn_op 11 get_member 0
 fn_op 11 get_member 2
@@ -1973,6 +2782,123 @@ fn_arrows 11 0
 fn 12 pSaveDeclFields
 fn_params 12 sess
 fn_locals 12 sess
+fn_const 12 0 string pCur
+fn_const 12 1 string pTok
+fn_const 12 2 string type
+fn_const 12 3 string Expected\sfield\sname
+fn_const 12 4 null
+fn_const 12 5 string value
+fn_const 12 6 string pSaveSym
+fn_const 12 7 string 
+fn_const 12 8 string pFieldType
+fn_const 12 9 string :
+fn_const 12 10 string Expected\sfield\stype
+fn_const 12 11 string pFieldDefault
+fn_const 12 12 string =
+fn_const 12 13 string ;
+fn_const 12 14 string name
+fn_const 12 15 string default
+fn_const 12 16 string pVal
+fn_const 12 17 string pClassFields
+fn_const 12 18 number 0
+fn_const 12 19 string Expected\sassociated\stype\sname
+fn_const 12 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 12 21 string Expected\sassociated\stype\svalue
+fn_const 12 22 string pClassAssoc
+fn_const 12 23 string {
+fn_const 12 24 string Expected\s{
+fn_const 12 25 string pMethParams
+fn_const 12 26 undefined
+fn_const 12 27 number 1
+fn_const 12 28 string pMethParamTypes
+fn_const 12 29 string pMethParamDefaults
+fn_const 12 30 string pMethRest
+fn_const 12 31 string pFnSym
+fn_const 12 32 string pMethWhere
+fn_const 12 33 string pMethTypeParams
+fn_const 12 34 string Unclosed\sblock
+fn_const 12 35 string sym
+fn_const 12 36 string typeParams
+fn_const 12 37 string params
+fn_const 12 38 string paramTypes
+fn_const 12 39 string paramDefaults
+fn_const 12 40 string rest
+fn_const 12 41 string returnType
+fn_const 12 42 string whereClause
+fn_const 12 43 string kind
+fn_const 12 44 string body
+fn_const 12 45 string pClassMethods
+fn_const 12 46 string )
+fn_const 12 47 bool true
+fn_const 12 48 string &
+fn_const 12 49 string mut
+fn_const 12 50 string Expected\sself\safter\s&
+fn_const 12 51 string ...
+fn_const 12 52 string Expected\srest\sparameter\sname
+fn_const 12 53 string ,
+fn_const 12 54 string Rest\sparameter\smust\sbe\slast
+fn_const 12 55 string Expected\sparameter\sname
+fn_const 12 56 string pParamType
+fn_const 12 57 string Expected\sparameter\stype
+fn_const 12 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 12 59 string pVariantName
+fn_const 12 60 string None
+fn_const 12 61 string Some
+fn_const 12 62 string Ok
+fn_const 12 63 string Err
+fn_const 12 64 string True
+fn_const 12 65 string False
+fn_const 12 66 string Expected\svariant\sname
+fn_const 12 67 string pWhereClause
+fn_const 12 68 string Expected\stype\sparameter\sin\swhere
+fn_const 12 69 string pWhereParam
+fn_const 12 70 string Expected\s:\sin\swhere
+fn_const 12 71 string Expected\strait\sname\sin\swhere
+fn_const 12 72 string pWhereTrait
+fn_const 12 73 string typeParam
+fn_const 12 74 string traitName
+fn_const 12 75 string pAssocTypes
+fn_const 12 76 string Expected\s;\safter\sassociated\stype
+fn_const 12 77 string Expected\smethod\sname
+fn_const 12 78 string (
+fn_const 12 79 string Expected\s(\sat\s
+fn_const 12 80 string line
+fn_const 12 81 string column
+fn_const 12 82 string \stok=
+fn_const 12 83 string Expected\s)
+fn_const 12 84 string Unclosed\sdefault\smethod\sbody
+fn_const 12 85 string pIfaceMethods
+fn_const 12 86 string Expected\s;\sor\sdefault\smethod\sbody
+fn_const 12 87 string pVariantSym
+fn_const 12 88 string pVariantFields
+fn_const 12 89 string Expected\svariant\sfield\stype
+fn_const 12 90 string pVariants
+fn_const 12 91 string fields
+fn_const 12 92 string Expected\sfn\sin\sinterface
+fn_const 12 93 string pClassSym
+fn_const 12 94 string pTypeParams
+fn_const 12 95 string pExtends
+fn_const 12 96 string pExtendsTypeArgs
+fn_const 12 97 string pImplements
+fn_const 12 98 string pClassWhere
+fn_const 12 99 string pIsStruct
+fn_const 12 100 string pEnumSym
+fn_const 12 101 string pIfaceSym
+fn_const 12 102 string pFnPub
+fn_const 12 103 string pFnRest
+fn_const 12 104 string pIsAsync
+fn_const 12 105 string pIsGen
+fn_const 12 106 string pParams
+fn_const 12 107 string pParamTypes
+fn_const 12 108 string pParamDefaults
+fn_const 12 109 string pReturnType
+fn_const 12 110 string pBindSym
+fn_const 12 111 string pLetSym
+fn_const 12 112 string pInit
+fn_const 12 113 string pSave
+fn_const 12 114 string pIsPub
+fn_const 12 115 string pAssignLhs
+fn_const 12 116 string pForAwait
 fn_op 12 load_local 0
 fn_op 12 get_member 93
 fn_op 12 const 93
@@ -2126,6 +3052,123 @@ fn_arrows 12 0
 fn 13 pRestoreDeclFields
 fn_params 13 sess,s
 fn_locals 13 sess,s,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6,__kab_a7,__kab_a8,__kab_a9,__kab_a10,__kab_a11,__kab_a12,__kab_a13,__kab_a14,__kab_a15,__kab_a16,__kab_a17,__kab_a18,__kab_a19,__kab_a20,__kab_a21,__kab_a22,__kab_a23,__kab_a24,__kab_a25,__kab_a26,__kab_a27,__kab_a28,__kab_a29,__kab_a30,__kab_a31,__kab_a32,__kab_a33,__kab_a34,__kab_a35,__kab_a36,__kab_a37,__kab_a38,__kab_a39,__kab_a40,__kab_a41,__kab_a42,__kab_a43,__kab_a44,__kab_a45,__kab_a46,__kab_a47,__kab_a48
+fn_const 13 0 string pCur
+fn_const 13 1 string pTok
+fn_const 13 2 string type
+fn_const 13 3 string Expected\sfield\sname
+fn_const 13 4 null
+fn_const 13 5 string value
+fn_const 13 6 string pSaveSym
+fn_const 13 7 string 
+fn_const 13 8 string pFieldType
+fn_const 13 9 string :
+fn_const 13 10 string Expected\sfield\stype
+fn_const 13 11 string pFieldDefault
+fn_const 13 12 string =
+fn_const 13 13 string ;
+fn_const 13 14 string name
+fn_const 13 15 string default
+fn_const 13 16 string pVal
+fn_const 13 17 string pClassFields
+fn_const 13 18 number 0
+fn_const 13 19 string Expected\sassociated\stype\sname
+fn_const 13 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 13 21 string Expected\sassociated\stype\svalue
+fn_const 13 22 string pClassAssoc
+fn_const 13 23 string {
+fn_const 13 24 string Expected\s{
+fn_const 13 25 string pMethParams
+fn_const 13 26 undefined
+fn_const 13 27 number 1
+fn_const 13 28 string pMethParamTypes
+fn_const 13 29 string pMethParamDefaults
+fn_const 13 30 string pMethRest
+fn_const 13 31 string pFnSym
+fn_const 13 32 string pMethWhere
+fn_const 13 33 string pMethTypeParams
+fn_const 13 34 string Unclosed\sblock
+fn_const 13 35 string sym
+fn_const 13 36 string typeParams
+fn_const 13 37 string params
+fn_const 13 38 string paramTypes
+fn_const 13 39 string paramDefaults
+fn_const 13 40 string rest
+fn_const 13 41 string returnType
+fn_const 13 42 string whereClause
+fn_const 13 43 string kind
+fn_const 13 44 string body
+fn_const 13 45 string pClassMethods
+fn_const 13 46 string )
+fn_const 13 47 bool true
+fn_const 13 48 string &
+fn_const 13 49 string mut
+fn_const 13 50 string Expected\sself\safter\s&
+fn_const 13 51 string ...
+fn_const 13 52 string Expected\srest\sparameter\sname
+fn_const 13 53 string ,
+fn_const 13 54 string Rest\sparameter\smust\sbe\slast
+fn_const 13 55 string Expected\sparameter\sname
+fn_const 13 56 string pParamType
+fn_const 13 57 string Expected\sparameter\stype
+fn_const 13 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 13 59 string pVariantName
+fn_const 13 60 string None
+fn_const 13 61 string Some
+fn_const 13 62 string Ok
+fn_const 13 63 string Err
+fn_const 13 64 string True
+fn_const 13 65 string False
+fn_const 13 66 string Expected\svariant\sname
+fn_const 13 67 string pWhereClause
+fn_const 13 68 string Expected\stype\sparameter\sin\swhere
+fn_const 13 69 string pWhereParam
+fn_const 13 70 string Expected\s:\sin\swhere
+fn_const 13 71 string Expected\strait\sname\sin\swhere
+fn_const 13 72 string pWhereTrait
+fn_const 13 73 string typeParam
+fn_const 13 74 string traitName
+fn_const 13 75 string pAssocTypes
+fn_const 13 76 string Expected\s;\safter\sassociated\stype
+fn_const 13 77 string Expected\smethod\sname
+fn_const 13 78 string (
+fn_const 13 79 string Expected\s(\sat\s
+fn_const 13 80 string line
+fn_const 13 81 string column
+fn_const 13 82 string \stok=
+fn_const 13 83 string Expected\s)
+fn_const 13 84 string Unclosed\sdefault\smethod\sbody
+fn_const 13 85 string pIfaceMethods
+fn_const 13 86 string Expected\s;\sor\sdefault\smethod\sbody
+fn_const 13 87 string pVariantSym
+fn_const 13 88 string pVariantFields
+fn_const 13 89 string Expected\svariant\sfield\stype
+fn_const 13 90 string pVariants
+fn_const 13 91 string fields
+fn_const 13 92 string Expected\sfn\sin\sinterface
+fn_const 13 93 string pClassSym
+fn_const 13 94 string pTypeParams
+fn_const 13 95 string pExtends
+fn_const 13 96 string pExtendsTypeArgs
+fn_const 13 97 string pImplements
+fn_const 13 98 string pClassWhere
+fn_const 13 99 string pIsStruct
+fn_const 13 100 string pEnumSym
+fn_const 13 101 string pIfaceSym
+fn_const 13 102 string pFnPub
+fn_const 13 103 string pFnRest
+fn_const 13 104 string pIsAsync
+fn_const 13 105 string pIsGen
+fn_const 13 106 string pParams
+fn_const 13 107 string pParamTypes
+fn_const 13 108 string pParamDefaults
+fn_const 13 109 string pReturnType
+fn_const 13 110 string pBindSym
+fn_const 13 111 string pLetSym
+fn_const 13 112 string pInit
+fn_const 13 113 string pSave
+fn_const 13 114 string pIsPub
+fn_const 13 115 string pAssignLhs
+fn_const 13 116 string pForAwait
 fn_op 13 load_local 1
 fn_op 13 get_member 93
 fn_op 13 store_local 2
@@ -2620,6 +3663,136 @@ fn_arrows 13 0
 fn 14 parseStmt_class
 fn_params 14 sess
 fn_locals 14 sess,declSave,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,__kab_a5,__kab_a6,__kab_a7,__kab_a8,__kab_a9,__kab_a10,__kab_a11,__kab_a12,implName,implArgs,iai,__kab_a13,snapClassWhere,cwi,__kab_a14,__kab_a15,__kab_a16,__kab_a17,classResult
+fn_const 14 0 string pCur
+fn_const 14 1 string pTok
+fn_const 14 2 string type
+fn_const 14 3 string Expected\sfield\sname
+fn_const 14 4 null
+fn_const 14 5 string value
+fn_const 14 6 string pSaveSym
+fn_const 14 7 string 
+fn_const 14 8 string pFieldType
+fn_const 14 9 string :
+fn_const 14 10 string Expected\sfield\stype
+fn_const 14 11 string pFieldDefault
+fn_const 14 12 string =
+fn_const 14 13 string ;
+fn_const 14 14 string name
+fn_const 14 15 string default
+fn_const 14 16 string pVal
+fn_const 14 17 string pClassFields
+fn_const 14 18 number 0
+fn_const 14 19 string Expected\sassociated\stype\sname
+fn_const 14 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 14 21 string Expected\sassociated\stype\svalue
+fn_const 14 22 string pClassAssoc
+fn_const 14 23 string {
+fn_const 14 24 string Expected\s{
+fn_const 14 25 string pMethParams
+fn_const 14 26 undefined
+fn_const 14 27 number 1
+fn_const 14 28 string pMethParamTypes
+fn_const 14 29 string pMethParamDefaults
+fn_const 14 30 string pMethRest
+fn_const 14 31 string pFnSym
+fn_const 14 32 string pMethWhere
+fn_const 14 33 string pMethTypeParams
+fn_const 14 34 string Unclosed\sblock
+fn_const 14 35 string sym
+fn_const 14 36 string typeParams
+fn_const 14 37 string params
+fn_const 14 38 string paramTypes
+fn_const 14 39 string paramDefaults
+fn_const 14 40 string rest
+fn_const 14 41 string returnType
+fn_const 14 42 string whereClause
+fn_const 14 43 string kind
+fn_const 14 44 string body
+fn_const 14 45 string pClassMethods
+fn_const 14 46 string )
+fn_const 14 47 bool true
+fn_const 14 48 string &
+fn_const 14 49 string mut
+fn_const 14 50 string Expected\sself\safter\s&
+fn_const 14 51 string ...
+fn_const 14 52 string Expected\srest\sparameter\sname
+fn_const 14 53 string ,
+fn_const 14 54 string Rest\sparameter\smust\sbe\slast
+fn_const 14 55 string Expected\sparameter\sname
+fn_const 14 56 string pParamType
+fn_const 14 57 string Expected\sparameter\stype
+fn_const 14 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 14 59 string pVariantName
+fn_const 14 60 string None
+fn_const 14 61 string Some
+fn_const 14 62 string Ok
+fn_const 14 63 string Err
+fn_const 14 64 string True
+fn_const 14 65 string False
+fn_const 14 66 string Expected\svariant\sname
+fn_const 14 67 string pWhereClause
+fn_const 14 68 string Expected\stype\sparameter\sin\swhere
+fn_const 14 69 string pWhereParam
+fn_const 14 70 string Expected\s:\sin\swhere
+fn_const 14 71 string Expected\strait\sname\sin\swhere
+fn_const 14 72 string pWhereTrait
+fn_const 14 73 string typeParam
+fn_const 14 74 string traitName
+fn_const 14 75 string pAssocTypes
+fn_const 14 76 string Expected\s;\safter\sassociated\stype
+fn_const 14 77 string Expected\smethod\sname
+fn_const 14 78 string (
+fn_const 14 79 string Expected\s(\sat\s
+fn_const 14 80 string line
+fn_const 14 81 string column
+fn_const 14 82 string \stok=
+fn_const 14 83 string Expected\s)
+fn_const 14 84 string Unclosed\sdefault\smethod\sbody
+fn_const 14 85 string pIfaceMethods
+fn_const 14 86 string Expected\s;\sor\sdefault\smethod\sbody
+fn_const 14 87 string pVariantSym
+fn_const 14 88 string pVariantFields
+fn_const 14 89 string Expected\svariant\sfield\stype
+fn_const 14 90 string pVariants
+fn_const 14 91 string fields
+fn_const 14 92 string Expected\sfn\sin\sinterface
+fn_const 14 93 string pClassSym
+fn_const 14 94 string pTypeParams
+fn_const 14 95 string pExtends
+fn_const 14 96 string pExtendsTypeArgs
+fn_const 14 97 string pImplements
+fn_const 14 98 string pClassWhere
+fn_const 14 99 string pIsStruct
+fn_const 14 100 string pEnumSym
+fn_const 14 101 string pIfaceSym
+fn_const 14 102 string pFnPub
+fn_const 14 103 string pFnRest
+fn_const 14 104 string pIsAsync
+fn_const 14 105 string pIsGen
+fn_const 14 106 string pParams
+fn_const 14 107 string pParamTypes
+fn_const 14 108 string pParamDefaults
+fn_const 14 109 string pReturnType
+fn_const 14 110 string pBindSym
+fn_const 14 111 string pLetSym
+fn_const 14 112 string pInit
+fn_const 14 113 string pSave
+fn_const 14 114 string pIsPub
+fn_const 14 115 string pAssignLhs
+fn_const 14 116 string pForAwait
+fn_const 14 117 string Expected\sstruct\sname
+fn_const 14 118 string Expected\sclass\sname
+fn_const 14 119 string Expected\sbase\sclass
+fn_const 14 120 string Expected\sinterface\sname
+fn_const 14 121 string $
+fn_const 14 122 string _
+fn_const 14 123 string }
+fn_const 14 124 string extends
+fn_const 14 125 string extendsTypeArgs
+fn_const 14 126 string methods
+fn_const 14 127 string implements
+fn_const 14 128 string associatedTypes
+fn_const 14 129 string isStruct
 fn_op 14 load_local 0
 fn_op 14 get_member 0
 fn_op 14 get_member 2
@@ -3101,6 +4274,138 @@ fn_arrows 14 0
 fn 15 parseStmt_enum
 fn_params 15 sess
 fn_locals 15 sess,declSave,__kab_a0,__kab_a1,__kab_a2,__kab_a3,enumResult
+fn_const 15 0 string pCur
+fn_const 15 1 string pTok
+fn_const 15 2 string type
+fn_const 15 3 string Expected\sfield\sname
+fn_const 15 4 null
+fn_const 15 5 string value
+fn_const 15 6 string pSaveSym
+fn_const 15 7 string 
+fn_const 15 8 string pFieldType
+fn_const 15 9 string :
+fn_const 15 10 string Expected\sfield\stype
+fn_const 15 11 string pFieldDefault
+fn_const 15 12 string =
+fn_const 15 13 string ;
+fn_const 15 14 string name
+fn_const 15 15 string default
+fn_const 15 16 string pVal
+fn_const 15 17 string pClassFields
+fn_const 15 18 number 0
+fn_const 15 19 string Expected\sassociated\stype\sname
+fn_const 15 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 15 21 string Expected\sassociated\stype\svalue
+fn_const 15 22 string pClassAssoc
+fn_const 15 23 string {
+fn_const 15 24 string Expected\s{
+fn_const 15 25 string pMethParams
+fn_const 15 26 undefined
+fn_const 15 27 number 1
+fn_const 15 28 string pMethParamTypes
+fn_const 15 29 string pMethParamDefaults
+fn_const 15 30 string pMethRest
+fn_const 15 31 string pFnSym
+fn_const 15 32 string pMethWhere
+fn_const 15 33 string pMethTypeParams
+fn_const 15 34 string Unclosed\sblock
+fn_const 15 35 string sym
+fn_const 15 36 string typeParams
+fn_const 15 37 string params
+fn_const 15 38 string paramTypes
+fn_const 15 39 string paramDefaults
+fn_const 15 40 string rest
+fn_const 15 41 string returnType
+fn_const 15 42 string whereClause
+fn_const 15 43 string kind
+fn_const 15 44 string body
+fn_const 15 45 string pClassMethods
+fn_const 15 46 string )
+fn_const 15 47 bool true
+fn_const 15 48 string &
+fn_const 15 49 string mut
+fn_const 15 50 string Expected\sself\safter\s&
+fn_const 15 51 string ...
+fn_const 15 52 string Expected\srest\sparameter\sname
+fn_const 15 53 string ,
+fn_const 15 54 string Rest\sparameter\smust\sbe\slast
+fn_const 15 55 string Expected\sparameter\sname
+fn_const 15 56 string pParamType
+fn_const 15 57 string Expected\sparameter\stype
+fn_const 15 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 15 59 string pVariantName
+fn_const 15 60 string None
+fn_const 15 61 string Some
+fn_const 15 62 string Ok
+fn_const 15 63 string Err
+fn_const 15 64 string True
+fn_const 15 65 string False
+fn_const 15 66 string Expected\svariant\sname
+fn_const 15 67 string pWhereClause
+fn_const 15 68 string Expected\stype\sparameter\sin\swhere
+fn_const 15 69 string pWhereParam
+fn_const 15 70 string Expected\s:\sin\swhere
+fn_const 15 71 string Expected\strait\sname\sin\swhere
+fn_const 15 72 string pWhereTrait
+fn_const 15 73 string typeParam
+fn_const 15 74 string traitName
+fn_const 15 75 string pAssocTypes
+fn_const 15 76 string Expected\s;\safter\sassociated\stype
+fn_const 15 77 string Expected\smethod\sname
+fn_const 15 78 string (
+fn_const 15 79 string Expected\s(\sat\s
+fn_const 15 80 string line
+fn_const 15 81 string column
+fn_const 15 82 string \stok=
+fn_const 15 83 string Expected\s)
+fn_const 15 84 string Unclosed\sdefault\smethod\sbody
+fn_const 15 85 string pIfaceMethods
+fn_const 15 86 string Expected\s;\sor\sdefault\smethod\sbody
+fn_const 15 87 string pVariantSym
+fn_const 15 88 string pVariantFields
+fn_const 15 89 string Expected\svariant\sfield\stype
+fn_const 15 90 string pVariants
+fn_const 15 91 string fields
+fn_const 15 92 string Expected\sfn\sin\sinterface
+fn_const 15 93 string pClassSym
+fn_const 15 94 string pTypeParams
+fn_const 15 95 string pExtends
+fn_const 15 96 string pExtendsTypeArgs
+fn_const 15 97 string pImplements
+fn_const 15 98 string pClassWhere
+fn_const 15 99 string pIsStruct
+fn_const 15 100 string pEnumSym
+fn_const 15 101 string pIfaceSym
+fn_const 15 102 string pFnPub
+fn_const 15 103 string pFnRest
+fn_const 15 104 string pIsAsync
+fn_const 15 105 string pIsGen
+fn_const 15 106 string pParams
+fn_const 15 107 string pParamTypes
+fn_const 15 108 string pParamDefaults
+fn_const 15 109 string pReturnType
+fn_const 15 110 string pBindSym
+fn_const 15 111 string pLetSym
+fn_const 15 112 string pInit
+fn_const 15 113 string pSave
+fn_const 15 114 string pIsPub
+fn_const 15 115 string pAssignLhs
+fn_const 15 116 string pForAwait
+fn_const 15 117 string Expected\sstruct\sname
+fn_const 15 118 string Expected\sclass\sname
+fn_const 15 119 string Expected\sbase\sclass
+fn_const 15 120 string Expected\sinterface\sname
+fn_const 15 121 string $
+fn_const 15 122 string _
+fn_const 15 123 string }
+fn_const 15 124 string extends
+fn_const 15 125 string extendsTypeArgs
+fn_const 15 126 string methods
+fn_const 15 127 string implements
+fn_const 15 128 string associatedTypes
+fn_const 15 129 string isStruct
+fn_const 15 130 string Expected\senum\sname
+fn_const 15 131 string variants
 fn_op 15 load_local 0
 fn_op 15 get_member 0
 fn_op 15 get_member 2
@@ -3235,6 +4540,139 @@ fn_arrows 15 0
 fn 16 parseStmt_iface
 fn_params 16 sess
 fn_locals 16 sess,declSave,__kab_a0,__kab_a1,__kab_a2,__kab_a3,__kab_a4,gotAssoc,ifaceResult
+fn_const 16 0 string pCur
+fn_const 16 1 string pTok
+fn_const 16 2 string type
+fn_const 16 3 string Expected\sfield\sname
+fn_const 16 4 null
+fn_const 16 5 string value
+fn_const 16 6 string pSaveSym
+fn_const 16 7 string 
+fn_const 16 8 string pFieldType
+fn_const 16 9 string :
+fn_const 16 10 string Expected\sfield\stype
+fn_const 16 11 string pFieldDefault
+fn_const 16 12 string =
+fn_const 16 13 string ;
+fn_const 16 14 string name
+fn_const 16 15 string default
+fn_const 16 16 string pVal
+fn_const 16 17 string pClassFields
+fn_const 16 18 number 0
+fn_const 16 19 string Expected\sassociated\stype\sname
+fn_const 16 20 string Expected\s=\safter\sassociated\stype\sname
+fn_const 16 21 string Expected\sassociated\stype\svalue
+fn_const 16 22 string pClassAssoc
+fn_const 16 23 string {
+fn_const 16 24 string Expected\s{
+fn_const 16 25 string pMethParams
+fn_const 16 26 undefined
+fn_const 16 27 number 1
+fn_const 16 28 string pMethParamTypes
+fn_const 16 29 string pMethParamDefaults
+fn_const 16 30 string pMethRest
+fn_const 16 31 string pFnSym
+fn_const 16 32 string pMethWhere
+fn_const 16 33 string pMethTypeParams
+fn_const 16 34 string Unclosed\sblock
+fn_const 16 35 string sym
+fn_const 16 36 string typeParams
+fn_const 16 37 string params
+fn_const 16 38 string paramTypes
+fn_const 16 39 string paramDefaults
+fn_const 16 40 string rest
+fn_const 16 41 string returnType
+fn_const 16 42 string whereClause
+fn_const 16 43 string kind
+fn_const 16 44 string body
+fn_const 16 45 string pClassMethods
+fn_const 16 46 string )
+fn_const 16 47 bool true
+fn_const 16 48 string &
+fn_const 16 49 string mut
+fn_const 16 50 string Expected\sself\safter\s&
+fn_const 16 51 string ...
+fn_const 16 52 string Expected\srest\sparameter\sname
+fn_const 16 53 string ,
+fn_const 16 54 string Rest\sparameter\smust\sbe\slast
+fn_const 16 55 string Expected\sparameter\sname
+fn_const 16 56 string pParamType
+fn_const 16 57 string Expected\sparameter\stype
+fn_const 16 58 string Non-default\sparameter\safter\sdefault\sparameter
+fn_const 16 59 string pVariantName
+fn_const 16 60 string None
+fn_const 16 61 string Some
+fn_const 16 62 string Ok
+fn_const 16 63 string Err
+fn_const 16 64 string True
+fn_const 16 65 string False
+fn_const 16 66 string Expected\svariant\sname
+fn_const 16 67 string pWhereClause
+fn_const 16 68 string Expected\stype\sparameter\sin\swhere
+fn_const 16 69 string pWhereParam
+fn_const 16 70 string Expected\s:\sin\swhere
+fn_const 16 71 string Expected\strait\sname\sin\swhere
+fn_const 16 72 string pWhereTrait
+fn_const 16 73 string typeParam
+fn_const 16 74 string traitName
+fn_const 16 75 string pAssocTypes
+fn_const 16 76 string Expected\s;\safter\sassociated\stype
+fn_const 16 77 string Expected\smethod\sname
+fn_const 16 78 string (
+fn_const 16 79 string Expected\s(\sat\s
+fn_const 16 80 string line
+fn_const 16 81 string column
+fn_const 16 82 string \stok=
+fn_const 16 83 string Expected\s)
+fn_const 16 84 string Unclosed\sdefault\smethod\sbody
+fn_const 16 85 string pIfaceMethods
+fn_const 16 86 string Expected\s;\sor\sdefault\smethod\sbody
+fn_const 16 87 string pVariantSym
+fn_const 16 88 string pVariantFields
+fn_const 16 89 string Expected\svariant\sfield\stype
+fn_const 16 90 string pVariants
+fn_const 16 91 string fields
+fn_const 16 92 string Expected\sfn\sin\sinterface
+fn_const 16 93 string pClassSym
+fn_const 16 94 string pTypeParams
+fn_const 16 95 string pExtends
+fn_const 16 96 string pExtendsTypeArgs
+fn_const 16 97 string pImplements
+fn_const 16 98 string pClassWhere
+fn_const 16 99 string pIsStruct
+fn_const 16 100 string pEnumSym
+fn_const 16 101 string pIfaceSym
+fn_const 16 102 string pFnPub
+fn_const 16 103 string pFnRest
+fn_const 16 104 string pIsAsync
+fn_const 16 105 string pIsGen
+fn_const 16 106 string pParams
+fn_const 16 107 string pParamTypes
+fn_const 16 108 string pParamDefaults
+fn_const 16 109 string pReturnType
+fn_const 16 110 string pBindSym
+fn_const 16 111 string pLetSym
+fn_const 16 112 string pInit
+fn_const 16 113 string pSave
+fn_const 16 114 string pIsPub
+fn_const 16 115 string pAssignLhs
+fn_const 16 116 string pForAwait
+fn_const 16 117 string Expected\sstruct\sname
+fn_const 16 118 string Expected\sclass\sname
+fn_const 16 119 string Expected\sbase\sclass
+fn_const 16 120 string Expected\sinterface\sname
+fn_const 16 121 string $
+fn_const 16 122 string _
+fn_const 16 123 string }
+fn_const 16 124 string extends
+fn_const 16 125 string extendsTypeArgs
+fn_const 16 126 string methods
+fn_const 16 127 string implements
+fn_const 16 128 string associatedTypes
+fn_const 16 129 string isStruct
+fn_const 16 130 string Expected\senum\sname
+fn_const 16 131 string variants
+fn_const 16 132 string Expected\sinterface/trait\sname
 fn_op 16 load_local 0
 fn_op 16 get_member 0
 fn_op 16 get_member 2

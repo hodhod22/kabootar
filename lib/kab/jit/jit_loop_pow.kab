@@ -1,0 +1,95 @@
+// SH17 widen: i64 pow template — magic 109 + base n + exp k + ret;
+// os_mm_call returns n**k via checked_pow (overflow faults). import
+// "kab/jit/jit_loop_pow". Do not grow jit_loop_mod.kab.
+
+import "kab/jit/jit_loop"
+import "kab/jit/jit_loop_n"
+
+pub fn jitLoopPowKMax() {
+    return 64
+}
+
+/// Exponent domain mirrors the guest template byte.
+pub fn jitLoopPowKOk(k) {
+    if k <= 0 {
+        return false
+    }
+    if k > jitLoopPowKMax() {
+        return false
+    }
+    return true
+}
+
+/// True when n**k stays inside i64 so guest checked_pow cannot fault —
+/// os_mm_call propagates guest errors as hard VM failures, so this check
+/// must be exact. eval_pow yields Float for clearly-too-big results
+/// (is_float) and saturates to i64::MAX when powf lands at 2^63; no
+/// (n,k <= 64) pair produces exactly i64::MAX, so that value only ever
+/// marks saturation here.
+pub fn jitLoopPowFits(n, k) {
+    let p = n ** k
+    if is_float(p) {
+        return false
+    }
+    if p <= 0 {
+        return false
+    }
+    if p == 9223372036854775807 {
+        return false
+    }
+    return true
+}
+
+/// Plain-i64 operand check — typeof "number" admits Float too, so is_float
+/// must also be false. BigInt/Float operands stay cold: the interpreter
+/// may answer BigInt or Float where the guest byte template could not.
+pub fn jitLoopPowScalarOk(v) {
+    if typeof(v) != "number" {
+        return false
+    }
+    if is_float(v) {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopPowOk(n, k) {
+    if jitLoopPowScalarOk(n) == false {
+        return false
+    }
+    if jitLoopPowScalarOk(k) == false {
+        return false
+    }
+    if jitLoopNOk(n) == false {
+        return false
+    }
+    if jitLoopPowKOk(k) == false {
+        return false
+    }
+    if jitLoopPowFits(n, k) == false {
+        return false
+    }
+    return true
+}
+
+pub fn jitLoopPowRax(n, k) {
+    return n ** k
+}
+
+pub fn jitLoopPowLen() {
+    return jitLoopLen()
+}
+
+/// Pow marker 109, base n, exponent k, pad, ret — simulated guest rax=n**k.
+pub fn jitEmitI64LoopPowN(n, k) {
+    let b = []
+    b = push(b, 109)
+    b = push(b, n)
+    b = push(b, k)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 195)
+    return b
+}
