@@ -25,23 +25,50 @@ pub fn exec_bytes(bytes: &[u8]) -> Result<i64, String> {
 /// `exec_bytes_arg(bytes, 0)`. Same byte contract as `exec_bytes`.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn exec_bytes_arg(bytes: &[u8], arg: i64) -> Result<i64, String> {
+    exec_bytes_data(bytes, arg, &[])
+}
+
+/// Run `bytes` as a real `extern "C" fn(i64, i64) -> i64` on the host CPU —
+/// `arg` is the ABI first arg and, when `data` is non-empty, a separate RW
+/// mapping holding `data` is allocated and its base pointer passed as the
+/// ABI second arg (rdx on win64, rsi on SysV). This is the real-memory
+/// sibling of the image's `data:`/`rodata:` sections: image-carried payloads
+/// read through a live pointer, not baked immediates. Empty `data` passes 0.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn exec_bytes_data(bytes: &[u8], arg: i64, data: &[u8]) -> Result<i64, String> {
     if bytes.is_empty() || bytes.len() > MAX_EXEC_BYTES {
         return Err(format!("native_exec: bad length {}", bytes.len()));
     }
-    let mut mm = memmap2::MmapOptions::new()
+    if data.len() > MAX_EXEC_BYTES {
+        return Err(format!("native_exec: bad data length {}", data.len()));
+    }
+    let mut code_mm = memmap2::MmapOptions::new()
         .len(bytes.len().max(1))
         .map_anon()
         .map_err(|e: io::Error| format!("native_exec: map: {e}"))?;
-    mm[..].copy_from_slice(bytes);
-    let code = mm
+    code_mm[..].copy_from_slice(bytes);
+    let code = code_mm
         .make_exec()
         .map_err(|e: io::Error| format!("native_exec: make_exec: {e}"))?;
-    let f: unsafe extern "C" fn(i64) -> i64 = unsafe { std::mem::transmute(code.as_ptr()) };
-    Ok(unsafe { f(arg) })
+    // Keep the data mapping alive across the call.
+    let data_mm = if data.is_empty() {
+        None
+    } else {
+        let mut m = memmap2::MmapOptions::new()
+            .len(data.len())
+            .map_anon()
+            .map_err(|e: io::Error| format!("native_exec: data map: {e}"))?;
+        m[..].copy_from_slice(data);
+        Some(m)
+    };
+    let data_ptr = data_mm.as_ref().map(|m| m.as_ptr() as i64).unwrap_or(0);
+    let f: unsafe extern "C" fn(i64, i64) -> i64 =
+        unsafe { std::mem::transmute(code.as_ptr()) };
+    Ok(unsafe { f(arg, data_ptr) })
 }
 
 #[cfg(target_arch = "wasm32")]
-pub fn exec_bytes_arg(_bytes: &[u8], _arg: i64) -> Result<i64, String> {
+pub fn exec_bytes_data(_bytes: &[u8], _arg: i64, _data: &[u8]) -> Result<i64, String> {
     Err("native_exec: not available on wasm32".into())
 }
 
@@ -121,13 +148,23 @@ fn host_abi() -> &'static str {
     }
 }
 
+/// `|data_hex:<hex>|` payload — bytes the image carries for its writable
+/// `data:` section; mapped RW and handed to the entry as the ABI second arg.
+fn image_data_bytes(image: &str) -> Result<Vec<u8>, String> {
+    let Some(s) = image_field_str(image, "data_hex") else {
+        return Ok(Vec::new());
+    };
+    hex_decode(&s)
+}
+
 /// `kabootar exec-image` shared leg: validate a `kabootar-native/1` image,
 /// pull its host-arch code section, run the bytes at `entry:` (0 for the
 /// fused templates), and return rax — evidence that an image-carried
 /// machine-code payload executes on the real CPU. `arg` is passed to the
 /// entry as a real ABI first argument; the image's `abi:` field must be the
 /// host ABI or `any` (arg reading is ABI-sensitive — refusing a mismatch is
-/// more honest than reading the wrong register).
+/// more honest than reading the wrong register). A `data_hex` payload is
+/// mapped RW and passed as the ABI second argument.
 pub fn exec_image_text(image: &str, arg: i64) -> Result<i64, String> {
     if !image.starts_with("kabootar-native/1|") {
         return Err("native_exec: not a kabootar-native/1 image".into());
@@ -145,7 +182,8 @@ pub fn exec_image_text(image: &str, arg: i64) -> Result<i64, String> {
             bytes.len()
         ));
     }
-    exec_bytes_arg(&bytes[entry..], arg)
+    let data = image_data_bytes(image)?;
+    exec_bytes_data(&bytes[entry..], arg, &data)
 }
 
 /// `kabootar exec-image <path>` leg: load an image from the host FS.

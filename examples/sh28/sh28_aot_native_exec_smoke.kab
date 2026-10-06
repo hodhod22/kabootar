@@ -35,6 +35,50 @@ if aotNativeCallExecOk("_aot_native_call.kabi", 6) == false {
 if aotNativeArgExecOk("_aot_native_arg.kabi", 21) == false {
     return 11
 }
+// Fused mul: imul eax,ecx on the real CPU → rax = 6*7 = 42.
+if aotNativeMulExecOk("_aot_native_mul.kabi", 6, 7) == false {
+    return 13
+}
+// Fused quo: xor edx,edx; div ecx → rax = 43/7 = 6 (truncating).
+if aotNativeQuoExecOk("_aot_native_quo.kabi", 43, 7) == false {
+    return 14
+}
+// Fused rem: mov eax,edx after div → rax = 43%7 = 1.
+if aotNativeRemExecOk("_aot_native_rem.kabi", 43, 7) == false {
+    return 15
+}
+// Stack frame: push rbp; mov [rbp-4],n; reload+add; leave → rax = 2n via
+// real rbp-relative stack memory.
+if aotNativeLocalsExecOk("_aot_native_locals.kabi", 11) == false {
+    return 16
+}
+// Signed div: cdq; idiv ecx on the real CPU → rax = -43/7 = -6
+// (truncating toward zero, same as Kab int div).
+if aotNativeIQuoExecOk("_aot_native_iq.kabi", -43, 7) == false {
+    return 18
+}
+// Signed rem: mov eax,edx after idiv → rax = -43%7 = -1 (sign follows
+// the dividend, same as Kab %).
+if aotNativeIRemExecOk("_aot_native_ir.kabi", -43, 7) == false {
+    return 19
+}
+// Forward jump: jmp rel8 +5 skips a mov eax,0 on the real CPU → rax = 15.
+if aotNativeJmpExecOk("_aot_native_jmp.kabi", 10, 5) == false {
+    return 20
+}
+// if/else: signed jge over early ret — 3<5 → rax = 100.
+if aotNativeIfElseExecOk("_aot_native_if.kabi", 3, 5) == false {
+    return 21
+}
+// if/else other arm: 9>=5 → rax = 200.
+if aotNativeIfElseExecOk("_aot_native_if.kabi", 9, 5) == false {
+    return 22
+}
+// Image data section: two u32s mapped RW, read via ABI arg2 →
+// rax = 20+22 = 42.
+if aotNativeDataExecOk("_aot_native_data.kabi", 20, 22) == false {
+    return 23
+}
 // Out-of-domain (n=0) → emit refuses → no exec.
 if aotNativeExecOk("_aot_native_exec.kabi", 87, 0, 9) {
     return 6
@@ -47,6 +91,11 @@ if aotNativeExecOk("_aot_native_exec.kabi", 0, 3, 9) {
 if aotNativeLoopExecOk("_aot_native_loop.kabi", 0) {
     return 9
 }
+// quo out-of-domain (k=0 would be a REAL #DE fault on the host CPU) →
+// emit must refuse before any bytes exist.
+if aotNativeQuoExecOk("_aot_native_quo.kabi", 43, 0) {
+    return 17
+}
 // Real child-process exec — when KABOOTAR_EXE is set the leg MUST pass;
 // unset → env-gated skip (like KAB_TLS_PEERS).
 let exe = env_get("KABOOTAR_EXE")
@@ -57,6 +106,11 @@ if typeof(exe) == "string" && len(exe) > 0 {
     // Child-process arg leg: 33 crosses argv AND the ABI → rax 66.
     if aotNativeArgProcExecOk(33) == false {
         return 12
+    }
+    // Child-process data leg: image-carried data_hex mapped RW in the
+    // child, read via ABI arg2 → rax = 30+12 = 42.
+    if aotNativeDataProcExecOk(30, 12) == false {
+        return 24
     }
 }
 return 42

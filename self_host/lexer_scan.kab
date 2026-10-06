@@ -752,6 +752,11 @@ pub fn emitFnScopeSave(E) {
     E["eSaveFnOpsN"] = E["eFnOpsN"]
     E["eSaveFnLocals"] = arrUtil(E, "snap", E["eFnLocals"])
     E["eSaveFnGlobals"] = arrUtil(E, "snap", E["eFnGlobals"])
+    E["eSaveParams"] = E["eParams"]
+    E["eSaveFnSave"] = E["eFnSave"]
+    E["eSaveFnBody"] = E["eFnBody"]
+    E["eSaveParamDefaults"] = E["eParamDefaults"]
+    E["eSaveFnRest"] = E["eFnRest"]
 }
 
 pub fn emitFnScopeRestore(E) {
@@ -761,6 +766,11 @@ pub fn emitFnScopeRestore(E) {
     E["eFnLocals"] = E["eSaveFnLocals"]
     rebuildLocalMap(E)
     E["eFnGlobals"] = E["eSaveFnGlobals"]
+    E["eParams"] = E["eSaveParams"]
+    E["eFnSave"] = E["eSaveFnSave"]
+    E["eFnBody"] = E["eSaveFnBody"]
+    E["eParamDefaults"] = E["eSaveParamDefaults"]
+    E["eFnRest"] = E["eSaveFnRest"]
 }
 
 /// Missing args stay undefined in Kab-VM; apply default via jump_if_not_nullish.

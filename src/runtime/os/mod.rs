@@ -926,8 +926,22 @@ fn os_native_exec_native(args: &[Value], _env: &mut Environment) -> Result<Value
         Some(_) => return Err("os_native_exec arg expects number".to_string()),
         None => 0,
     };
-    Ok(Value::Number(crate::runtime::native_exec::exec_bytes_arg(
-        &data, arg,
+    // Optional third arg: byte array mapped into a real RW page; its base
+    // pointer crosses the ABI as the second arg (rdx win64 / rsi sysv) —
+    // the in-process sibling of the image's data_hex section.
+    let payload: Vec<u8> = match args.get(2) {
+        Some(Value::Array(vals)) => vals
+            .iter()
+            .map(|v| match v {
+                Value::Number(n) => Ok(*n as u8),
+                _ => Err("os_native_exec data expects byte array".to_string()),
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        Some(_) => return Err("os_native_exec data expects byte array".to_string()),
+        None => Vec::new(),
+    };
+    Ok(Value::Number(crate::runtime::native_exec::exec_bytes_data(
+        &data, arg, &payload,
     )?))
 }
 

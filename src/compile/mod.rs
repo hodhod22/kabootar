@@ -294,16 +294,21 @@ pub fn compile_file_self_host(path: &str) -> Result<CompiledProgram, String> {
         return Err("self-host skipped for this path/size".into());
     }
     let program = compile_source_self_host(&source)?;
-    if let Ok(mut map) = cache().lock() {
-        if let Some(t) = fs::metadata(path).ok().and_then(|m| m.modified().ok()) {
-            map.insert(
-                path.to_string(),
-                CachedProgram {
-                    mtime: t,
-                    tc: toolchain_fingerprint(),
-                    program: program.clone(),
-                },
-            );
+    // SH28: never park toolchain/DAG programs in PARSE_CACHE — they would be
+    // served as dependency modules in later self-host compiles (see the
+    // dag_hit/vm_hit guard in compile_file_prefer_cached_src).
+    if !dag::is_compile_dag_path(path) && !dag::is_self_host_vm_path(path) {
+        if let Ok(mut map) = cache().lock() {
+            if let Some(t) = fs::metadata(path).ok().and_then(|m| m.modified().ok()) {
+                map.insert(
+                    path.to_string(),
+                    CachedProgram {
+                        mtime: t,
+                        tc: toolchain_fingerprint(),
+                        program: program.clone(),
+                    },
+                );
+            }
         }
     }
     Ok(program)
@@ -590,15 +595,22 @@ fn compile_file_prefer_cached_src(
     let mtime = fs::metadata(path)
         .ok()
         .and_then(|m| m.modified().ok());
-    if let (Some(t), Ok(map)) = (mtime, cache().lock()) {
-        if let Some(cached) = map.get(path) {
-            if cached.mtime == t && cached.tc == toolchain_fingerprint() {
-                return Ok((cached.program.clone(), "cache"));
+    let dag_hit = dag::is_compile_dag_path(path);
+    let vm_hit = dag::is_self_host_vm_path(path);
+    // SH28: toolchain/DAG modules must resolve through the canonical seed/image
+    // path only. A self-host-compiled program parked in PARSE_CACHE would be
+    // served into the NEXT compile's toolchain env, mixing compiler
+    // generations — observed to corrupt emit state (phantom `fn_params 4 0`
+    // on pMakeSession) and crash seed regeneration deterministically.
+    if !(dag_hit || vm_hit) {
+        if let (Some(t), Ok(map)) = (mtime, cache().lock()) {
+            if let Some(cached) = map.get(path) {
+                if cached.mtime == t && cached.tc == toolchain_fingerprint() {
+                    return Ok((cached.program.clone(), "cache"));
+                }
             }
         }
     }
-    let dag_hit = dag::is_compile_dag_path(path);
-    let vm_hit = dag::is_self_host_vm_path(path);
     if !dag_hit && !vm_hit {
         if let Some(t) = mtime {
             if let Some(bc) = read_bytecode_cache(path, t)? {

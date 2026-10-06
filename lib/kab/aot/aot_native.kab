@@ -33,6 +33,16 @@ pub fn aotNativeHostAbi() {
     return "sysv"
 }
 
+/// Wrap real code bytes with an image-carried `data_hex` payload — the
+/// bytes are mapped into a real RW page by the exec path and handed to the
+/// entry as the ABI second arg.
+pub fn aotNativeImageWrapData(bytes, abi, data) {
+    if len(bytes) == 0 || len(data) == 0 {
+        return ""
+    }
+    return "kabootar-native/1|x64|abi:" + abi + "|entry:0|page:4096|text:rx|rodata:r|data:rw|data_hex:" + aotHexEncode(data) + "|code:x64:" + aotHexEncode(bytes) + "|syms:sym:text:0:_start:x64"
+}
+
 /// kabootar-native/1 image whose code:x64 payload is REAL machine code —
 /// same record shape as aotEntryImageEmit. "" when out of domain.
 pub fn aotNativeImageEmit(magic, n, k) {
@@ -169,6 +179,234 @@ pub fn aotNativeArgProcExecOk(arg) {
         return false
     }
     return parse_int(num) == arg + arg
+}
+
+/// In-process native leg for the fused-mul emitter — rax must equal n*k.
+pub fn aotNativeMulExecOk(path, n, k) {
+    let image = aotNativeImageWrap(aotX64EmitMul(n, k))
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64MulLen() {
+        return false
+    }
+    return os_native_exec(bytes) == n * k
+}
+
+/// In-process native leg for the fused-quo emitter — rax = n/k
+/// (truncating int div, matches Kab semantics).
+pub fn aotNativeQuoExecOk(path, n, k) {
+    let image = aotNativeImageWrap(aotX64EmitQuo(n, k))
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64QuoLen() {
+        return false
+    }
+    return os_native_exec(bytes) == n / k
+}
+
+/// In-process native leg for the fused-rem emitter — rax = n%k.
+pub fn aotNativeRemExecOk(path, n, k) {
+    let image = aotNativeImageWrap(aotX64EmitRem(n, k))
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64RemLen() {
+        return false
+    }
+    return os_native_exec(bytes) == n % k
+}
+
+/// In-process native leg for the stack-frame emitter — a real rbp-relative
+/// stack local is written, reloaded, and accumulated on the host CPU;
+/// rax = 2n.
+pub fn aotNativeLocalsExecOk(path, n) {
+    let image = aotNativeImageWrap(aotX64EmitLocals(n))
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64LocalsLen() {
+        return false
+    }
+    return os_native_exec(bytes) == n + n
+}
+
+/// In-process native leg for the signed-div emitter — rax = n/k truncating
+/// toward zero, including negative operands.
+pub fn aotNativeIQuoExecOk(path, n, k) {
+    let image = aotNativeImageWrap(aotX64EmitIQuo(n, k))
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64IQuoLen() {
+        return false
+    }
+    return os_native_exec(bytes) == n / k
+}
+
+/// In-process native leg for the signed-rem emitter — rax = n%k, sign
+/// follows the dividend.
+pub fn aotNativeIRemExecOk(path, n, k) {
+    let image = aotNativeImageWrap(aotX64EmitIRem(n, k))
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64IRemLen() {
+        return false
+    }
+    return os_native_exec(bytes) == n % k
+}
+
+/// In-process native leg for the forward-jump emitter — a real rel8 jmp
+/// skips dead code on the host CPU; rax = n+k.
+pub fn aotNativeJmpExecOk(path, n, k) {
+    let image = aotNativeImageWrap(aotX64EmitJmpFwd(n, k))
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64JmpFwdLen() {
+        return false
+    }
+    return os_native_exec(bytes) == n + k
+}
+
+/// In-process native leg for the if/else emitter — real signed jge over an
+/// early ret; rax = 100 when n<k else 200.
+pub fn aotNativeIfElseExecOk(path, n, k) {
+    let image = aotNativeImageWrap(aotX64EmitIfElse(n, k))
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64IfElseLen() {
+        return false
+    }
+    let want = 200
+    if n < k {
+        want = 100
+    }
+    return os_native_exec(bytes) == want
+}
+
+/// In-process native data leg: the image's code reads the RW data page
+/// through the ABI second arg — two u32s summed on the real CPU; rax = a+b.
+/// Domain a,b 0..=65535.
+pub fn aotNativeDataExecOk(path, a, b) {
+    if a < 0 || a > 65535 || b < 0 || b > 65535 {
+        return false
+    }
+    let abi = aotNativeHostAbi()
+    let image = aotNativeImageWrapAbi(aotX64EmitDataSum(abi), abi)
+    if image == "" {
+        return false
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return false
+    }
+    let bytes = aotEntryCodeBytes(back)
+    if len(bytes) != aotX64DataSumLen() {
+        return false
+    }
+    let data = aotX64PackU32(a)
+    let data2 = aotX64PackU32(b)
+    let i = 0
+    while i < len(data2) {
+        data = push(data, data2[i])
+        i = i + 1
+    }
+    return os_native_exec(bytes, 0, data) == a + b
+}
+
+/// Child-process data leg: the image carries its data section as data_hex;
+/// `kabootar exec-image` maps it RW and passes the base pointer as the ABI
+/// second arg — image-carried data read by a real child process.
+pub fn aotNativeDataProcExecOk(a, b) {
+    if a < 0 || a > 65535 || b < 0 || b > 65535 {
+        return false
+    }
+    let exe = env_get("KABOOTAR_EXE")
+    if typeof(exe) != "string" || len(exe) == 0 {
+        return false
+    }
+    let abi = aotNativeHostAbi()
+    let data = aotX64PackU32(a)
+    let data2 = aotX64PackU32(b)
+    let i = 0
+    while i < len(data2) {
+        data = push(data, data2[i])
+        i = i + 1
+    }
+    let image = aotNativeImageWrapData(aotX64EmitDataSum(abi), abi, data)
+    if image == "" {
+        return false
+    }
+    let r = run_command(exe, ["exec-image", image])
+    if typeof(r) != "object" {
+        return false
+    }
+    if r["success"] != true {
+        return false
+    }
+    let out = r["stdout"]
+    let nl = str_index_of(out, "\n")
+    let num = out
+    if nl >= 0 {
+        num = str_slice(out, 0, nl)
+    }
+    if len(num) == 0 {
+        return false
+    }
+    return parse_int(num) == a + b
 }
 
 /// Real-OS-process leg: `kabootar exec-image` is spawned through

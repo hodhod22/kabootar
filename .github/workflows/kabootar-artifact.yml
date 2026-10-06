@@ -1,0 +1,29 @@
+name: Kabootar artifact
+
+# SH28 step 3 groundwork: publish the release binary as a downloadable
+# artifact so future no-rustc jobs can fetch a kabootar instead of running
+# `cargo build`. This job still uses rustc — it is the PRODUCER side of the
+# channel; `nollRustcCiGone` stays false until consumers stop needing
+# rust-toolchain (and src/ debt is archived, see noll_ci.kab audit).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build kabootar
+        run: cargo build --release --bin kabootar
+      - name: Smoke the artifact
+        run: ./target/release/kabootar --version
+      - name: Upload kabootar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kabootar-linux-x64
+          path: target/release/kabootar
+          retention-days: 30

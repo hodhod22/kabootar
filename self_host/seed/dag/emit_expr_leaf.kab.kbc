@@ -1013,4 +1013,3 @@ halt
 source=self_host/emit_expr_leaf.kab
 statements=265
 fingerprint=b95a7d8e585058b9
-compiler=c1b7778351710b92

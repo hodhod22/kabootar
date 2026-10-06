@@ -512,6 +512,19 @@ pub fn write_seed_dag_file(path: &str, program: &CompiledProgram) -> Result<Path
     let dir = self_host_dir().join("seed").join("dag");
     fs::create_dir_all(&dir).map_err(|e| format!("mkdir seed/dag: {e}"))?;
     let dest = dir.join(format!("{base_name}.kbc"));
+    // Refuse to persist a corrupt module: every fn param/local/global name is
+    // an identifier, so a bare numeric name means the emitter state was
+    // corrupted upstream (seen as `fn_params 4 0` for a zero-arg fn).
+    for (fi, f) in bc.functions.iter().enumerate() {
+        for name in f.params.iter().chain(f.locals.iter()).chain(f.globals.iter()) {
+            if name.is_empty() || name.bytes().all(|b| b.is_ascii_digit()) {
+                return Err(format!(
+                    "corrupt seed for {path}: fn {fi} `{}` has invalid name `{name}`",
+                    f.name
+                ));
+            }
+        }
+    }
     let mut text = serialize(bc);
     let source = fs::read_to_string(path).unwrap_or_default();
     let fp = source_fingerprint(path, &source);

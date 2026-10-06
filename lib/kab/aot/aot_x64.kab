@@ -14,6 +14,33 @@ fn x64PushImm32(b, v) {
     return b
 }
 
+/// Push a signed imm32 — negative values are normalized to their two's
+/// complement u32 bit pattern first (Kab % is remainder, not mask).
+fn x64PushSImm32(b, v) {
+    if v < 0 {
+        v = v + 4294967296
+    }
+    return x64PushImm32(b, v)
+}
+
+/// Pack one u32 (little-endian) for data-section payloads.
+pub fn aotX64PackU32(v) {
+    let b = []
+    return x64PushSImm32(b, v)
+}
+
+/// Signed-arith domain: |n|,|k| <= 64 and k != 0 — k=0 is a real #DE fault
+/// under idiv, so the check is mandatory.
+fn aotX64ISignOk(n, k) {
+    if n < -64 || n > 64 {
+        return false
+    }
+    if k < -64 || k > 64 {
+        return false
+    }
+    return k != 0
+}
+
 /// setcc opcode byte for a predicate magic: 85 eq→94, 86 ne→95, 87 lt→9C,
 /// 88 gt→9F, 89 le→9E, 90 ge→9D, 91 test→95 (setne on the AND result).
 /// 0 when the magic is not a predicate.
@@ -176,4 +203,279 @@ pub fn aotX64ArgDblLen(abi) {
         return 11
     }
     return 0
+}
+
+/// Real x64 fused mul: mov eax,n; mov ecx,k; imul eax,ecx; ret → rax = n*k
+/// (i32 wrap semantics; domain n,k 1..=64 keeps the product ≤4096).
+pub fn aotX64EmitMul(n, k) {
+    if jitFuseCmpOk(n, k) == false {
+        return []
+    }
+    let b = []
+    b = push(b, 184)
+    b = x64PushImm32(b, n)
+    b = push(b, 185)
+    b = x64PushImm32(b, k)
+    // 0F AF C1 = imul eax,ecx.
+    b = push(b, 15)
+    b = push(b, 175)
+    b = push(b, 193)
+    b = push(b, 195)
+    return b
+}
+
+// mov (5) + mov (5) + imul (3) + ret (1).
+pub fn aotX64MulLen() {
+    return 14
+}
+
+/// Real x64 fused div: mov eax,n; mov ecx,k; xor edx,edx; div ecx; ret →
+/// rax = n/k — truncating, identical to Kab int div for positive operands
+/// (unsigned div; domain n,k 1..=64 via jitFuseCmpOk — k>=1 is MANDATORY:
+/// div-by-zero would be a real #DE hardware fault on the host CPU).
+pub fn aotX64EmitQuo(n, k) {
+    if jitFuseCmpOk(n, k) == false {
+        return []
+    }
+    let b = []
+    b = push(b, 184)
+    b = x64PushImm32(b, n)
+    b = push(b, 185)
+    b = x64PushImm32(b, k)
+    // 31 D2 = xor edx,edx; F7 F1 = div ecx → eax = quot, edx = rem.
+    b = push(b, 49)
+    b = push(b, 210)
+    b = push(b, 247)
+    b = push(b, 241)
+    b = push(b, 195)
+    return b
+}
+
+// mov (5) + mov (5) + xor (2) + div (2) + ret (1).
+pub fn aotX64QuoLen() {
+    return 15
+}
+
+/// Real x64 fused mod: same div sequence + mov eax,edx (89 D0) →
+/// rax = n%k — matches Kab int rem for positive operands.
+pub fn aotX64EmitRem(n, k) {
+    if jitFuseCmpOk(n, k) == false {
+        return []
+    }
+    let b = []
+    b = push(b, 184)
+    b = x64PushImm32(b, n)
+    b = push(b, 185)
+    b = x64PushImm32(b, k)
+    b = push(b, 49)
+    b = push(b, 210)
+    b = push(b, 247)
+    b = push(b, 241)
+    // 89 D0 = mov eax,edx — take the remainder.
+    b = push(b, 137)
+    b = push(b, 208)
+    b = push(b, 195)
+    return b
+}
+
+// quo (15) + mov eax,edx (2).
+pub fn aotX64RemLen() {
+    return 17
+}
+
+/// Real x64 stack frame + locals: push rbp; mov rbp,rsp; sub rsp,16;
+/// mov dword [rbp-4],n; mov eax,[rbp-4]; add eax,[rbp-4]; leave; ret →
+/// rax = 2n computed through a stack slot — real rbp-relative memory
+/// read/write on the host stack, not just registers. Domain n 1..=64.
+pub fn aotX64EmitLocals(n) {
+    if jitLoopNOk(n) == false {
+        return []
+    }
+    let b = []
+    // 55 push rbp; 48 89 E5 mov rbp,rsp; 48 83 EC 10 sub rsp,16.
+    b = push(b, 85)
+    b = push(b, 72)
+    b = push(b, 137)
+    b = push(b, 229)
+    b = push(b, 72)
+    b = push(b, 131)
+    b = push(b, 236)
+    b = push(b, 16)
+    // C7 45 FC imm32 = mov dword [rbp-4],n.
+    b = push(b, 199)
+    b = push(b, 69)
+    b = push(b, 252)
+    b = x64PushImm32(b, n)
+    // 8B 45 FC mov eax,[rbp-4]; 03 45 FC add eax,[rbp-4].
+    b = push(b, 139)
+    b = push(b, 69)
+    b = push(b, 252)
+    b = push(b, 3)
+    b = push(b, 69)
+    b = push(b, 252)
+    // C9 leave; C3 ret.
+    b = push(b, 201)
+    b = push(b, 195)
+    return b
+}
+
+// push (1) + mov rbp,rsp (3) + sub rsp,16 (4) + mov [rbp-4],imm (7) +
+// mov eax,[rbp-4] (3) + add eax,[rbp-4] (3) + leave (1) + ret (1) = 23.
+pub fn aotX64LocalsLen() {
+    return 23
+}
+
+/// Real x64 signed div: mov eax,n; mov ecx,k; cdq; idiv ecx; cdqe; ret →
+/// rax = n/k truncating toward zero — identical to Kab int div for
+/// negative operands too (unsigned div above cannot represent them).
+/// cdqe sign-extends eax into rax — eax alone zero-extends, which would
+/// return 4294967290 for -6. Domain: |n|,|k| <= 64, k != 0.
+pub fn aotX64EmitIQuo(n, k) {
+    if aotX64ISignOk(n, k) == false {
+        return []
+    }
+    let b = []
+    b = push(b, 184)
+    b = x64PushSImm32(b, n)
+    b = push(b, 185)
+    b = x64PushSImm32(b, k)
+    // 99 = cdq (sign-extend eax into edx); F7 F9 = idiv ecx;
+    // 48 98 = cdqe (sign-extend eax into rax).
+    b = push(b, 153)
+    b = push(b, 247)
+    b = push(b, 249)
+    b = push(b, 72)
+    b = push(b, 152)
+    b = push(b, 195)
+    return b
+}
+
+// mov (5) + mov (5) + cdq (1) + idiv (2) + cdqe (2) + ret (1).
+pub fn aotX64IQuoLen() {
+    return 16
+}
+
+/// Real x64 signed rem: mov eax,n; mov ecx,k; cdq; idiv ecx; mov eax,edx;
+/// ret → rax = n%k, sign follows the dividend like Kab %.
+pub fn aotX64EmitIRem(n, k) {
+    if aotX64ISignOk(n, k) == false {
+        return []
+    }
+    let b = []
+    b = push(b, 184)
+    b = x64PushSImm32(b, n)
+    b = push(b, 185)
+    b = x64PushSImm32(b, k)
+    b = push(b, 153)
+    b = push(b, 247)
+    b = push(b, 249)
+    // 89 D0 = mov eax,edx — take the remainder; 48 98 = cdqe sign-extend.
+    b = push(b, 137)
+    b = push(b, 208)
+    b = push(b, 72)
+    b = push(b, 152)
+    b = push(b, 195)
+    return b
+}
+
+pub fn aotX64IRemLen() {
+    return 18
+}
+
+/// Real x64 forward jump: mov eax,n; jmp +5; mov eax,0 (skipped);
+/// add eax,k; ret → rax = n+k. Proves an unconditional forward rel8 jump
+/// skips code on the real CPU. Domain n,k 1..=64 (add imm8).
+pub fn aotX64EmitJmpFwd(n, k) {
+    if jitFuseCmpOk(n, k) == false {
+        return []
+    }
+    let b = []
+    b = push(b, 184)
+    b = x64PushImm32(b, n)
+    // EB 05 = jmp rel8 +5 → lands on the add, skipping mov eax,0.
+    b = push(b, 235)
+    b = push(b, 5)
+    b = push(b, 184)
+    b = x64PushImm32(b, 0)
+    // 83 C0 ib = add eax,imm8.
+    b = push(b, 131)
+    b = push(b, 192)
+    b = push(b, k)
+    b = push(b, 195)
+    return b
+}
+
+// mov (5) + jmp (2) + mov eax,0 (5) + add imm8 (3) + ret (1).
+pub fn aotX64JmpFwdLen() {
+    return 16
+}
+
+/// Real x64 if/else chain: mov eax,n; mov ecx,k; cmp eax,ecx;
+/// jge else(+6); mov eax,100; ret; else: mov eax,200; ret → rax = 100 when
+/// n<k else 200. Signed jge — real multi-basic-block control flow with a
+/// forward conditional branch over an early ret. Domain: |n|,|k| <= 64
+/// (k may be 0 — no div here).
+pub fn aotX64EmitIfElse(n, k) {
+    if n < -64 || n > 64 {
+        return []
+    }
+    if k < -64 || k > 64 {
+        return []
+    }
+    let b = []
+    b = push(b, 184)
+    b = x64PushSImm32(b, n)
+    b = push(b, 185)
+    b = x64PushSImm32(b, k)
+    // 39 C8 cmp eax,ecx; 7D 06 jge +6 → skips mov eax,100; ret.
+    b = push(b, 57)
+    b = push(b, 200)
+    b = push(b, 125)
+    b = push(b, 6)
+    b = push(b, 184)
+    b = x64PushImm32(b, 100)
+    b = push(b, 195)
+    b = push(b, 184)
+    b = x64PushImm32(b, 200)
+    b = push(b, 195)
+    return b
+}
+
+// mov (5) + mov (5) + cmp (2) + jge (2) + mov,100 (5) + ret (1) +
+// mov,200 (5) + ret (1).
+pub fn aotX64IfElseLen() {
+    return 26
+}
+
+/// Real x64 image-data read: _start: mov eax,[ptr]; add eax,[ptr+4]; ret →
+/// rax = sum of two u32s in the image's data section — the pointer arrives
+/// as the ABI second arg (rdx win64 / rsi sysv; exec maps the data page).
+/// Proves image-carried data is read through a live pointer. abi must be
+/// "win64" or "sysv"; [] otherwise.
+pub fn aotX64EmitDataSum(abi) {
+    if abi != "win64" && abi != "sysv" {
+        return []
+    }
+    let b = []
+    if abi == "sysv" {
+        // 8B 06 mov eax,[rsi]; 03 46 04 add eax,[rsi+4].
+        b = push(b, 139)
+        b = push(b, 6)
+        b = push(b, 3)
+        b = push(b, 70)
+        b = push(b, 4)
+    } else {
+        // 8B 02 mov eax,[rdx]; 03 42 04 add eax,[rdx+4].
+        b = push(b, 139)
+        b = push(b, 2)
+        b = push(b, 3)
+        b = push(b, 66)
+        b = push(b, 4)
+    }
+    b = push(b, 195)
+    return b
+}
+
+pub fn aotX64DataSumLen() {
+    return 6
 }

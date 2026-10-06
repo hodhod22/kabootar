@@ -1,6 +1,12 @@
 // SH28: rustc is still the host — policy "rustc-not-host" is false.
 // import "kab/noll/noll_rchost"
-// Do not grow noll_syskab.kab or noll.kab. Do not delete src/. nollAotReady stays false.
+// Audit: the interpreter loop, module loader, natives (incl. os_native_exec)
+// and the CLI entry all execute in the Rust host (src/runtime, src/cli).
+// Kab-native counterparts exist under self_host/ and lib/kab/ (JIT fusion,
+// GC, parser/compiler, real-x64 AOT subset), but they run ON the Rust VM —
+// a self-hosted host requires the full AOT surface (nollAotReady). Do not
+// grow noll_syskab.kab or noll.kab. Do not delete src/.
+// nollAotReady stays false.
 
 pub fn nollRustcNotHost() {
     return false

@@ -7435,4 +7435,3 @@ halt
 source=self_host/parser_exec.kab
 statements=1593
 fingerprint=a7c846b259396a91
-compiler=c1b7778351710b92

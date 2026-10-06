@@ -3226,4 +3226,3 @@ halt
 source=self_host/parser_stmt_class.kab
 statements=664
 fingerprint=7808f215bccbb3f6
-compiler=c1b7778351710b92
