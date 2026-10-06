@@ -40,7 +40,7 @@ Default CLI: `kabootar compile` → self-host först. App-`.kab` har **ingen** R
 | Dirty seeds | `compile_dirty_dag_seeds()` loggar `dirty=N` (SH7) |
 | Produktträd | `compile_dirty_product_tree(entry)` (SH7b) |
 | Tiny parse | `sh8_tiny_parse_via_compiler_image` i CI; full `compile("return 1")` ignored i debug |
-| Cache | SH15 content-addressed `cache/ca/v{image}_{fp}.kbcb` + mmap |
+| Cache | SH15 content-addressed `cache/ca/v{image}_{fp}.kbcb` + mmap; **SH28:** DAG/VM-toolchain-paths bypass:ar `PARSE_CACHE` (generation-mix-skydd — se `sh28_self_host_seed_write_toolchain_cache_probe`); `write_seed_dag_file` validerar fn param/lokal/global-namn |
 || Shared obj-mutation | ✅ fixad: `let U = T; U[k]=v` syns via `T` (in-place merge i call-writeback `merge_object_fields`); gate `sh18_shared_obj_mut_exec_smoke` |
 
 Tunga `_*probe*` / `_bisect*` är **inte** produkt. Regenerera image: `KABOOTAR_SH1_WARM=1 cargo test --test sh_wave sh1_warm -- --ignored`.

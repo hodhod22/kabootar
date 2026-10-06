@@ -18,6 +18,8 @@ cargo test            # host-tester — skuld tills SH25/SH28 (`kabootar test`)
 
 Produktkompilatorn är `self_host/compile.kab`. Körning är Kab-VM (**kab-only default**). Plan och **Nästa:** [docs/ROADMAP.md](docs/ROADMAP.md). Vision: [docs/OVERVIEW.md](docs/OVERVIEW.md).
 
+CI producerar en nedladdningsbar release-binär (`.github/workflows/kabootar-artifact.yml` → artefakt `kabootar-linux-x64`) — idag fortfarande rustc-byggd; rustc-fri distribution kräver `nollAotReady`.
+
 ## Licens
 
 Kabootar (språk, runtime, OS och webbläsare — första-parts-kod) är

@@ -26,6 +26,8 @@ Basenames alone kolliderar (`self_host/lexer` vs `lib/kv8/lexer`) — undvik gam
 
 **H6e seeds:** committed bytecode under `self_host/seed/` + packed `compiler.kbcb` (fingerprint). **P6b:** skip-list tom. Dirty toolchain: `compile_dirty_dag_seeds`. Produktträd: `compile_dirty_product_tree`. Gates: `tests/sh_wave.rs`.
 
+**Toolchain-determinism (SH28):** `self_host/` DAG/VM-paths bypass:ar process-cachen `PARSE_CACHE` helt (läs + skriv) — en parkerad self-host-kompilerad modul skulle annars serveras in i nästa toolchain-env och mixa kompilator-generationer (observerat som `fn_params 4 0`-korruption → `Invalid index access` i seed-skrivning). `write_seed_dag_file` validerar dessutom att alla fn param/lokal/global-namn är identifierare och vägrar skriva en korrupt seed. Regressionsprobe: `sh28_self_host_seed_write_toolchain_cache_probe`; formal regen: `sh28_self_host_seed_write_smoke`.
+
 Self-host full compile av heavy leaves kan ta **minuter–timmar** — undvik i varje edit-loop; facader + seeds är CI-vägen.
 
 ## P10 — self-host pipeline (inte mer parser-isolering)

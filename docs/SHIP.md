@@ -13,6 +13,8 @@ cargo build --release --bin kabootar --features "default,shell,gpu"
 # optional host audio: add ,hw
 ```
 
+Alternativ: CI bygger en nedladdningsbar release-binär — `.github/workflows/kabootar-artifact.yml` → artefakt `kabootar-linux-x64` (30 dagars retention). Fortfarande rustc-producerad; den är producent-sidan mot en framtida rustc-fri konsument (`nollRustcCiGone`/`nollUserNoRustc` = false).
+
 ## Kör
 
 ```bash
@@ -42,6 +44,8 @@ På native = KDOM-compositor med `layer: "host"`. På `wasm32` = web_sys canvas.
 - [x] Editor-data: `import "game/editor"` (hierarki/inspector)
 - [x] Ship smoke: `tests/ship_desktop_smoke.rs`, `tests/game_host.rs`
 - [x] Ingen Unity Hub / Unreal / .NET game workload krävs
+- [x] CI release-artefakt: `kabootar-artifact.yml` → `kabootar-linux-x64` (rustc-byggd; rustc-fri kanal = SH28)
+- [ ] rustc-fri distribuerbar binär (AOT-image eller release-asset utan cargo — `nollUserNoRustc`)
 
 ## Smoke
 
