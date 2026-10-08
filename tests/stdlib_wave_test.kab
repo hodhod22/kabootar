@@ -1,0 +1,26 @@
+// kabtest port of tests/stdlib_wave.rs — hyperbolic Math + string
+// match/search/locale-compare on the Kab VM.
+
+import "kabtest/core"
+
+// math_sinh_cosh_tanh — |f(0)| small / cosh(0)=1 (float compare via bounds)
+ktAssertTrue(sinh(0) > -0.001 && sinh(0) < 0.001, "sinh(0)")
+ktAssertTrue(cosh(0) > 0.999 && cosh(0) < 1.001, "cosh(0)")
+ktAssertTrue(tanh(0) > -0.001 && tanh(0) < 0.001, "tanh(0)")
+
+// math_asinh_at_domain
+ktAssertTrue(asinh(0) > -0.001 && asinh(0) < 0.001, "asinh(0)")
+ktAssertTrue(acosh(1) > -0.001 && acosh(1) < 0.001, "acosh(1)")
+ktAssertTrue(atanh(0) > -0.001 && atanh(0) < 0.001, "atanh(0)")
+
+// string_match_and_search
+ktAssertEq(str_search("abc123", "\\d+"), 3, "str_search")
+let m = str_match("foo42bar", "(\\d+)")
+ktAssertTrue(len(m) >= 1 && m[0] == "42", "str_match capture")
+
+// string_locale_compare
+ktAssertEq(str_locale_compare("a", "b"), -1, "a<b")
+ktAssertEq(str_locale_compare("b", "a"), 1, "b>a")
+ktAssertEq(str_locale_compare("x", "x"), 0, "x==x")
+
+return true

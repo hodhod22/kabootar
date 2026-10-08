@@ -66,6 +66,8 @@ import "kabtest/ci"         // KT9: produkt-gate vs cargo src-skuld
 
 Idag: **KT1–KT8** klara — `test_runner.rs` är raderad, `kabootar test` kör kabtest på Kab-VM. **KT9**: `import "kabtest/ci"` (`ktCiIsProductGate`) + `.github/workflows/kabtest.yml` kör `kabootar test` som produkt-gate; `cargo test` täcker bara `src/`-skuld.
 
+**Migration `tests/*.rs` → `*_test.kab` (första batchen):** 6 filer porterade och gröna via `kabootar test` — `v19_language`, `stdlib_wave`, `app_module`, `science_sc_wave12`, `sh6_vm_optimizations`, `generics` (in-line semantik + monomorfisering via `compileIr`-records: `id$Number`, `Box$*`, `Option$*`, `echo$Number`, `extends`). Rust-originalen ligger kvar tills .kab-täckningen är ekvivalent — legs som är host-yta (AST-fält, host-fel-texter) eller riktiga Kab-VM-luckor (struct-metodanrop, ärvd `init`, `implements Trait<T>`) stannar som dokumenterad debt i filhuvudena. `nollKabtestProductCi` stannar `false` tills sviten är komplett.
+
 ## Relaterat
 
 - SH25 / SH28: [docs/ROADMAP.md](../../docs/ROADMAP.md)

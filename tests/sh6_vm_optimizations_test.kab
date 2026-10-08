@@ -1,0 +1,23 @@
+// kabtest port of tests/sh6_vm_optimizations.rs — SH6 Kab-VM optimize
+// (tag-family fast lookup, plain dispatch, ops loop). The Rust file did
+// host-fs existence+content checks; the honest Kab port asserts the same
+// surface by IMPORTING the modules and checking the expected exports are
+// real callable fns — stronger than a substring match on file text.
+
+import "self_host/vm_run_tag_array"
+import "self_host/vm_run_dispatch_plain"
+import "self_host/vm_run_ops_loop"
+import "kabtest/core"
+
+// NOTE: imported pub fns surface as typeof "object" (closure records) on
+// the Kab VM — existence is asserted via typeof != "undefined" plus one
+// real call (vmTagFamily) proving the export is callable.
+ktAssertTrue(typeof(vmTagFamily) != "undefined", "vmTagFamily export")
+ktAssertEq(vmTagFamily(9999), -1, "out-of-range tag → -1")
+ktAssertEq(vmTagFamily(-1), -1, "negative tag → -1")
+ktAssertTrue(typeof(runOpPlainS) != "undefined", "runOpPlainS export")
+ktAssertTrue(typeof(runOpPlainMacd) != "undefined", "runOpPlainMacd export")
+ktAssertTrue(typeof(runOpTaggedS) != "undefined", "runOpTaggedS export")
+ktAssertTrue(typeof(runOpsS) != "undefined", "runOpsS export")
+
+return true

@@ -1,0 +1,265 @@
+// SH28: exec-image → REAL executable — wraps a whole-function image's
+// emitted code (+ the data page the r12 globals base points at) in a real
+// OS executable: ELF64 for Linux, PE32+ for Windows. The emitted fn code
+// is position-independent already (rbp/rel32/r12 only), so the exe is a
+// pure container: a tiny entry stub hands arg1=0 / arg2=data-page to the
+// image entry and turns rax into the process exit code.
+// import "kab/aot/aot_exe"
+//
+// ELF64: static ET_EXEC, two PT_LOAD segments (R+X text, R+W data),
+// _start stub → call payload → exit(rax) via syscall 60 — no imports.
+//
+// PE32+: .text (stub+code) + .idata (kernel32!ExitProcess import) +
+// .data (globals page). Entry stub → call payload → ExitProcess(eax).
+// Exit code is the low 32 bits of rax — small i64 results are exact.
+
+import "kab/aot/aot_x64"
+
+fn aotExeU16(b, v) {
+    b = push(b, v % 256)
+    return push(b, (v / 256) % 256)
+}
+
+fn aotExeU64(b, v) {
+    let lo = v % 4294967296
+    let hi = (v - lo) / 4294967296
+    b = x64PushSImm32(b, lo)
+    return x64PushSImm32(b, hi)
+}
+
+fn aotExePad(b, n) {
+    while len(b) < n {
+        b = push(b, 0)
+    }
+    return b
+}
+
+fn aotExeBytes(b, xs) {
+    let i = 0
+    while i < len(xs) {
+        b = push(b, xs[i])
+        i = i + 1
+    }
+    return b
+}
+
+/// "kernel32.dll" (no NUL) as bytes — 12 chars.
+fn aotExeKernel32() {
+    return [107, 101, 114, 110, 101, 108, 51, 50, 46, 100, 108, 108]
+}
+
+/// "ExitProcess" (no NUL) as bytes — 11 chars.
+fn aotExeExitProc() {
+    return [69, 120, 105, 116, 80, 114, 111, 99, 101, 115, 115]
+}
+
+/// ELF64 static exe around `code` (entry at image offset 0) with a RW
+/// `data` page. Returns the full file bytes.
+pub fn aotExeEmitElf(code, data) {
+    if len(code) == 0 {
+        return []
+    }
+    let B = 4194304
+    let entryOff = 176
+    let stubLen = 27
+    let codeOff = entryOff + stubLen
+    let textEnd = codeOff + len(code)
+    let dataFile = 4096
+    let dataVa = B + dataFile
+    let entryVa = B + entryOff
+    let codeVa = B + codeOff
+    let e = []
+    // --- ELF header ---
+    e = aotExeBytes(e, [127, 69, 76, 70, 2, 1, 1, 0])
+    e = aotExePad(e, 16)
+    e = aotExeU16(e, 2)
+    e = aotExeU16(e, 62)
+    e = x64PushSImm32(e, 1)
+    e = aotExeU64(e, entryVa)
+    e = aotExeU64(e, 64)
+    e = aotExeU64(e, 0)
+    e = x64PushSImm32(e, 0)
+    e = aotExeU16(e, 64)
+    e = aotExeU16(e, 56)
+    e = aotExeU16(e, 2)
+    e = aotExeU16(e, 64)
+    e = aotExeU16(e, 0)
+    e = aotExeU16(e, 0)
+    // --- phdr0: PT_LOAD R+X covering headers+stub+code ---
+    e = x64PushSImm32(e, 1)
+    e = x64PushSImm32(e, 5)
+    e = aotExeU64(e, 0)
+    e = aotExeU64(e, B)
+    e = aotExeU64(e, B)
+    e = aotExeU64(e, textEnd)
+    e = aotExeU64(e, textEnd)
+    e = aotExeU64(e, 4096)
+    // --- phdr1: PT_LOAD R+W covering the data page ---
+    let dsz = len(data)
+    if dsz < 1 {
+        dsz = 1
+    }
+    e = x64PushSImm32(e, 1)
+    e = x64PushSImm32(e, 6)
+    e = aotExeU64(e, dataFile)
+    e = aotExeU64(e, dataVa)
+    e = aotExeU64(e, dataVa)
+    e = aotExeU64(e, dsz)
+    e = aotExeU64(e, dsz)
+    e = aotExeU64(e, 4096)
+    // --- entry stub (27B): xor edi,edi; lea rsi,[rip+data]; call code;
+    //     mov rdi,rax; mov rax,60; syscall ---
+    e = aotExeBytes(e, [72, 49, 255])
+    e = aotExeBytes(e, [72, 141, 53])
+    e = x64PushSImm32(e, dataVa - (entryVa + 3 + 7))
+    e = push(e, 232)
+    e = x64PushSImm32(e, codeVa - (entryVa + 15))
+    e = aotExeBytes(e, [72, 137, 199])
+    e = aotExeBytes(e, [72, 199, 192, 60, 0, 0, 0])
+    e = aotExeBytes(e, [15, 5])
+    // --- code payload ---
+    e = aotExeBytes(e, code)
+    e = aotExePad(e, dataFile)
+    e = aotExeBytes(e, data)
+    return e
+}
+
+/// PE32+ exe around `code` with a RW `data` page (globals). Sections:
+/// .text (R+X) @RVA 0x1000/file 0x200, .idata (R+W) @0x2000/0x400,
+/// .data (R+W) @0x3000/0x600. Entry stub → ExitProcess(eax).
+pub fn aotExeEmitPe(code, data) {
+    if len(code) == 0 {
+        return []
+    }
+    let textLen = 26 + len(code)
+    let textRaw = ((textLen + 511) / 512) * 512
+    let dataLen = len(data)
+    if dataLen < 1 {
+        dataLen = 1
+    }
+    let dataRaw = ((dataLen + 511) / 512) * 512
+    let h = []
+    // --- DOS header: MZ + e_lfanew=0x80 ---
+    h = aotExeBytes(h, [77, 90])
+    h = aotExePad(h, 60)
+    h = x64PushSImm32(h, 128)
+    h = aotExePad(h, 128)
+    // --- PE sig + COFF header ---
+    h = aotExeBytes(h, [80, 69, 0, 0])
+    h = aotExeU16(h, 34404)
+    h = aotExeU16(h, 3)
+    h = x64PushSImm32(h, 0)
+    h = x64PushSImm32(h, 0)
+    h = x64PushSImm32(h, 0)
+    h = aotExeU16(h, 240)
+    h = aotExeU16(h, 34)
+    // --- optional header PE32+ (240B) ---
+    h = aotExeU16(h, 523)
+    h = aotExeBytes(h, [0, 0])
+    h = x64PushSImm32(h, textRaw)
+    h = x64PushSImm32(h, 512 + dataRaw)
+    h = x64PushSImm32(h, 0)
+    h = x64PushSImm32(h, 4096)
+    h = x64PushSImm32(h, 4096)
+    h = aotExeU64(h, 5368709120)
+    h = x64PushSImm32(h, 4096)
+    h = x64PushSImm32(h, 512)
+    // MajorOS=6 MinorOS=0 MajorImg=0 MinorImg=0 MajorSubsys=6 MinorSubsys=0
+    h = aotExeBytes(h, [6, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0])
+    h = x64PushSImm32(h, 0)
+    h = x64PushSImm32(h, 16384)
+    h = x64PushSImm32(h, 512)
+    h = x64PushSImm32(h, 0)
+    h = aotExeU16(h, 3)
+    h = aotExeU16(h, 0)
+    h = aotExeU64(h, 1048576)
+    h = aotExeU64(h, 4096)
+    h = aotExeU64(h, 1048576)
+    h = aotExeU64(h, 4096)
+    h = x64PushSImm32(h, 0)
+    h = x64PushSImm32(h, 16)
+    // data directories: [0]=export(0,0), [1]=import(.idata), rest 0
+    h = x64PushSImm32(h, 0)
+    h = x64PushSImm32(h, 0)
+    h = x64PushSImm32(h, 8192)
+    h = x64PushSImm32(h, 99)
+    h = aotExePad(h, len(h) + 112)
+    // --- section headers ×3 (40B each) ---
+    h = aotExeSection(h, [46, 116, 101, 120, 116, 0, 0, 0], textLen, 4096, textRaw, 512, 1610612768)
+    h = aotExeSection(h, [46, 105, 100, 97, 116, 97, 0, 0], 99, 8192, 512, 1024, 3221225536)
+    h = aotExeSection(h, [46, 100, 97, 116, 97, 0, 0, 0], dataLen, 12288, dataRaw, 1536, 3221225536)
+    h = aotExePad(h, 512)
+    // --- .text: entry stub (26B) + code ---
+    h = aotExeBytes(h, [72, 131, 236, 40])
+    h = aotExeBytes(h, [72, 141, 21])
+    h = x64PushSImm32(h, 12288 - (4096 + 11))
+    h = aotExeBytes(h, [51, 201])
+    h = push(h, 232)
+    h = x64PushSImm32(h, (4096 + 26) - (4096 + 18))
+    h = aotExeBytes(h, [137, 193])
+    h = aotExeBytes(h, [255, 21])
+    h = x64PushSImm32(h, 8248 - (4096 + 26))
+    h = aotExeBytes(h, code)
+    h = aotExePad(h, 512 + textRaw)
+    // --- .idata @file 0x400: desc + null + ILT + IAT + hint/name + dll ---
+    h = aotExePad(h, 1024)
+    // import descriptor: ILT rva 0x2028, Name 0x2056, FirstThunk 0x2038
+    h = x64PushSImm32(h, 8232)
+    h = x64PushSImm32(h, 0)
+    h = x64PushSImm32(h, 0)
+    h = x64PushSImm32(h, 8278)
+    h = x64PushSImm32(h, 8248)
+    h = aotExePad(h, 1024 + 40)
+    // ILT @0x400+40 (RVA 0x2028): hint/name entry + terminator
+    h = aotExeU64(h, 8264)
+    h = aotExeU64(h, 0)
+    // IAT @0x400+56 (RVA 0x2038)
+    h = aotExeU64(h, 8264)
+    h = aotExeU64(h, 0)
+    // hint/name @0x400+72 (RVA 0x2048): u16 hint + "ExitProcess\0"
+    h = aotExePad(h, 1024 + 72)
+    h = aotExeU16(h, 0)
+    h = aotExeBytes(h, aotExeExitProc())
+    h = push(h, 0)
+    // dll name @0x400+86 (RVA 0x2056): "kernel32.dll\0"
+    h = aotExePad(h, 1024 + 86)
+    h = aotExeBytes(h, aotExeKernel32())
+    h = push(h, 0)
+    h = aotExePad(h, 1536)
+    // --- .data ---
+    h = aotExeBytes(h, data)
+    h = aotExePad(h, 1536 + dataRaw)
+    return h
+}
+
+fn aotExeSection(b, name, vsize, va, rawsz, rawptr, chars) {
+    b = aotExeBytes(b, name)
+    b = x64PushSImm32(b, vsize)
+    b = x64PushSImm32(b, va)
+    b = x64PushSImm32(b, rawsz)
+    b = x64PushSImm32(b, rawptr)
+    b = x64PushSImm32(b, 0)
+    b = x64PushSImm32(b, 0)
+    b = aotExeU16(b, 0)
+    b = aotExeU16(b, 0)
+    return x64PushSImm32(b, chars)
+}
+
+/// Emit a real exe for the host platform: "elf" | "pe".
+pub fn aotExeEmit(code, data, fmt) {
+    if fmt == "elf" {
+        return aotExeEmitElf(code, data)
+    }
+    if fmt == "pe" {
+        return aotExeEmitPe(code, data)
+    }
+    return []
+}
+
+/// Host exe format: "pe" on Windows, "elf" elsewhere.
+pub fn aotExeHostFmt() {
+    if env_get("OS") == "Windows_NT" {
+        return "pe"
+    }
+    return "elf"
+}

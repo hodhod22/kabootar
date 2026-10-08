@@ -1,0 +1,152 @@
+// SH28: exec-image → REAL EXECUTABLE — the whole-function image's emitted
+// x64 bytes are wrapped in a real PE32+ (Windows) / ELF64 (Linux) container
+// by kab/aot/aot_exe.kab, written to disk, and launched as a real OS
+// process: the process exit code must equal the program's rax result.
+// Structural legs verify headers, section tables, and that the .text
+// payload is byte-identical to the image's emitted code.
+// import "kab/aot/aot_exe"
+//
+// NOTE on materialization: the sandboxed VFS (os_write) is virtual, so the
+// exe bytes travel as hex through run_command argv → python decodes them
+// to a real host file. The exe CONTENT is 100% Kab-emitted; only the
+// bytes→disk step uses the host tool.
+
+import "self_host/compile"
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_exe"
+
+/// source → compile → lower → emit → exe bytes. Returns {ok, code, data,
+/// reason}.
+fn exeBuild(src) {
+    let lo = aotFnLowerModule(compileIr(src))
+    if lo["ok"] == false {
+        return { "ok": false, "code": [], "data": [], "reason": "lower: " + lo["reason"] }
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return { "ok": false, "code": [], "data": [], "reason": "emit refused" }
+    }
+    let data = []
+    let i = 0
+    while i < lo["nglobals"] * 8 {
+        data = push(data, 0)
+        i = i + 1
+    }
+    return { "ok": true, "code": r["code"], "data": data, "reason": "" }
+}
+
+/// bytes → real host file: hex travels through run_command argv and the
+/// host tool decodes to disk (powershell on Windows, python3 elsewhere).
+fn exeWrite(bytes, path) {
+    if aotExeHostFmt() == "elf" {
+        let r = run_command("python3", ["-c", "import sys;open(sys.argv[1],'wb').write(bytes.fromhex(sys.argv[2]))", path, aotHexEncode(bytes)])
+        return r["success"]
+    }
+    // -Command binds no $args — embed the hex in the command string.
+    let cmd = "$h='" + aotHexEncode(bytes) + "'; $b=New-Object byte[]($h.Length/2); for($i=0;$i -lt $b.Length;$i++){$b[$i]=[Convert]::ToByte($h.Substring($i*2,2),16)}; [IO.File]::WriteAllBytes('" + path + "',$b)"
+    let r = run_command("powershell", ["-NoProfile", "-Command", cmd])
+    return r["success"]
+}
+
+// --- the payload: globals exercise the r12/.data path through the real
+// exe (data page is RW-mapped by the loader, arg2 = its base). bump(37)
+// → g = 5 + 37 = 42 → process exit code 42. ------------------------------
+let b = exeBuild("let g = 5 fn bump(x) { g = g + x return g } return bump(37)")
+if b["ok"] == false {
+    return 1
+}
+let code = b["code"]
+let data = b["data"]
+
+// --- PE32+ leg: emit, structural-verify, launch, check exit code -------
+let pe = aotExeEmitPe(code, data)
+if len(pe) < 1536 {
+    return 2
+}
+// "MZ" + e_lfanew=0x80 + "PE\0\0" + machine=0x8664 + sections=3
+if pe[0] != 77 || pe[1] != 90 {
+    return 3
+}
+if pe[60] != 128 || pe[128] != 80 || pe[129] != 69 {
+    return 4
+}
+if pe[132] != 100 || pe[133] != 134 || pe[134] != 3 {
+    return 5
+}
+// AddressOfEntryPoint=0x1000 @opt+16 (file 0x80+4+20+16=0xA8)
+if pe[168] != 0 || pe[169] != 16 {
+    return 6
+}
+// .text payload = stub(26B at file 0x200) + code — byte-identical.
+let i = 0
+while i < len(code) {
+    if pe[512 + 26 + i] != code[i] {
+        return 7
+    }
+    i = i + 1
+}
+// Real OS launch: exit code = rax = 42 (PE path only on Windows hosts).
+// Absolute path — bare names don't resolve through run_command's spawn.
+if aotExeHostFmt() == "pe" {
+    let exePath = cwd() + "\\_sh28_aot_smoke.exe"
+    if exeWrite(pe, exePath) == false {
+        return 8
+    }
+    let r = run_command(exePath, [])
+    run_command("powershell", ["-NoProfile", "-Command", "Remove-Item '" + exePath + "' -Force -ErrorAction SilentlyContinue"])
+    if r["code"] != 42 {
+        return 9
+    }
+}
+
+// --- ELF64 leg: emit + structural-verify (exec leg runs on Linux) -------
+let elf = aotExeEmitElf(code, data)
+if len(elf) < 4096 {
+    return 10
+}
+if elf[0] != 127 || elf[1] != 69 || elf[2] != 76 || elf[3] != 70 {
+    return 11
+}
+// e_type=EXEC(2) @16, e_machine=EM_X86_64(62) @18, e_phnum=2 @56
+if elf[16] != 2 || elf[18] != 62 || elf[56] != 2 {
+    return 12
+}
+// e_entry u64 @24 = 0x400000+176 = 0x4000B0
+if elf[24] != 176 || elf[25] != 0 || elf[26] != 64 || elf[27] != 0 {
+    return 13
+}
+// code payload at file offset 203 (176 hdrs + 27B stub) byte-identical.
+let j = 0
+while j < len(code) {
+    if elf[203 + j] != code[j] {
+        return 14
+    }
+    j = j + 1
+}
+// ELF exec leg (Linux hosts only): decode, chmod, run, check $? == 42.
+if aotExeHostFmt() == "elf" {
+    let elfPath = cwd() + "/_sh28_aot_smoke.elf"
+    if exeWrite(elf, elfPath) == false {
+        return 15
+    }
+    run_command("chmod", ["+x", elfPath])
+    let rr = run_command(elfPath, [])
+    run_command("rm", ["-f", elfPath])
+    if rr["code"] != 42 {
+        return 16
+    }
+}
+
+// Honest rejects: empty code and bad format tag must not emit.
+if len(aotExeEmit([], [], "pe")) != 0 {
+    return 20
+}
+if len(aotExeEmit(code, data, "wasm")) != 0 {
+    return 21
+}
+
+return 42

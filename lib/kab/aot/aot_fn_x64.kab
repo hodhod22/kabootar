@@ -1,0 +1,770 @@
+// SH28: whole-function AOT — a two-pass emitter that turns an op array
+// (["const",n], ["load",i], ["store",i], ["acc_add",i] (local[i] += pop),
+// ["add"|"sub"|"mul"|"div"|"mod"], ["neg"|"not"|"bit_not"],
+// ["lt"|"le"|"gt"|"ge"|"eq"|"ne"], ["jmp",t], ["jz",t], ["jnz",t],
+// ["call0"|"call"|"call2"|"call3"|"call4",fi], ["gload",g]|["gstore",g]|
+// ["acc_add_g",g] (module-global slot g via the r12 data base),
+// ["pop"], ["ret"]) into
+// REAL x86-64 bytes, then wraps them in a kabootar-native/1 image with one
+// sym per function. import "kab/aot/aot_fn_x64"
+//
+// VALUE REPRESENTATION (decision, aot-i64v1): every stack slot, local and
+// argument is a raw untagged i64 qword. Dynamic Kab Values (strings,
+// arrays, objects, heap cells) are deliberately OUT of scope for v1 — they
+// need a tagged/pointer repr plus a native heap, which is the
+// nollAotReady criterion-2 work that follows. The honest domain is
+// "typed i64 functions"; anything wider refuses at emit, never silently.
+//
+// PRIVATE CALL CONVENTION: arg1..arg4 in rcx, rdx, r8, r9, result in
+// rax — identical on both host ABIs (rcx..r9 are exactly win64's first
+// four arg regs, and all CALLER-SAVED on win64+SysV, so intra-image
+// calls never touch callee-saved state — an earlier rdi/rsi convention
+// corrupted the host caller's saved regs and ret:jumped wild on
+// return). The image ENTRY (fns[0]) normalizes once: win64 already
+// delivers arg1/arg2 in rcx/rdx (arg2 = the data-page pointer — which
+// is exactly the image ABI's second argument, so it is handed through
+// unmodified); sysv moves rdi→rcx / rsi→rdx. Entry arity is <= 2: the
+// host ABI only supplies two arguments.
+//
+// GLOBALS BASE: r12 is callee-saved on both ABIs, so EVERY fn pushes it
+// in its prologue and restores it in ret; when any fn uses gload/gstore
+// the ENTRY copies the data-page pointer (arg2) into r12 once, and it
+// survives every call untouched. gload/gstore addressing is
+// [r12 + g*8] — the g-th module global's i64 slot in the RW data page.
+//
+// FRAME LAYOUT: push rbp; mov rbp,rsp; sub rsp,locals*8 (imm8 ≤127, else
+// imm32); then arg spill: local i lives at [rbp-8*(i+1)] (disp8 ≤128 else
+// disp32). Locals 0..arity-1 are seeded from rcx/rdx.
+//
+// DOMAIN GUARDS (emit refuses, returns []):
+//   locals 0..=64 (0 → no sub-rsp; module mains have no frame need);
+//   arity 0..=2 (extend by adding r8/r9/… spill rows);
+//   arity <= locals; every fn's last op is "ret" (no fallthrough into the
+//   next fn's bytes); const |v| <= 2147483647 (sext imm32); jump/call
+//   targets must be valid op/fn indices; op names outside the table → [].
+
+import "kab/aot/aot_x64"
+
+/// Bytes-per-op, used by pass 1 to fix label offsets. -1 = unsupported op
+/// (emit must refuse). Disp sizes: slot offset <= 128 → disp8 forms (5B
+/// load/store), wider → disp32 forms (8B).
+fn aotFnOpLen(op) {
+    let name = op[0]
+    if name == "const" {
+        return 8
+    }
+    if name == "load" || name == "store" || name == "acc_add" {
+        if 8 * (op[1] + 1) <= 128 {
+            return 5
+        }
+        return 8
+    }
+    if name == "add" || name == "sub" {
+        return 6
+    }
+    if name == "mul" {
+        return 7
+    }
+    if name == "div" {
+        return 15
+    }
+    if name == "mod" {
+        return 18
+    }
+    if name == "neg" || name == "bit_not" {
+        return 5
+    }
+    if name == "not" {
+        return 11
+    }
+    if name == "gload" || name == "gstore" || name == "acc_add_g" {
+        if 8 * (op[1] + 1) <= 128 {
+            return 6
+        }
+        return 9
+    }
+    if name == "lt" || name == "le" || name == "gt" || name == "ge" {
+        return 12
+    }
+    if name == "eq" || name == "ne" {
+        return 12
+    }
+    if name == "jmp" {
+        return 5
+    }
+    if name == "jz" || name == "jnz" {
+        return 10
+    }
+    if name == "call" {
+        return 7
+    }
+    if name == "call2" {
+        return 8
+    }
+    if name == "call3" {
+        return 10
+    }
+    if name == "call4" {
+        return 12
+    }
+    if name == "call0" {
+        return 6
+    }
+    if name == "pop" {
+        return 1
+    }
+    if name == "ret" {
+        // pop rax; leave; pop r12; ret — r12 restore is unconditional
+        // (every fn saves r12 in its prologue).
+        return 5
+    }
+    return -1
+}
+
+/// Prologue length: push r12 (2 — unconditional: r12 is the callee-saved
+/// globals base, saved by every fn so the host's r12 survives) + push rbp
+/// (1) + mov rbp,rsp (3) + sub rsp (4 imm8 or 7 imm32) + arg spill 4B per
+/// arity + entry normalization (sysv only: mov rcx,rdi 3B for arg1 +
+/// mov rdx,rsi 3B for arg2 — win64 needs none since the private
+/// convention already IS rcx/rdx) + entry globals-base load (3B) when
+/// the module uses data globals.
+fn aotFnProLen(nlocals, arity, isEntry, abi, needR12) {
+    let n = 6
+    if nlocals > 0 {
+        if nlocals * 8 <= 127 {
+            n = n + 4
+        } else {
+            n = n + 7
+        }
+    }
+    n = n + arity * 4
+    if isEntry && abi == "sysv" {
+        n = n + arity * 3
+    }
+    if isEntry && needR12 {
+        n = n + 3
+    }
+    return n
+}
+
+/// Emit the prologue (+ entry ABI normalization when isEntry).
+fn aotFnPro(b, nlocals, arity, isEntry, abi, needR12) {
+    // 41 54 push r12 — first, so it sits ABOVE saved rbp at [rbp+8] and
+    // leave+pop r12 restores it. 55 push rbp; 48 89 E5 mov rbp,rsp.
+    b = push(b, 65)
+    b = push(b, 84)
+    b = push(b, 85)
+    b = push(b, 72)
+    b = push(b, 137)
+    b = push(b, 229)
+    if nlocals > 0 {
+        if nlocals * 8 <= 127 {
+            // 48 83 EC ib = sub rsp,imm8.
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 236)
+            b = push(b, nlocals * 8)
+        } else {
+            // 48 81 EC imm32 = sub rsp,imm32.
+            b = push(b, 72)
+            b = push(b, 129)
+            b = push(b, 236)
+            b = x64PushImm32(b, nlocals * 8)
+        }
+    }
+    // Entry normalization: host ABI arg1/arg2 land in rdi/rsi on sysv —
+    // copy them into the private rcx/rdx convention before the spill.
+    // win64 already delivers them in rcx/rdx (rdx = the data-page pointer,
+    // which doubles as the image ABI's arg2) so no moves are needed there.
+    if isEntry && abi == "sysv" {
+        if arity >= 1 {
+            // 48 89 F9 = mov rcx,rdi.
+            b = push(b, 72)
+            b = push(b, 137)
+            b = push(b, 249)
+        }
+        if arity >= 2 {
+            // 48 89 F2 = mov rdx,rsi.
+            b = push(b, 72)
+            b = push(b, 137)
+            b = push(b, 242)
+        }
+    }
+    // Globals base: when the module touches data globals the entry loads
+    // the data-page pointer (host arg2) into callee-saved r12 — win64 rdx
+    // (49 89 D4 mov r12,rdx), sysv rsi (49 89 F4 mov r12,rsi).
+    if isEntry && needR12 {
+        b = push(b, 73)
+        b = push(b, 137)
+        if abi == "win64" {
+            b = push(b, 212)
+        } else {
+            b = push(b, 244)
+        }
+    }
+    // Spill private arg regs into local slots: rcx→local0 (48 89 4D ..),
+    // rdx→local1 (48 89 55 ..), r8→local2 (4C 89 45 ..), r9→local3
+    // (4C 89 4D ..). disp8 or disp32.
+    if arity >= 1 {
+        b = aotFnStoreReg(b, 0, 77)
+    }
+    if arity >= 2 {
+        b = aotFnStoreReg(b, 1, 85)
+    }
+    if arity >= 3 {
+        b = aotFnStoreRegH(b, 2, 69)
+    }
+    if arity >= 4 {
+        b = aotFnStoreRegH(b, 3, 77)
+    }
+    return b
+}
+
+/// mov [rbp - 8*(i+1)], <reg> — modrm is 0x45/0x85 + reg*8 encoding; the
+/// caller passes the modrm byte (rax=0x45, rcx=0x4D, rdx=0x55 bases are
+/// disp8; we recompute for disp32 by adding 0x40).
+fn aotFnStoreReg(b, i, modrm8) {
+    let off = 8 * (i + 1)
+    b = push(b, 72)
+    b = push(b, 137)
+    if off <= 128 {
+        b = push(b, modrm8)
+        let d = 256 - off
+        b = push(b, d)
+    } else {
+        b = push(b, modrm8 + 64)
+        b = x64PushSImm32(b, 0 - off)
+    }
+    return b
+}
+
+/// mov [rbp - 8*(i+1)], <r8/r9> — same modrm pattern as aotFnStoreReg
+/// but with REX.R set (0x4C): the modrm reg field selects the high
+/// register — r8 → base 0x45, r9 → base 0x4D.
+fn aotFnStoreRegH(b, i, modrm8) {
+    let off = 8 * (i + 1)
+    b = push(b, 76)
+    b = push(b, 137)
+    if off <= 128 {
+        b = push(b, modrm8)
+        let d = 256 - off
+        b = push(b, d)
+    } else {
+        b = push(b, modrm8 + 64)
+        b = x64PushSImm32(b, 0 - off)
+    }
+    return b
+}
+
+/// mov rax, [rbp - 8*(i+1)] then push rax — load local i.
+fn aotFnLoadLocal(b, i) {
+    let off = 8 * (i + 1)
+    b = push(b, 72)
+    b = push(b, 139)
+    if off <= 128 {
+        // 48 8B 45 d8 = mov rax,[rbp+disp8].
+        b = push(b, 69)
+        b = push(b, 256 - off)
+    } else {
+        // 48 8B 85 disp32.
+        b = push(b, 133)
+        b = x64PushSImm32(b, 0 - off)
+    }
+    b = push(b, 80)
+    return b
+}
+
+/// pop rax; mov [rbp - 8*(i+1)], rax — store local i.
+fn aotFnStoreLocal(b, i) {
+    b = push(b, 88)
+    return aotFnStoreReg(b, i, 69)
+}
+
+/// Binary op helpers: pop rcx (rhs), pop rax (lhs), combine, push rax.
+fn aotFnBinop(b, kind) {
+    b = push(b, 89)
+    b = push(b, 88)
+    if kind == "add" {
+        // 48 01 C8 = add rax,rcx.
+        b = push(b, 72)
+        b = push(b, 1)
+        b = push(b, 200)
+    }
+    if kind == "sub" {
+        // 48 29 C8 = sub rax,rcx.
+        b = push(b, 72)
+        b = push(b, 41)
+        b = push(b, 200)
+    }
+    if kind == "mul" {
+        // 48 0F AF C1 = imul rax,rcx.
+        b = push(b, 72)
+        b = push(b, 15)
+        b = push(b, 175)
+        b = push(b, 193)
+    }
+    b = push(b, 80)
+    return b
+}
+
+/// setcc byte for a predicate name (signed; matches aotX64Setcc magics).
+fn aotFnSetcc(name) {
+    if name == "eq" {
+        return 148
+    }
+    if name == "ne" {
+        return 149
+    }
+    if name == "lt" {
+        return 156
+    }
+    if name == "gt" {
+        return 159
+    }
+    if name == "le" {
+        return 158
+    }
+    if name == "ge" {
+        return 157
+    }
+    return 0
+}
+
+/// Predicate op: pop rcx, pop rax, cmp rax,rcx, setCC al, movzx eax,al,
+/// push rax — pushes 1/0. cmp rax,rcx computes lhs-rhs so signed setcc
+/// reads lhs vs rhs directly.
+fn aotFnCmp(b, name) {
+    b = push(b, 89)
+    b = push(b, 88)
+    // 48 39 C8 = cmp rax,rcx.
+    b = push(b, 72)
+    b = push(b, 57)
+    b = push(b, 200)
+    // 0F <setcc> C0; 0F B6 C0 movzx.
+    b = push(b, 15)
+    b = push(b, aotFnSetcc(name))
+    b = push(b, 192)
+    b = push(b, 15)
+    b = push(b, 182)
+    b = push(b, 192)
+    b = push(b, 80)
+    return b
+}
+
+/// Pass 1: byte offset of every op in a fn body (base = the fn's start
+/// offset inside the combined image). Returns [] on any unknown op.
+fn aotFnOpOffsets(ops, base) {
+    let offs = []
+    let cur = base
+    let i = 0
+    while i < len(ops) {
+        let l = aotFnOpLen(ops[i])
+        if l < 0 {
+            return []
+        }
+        offs = push(offs, cur)
+        cur = cur + l
+        i = i + 1
+    }
+    return offs
+}
+
+/// Emit one fn body. `offs` are the per-op byte offsets; `fnOffs` are the
+/// start offsets of all fns in the image (for call rel32).
+fn aotFnEmitOps(b, ops, offs, fnOffs) {
+    let i = 0
+    while i < len(ops) {
+        let op = ops[i]
+        let name = op[0]
+        if name == "const" {
+            // 48 C7 C0 imm32 = mov rax, sext imm32 (honest i64 sign); push.
+            b = push(b, 72)
+            b = push(b, 199)
+            b = push(b, 192)
+            b = x64PushSImm32(b, op[1])
+            b = push(b, 80)
+        }
+        if name == "load" {
+            b = aotFnLoadLocal(b, op[1])
+        }
+        if name == "store" {
+            b = aotFnStoreLocal(b, op[1])
+        }
+        if name == "acc_add" {
+            // 58 pop rax; 48 01 45 d8 add [rbp+disp], rax — local += rhs.
+            b = push(b, 88)
+            let aoff = 8 * (op[1] + 1)
+            b = push(b, 72)
+            b = push(b, 1)
+            if aoff <= 128 {
+                b = push(b, 69)
+                b = push(b, 256 - aoff)
+            } else {
+                b = push(b, 133)
+                b = x64PushSImm32(b, 0 - aoff)
+            }
+        }
+        if name == "add" || name == "sub" || name == "mul" {
+            b = aotFnBinop(b, name)
+        }
+        if name == "div" || name == "mod" {
+            // 59 pop rcx (divisor); 58 pop rax; 48 85 C9 test rcx,rcx;
+            // 75 02 jnz +2; 0F 0B ud2 — divide-by-zero TRAPS (SIGILL):
+            // Kab throws "Integer division by zero" but the native i64
+            // domain has no error channel — a hard stop is honest, a
+            // silent wrong answer is not. 48 99 cqo; 48 F7 F9 idiv rcx
+            // → rax=quot, rdx=rem.
+            b = push(b, 89)
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 133)
+            b = push(b, 201)
+            b = push(b, 117)
+            b = push(b, 2)
+            b = push(b, 15)
+            b = push(b, 11)
+            b = push(b, 72)
+            b = push(b, 153)
+            b = push(b, 72)
+            b = push(b, 247)
+            b = push(b, 249)
+            if name == "mod" {
+                // 48 89 D0 = mov rax,rdx — take the remainder.
+                b = push(b, 72)
+                b = push(b, 137)
+                b = push(b, 208)
+            }
+            b = push(b, 80)
+        }
+        if name == "neg" {
+            // 58 pop rax; 48 F7 D8 neg rax; 50 push rax.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 247)
+            b = push(b, 216)
+            b = push(b, 80)
+        }
+        if name == "bit_not" {
+            // 58 pop rax; 48 F7 D0 not rax; 50 push rax.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 247)
+            b = push(b, 208)
+            b = push(b, 80)
+        }
+        if name == "not" {
+            // 58 pop rax; 48 85 C0 test rax,rax; 0F 94 C0 setz al;
+            // 0F B6 C0 movzx eax,al; 50 push rax — pushes 1 when the
+            // popped value is 0, else 0 (i64 truthiness).
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 133)
+            b = push(b, 192)
+            b = push(b, 15)
+            b = push(b, 148)
+            b = push(b, 192)
+            b = push(b, 15)
+            b = push(b, 182)
+            b = push(b, 192)
+            b = push(b, 80)
+        }
+        if name == "acc_add_g" {
+            // 58 pop rax; 49 01 44 24 d8 / 49 01 84 24 d32 —
+            // add [r12+off], rax — globals[g] += rhs.
+            let aoff = 8 * op[1]
+            b = push(b, 88)
+            b = push(b, 73)
+            b = push(b, 1)
+            if aoff + 8 <= 128 {
+                b = push(b, 68)
+                b = push(b, 36)
+                b = push(b, aoff)
+            } else {
+                b = push(b, 132)
+                b = push(b, 36)
+                b = x64PushSImm32(b, aoff)
+            }
+        }
+        if name == "gload" {
+            // 49 8B 44 24 d8 (disp8) / 49 8B 84 24 d32 — mov rax,[r12+off];
+            // 50 push rax. r12 = the image data page (globals base).
+            let goff = 8 * op[1]
+            b = push(b, 73)
+            b = push(b, 139)
+            if goff + 8 <= 128 {
+                b = push(b, 68)
+                b = push(b, 36)
+                b = push(b, goff)
+            } else {
+                b = push(b, 132)
+                b = push(b, 36)
+                b = x64PushSImm32(b, goff)
+            }
+            b = push(b, 80)
+        }
+        if name == "gstore" {
+            // 58 pop rax; 49 89 44 24 d8 / 49 89 84 24 d32 —
+            // mov [r12+off], rax.
+            let goff2 = 8 * op[1]
+            b = push(b, 88)
+            b = push(b, 73)
+            b = push(b, 137)
+            if goff2 + 8 <= 128 {
+                b = push(b, 68)
+                b = push(b, 36)
+                b = push(b, goff2)
+            } else {
+                b = push(b, 132)
+                b = push(b, 36)
+                b = x64PushSImm32(b, goff2)
+            }
+        }
+        if name == "lt" || name == "le" || name == "gt" || name == "ge" || name == "eq" || name == "ne" {
+            b = aotFnCmp(b, name)
+        }
+        if name == "jmp" {
+            // E9 rel32 — target is op index op[1]; rel = dst - next insn.
+            b = push(b, 233)
+            let next = offs[i] + 5
+            b = x64PushSImm32(b, offs[op[1]] - next)
+        }
+        if name == "jz" || name == "jnz" {
+            // 58 pop rax; 48 85 C0 test rax,rax; 0F 84/85 rel32.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 133)
+            b = push(b, 192)
+            b = push(b, 15)
+            if name == "jz" {
+                b = push(b, 132)
+            } else {
+                b = push(b, 133)
+            }
+            let next2 = offs[i] + 10
+            b = x64PushSImm32(b, offs[op[1]] - next2)
+        }
+        if name == "call" {
+            // 59 pop rcx (arg lands in the private arg1 reg directly);
+            // E8 rel32; 50 push rax.
+            b = push(b, 89)
+            b = push(b, 232)
+            let next3 = offs[i] + 6
+            b = x64PushSImm32(b, fnOffs[op[1]] - next3)
+            b = push(b, 80)
+        }
+        if name == "call2" {
+            // 5A pop rdx (arg2) + 59 pop rcx (arg1) — both land in the
+            // private arg regs; E8 rel32; 50 push rax.
+            b = push(b, 90)
+            b = push(b, 89)
+            b = push(b, 232)
+            let next4 = offs[i] + 7
+            b = x64PushSImm32(b, fnOffs[op[1]] - next4)
+            b = push(b, 80)
+        }
+        if name == "call0" {
+            // E8 rel32; 50 push rax — no args to move.
+            b = push(b, 232)
+            let next5 = offs[i] + 5
+            b = x64PushSImm32(b, fnOffs[op[1]] - next5)
+            b = push(b, 80)
+        }
+        if name == "call3" {
+            // 41 58 pop r8 (arg3); 5A pop rdx; 59 pop rcx; E8 rel32;
+            // 50 push rax — three args into the private convention.
+            b = push(b, 65)
+            b = push(b, 88)
+            b = push(b, 90)
+            b = push(b, 89)
+            b = push(b, 232)
+            // rel32 base = the insn AFTER the call: 4B pops + 5B call = +9.
+            let next6 = offs[i] + 9
+            b = x64PushSImm32(b, fnOffs[op[1]] - next6)
+            b = push(b, 80)
+        }
+        if name == "call4" {
+            // 41 59 pop r9; 41 58 pop r8; 5A pop rdx; 59 pop rcx;
+            // E8 rel32; 50 push rax.
+            b = push(b, 65)
+            b = push(b, 89)
+            b = push(b, 65)
+            b = push(b, 88)
+            b = push(b, 90)
+            b = push(b, 89)
+            b = push(b, 232)
+            // rel32 base = the insn AFTER the call: 6B pops + 5B call = +11.
+            let next7 = offs[i] + 11
+            b = x64PushSImm32(b, fnOffs[op[1]] - next7)
+            b = push(b, 80)
+        }
+        if name == "pop" {
+            // 58 pop rax — discard the top of the value stack.
+            b = push(b, 88)
+        }
+        if name == "ret" {
+            // 58 pop rax; C9 leave; 41 5C pop r12; C3 ret — r12 was
+            // pushed first in the prologue so it sits above saved rbp.
+            b = push(b, 88)
+            b = push(b, 201)
+            b = push(b, 65)
+            b = push(b, 92)
+            b = push(b, 195)
+        }
+        i = i + 1
+    }
+    return b
+}
+
+/// Validate a fn record: {ops, locals, arity, name} within the v1 domain.
+fn aotFnOk(f) {
+    let ops = f["ops"]
+    if len(ops) == 0 {
+        return false
+    }
+    let nlocals = f["locals"]
+    let arity = f["arity"]
+    if nlocals < 0 || nlocals > 64 {
+        return false
+    }
+    // Private convention carries at most four args (rcx/rdx/r8/r9); the
+    // per-fn cap is 4 — the ENTRY cap of 2 (the host ABI only supplies
+    // two args) is enforced by aotX64EmitFns which knows fns[0].
+    if arity < 0 || arity > 4 || arity > nlocals {
+        return false
+    }
+    let last = ops[len(ops) - 1]
+    if last[0] != "ret" {
+        return false
+    }
+    let i = 0
+    while i < len(ops) {
+        let op = ops[i]
+        if aotFnOpLen(op) < 0 {
+            return false
+        }
+        let name = op[0]
+        if name == "const" {
+            if op[1] < -2147483648 || op[1] > 2147483647 {
+                return false
+            }
+        }
+        if name == "load" || name == "store" || name == "acc_add" {
+            if op[1] < 0 || op[1] >= nlocals {
+                return false
+            }
+        }
+        if name == "gload" || name == "gstore" || name == "acc_add_g" {
+            if op[1] < 0 {
+                return false
+            }
+        }
+        if name == "jmp" || name == "jz" || name == "jnz" {
+            if op[1] < 0 || op[1] >= len(ops) {
+                return false
+            }
+        }
+        i = i + 1
+    }
+    return true
+}
+
+/// Two-pass emit of a whole image worth of fns. `fns` is an array of
+/// {ops, locals, arity, name}; fns[0] is the entry (_start). `abi` is the
+/// host abi tag ("win64"/"sysv") — it only changes the entry prologue.
+/// Returns {code, fnOffs, total} or []-equivalent {} on domain miss…
+/// honestly: returns {"code": []} when any fn fails validation.
+pub fn aotX64EmitFns(fns, abi) {
+    if abi != "win64" && abi != "sysv" {
+        return { "code": [] }
+    }
+    if len(fns) == 0 {
+        return { "code": [] }
+    }
+    // needR12: any gload/gstore anywhere → the entry loads the data-page
+    // pointer into callee-saved r12 (and every fn already preserves it).
+    let needR12 = false
+    let gi = 0
+    while gi < len(fns) {
+        let gops = fns[gi]["ops"]
+        let gj = 0
+        while gj < len(gops) {
+            let gn = gops[gj][0]
+            if gn == "gload" || gn == "gstore" || gn == "acc_add_g" {
+                needR12 = true
+            }
+            gj = gj + 1
+        }
+        gi = gi + 1
+    }
+    // The entry's args arrive across the host ABI: only two exist —
+    // arg2 IS the data-page pointer.
+    if fns[0]["arity"] > 2 {
+        return { "code": [] }
+    }
+    // Pass 1a: per-fn op offsets + fn start offsets.
+    let fnOffs = []
+    let allOffs = []
+    let cur = 0
+    let fi = 0
+    while fi < len(fns) {
+        let f = fns[fi]
+        if aotFnOk(f) == false {
+            return { "code": [] }
+        }
+        let isEntry = fi == 0
+        let pro = aotFnProLen(f["locals"], f["arity"], isEntry, abi, needR12)
+        cur = cur + pro
+        let offs = aotFnOpOffsets(f["ops"], cur)
+        if len(offs) == 0 {
+            return { "code": [] }
+        }
+        allOffs = push(allOffs, offs)
+        let lastOp = f["ops"][len(f["ops"]) - 1]
+        cur = offs[len(offs) - 1] + aotFnOpLen(lastOp)
+        fnOffs = push(fnOffs, offs[0] - pro)
+        fi = fi + 1
+    }
+    // Validate call targets now that fn count is known — target index AND
+    // the callee's declared arity must match the callN arg count.
+    let fi2 = 0
+    while fi2 < len(fns) {
+        let ops2 = fns[fi2]["ops"]
+        let j = 0
+        while j < len(ops2) {
+            let n2 = ops2[j][0]
+            let want = -1
+            if n2 == "call0" {
+                want = 0
+            } else if n2 == "call" {
+                want = 1
+            } else if n2 == "call2" {
+                want = 2
+            } else if n2 == "call3" {
+                want = 3
+            } else if n2 == "call4" {
+                want = 4
+            }
+            if want >= 0 {
+                let t = ops2[j][1]
+                if t < 0 || t >= len(fns) {
+                    return { "code": [] }
+                }
+                if fns[t]["arity"] != want {
+                    return { "code": [] }
+                }
+            }
+            j = j + 1
+        }
+        fi2 = fi2 + 1
+    }
+    // Pass 2: emit.
+    let b = []
+    let fi3 = 0
+    while fi3 < len(fns) {
+        let f = fns[fi3]
+        b = aotFnPro(b, f["locals"], f["arity"], fi3 == 0, abi, needR12)
+        b = aotFnEmitOps(b, f["ops"], allOffs[fi3], fnOffs)
+        fi3 = fi3 + 1
+    }
+    return { "code": b, "fnOffs": fnOffs, "total": cur }
+}

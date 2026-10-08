@@ -6,7 +6,7 @@ import "kab/jit/jit_fuse_cmp"
 import "kab/jit/jit_loop_n"
 
 /// Push a little-endian imm32.
-fn x64PushImm32(b, v) {
+pub fn x64PushImm32(b, v) {
     b = push(b, v % 256)
     b = push(b, (v / 256) % 256)
     b = push(b, (v / 65536) % 256)
@@ -16,7 +16,7 @@ fn x64PushImm32(b, v) {
 
 /// Push a signed imm32 — negative values are normalized to their two's
 /// complement u32 bit pattern first (Kab % is remainder, not mask).
-fn x64PushSImm32(b, v) {
+pub fn x64PushSImm32(b, v) {
     if v < 0 {
         v = v + 4294967296
     }

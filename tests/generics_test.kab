@@ -1,0 +1,231 @@
+// kabtest port of tests/generics.rs — native generics (v1) on the Kab VM.
+// The semantic legs run INLINE: this file is itself compiled by the
+// self-host compiler, so generic fns/classes/enums/traits exercise the
+// same monomorphization path the Rust tests asserted. Symbol-name legs
+// (id$Number, Box$Number, Option$*, echo$Number, extends) keep compileIr
+// — each call is expensive under the interpreted VM, so they are merged
+// into three compiled modules. Pure-AST legs (type_params on parse
+// records) are Rust-host surface and stay as Rust debt.
+
+import "self_host/compile"
+import "self_host/vm"
+import "kabtest/core"
+
+// --- inline semantic legs (eval answers must match the Rust asserts) ---
+
+fn gId<T>(x: T) -> T {
+    return x
+}
+fn gPair<A, B>(a: A, b: B) -> Array {
+    return [a, b]
+}
+fn gSwap<T>(a: T, b: T) -> Array {
+    return [b, a]
+}
+
+// generic_id_number_and_string / explicit_type_arg / pair / swap /
+// infer-from-locals
+ktAssertEq(gId(42), 42, "id number")
+ktAssertEq(gId("hi"), "hi", "id string")
+ktAssertEq(gId<Number>(42), 42, "explicit arg")
+ktAssertEq(len(gPair(1, "x")), 2, "pair")
+ktAssertEq(len(gSwap(1, 2)) + len(gSwap("a", "b")), 4, "swap")
+let gN = 42
+ktAssertEq(gId(gN), 42, "infer local")
+let gS = "a"
+ktAssertEq(len(gPair(gN, gS)), 2, "infer pair vars")
+
+// generic_class_method_monomorphize + two specializations
+class GHolder {
+    fn init() {
+    }
+    fn echo<T>(x) {
+        return x
+    }
+}
+let gH = GHolder()
+ktAssertEq(gH.echo(42), 42, "class method")
+let gHa = gH.echo(1)
+let gHb = gH.echo("x")
+ktAssertEq(gHa + len(gHb), 2, "two specs")
+
+// generic_method_on_specialized_class
+class GBox<T> {
+    tag: number;
+    fn init(v) {
+        this.tag = 1
+    }
+    fn echo<U>(x) {
+        return x
+    }
+}
+let gB = GBox(42)
+ktAssertEq(gB.echo(1), 1, "method on spec")
+let gBs = GBox<String>("hi")
+ktAssertEq(gBs.tag, 1, "explicit class arg")
+
+// generic_class_two_specializations_same_module
+ktAssertEq(gB.tag + gBs.tag, 2, "class 2spec")
+
+// generic_class_ctor_monomorphize_infer (init body sets value=0 in Rust
+// test — mirror exactly)
+class GBoxV<T> {
+    value: number;
+    fn init(v) {
+        this.value = 0
+    }
+}
+ktAssertEq(GBoxV(42).value, 0, "ctor infer")
+
+// generic_class_inheritance_resolves_extends — static legs below.
+// NB: instantiating a subclass that only inherits `init` fails on the
+// Kab VM ("vm class has no init") — a real self-host VM gap, so the run
+// leg is NOT ported here (stays as Rust/host debt); the `extends` symbol
+// resolution is still asserted statically via compileIr in Module C.
+class GBase<T> {
+    tag: Number;
+    fn init(v) {
+        this.tag = 1
+    }
+}
+class GChild<T> extends GBase<T> {
+}
+ktAssertTrue(true, "extends decl parses")
+
+// generic_enum_some/two/match
+enum GOption<T> {
+    Some(T),
+    None
+}
+let gOpt = GOption.Some(42)
+let gOptN = GOption<Number>.None
+ktAssertEq(match gOpt { GOption.Some(n) => n GOption.None => 0 }, 42, "enum match")
+
+// where_bound_accepts_implemented
+trait GShow {
+    fn show();
+}
+class GShown implements GShow {
+    fn init() {}
+    fn show() { return 1 }
+}
+fn gShowIt<T>(x: T) where T: GShow {
+    return 42
+}
+ktAssertEq(gShowIt<GShown>(GShown()), 42, "where ok")
+
+// r3_generic_struct_box — ctor+field on Kab VM. NB: struct METHOD calls
+// (.get()) underflow the Kab VM today — a real self-host gap, asserted on
+// the host VM by the Rust original; kept as debt, not faked.
+struct GStructBox<T> {
+    value: T;
+    fn init(v: T) { self.value = v }
+    fn get(self) { return self.value }
+}
+let gSb = GStructBox(42)
+ktAssertEq(gSb.value, 42, "struct box ctor")
+
+// t2_generic_trait_implements — declaration compiles, but instantiating
+// a class bound to a GENERIC trait (`implements GShowT<Number>`)
+// underflows the Kab VM today — real self-host gap, call leg stays as
+// host/Rust debt (the Rust original asserts it on the host VM).
+trait GShowT<T> {
+    fn show();
+}
+class GPoint implements GShowT<Number> {
+    x: number;
+    fn init(n) { this.x = n }
+    fn show() { return this.x }
+}
+ktAssertTrue(true, "generic trait decl compiles")
+
+// t3_associated_types
+trait GIter {
+    type Item;
+    fn next();
+}
+class GCounter implements GIter {
+    type Item = Number;
+    n: number;
+    fn init() { this.n = 0 }
+    fn next() { this.n = this.n + 1; return this.n }
+}
+ktAssertEq(GCounter().next(), 1, "assoc types")
+
+// t4_default_methods
+trait GHasId {
+    fn id() { return 1 }
+}
+class GThing implements GHasId {
+    fn init() {}
+}
+ktAssertEq(GThing().id(), 1, "default method")
+
+// --- specialization-symbol legs (three merged compileIr calls) ---------
+
+fn symsOf(bc, section) {
+    let out = []
+    let i = 0
+    while i < len(bc[section]) {
+        out = push(out, bc[section][i]["sym"])
+        i = i + 1
+    }
+    return out
+}
+
+fn hasSym(xs, want) {
+    let i = 0
+    while i < len(xs) {
+        if xs[i] == want {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+fn findCls(bc, want) {
+    let i = 0
+    while i < len(bc["classes"]) {
+        if bc["classes"][i]["sym"] == want {
+            return bc["classes"][i]
+        }
+        i = i + 1
+    }
+    return null
+}
+
+// Module A: fn specialization names (id$Number, pair$Number_String, id$Box)
+let bcA = compileIr("class Box { value: number fn init(v) { this.value = v } } fn id<T>(x: T) -> T { return x } fn pair<A, B>(a: A, b: B) -> Array { return [a, b] } let n = 42 let s = \"a\" let b = Box(42) let bx = id(b) return id(n) + len(pair(n, s))")
+let fsA = symsOf(bcA, "functions")
+ktAssertTrue(hasSym(fsA, "id$Number"), "id$Number")
+ktAssertTrue(hasSym(fsA, "pair$Number_String"), "pair$Number_String")
+ktAssertTrue(hasSym(fsA, "id$Box"), "id$Box")
+ktAssertTrue(hasSym(fsA, "id") == false, "no plain id")
+
+// Module B: class + enum specialization names in one compile
+let bcB = compileIr("class Box<T> { tag: number fn init(v) { this.tag = 1 } } enum Option<T> { Some(T) None } class Holder { fn init() {} fn echo<T>(x) { return x } } let a = Box(42) let b = Box<String>(\"x\") let h = Holder() Option.Some(1) Option.Some(\"x\") return a.tag + b.tag + h.echo(1)")
+let csB = symsOf(bcB, "classes")
+let esB = symsOf(bcB, "enums")
+ktAssertTrue(hasSym(csB, "Box$Number"), "Box$Number")
+ktAssertTrue(hasSym(csB, "Box$String"), "Box$String")
+ktAssertTrue(hasSym(csB, "Box") == false, "no plain Box")
+ktAssertTrue(hasSym(esB, "Option$Number"), "Option$Number")
+ktAssertTrue(hasSym(esB, "Option$String"), "Option$String")
+ktAssertTrue(hasSym(esB, "Option") == false, "no plain Option")
+let hB = findCls(bcB, "Holder")
+ktAssertTrue(hB != null && hasSym(symsOf(hB, "methods"), "echo$Number"), "echo$Number on Holder")
+ktAssertTrue(hB != null && hasSym(symsOf(hB, "methods"), "echo") == false, "no plain echo")
+ktAssertEq(runModule(bcB), 3, "module B run")
+
+// Module C: specialized-class method + inheritance extends (static —
+// no runModule: inherited-init instantiation underflows the Kab VM, see
+// the GChild note above).
+let bcC = compileIr("class Box<T> { fn init(v) {} fn echo<U>(x) { return x } } class Base<T> { tag: Number fn init(v) { this.tag = 1 } } class Child<T> extends Base<T> {} let b = Box(42) let c = Child(42) return b.echo(1)")
+let bnC = findCls(bcC, "Box$Number")
+ktAssertTrue(bnC != null, "Box$Number found")
+ktAssertTrue(bnC != null && hasSym(symsOf(bnC, "methods"), "echo$Number"), "echo$Number on Box$Number")
+let chC = findCls(bcC, "Child$Number")
+ktAssertTrue(chC != null && chC["extends"] == "Base$Number", "extends Base$Number")
+
+return true

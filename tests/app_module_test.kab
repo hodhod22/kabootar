@@ -1,0 +1,40 @@
+// kabtest port of tests/app_module.rs — app module MVP (nav, lifecycle,
+// ui, i18n, offline, stubs) on the Kab VM.
+
+import "app"
+import "kabtest/core"
+
+let app = createApp("t", { "title": "T" })
+app = start(app)
+let nav = createStack("home")
+nav = pushRoute(nav, "x", { "a": 1 })
+nav = popRoute(nav)
+app = attachNav(app, nav)
+let screen = createScreen("s", 100, 200)
+let panel = createPanel("p", 0, 0, 100, 100)
+panel = addChild(panel, createButton("b", "Go", 0, 0, 40, 20))
+panel = layoutColumn(panel, 4)
+let cat = createCatalog("en", { "hi": "Hi {name}" })
+cat = addLocale(cat, "sv", { "hi": "Hej {name}" })
+cat = setLocale(cat, "sv")
+let cache = createOfflineCache()
+cache = cachePut(cache, "/u", "1")
+let geo = getCurrentPosition(createGeolocation())
+let sh = shareText("x")
+let n = show("hi", "body")
+let m = createManifest({ "id": "demo", "entry": "main.kab" })
+let planOk = plan(m)["ok"]
+let intent = createIntent("VIEW", "kabootar://x")
+
+ktAssertTrue(isForeground(app), "foreground")
+ktAssertEq(currentRoute(nav)["name"], "home", "route")
+ktAssertEq(t(cat, "hi", { "name": "A" }), "Hej A", "i18n")
+ktAssertTrue(cacheHas(cache, "/u"), "cache")
+ktAssertTrue(geo["coords"]["latitude"] != null, "geo")
+ktAssertEq(sh["mode"], "stub", "share")
+ktAssertEq(screen["h"], 200, "screen")
+ktAssertEq(n["kind"], "local", "notify")
+ktAssertTrue(planOk, "plan")
+ktAssertEq(intent["bridge"], "intent", "intent")
+
+return true

@@ -1,0 +1,39 @@
+// kabtest port of tests/science_sc_wave12.rs — beta/Bayes, ARIMA,
+// SHAP-lite, chem on the Kab VM.
+
+import "science"
+import "science/prob"
+import "science/timeseries"
+import "science/explain"
+import "science/domain/chem"
+import "kabtest/core"
+
+// beta_bayes_and_arima
+let pdf = betaPdf(0.5, 2.0, 2.0)
+let cdf = betaCdf(0.5, 2.0, 2.0)
+let post = bayesBetaUpdate(1.0, 1.0, 8.0, 2.0)
+let xs = [1.0, 2.0, 3.0, 5.0, 8.0, 12.0]
+let m = arima110Fit(xs)
+let fc = arima110Forecast(m, 2)
+let m2 = arima111Fit(xs)
+let fc2 = arima111Forecast(m2, 1)
+ktAssertTrue(pdf > 1.4 && cdf > 0.45 && cdf < 0.55, "beta")
+ktAssertTrue(post["mean"] > 0.7, "bayes")
+ktAssertTrue(len(fc) == 2 && fc[0] > xs[len(xs)-1] && len(fc2) == 1, "arima")
+
+// shap_and_chem
+let model = { "w": [2.0, -1.0], "b": 0.5, "baseline": [0.0, 0.0] }
+let sh = shapLinear(model, [1.0, 3.0])
+fn pred(row) {
+    return 2.0 * row[0] - row[1]
+}
+let sk = shapKernelLite([1.0, 3.0], [0.0, 0.0], pred)
+let atoms = atomCounts(["C", "C", "O"])
+let mw = molecularWeight(["C", "C", "O"])
+let fp = atomFingerprint(["C", "C", "O"])
+ktAssertTrue(sh["phi"][0] == 2.0 && sh["pred"] == -0.5, "shapLinear")
+ktAssertEq(sk["phi"][0], 2.0, "shapKernelLite")
+ktAssertTrue(atoms["C"] == 2 && atoms["O"] == 1, "atomCounts")
+ktAssertTrue(mw > 40.0 && fp[0] == 2.0, "chem")
+
+return true

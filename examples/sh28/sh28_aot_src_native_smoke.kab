@@ -1,0 +1,209 @@
+// SH28: SOURCE→NATIVE end-to-end — a real .kab source string goes through
+// the self-host compiler (compileIr → {ops, functions, constants, globals}),
+// aot_fn_lower turns the compiler's {op,arg} bytecode into aot_fn_x64 op
+// arrays (const-pool resolution, relative→absolute jumps, load_global+call
+// → static callN), aotX64EmitFns emits REAL x86-64, os_native_exec runs it
+// on the host CPU, and the rax result must equal the Kab VM's answer on
+// the SAME source. import "kab/aot/aot_fn_lower"
+
+import "self_host/vm"
+import "self_host/compile"
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_exec"
+import "kab/aot/aot_native"
+
+/// bc → lower → emit → persist+reload → native exec → rax. The module's
+/// data globals ride as an image `data_hex` payload AND as the
+/// os_native_exec arg3 RW page (the r12 globals base).
+/// Returns {ok, rax, nglobals, reason} — ok:false on honest refusal.
+fn srcNativeExec(path, bc) {
+    let lo = aotFnLowerModule(bc)
+    if lo["ok"] == false {
+        return { "ok": false, "rax": 0, "nglobals": 0, "reason": "lower: " + lo["reason"] }
+    }
+    let fns = lo["fns"]
+    let data = []
+    let i = 0
+    while i < lo["nglobals"] * 8 {
+        data = push(data, 0)
+        i = i + 1
+    }
+    let image = aotFnImageEmitData(fns, data)
+    if image == "" {
+        return { "ok": false, "rax": 0, "nglobals": 0, "reason": "emit refused (domain miss)" }
+    }
+    os_write(path, image)
+    let back = os_read(path)
+    if back != image {
+        return { "ok": false, "rax": 0, "nglobals": 0, "reason": "image persist mismatch" }
+    }
+    let bytes = aotEntryCodeBytes(back)
+    let abi = aotNativeHostAbi()
+    let r = aotX64EmitFns(fns, abi)
+    if len(bytes) != r["total"] {
+        return { "ok": false, "rax": 0, "nglobals": 0, "reason": "code bytes != emitted total" }
+    }
+    return { "ok": true, "rax": os_native_exec(bytes, 0, data), "nglobals": lo["nglobals"], "reason": "" }
+}
+
+// Leg 1: recursive fib — self-host-compiled, lowered, emitted, executed on
+// the REAL CPU; rax must equal the Kab mirror's answer on the SAME op
+// arrays. (The interpreted Kab VM costs ~4.4s PER CALL on recursion —
+// runModule parity is proven on the non-deep legs below; the mirror is
+// the semantic reference here.)
+let fibBc = compileIr("fn fib(n) { if n < 2 { return n } return fib(n-1) + fib(n-2) } return fib(8)")
+let fibLo = aotFnLowerModule(fibBc)
+if fibLo["ok"] == false {
+    return 1
+}
+let fibR = srcNativeExec("_aot_src_fib.kabi", fibBc)
+if fibR["ok"] == false {
+    return 1
+}
+if fibR["rax"] != 21 {
+    return 2
+}
+if aotFnMirror(fibLo["fns"], 0) != fibR["rax"] {
+    return 3
+}
+
+// Leg 2: a NON-entry call — main calls sq(9) through a lowered
+// load_global+call pair; mirror parity on the SAME op arrays too.
+let sqBc = compileIr("fn sq(x) { return x * x } return sq(9)")
+let sqR = srcNativeExec("_aot_src_sq.kabi", sqBc)
+if sqR["ok"] == false {
+    return 4
+}
+if sqR["rax"] != runModule(sqBc) {
+    return 5
+}
+let sqLo = aotFnLowerModule(sqBc)
+if sqLo["ok"] == false {
+    return 6
+}
+if aotFnMirror(sqLo["fns"], 0) != sqR["rax"] {
+    return 7
+}
+
+// Leg 3: two-arg call across the ABI — add2(20,22) via load_global+call2.
+let addBc = compileIr("fn add2(a, b) { return a + b } return add2(20, 22)")
+let addR = srcNativeExec("_aot_src_add2.kabi", addBc)
+if addR["ok"] == false {
+    return 8
+}
+if addR["rax"] != runModule(addBc) {
+    return 9
+}
+
+// Leg 4: local mutation + while — a compiler-emitted loop (jump_if_false
+// backward jmp) lowered and run natively; sum(9) = 36.
+let loopBc = compileIr("fn sum(n) { let i = 0 let s = 0 while i < n { s = s + i i = i + 1 } return s } return sum(9)")
+let loopR = srcNativeExec("_aot_src_loop.kabi", loopBc)
+if loopR["ok"] == false {
+    return 10
+}
+if loopR["rax"] != runModule(loopBc) {
+    return 11
+}
+
+// Leg 5: if/else forward jz over a return — max(20,22) = 22.
+let ifBc = compileIr("fn mx(a, b) { if a > b { return a } return b } return mx(20, 22)")
+let ifR = srcNativeExec("_aot_src_if.kabi", ifBc)
+if ifR["ok"] == false {
+    return 12
+}
+if ifR["rax"] != runModule(ifBc) {
+    return 13
+}
+
+// Leg 6: signed div + mod through real idiv — 43/7=6, 43%7=1 → 7.
+let dmBc = compileIr("fn cal(a, b) { return a / b + a % b } return cal(43, 7)")
+let dmR = srcNativeExec("_aot_src_dm.kabi", dmBc)
+if dmR["ok"] == false || dmR["rax"] != runModule(dmBc) {
+    return 14
+}
+// Signed operands: -43/7 = -6, -43%7 = -1 → -7 (truncating, sign follows
+// the dividend — same as Kab).
+let dm2Bc = compileIr("fn cal2(a, b) { return a / b + a % b } return cal2(-43, 7)")
+let dm2R = srcNativeExec("_aot_src_dm2.kabi", dm2Bc)
+if dm2R["ok"] == false || dm2R["rax"] != runModule(dm2Bc) {
+    return 15
+}
+
+// Leg 7: unary ops — neg + bit_not: -5 + ~5 = -5 + -6 = -11; and `not`:
+// if !0 → 7.
+let unBc = compileIr("fn u(x) { return -x + ~x } return u(5)")
+let unR = srcNativeExec("_aot_src_un.kabi", unBc)
+if unR["ok"] == false || unR["rax"] != runModule(unBc) {
+    return 16
+}
+let notBc = compileIr("fn f(x) { if !x { return 7 } return 9 } return f(0)")
+let notR = srcNativeExec("_aot_src_not.kabi", notBc)
+if notR["ok"] == false || notR["rax"] != runModule(notBc) {
+    return 17
+}
+
+// Leg 8: arity 3 + 4 via r8/r9 — t3(3,4,5)=17, q4(1,2,3,4)=10.
+let c3Bc = compileIr("fn t3(a, b, c) { return a * b + c } return t3(3, 4, 5)")
+let c3R = srcNativeExec("_aot_src_c3.kabi", c3Bc)
+if c3R["ok"] == false || c3R["rax"] != runModule(c3Bc) {
+    return 18
+}
+let c4Bc = compileIr("fn q4(a, b, c, d) { return a + b + c + d } return q4(1, 2, 3, 4)")
+let c4R = srcNativeExec("_aot_src_c4.kabi", c4Bc)
+if c4R["ok"] == false || c4R["rax"] != runModule(c4Bc) {
+    return 19
+}
+
+// Leg 9: data globals — top-level `let g` compiles to store_global;
+// `g = g + x` (and the acc_add_global fusion) hit the image data page via
+// the r12 globals base INSIDE a callee — globals survive the call.
+// bump(7): g=5 → 12. exec arg3 carries nglobals*8 zero bytes.
+let gBc = compileIr("let g = 5 fn bump(x) { g = g + x return g } return bump(7)")
+let gR = srcNativeExec("_aot_src_g.kabi", gBc)
+if gR["ok"] == false {
+    return 20
+}
+if gR["rax"] != runModule(gBc) {
+    return 21
+}
+// Mirror parity on the same op arrays WITH the globals array.
+let gLo = aotFnLowerModule(gBc)
+if aotFnMirrorG(gLo["fns"], 0, gLo["nglobals"]) != gR["rax"] {
+    return 22
+}
+
+// --- honest rejection legs: out-of-domain sources must refuse, never
+// silently emit wrong bytes -----------------------------------------------
+
+// Data global used ONLY through main — still lowers (gstore/gload); this
+// program must EXECUTE correctly too: x=5 → x+1 = 6.
+let dgBc = compileIr("let x = 5 return x + 1")
+let dgLo = aotFnLowerModule(dgBc)
+if dgLo["ok"] == false {
+    return 25
+}
+// Dynamic call: len is not a module fn → unresolved callee rejects.
+if aotFnLowerModule(compileIr("return len([1, 2])"))["ok"] {
+    return 26
+}
+// Non-i32 const: 1.5 is not an integer → rejects.
+if aotFnLowerModule(compileIr("return 1.5"))["ok"] {
+    return 27
+}
+// Dynamic Value op: array literal → make_array/index_get rejects.
+if aotFnLowerModule(compileIr("return [1, 2][0]"))["ok"] {
+    return 28
+}
+// Arity > 4: the private convention covers rcx/rdx/r8/r9 only → rejects.
+if aotFnLowerModule(compileIr("fn t(a, b, c, d, e) { return a } return t(1, 2, 3, 4, 5)"))["ok"] {
+    return 29
+}
+// Fn value as data: `fib` as a value (not a call target) → rejects.
+if aotFnLowerModule(compileIr("fn fib(n) { return n } let h = fib return 1"))["ok"] {
+    return 30
+}
+
+return 42

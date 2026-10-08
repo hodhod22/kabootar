@@ -1,0 +1,26 @@
+// kabtest port of tests/v19_language.rs — language core semantics on the
+// Kab VM. The Rust file's Rust-AST legs (type_params on Expr::Function,
+// import_module env seeding, "did you mean" host error text) are
+// host-side surface and stay as Rust debt; the language-behavior legs are
+// ported 1:1.
+
+import "greet"
+import "kabtest/core"
+
+// array_literal_evaluates
+ktAssertEq(len([1, 2, 3]), 3, "array literal")
+
+// nested_functions_do_not_blow_memory
+fn a() {
+    fn b() {
+        fn c() { return 1 }
+        return c()
+    }
+    return b()
+}
+ktAssertEq(a(), 1, "nested fns")
+
+// import_file_module — greet("Kabootar") contains "Kabootar"
+ktAssertTrue(str_includes(greet("Kabootar"), "Kabootar"), "greet module")
+
+return true

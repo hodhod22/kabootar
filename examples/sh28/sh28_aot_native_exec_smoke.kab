@@ -4,6 +4,7 @@
 // This is distinct from the simulated guest-MM templates (aot_exec/aot_proc).
 
 import "kab/aot/aot_native"
+import "kab/aot/aot_fn_exec"
 
 // In-process native exec: lt (87) — 3 < 9 → rax 1 on the real CPU.
 if aotNativeExecOk("_aot_native_exec.kabi", 87, 3, 9) == false {
@@ -78,6 +79,62 @@ if aotNativeIfElseExecOk("_aot_native_if.kabi", 9, 5) == false {
 // rax = 20+22 = 42.
 if aotNativeDataExecOk("_aot_native_data.kabi", 20, 22) == false {
     return 23
+}
+// Whole-function AOT (aot_fn_x64): sum(n) = 0+1+..+n-1 — real locals on
+// rbp slots, backward jmp + forward jz over an op array, rax = Kab mirror.
+let sumFns = [{ "name": "sum", "locals": 3, "arity": 1, "ops": [
+    ["const", 0], ["store", 1], ["const", 0], ["store", 2],
+    ["load", 2], ["load", 0], ["lt"], ["jz", 17],
+    ["load", 1], ["load", 2], ["add"], ["store", 1],
+    ["load", 2], ["const", 1], ["add"], ["store", 2],
+    ["jmp", 4], ["load", 1], ["ret"]
+] }]
+// sum(9) = 36.
+if aotFnExecOk("_aot_fn_sum.kabi", sumFns, 9) == false {
+    return 25
+}
+// Call chain: main(n) = dbl(n)+1 → 2*21+1 = 43 — call rel32 across fns.
+let callFns = [
+    { "name": "main", "locals": 1, "arity": 1, "ops": [
+        ["load", 0], ["call", 1], ["const", 1], ["add"], ["ret"]
+    ] },
+    { "name": "dbl", "locals": 1, "arity": 1, "ops": [
+        ["load", 0], ["const", 2], ["mul"], ["ret"]
+    ] }
+]
+if aotFnExecOk("_aot_fn_call.kabi", callFns, 21) == false {
+    return 26
+}
+// Two-arg call: main(n) = add2(n,n) → 42 — private rcx/rdx convention.
+let call2Fns = [
+    { "name": "main", "locals": 1, "arity": 1, "ops": [
+        ["load", 0], ["load", 0], ["call2", 1], ["ret"]
+    ] },
+    { "name": "add2", "locals": 2, "arity": 2, "ops": [
+        ["load", 0], ["load", 1], ["add"], ["ret"]
+    ] }
+]
+if aotFnExecOk("_aot_fn_call2.kabi", call2Fns, 21) == false {
+    return 27
+}
+// Recursion: fib(n) self-call — deep call/ret chain inside one image.
+// fib(10) = 55.
+let fibFns = [{ "name": "fib", "locals": 1, "arity": 1, "ops": [
+    ["load", 0], ["const", 2], ["lt"], ["jz", 6],
+    ["load", 0], ["ret"],
+    ["load", 0], ["const", 1], ["sub"], ["call", 0],
+    ["load", 0], ["const", 2], ["sub"], ["call", 0],
+    ["add"], ["ret"]
+] }]
+if aotFnExecOk("_aot_fn_fib.kabi", fibFns, 10) == false {
+    return 28
+}
+// Negative const: f(n) = n + (-6) — sext imm32 into rax; f(48) = 42.
+let negFns = [{ "name": "neg", "locals": 1, "arity": 1, "ops": [
+    ["load", 0], ["const", -6], ["add"], ["ret"]
+] }]
+if aotFnExecOk("_aot_fn_neg.kabi", negFns, 48) == false {
+    return 29
 }
 // Out-of-domain (n=0) → emit refuses → no exec.
 if aotNativeExecOk("_aot_native_exec.kabi", 87, 0, 9) {

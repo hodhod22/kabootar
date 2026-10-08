@@ -25553,6 +25553,69 @@ fn sh28_aot_native_exec_smoke() {
         .expect("join");
 }
 
+/// SH28: SOURCE→NATIVE end-to-end — real .kab source goes through the
+/// self-host compiler (compileIr), aot_fn_lower maps the compiler's
+/// {op,arg} bytecode to aot_fn_x64 op arrays (const-pool resolution,
+/// relative→absolute jumps, load_global+call → static callN), aotX64EmitFns
+/// emits real x86-64, os_native_exec runs it on the host CPU, and rax must
+/// equal the Kab VM / mirror semantics on the SAME module. Covers fib
+/// recursion, calls arity 0..4 (rcx/rdx/r8/r9), signed div/mod, neg/not/
+/// bit_not, r12-based data globals, and honest rejections (dynamic calls,
+/// fn-values, non-i32 consts, dynamic Value ops, arity > 4).
+#[test]
+fn sh28_aot_src_native_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_src_native_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-src-native".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot src-native smoke");
+            let value = eval_program(&program, &mut env).expect("run aot src-native smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "src-native smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: exec-image → REAL EXECUTABLE — aot_exe.kab wraps a whole-function
+/// image's emitted x64 + data page in a real PE32+ (Windows) / ELF64
+/// (Linux) container. The smoke emits the exe, writes it to disk (hex via
+/// run_command argv → host decoder), launches it as a real OS process, and
+/// asserts the process exit code equals the program's rax result (42) —
+/// including the r12/.data globals path through the real loader.
+#[test]
+fn sh28_aot_exe_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_exe_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-exe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot exe smoke");
+            let value = eval_program(&program, &mut env).expect("run aot exe smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot exe smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH28: OS-spawned process exec — the persisted image's code bytes run
 /// under a pid the OS spawned (os_spawn → process table → own VA space),
 /// not the init process's guest-MM slot. The nollAotProcess leg.

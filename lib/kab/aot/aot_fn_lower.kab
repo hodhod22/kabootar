@@ -1,0 +1,181 @@
+// SH28: bytecode→op-array lowerer — turns a REAL compileIr module record
+// ({ops, functions, constants, globals}: ops are {op, arg} records, const
+// arg is a const-pool INDEX, jumps are RELATIVE (target = ip+1+arg), calls
+// are dynamic (load_global g; call n)) into aot_fn_x64 op arrays — absolute
+// jump targets, resolved callN, literal consts. import "kab/aot/aot_fn_lower"
+//
+// DOMAIN (aot-i64v1): only the typed-i64 subset lowers. DATA globals are
+// supported as image data-page slots (store_global → gstore, load_global
+// not-before-call → gload, acc_add_global → acc_add_g — all via the r12
+// globals base). Rejected, never silently dropped — dynamic calls (call
+// not preceded by load_global, or a callee that is not a module fn),
+// fn values used as data, stores into fn globals, non-number /
+// non-integer / out-of-i32 consts, call arities > 4, and every dynamic
+// Value op (make_array, make_object, index_get, get_member, iterators,
+// classes, …).
+//
+// FN ORDER: fns[0] is the module main (bc["ops"] — the image entry, arity
+// 0, locals 0); bc["functions"] follow at indices 1..N, so a resolved
+// load_global g+call lowers to emitter index fi+1. The result carries
+// "nglobals" — the caller maps an RW data page of nglobals*8 zero bytes
+// (image data_hex / os_native_exec arg3).
+
+/// Index of the fn named `name` inside bc["functions"]; -1 when absent.
+fn aotLowerFnIndex(bc, name) {
+    let fns = bc["functions"]
+    let i = 0
+    while i < len(fns) {
+        if fns[i]["sym"] == name {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+fn aotLowerReject(reason) {
+    return { "ok": false, "reason": reason }
+}
+
+/// Lower one {op, arg} op array into the aot_fn_x64 op shape. Two passes:
+/// pass 1 emits ops + records ipMap (orig ip → lowered index) and jump
+/// fixups (relative targets), pass 2 resolves fixups to absolute lowered
+/// indices. Returns {"ok": true, "ops"} or {"ok": false, "reason"}.
+fn aotLowerOps(ops, bc) {
+    let out = []
+    let ipMap = []
+    let fixups = []
+    let i = 0
+    while i < len(ops) {
+        ipMap = push(ipMap, len(out))
+        let o = ops[i]
+        let name = o["op"]
+        let arg = o["arg"]
+        if name == "const" {
+            let v = bc["constants"][arg]
+            if typeof(v) != "number" || v % 1 != 0 || v < -2147483648 || v > 2147483647 {
+                return aotLowerReject("const not i32 @" + i)
+            }
+            out = push(out, ["const", v])
+        } else if name == "load_local" {
+            out = push(out, ["load", arg])
+        } else if name == "store_local" {
+            out = push(out, ["store", arg])
+        } else if name == "store_global" {
+            let gname2 = bc["globals"][arg]
+            if aotLowerFnIndex(bc, gname2) >= 0 {
+                return aotLowerReject("store_global overwrites module fn '" + gname2 + "' @" + i)
+            }
+            out = push(out, ["gstore", arg])
+        } else if name == "acc_add_local" {
+            // fused `local[arg] += pop` — pure i64 local mutation.
+            out = push(out, ["acc_add", arg])
+        } else if name == "acc_add_global" {
+            let gname3 = bc["globals"][arg]
+            if aotLowerFnIndex(bc, gname3) >= 0 {
+                return aotLowerReject("acc_add_global on module fn '" + gname3 + "' @" + i)
+            }
+            out = push(out, ["acc_add_g", arg])
+        } else if name == "add" || name == "sub" || name == "mul" || name == "div" || name == "mod" || name == "lt" || name == "le" || name == "gt" || name == "ge" || name == "eq" || name == "ne" {
+            out = push(out, [name])
+        } else if name == "neg" || name == "not" || name == "bit_not" {
+            out = push(out, [name])
+        } else if name == "jump" || name == "jump_if_false" || name == "jump_if_true" {
+            let jn = "jmp"
+            if name == "jump_if_false" {
+                jn = "jz"
+            }
+            if name == "jump_if_true" {
+                jn = "jnz"
+            }
+            out = push(out, [jn, -1])
+            fixups = push(fixups, [len(out) - 1, i + 1 + arg])
+        } else if name == "load_global" {
+            let gname = bc["globals"][arg]
+            let fi = aotLowerFnIndex(bc, gname)
+            if i + 1 < len(ops) && ops[i + 1]["op"] == "call" {
+                // Dynamic callee: lowers ONLY when the global names a
+                // module function → one static callN op.
+                if fi < 0 {
+                    return aotLowerReject("call target not a module fn: " + gname)
+                }
+                let n = ops[i + 1]["arg"]
+                let cn = "call0"
+                if n == 1 {
+                    cn = "call"
+                } else if n == 2 {
+                    cn = "call2"
+                } else if n == 3 {
+                    cn = "call3"
+                } else if n == 4 {
+                    cn = "call4"
+                } else if n != 0 {
+                    return aotLowerReject("call arity > 4 @" + i)
+                }
+                out = push(out, [cn, fi + 1])
+                i = i + 1
+                ipMap = push(ipMap, len(out))
+            } else {
+                // A data-global load (v2 domain widened: i64 slots in the
+                // image data page); a fn-valued load escapes — reject.
+                if fi >= 0 {
+                    return aotLowerReject("fn value '" + gname + "' used as data @" + i)
+                }
+                out = push(out, ["gload", arg])
+            }
+        } else if name == "call" {
+            return aotLowerReject("dynamic call @" + i)
+        } else if name == "return" {
+            out = push(out, ["ret"])
+        } else if name == "pop" {
+            out = push(out, ["pop"])
+        } else if name == "halt" {
+            // Module top-level terminator — the entry's ret covers it.
+        } else {
+            return aotLowerReject("unsupported op '" + name + "' @" + i)
+        }
+        i = i + 1
+    }
+    let j = 0
+    while j < len(fixups) {
+        let f = fixups[j]
+        let t = f[1]
+        if t < 0 || t >= len(ops) {
+            return aotLowerReject("jump target out of range @" + t)
+        }
+        out[f[0]][1] = ipMap[t]
+        j = j + 1
+    }
+    return { "ok": true, "ops": out }
+}
+
+/// Lower a whole compileIr module into the aotX64EmitFns input shape:
+/// {"ok": true, "fns": [{name, locals, arity, ops}…]} with the module main
+/// as fns[0], or {"ok": false, "reason"} on the first out-of-domain fn.
+pub fn aotFnLowerModule(bc) {
+    if typeof(bc) != "object" || bc == null || bc["ops"] == undefined || bc["functions"] == undefined {
+        return aotLowerReject("not a compileIr module record")
+    }
+    let mainR = aotLowerOps(bc["ops"], bc)
+    if mainR["ok"] == false {
+        return aotLowerReject("main: " + mainR["reason"])
+    }
+    let fns = [{ "name": "main", "locals": 0, "arity": 0, "ops": mainR["ops"] }]
+    let bcf = bc["functions"]
+    let i = 0
+    while i < len(bcf) {
+        let f = bcf[i]
+        let r = aotLowerOps(f["ops"], bc)
+        if r["ok"] == false {
+            return aotLowerReject(f["sym"] + ": " + r["reason"])
+        }
+        fns = push(fns, {
+            "name": f["sym"],
+            "locals": len(f["locals"]),
+            "arity": len(f["params"]),
+            "ops": r["ops"]
+        })
+        i = i + 1
+    }
+    return { "ok": true, "fns": fns, "nglobals": len(bc["globals"]) }
+}
