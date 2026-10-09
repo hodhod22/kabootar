@@ -1,0 +1,55 @@
+// kabtest port of tests/v25_language.rs — super in inherited classes on the
+// Kab VM. Covers extends + super.init/super.greet dispatch (inherited method
+// lookup walks the class chain).
+
+import "kabtest/core"
+
+// super_init_in_constructor
+class Animal {
+    name: string;
+
+    fn init(n) {
+        this.name = n
+    }
+}
+
+class Dog extends Animal {
+    breed: string;
+
+    fn init(n, b) {
+        super.init(n)
+        this.breed = b
+    }
+}
+
+let d = Dog("Rex", "lab")
+ktAssertEq(d.name + " " + d.breed, "Rex lab", "super.init ctor")
+
+// super_method_call
+class Pet {
+    name: string;
+
+    fn init(n) {
+        this.name = n
+    }
+
+    fn greet() {
+        return "hi " + this.name
+    }
+}
+
+class Cat extends Pet {
+    fn greet() {
+        return super.greet() + "!"
+    }
+}
+
+let c = Cat("Mio")
+ktAssertEq(c.greet(), "hi Mio!", "super.greet method call")
+
+// super_outside_method_errors — not portable: the Kab VM throws
+// "`super` used outside of method" as an internal fault, which in-language
+// try/catch cannot observe (and compileIr accepts the AST). Debt: no
+// negative-exec assertion mechanism in kabtest for VM faults.
+
+return true

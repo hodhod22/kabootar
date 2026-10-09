@@ -10,8 +10,12 @@ import "kab/aot/aot_exec"
 /// Mirror: interpret fn `fi` of `fns` with args a1..a4 over the op array —
 /// the reference semantics the emitted bytes must reproduce. i64 domain.
 /// `gl` is the module-globals array (gload/gstore slots) shared across
-/// calls; [] when the program has no data globals.
-fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl) {
+/// calls; [] when the program has no data globals. `hp` is the shared
+/// aot-tv1 heap — a PRE-SIZED qword array (push copies in Kab, so growth
+/// would not propagate across calls); a tagged ptr encodes
+/// qword-index*8|1 — the mirror's equivalent of the native bump-pointer
+/// address in the data page.
+fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
     let f = fns[fi]
     let ops = f["ops"]
     let locals = []
@@ -49,6 +53,142 @@ fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl) {
         }
         if name == "pop" {
             st = slice(st, 0, len(st) - 1)
+        }
+        // aot-tv1 tagged ops — same bit-level semantics as the emitter.
+        if name == "tag" {
+            st[len(st) - 1] = st[len(st) - 1] * 2
+        }
+        if name == "untag" {
+            st[len(st) - 1] = st[len(st) - 1] / 2
+        }
+        if name == "is_smi" {
+            let sv = st[len(st) - 1]
+            if sv - (sv / 2) * 2 == 0 {
+                st[len(st) - 1] = 1
+            } else {
+                st[len(st) - 1] = 0
+            }
+        }
+        if name == "tconst" {
+            st = push(st, op[1] * 2)
+        }
+        if name == "tnull" {
+            st = push(st, 3)
+        }
+        if name == "tundef" {
+            st = push(st, 11)
+        }
+        if name == "tfalse" {
+            st = push(st, 19)
+        }
+        if name == "ttrue" {
+            st = push(st, 27)
+        }
+        if name == "tadd" || name == "tsub" || name == "tmul" || name == "tdiv" || name == "tmod" {
+            let tr = st[len(st) - 1]
+            let tl = st[len(st) - 2]
+            st = slice(st, 0, len(st) - 2)
+            if name == "tadd" {
+                st = push(st, tl + tr)
+            }
+            if name == "tsub" {
+                st = push(st, tl - tr)
+            }
+            if name == "tmul" {
+                st = push(st, tl * (tr / 2))
+            }
+            if name == "tdiv" {
+                st = push(st, (tl / 2) / (tr / 2) * 2)
+            }
+            if name == "tmod" {
+                st = push(st, (tl / 2) % (tr / 2) * 2)
+            }
+        }
+        if name == "tneg" {
+            st[len(st) - 1] = 0 - st[len(st) - 1]
+        }
+        // aot-tv1 heap: hbase pushes the heap-start "address" (qword
+        // index 0 — the native side emits r12 + ng*8); halloc bumps the
+        // bump-pointer global by nw qwords and pushes the tagged ptr
+        // (index*8|1); hload/hstore index hp in qwords.
+        if name == "hbase" {
+            st = push(st, 0)
+        }
+        if name == "halloc" {
+            // Bump the pointer global by nw qwords; hp is pre-sized so
+            // no growth is needed (and growth could not propagate anyway).
+            let nw = st[len(st) - 1]
+            st = slice(st, 0, len(st) - 1)
+            let oldTop = gl[op[1]]
+            gl[op[1]] = oldTop + nw
+            st = push(st, oldTop * 8 + 1)
+        }
+        if name == "hload" {
+            let hp2 = st[len(st) - 1]
+            st[len(st) - 1] = hp[(hp2 - 1) / 8 + op[1] / 8]
+        }
+        if name == "hstore" {
+            let hv = st[len(st) - 1]
+            let hp3 = st[len(st) - 2]
+            st = slice(st, 0, len(st) - 2)
+            hp[(hp3 - 1) / 8 + op[1] / 8] = hv
+        }
+        if name == "hloadx" {
+            // [ptr, idx] → hp[(ptr-1)/8 + idx]
+            let xi = st[len(st) - 1]
+            let xp = st[len(st) - 2]
+            st = slice(st, 0, len(st) - 2)
+            st = push(st, hp[(xp - 1) / 8 + xi])
+        }
+        if name == "hstorex" {
+            // [ptr, idx, val] → hp[(ptr-1)/8 + idx] = val
+            let xv = st[len(st) - 1]
+            let xi2 = st[len(st) - 2]
+            let xp2 = st[len(st) - 3]
+            st = slice(st, 0, len(st) - 3)
+            hp[(xp2 - 1) / 8 + xi2] = xv
+        }
+        if name == "hlen" {
+            // [ptr] → tagged len field of the header qword (lo16 << 1).
+            let lp = st[len(st) - 1]
+            st[len(st) - 1] = (hp[(lp - 1) / 8] % 65536) * 2
+        }
+        if name == "htag" {
+            // [ptr] → tagged tag byte of the header ((hdr>>16)&0xFF << 1).
+            let tp = st[len(st) - 1]
+            st[len(st) - 1] = ((hp[(tp - 1) / 8] / 65536) % 256) * 2
+        }
+        if name == "hloadb" {
+            // [ptr, bidx] → raw byte at ptr+8+bidx (payload is byte-serial
+            // little-endian inside qwords).
+            let bi = st[len(st) - 1]
+            let bp = st[len(st) - 2]
+            st = slice(st, 0, len(st) - 2)
+            let qw = hp[(bp - 1) / 8 + 1 + bi / 8]
+            let bsh = 1
+            let bk = 0
+            while bk < bi % 8 {
+                bsh = bsh * 256
+                bk = bk + 1
+            }
+            st = push(st, (qw / bsh) % 256)
+        }
+        if name == "hstoreb" {
+            // [ptr, bidx, val] → hp qword at (ptr-1)/8+1+bidx/8 with byte
+            // bidx%8 replaced by val&0xFF.
+            let bv = st[len(st) - 1]
+            let bi2 = st[len(st) - 2]
+            let bp2 = st[len(st) - 3]
+            st = slice(st, 0, len(st) - 3)
+            let qi = (bp2 - 1) / 8 + 1 + bi2 / 8
+            let bsh2 = 1
+            let bk2 = 0
+            while bk2 < bi2 % 8 {
+                bsh2 = bsh2 * 256
+                bk2 = bk2 + 1
+            }
+            let oldq = hp[qi]
+            hp[qi] = oldq - ((oldq / bsh2) % 256) * bsh2 + (bv % 256) * bsh2
         }
         if name == "acc_add" {
             locals[op[1]] = locals[op[1]] + st[len(st) - 1]
@@ -143,10 +283,24 @@ fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl) {
                     ip = ip + 1
                 }
             } else {
-                if name == "jnz" {
+                if name == "jnz" || name == "jsmi" || name == "jnsmi" {
                     let v2 = st[len(st) - 1]
                     st = slice(st, 0, len(st) - 1)
-                    if v2 != 0 {
+                    let taken = false
+                    if name == "jnz" {
+                        if v2 != 0 {
+                            taken = true
+                        }
+                    }
+                    // bit0==0 → SMI (v - (v/2)*2 == 0 even for negatives)
+                    let smi = v2 - (v2 / 2) * 2 == 0
+                    if name == "jsmi" {
+                        taken = smi
+                    }
+                    if name == "jnsmi" {
+                        taken = smi == false
+                    }
+                    if taken {
                         ip = op[1]
                     } else {
                         ip = ip + 1
@@ -155,18 +309,18 @@ fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl) {
                     if name == "call" {
                         let a = st[len(st) - 1]
                         st = slice(st, 0, len(st) - 1)
-                        st = push(st, aotFnRunG(fns, op[1], a, 0, 0, 0, gl))
+                        st = push(st, aotFnRunG(fns, op[1], a, 0, 0, 0, gl, hp))
                         ip = ip + 1
                     } else {
                         if name == "call0" {
-                            st = push(st, aotFnRunG(fns, op[1], 0, 0, 0, 0, gl))
+                            st = push(st, aotFnRunG(fns, op[1], 0, 0, 0, 0, gl, hp))
                             ip = ip + 1
                         } else {
                             if name == "call2" {
                                 let b2 = st[len(st) - 1]
                                 let a2v = st[len(st) - 2]
                                 st = slice(st, 0, len(st) - 2)
-                                st = push(st, aotFnRunG(fns, op[1], a2v, b2, 0, 0, gl))
+                                st = push(st, aotFnRunG(fns, op[1], a2v, b2, 0, 0, gl, hp))
                                 ip = ip + 1
                             } else {
                                 if name == "call3" {
@@ -174,7 +328,7 @@ fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl) {
                                     let b3 = st[len(st) - 2]
                                     let a3v = st[len(st) - 3]
                                     st = slice(st, 0, len(st) - 3)
-                                    st = push(st, aotFnRunG(fns, op[1], a3v, b3, c3, 0, gl))
+                                    st = push(st, aotFnRunG(fns, op[1], a3v, b3, c3, 0, gl, hp))
                                     ip = ip + 1
                                 } else {
                                     if name == "call4" {
@@ -183,7 +337,7 @@ fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl) {
                                         let b4 = st[len(st) - 3]
                                         let a4v = st[len(st) - 4]
                                         st = slice(st, 0, len(st) - 4)
-                                        st = push(st, aotFnRunG(fns, op[1], a4v, b4, c4, d4, gl))
+                                        st = push(st, aotFnRunG(fns, op[1], a4v, b4, c4, d4, gl, hp))
                                         ip = ip + 1
                                     } else {
                                         if name == "ret" {
@@ -204,12 +358,12 @@ fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl) {
 
 /// Compatibility wrapper — no data globals.
 fn aotFnRun(fns, fi, a1, a2) {
-    return aotFnRunG(fns, fi, a1, a2, 0, 0, [])
+    return aotFnRunG(fns, fi, a1, a2, 0, 0, [], [])
 }
 
-/// Mirror of the entry fn: aotFnRunG(fns, 0, arg, 0, 0, 0, []).
+/// Mirror of the entry fn: aotFnRunG(fns, 0, arg, 0, 0, 0, [], []).
 pub fn aotFnMirror(fns, arg) {
-    return aotFnRunG(fns, 0, arg, 0, 0, 0, [])
+    return aotFnRunG(fns, 0, arg, 0, 0, 0, [], [])
 }
 
 /// Mirror of the entry fn with `ng` zeroed module-global slots —
@@ -221,7 +375,25 @@ pub fn aotFnMirrorG(fns, arg, ng) {
         gl = push(gl, 0)
         i = i + 1
     }
-    return aotFnRunG(fns, 0, arg, 0, 0, 0, gl)
+    return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, [])
+}
+
+/// Mirror of the entry fn with `ng` globals AND an `hq`-qword heap —
+/// the hbase/halloc/hload/hstore reference semantics.
+pub fn aotFnMirrorH(fns, arg, ng, hq) {
+    let gl = []
+    let i = 0
+    while i < ng {
+        gl = push(gl, 0)
+        i = i + 1
+    }
+    let hp = []
+    let j = 0
+    while j < hq {
+        hp = push(hp, 0)
+        j = j + 1
+    }
+    return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, hp)
 }
 
 /// kabootar-native/1 image for an emitted fn set — one sym per fn

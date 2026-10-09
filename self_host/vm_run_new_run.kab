@@ -6,10 +6,10 @@ import "kab/gc/gc_alloc"
 
 // --- vm_run_new_init ---
 /// Resolve init/constructor on classDef.
-pub fn vResolveInit(classDef) {
-    let init = vFindMethod(classDef, "init")
+pub fn vResolveInit(S, classDef) {
+    let init = vFindMethodChain(S, classDef, "init")
     if init == null {
-        init = vFindMethod(classDef, "constructor")
+        init = vFindMethodChain(S, classDef, "constructor")
     }
     return init
 }
@@ -74,7 +74,7 @@ pub fn vRunNewInitS(S, info, argc, pool, globals, functions) {
 /// Allocate instance shell + resolve init method (no runMethodBody).
 pub fn vAllocInstance(S, classIdx, argc) {
     let sh = vAllocInstShell(S, classIdx, argc)
-    let init = vResolveInit(sh["classDef"])
+    let init = vResolveInit(S, sh["classDef"])
     return {
         "inst": sh["inst"],
         "init": init,
@@ -104,7 +104,7 @@ pub fn vNewInstanceFromArrayS(S, classIdx, pool, globals, functions) {
     vHeapPut(S, inst)
     let info = {
         "inst": inst,
-        "init": vResolveInit(classDef),
+        "init": vResolveInit(S, classDef),
         "ordered": ordered,
         "sym": classDef["sym"]
     }

@@ -4,7 +4,18 @@
 // ["lt"|"le"|"gt"|"ge"|"eq"|"ne"], ["jmp",t], ["jz",t], ["jnz",t],
 // ["call0"|"call"|"call2"|"call3"|"call4",fi], ["gload",g]|["gstore",g]|
 // ["acc_add_g",g] (module-global slot g via the r12 data base),
-// ["pop"], ["ret"]) into
+// ["pop"], ["ret"],
+// aot-tv1 tagged-value ops (docs/AOT-VALUES.md):
+//   ["tag"] (pop raw i64 → push SMI v<<1), ["untag"] (pop SMI → push sar 1),
+//   ["is_smi"] (pop → push RAW 1 when bit0==0 else 0),
+//   ["jsmi",t]|["jnsmi",t] (pop, test bit0, jz/jnz — type dispatch),
+//   ["tconst",v] (push tagged SMI literal, tag folded at emit),
+//   ["tnull"|"tundef"|"tfalse"|"ttrue"] (push tagged immediate:
+//     (subtag<<3)|3 → null=3, undef=11, false=19, true=27),
+//   ["tadd"|"tsub"|"tneg"|"tmul"|"tdiv"|"tmod"] (SMI arithmetic on tagged
+//     operands — tadd/tsub/tneg are bit-identical to the raw ops since
+//     <<1 is add/sub/neg-linear; tmul untags one operand, tdiv/tmod untag
+//     both, idiv with the same zero-check trap, then retag)) into
 // REAL x86-64 bytes, then wraps them in a kabootar-native/1 image with one
 // sym per function. import "kab/aot/aot_fn_x64"
 //
@@ -14,6 +25,15 @@
 // need a tagged/pointer repr plus a native heap, which is the
 // nollAotReady criterion-2 work that follows. The honest domain is
 // "typed i64 functions"; anything wider refuses at emit, never silently.
+//
+// TAGGED LAYOUT (aot-tv1): qword bit0==0 → SMI, value = sar(qword,1)
+// (i63); bit0==1 → non-immediate: (v&3)==1 is a heap pointer
+// (addr = v&~1) and (v&3)==3 is an immediate (v>>3 subtag: 0 null,
+// 1 undef, 2 false, 3 true). Signed cmp ops (eq/ne/lt/le/gt/ge) are
+// tag-transparent for SMIs since <<1 preserves signed order — they are
+// shared across both domains and double as ptr identity. is_smi pushes
+// a RAW 0/1 flag (not a tagged bool) — immediates arrive via ttrue/
+// tfalse. tag/untag is the typed↔dynamic boundary op.
 //
 // PRIVATE CALL CONVENTION: arg1..arg4 in rcx, rdx, r8, r9, result in
 // rax — identical on both host ABIs (rcx..r9 are exactly win64's first
@@ -112,6 +132,68 @@ fn aotFnOpLen(op) {
     }
     if name == "pop" {
         return 1
+    }
+    if name == "tag" || name == "untag" {
+        return 5
+    }
+    if name == "is_smi" {
+        return 10
+    }
+    if name == "jsmi" || name == "jnsmi" {
+        // pop(1) + test al,1(2) + jcc rel32(6) = 9 — one byte shorter
+        // than jz/jnz which use the 3-byte test rax,rax form.
+        return 9
+    }
+    if name == "tconst" || name == "tnull" || name == "tundef" || name == "tfalse" || name == "ttrue" {
+        return 8
+    }
+    if name == "tadd" || name == "tsub" {
+        return 6
+    }
+    if name == "tneg" {
+        return 5
+    }
+    if name == "tmul" {
+        return 10
+    }
+    if name == "tdiv" {
+        return 24
+    }
+    if name == "tmod" {
+        return 27
+    }
+    if name == "hbase" {
+        if 8 * op[1] + 8 <= 128 {
+            return 6
+        }
+        return 9
+    }
+    if name == "halloc" {
+        if 8 * op[1] + 8 <= 128 {
+            return 29
+        }
+        return 35
+    }
+    if name == "hload" || name == "hstore" {
+        if op[1] <= 127 {
+            return 10
+        }
+        return 13
+    }
+    if name == "hloadx" || name == "hstorex" {
+        return 15
+    }
+    if name == "hlen" {
+        return 17
+    }
+    if name == "htag" {
+        return 21
+    }
+    if name == "hloadb" {
+        return 12
+    }
+    if name == "hstoreb" {
+        return 11
     }
     if name == "ret" {
         // pop rax; leave; pop r12; ret — r12 restore is unconditional
@@ -601,6 +683,376 @@ fn aotFnEmitOps(b, ops, offs, fnOffs) {
             // 58 pop rax — discard the top of the value stack.
             b = push(b, 88)
         }
+        // --- aot-tv1: tagged value ops (docs/AOT-VALUES.md layout) ---
+        if name == "tag" {
+            // 58 pop rax; 48 D1 E0 shl rax,1; 50 push — raw → SMI.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 224)
+            b = push(b, 80)
+        }
+        if name == "untag" {
+            // 58 pop rax; 48 D1 F8 sar rax,1; 50 push — SMI → raw.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 248)
+            b = push(b, 80)
+        }
+        if name == "is_smi" {
+            // 58 pop rax; A8 01 test al,1; 0F 94 C0 setz al;
+            // 0F B6 C0 movzx eax,al; 50 push — RAW 1 when bit0==0.
+            b = push(b, 88)
+            b = push(b, 168)
+            b = push(b, 1)
+            b = push(b, 15)
+            b = push(b, 148)
+            b = push(b, 192)
+            b = push(b, 15)
+            b = push(b, 182)
+            b = push(b, 192)
+            b = push(b, 80)
+        }
+        if name == "jsmi" || name == "jnsmi" {
+            // 58 pop rax; A8 01 test al,1; 0F 84/85 rel32 — type
+            // dispatch: jsmi jumps when bit0==0 (SMI), jnsmi when set.
+            b = push(b, 88)
+            b = push(b, 168)
+            b = push(b, 1)
+            b = push(b, 15)
+            if name == "jsmi" {
+                b = push(b, 132)
+            } else {
+                b = push(b, 133)
+            }
+            let nextT = offs[i] + 9
+            b = x64PushSImm32(b, offs[op[1]] - nextT)
+        }
+        if name == "tconst" {
+            // 48 C7 C0 imm32 = mov rax, sext(v<<1); push — tag folded.
+            b = push(b, 72)
+            b = push(b, 199)
+            b = push(b, 192)
+            b = x64PushSImm32(b, op[1] * 2)
+            b = push(b, 80)
+        }
+        if name == "tnull" || name == "tundef" || name == "tfalse" || name == "ttrue" {
+            // mov rax, imm32((subtag<<3)|3); push — tagged immediate.
+            let sub = 0
+            if name == "tundef" {
+                sub = 1
+            }
+            if name == "tfalse" {
+                sub = 2
+            }
+            if name == "ttrue" {
+                sub = 3
+            }
+            b = push(b, 72)
+            b = push(b, 199)
+            b = push(b, 192)
+            b = x64PushSImm32(b, sub * 8 + 3)
+            b = push(b, 80)
+        }
+        if name == "tadd" || name == "tsub" {
+            // (a<<1)±(b<<1) = (a±b)<<1 — the raw op IS the tagged op.
+            b = push(b, 89)
+            b = push(b, 88)
+            b = push(b, 72)
+            if name == "tadd" {
+                b = push(b, 1)
+            } else {
+                b = push(b, 41)
+            }
+            b = push(b, 200)
+            b = push(b, 80)
+        }
+        if name == "tneg" {
+            // -(a<<1) = (-a)<<1 — identical to raw neg.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 247)
+            b = push(b, 216)
+            b = push(b, 80)
+        }
+        if name == "tmul" {
+            // 59 pop rcx; 48 D1 F9 sar rcx,1 (untag rhs); 58 pop rax;
+            // 48 0F AF C1 imul rax,rcx; 50 push → (a<<1)*b = (a*b)<<1.
+            b = push(b, 89)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 249)
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 15)
+            b = push(b, 175)
+            b = push(b, 193)
+            b = push(b, 80)
+        }
+        if name == "tdiv" || name == "tmod" {
+            // 59 pop rcx; 48 D1 F9 sar rcx,1; 58 pop rax; 48 D1 F8
+            // sar rax,1 — untag both; then the same zero-check+idiv as
+            // the raw div; 48 D1 E0 shl rax,1 — retag the result.
+            b = push(b, 89)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 249)
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 248)
+            b = push(b, 72)
+            b = push(b, 133)
+            b = push(b, 201)
+            b = push(b, 117)
+            b = push(b, 2)
+            b = push(b, 15)
+            b = push(b, 11)
+            b = push(b, 72)
+            b = push(b, 153)
+            b = push(b, 72)
+            b = push(b, 247)
+            b = push(b, 249)
+            if name == "tmod" {
+                // 48 89 D0 = mov rax,rdx — the remainder.
+                b = push(b, 72)
+                b = push(b, 137)
+                b = push(b, 208)
+            }
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 224)
+            b = push(b, 80)
+        }
+        // --- aot-tv1: Kab-owned heap (bump allocator on the data page) ---
+        if name == "hbase" {
+            // 49 8D 44 24 d8 / 49 8D 84 24 d32 = lea rax,[r12+ng*8];
+            // (REX.B required — without it the SIB base decodes as rsp;
+            // REX.R must be clear or the dest becomes r8)
+            // 50 push — the heap-start address (one past the globals).
+            let hoff = 8 * op[1]
+            b = push(b, 73)
+            b = push(b, 141)
+            if hoff + 8 <= 128 {
+                b = push(b, 68)
+                b = push(b, 36)
+                b = push(b, hoff)
+            } else {
+                b = push(b, 132)
+                b = push(b, 36)
+                b = x64PushSImm32(b, hoff)
+            }
+            b = push(b, 80)
+        }
+        if name == "halloc" {
+            // Bump-allocate nw qwords: pop rax (nw); 48 C1 E0 03 shl rax,3;
+            // rcx = [r12+goff] (old top); add rcx,rax; [r12+goff] = rcx;
+            // rdx = (rcx - rax) | 1 = the tagged heap pointer; push rdx.
+            let aoff = 8 * op[1]
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 193)
+            b = push(b, 224)
+            b = push(b, 3)
+            b = push(b, 73)
+            b = push(b, 139)
+            if aoff + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, aoff)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, aoff)
+            }
+            b = push(b, 72)
+            b = push(b, 1)
+            b = push(b, 193)
+            b = push(b, 73)
+            b = push(b, 137)
+            if aoff + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, aoff)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, aoff)
+            }
+            // 48 89 CA mov rdx,rcx; 48 29 C2 sub rdx,rax;
+            // 48 83 CA 01 or rdx,1; 52 push rdx.
+            b = push(b, 72)
+            b = push(b, 137)
+            b = push(b, 202)
+            b = push(b, 72)
+            b = push(b, 41)
+            b = push(b, 194)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 202)
+            b = push(b, 1)
+            b = push(b, 82)
+        }
+        if name == "hload" {
+            // 58 pop rax (tagged ptr); 48 83 E0 FE and rax,-2 (strip tag);
+            // mov rax,[rax+off]; push. off = byte offset inside the cell.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 224)
+            b = push(b, 254)
+            b = push(b, 72)
+            b = push(b, 139)
+            if op[1] <= 127 {
+                b = push(b, 64)
+                b = push(b, op[1])
+            } else {
+                b = push(b, 128)
+                b = x64PushSImm32(b, op[1])
+            }
+            b = push(b, 80)
+        }
+        if name == "hstore" {
+            // 58 pop rax (val); 5A pop rdx (tagged ptr); 48 83 E2 FE
+            // and rdx,-2; mov [rdx+off], rax.
+            b = push(b, 88)
+            b = push(b, 90)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 226)
+            b = push(b, 254)
+            b = push(b, 72)
+            b = push(b, 137)
+            if op[1] <= 127 {
+                b = push(b, 66)
+                b = push(b, op[1])
+            } else {
+                b = push(b, 130)
+                b = x64PushSImm32(b, op[1])
+            }
+        }
+        if name == "hloadx" {
+            // Runtime-indexed load: stack [ptr, idx] → 58 pop rax (idx);
+            // 48 C1 E0 03 shl rax,3; 5A pop rdx (ptr); 48 83 E2 FE
+            // and rdx,-2; 48 8B 04 02 mov rax,[rdx+rax]; 50 push.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 193)
+            b = push(b, 224)
+            b = push(b, 3)
+            b = push(b, 90)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 226)
+            b = push(b, 254)
+            b = push(b, 72)
+            b = push(b, 139)
+            b = push(b, 4)
+            b = push(b, 2)
+            b = push(b, 80)
+        }
+        if name == "hstorex" {
+            // Runtime-indexed store: stack [ptr, idx, val] →
+            // 58 pop rax (val); 59 pop rcx (idx); 48 C1 E1 03 shl rcx,3;
+            // 5A pop rdx (ptr); 48 83 E2 FE and rdx,-2;
+            // 48 89 04 0A mov [rdx+rcx], rax.
+            b = push(b, 88)
+            b = push(b, 89)
+            b = push(b, 72)
+            b = push(b, 193)
+            b = push(b, 225)
+            b = push(b, 3)
+            b = push(b, 90)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 226)
+            b = push(b, 254)
+            b = push(b, 72)
+            b = push(b, 137)
+            b = push(b, 4)
+            b = push(b, 10)
+        }
+        if name == "hlen" {
+            // [ptr] → tagged cell length: pop rax; and rax,-2;
+            // mov rax,[rax] (header qword); and eax,0xFFFF (len field);
+            // shl rax,1 (SMI-tag it); push. = 17B.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 224)
+            b = push(b, 254)
+            b = push(b, 72)
+            b = push(b, 139)
+            b = push(b, 0)
+            b = push(b, 37)
+            b = push(b, 255)
+            b = push(b, 255)
+            b = push(b, 0)
+            b = push(b, 0)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 224)
+            b = push(b, 80)
+        }
+        if name == "htag" {
+            // [ptr] → tagged tag byte: pop rax; and rax,-2; mov rax,[rax];
+            // shr rax,16; and eax,0xFF; shl rax,1; push. = 21B.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 224)
+            b = push(b, 254)
+            b = push(b, 72)
+            b = push(b, 139)
+            b = push(b, 0)
+            b = push(b, 72)
+            b = push(b, 193)
+            b = push(b, 232)
+            b = push(b, 16)
+            b = push(b, 37)
+            b = push(b, 255)
+            b = push(b, 0)
+            b = push(b, 0)
+            b = push(b, 0)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 224)
+            b = push(b, 80)
+        }
+        if name == "hloadb" {
+            // Byte-granular load (string payloads): stack [ptr, bidx] →
+            // 58 pop rax (bidx); 5A pop rdx (ptr); 48 83 E2 FE and rdx,-2;
+            // 0F B6 44 02 08 movzx eax, byte [rdx+rax+8]; 50 push. = 12B.
+            b = push(b, 88)
+            b = push(b, 90)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 226)
+            b = push(b, 254)
+            b = push(b, 15)
+            b = push(b, 182)
+            b = push(b, 68)
+            b = push(b, 2)
+            b = push(b, 8)
+            b = push(b, 80)
+        }
+        if name == "hstoreb" {
+            // Byte-granular store: stack [ptr, bidx, val] →
+            // 58 pop rax (val); 59 pop rcx (bidx); 5A pop rdx (ptr);
+            // 48 83 E2 FE and rdx,-2; 88 44 0A 08 mov [rdx+rcx+8], al. = 11B.
+            b = push(b, 88)
+            b = push(b, 89)
+            b = push(b, 90)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 226)
+            b = push(b, 254)
+            b = push(b, 136)
+            b = push(b, 68)
+            b = push(b, 10)
+            b = push(b, 8)
+        }
         if name == "ret" {
             // 58 pop rax; C9 leave; 41 5C pop r12; C3 ret — r12 was
             // pushed first in the prologue so it sits above saved rbp.
@@ -648,6 +1100,12 @@ fn aotFnOk(f) {
                 return false
             }
         }
+        if name == "tconst" {
+            // tagged = v<<1 must fit sext imm32 → |v| <= 0x3FFFFFFF.
+            if op[1] < -1073741824 || op[1] > 1073741823 {
+                return false
+            }
+        }
         if name == "load" || name == "store" || name == "acc_add" {
             if op[1] < 0 || op[1] >= nlocals {
                 return false
@@ -658,7 +1116,12 @@ fn aotFnOk(f) {
                 return false
             }
         }
-        if name == "jmp" || name == "jz" || name == "jnz" {
+        if name == "hbase" || name == "halloc" || name == "hload" || name == "hstore" {
+            if op[1] < 0 {
+                return false
+            }
+        }
+        if name == "jmp" || name == "jz" || name == "jnz" || name == "jsmi" || name == "jnsmi" {
             if op[1] < 0 || op[1] >= len(ops) {
                 return false
             }
@@ -689,7 +1152,7 @@ pub fn aotX64EmitFns(fns, abi) {
         let gj = 0
         while gj < len(gops) {
             let gn = gops[gj][0]
-            if gn == "gload" || gn == "gstore" || gn == "acc_add_g" {
+            if gn == "gload" || gn == "gstore" || gn == "acc_add_g" || gn == "hbase" || gn == "halloc" {
                 needR12 = true
             }
             gj = gj + 1

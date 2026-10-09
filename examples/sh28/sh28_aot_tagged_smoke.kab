@@ -1,0 +1,119 @@
+// SH28: aot-tv1 tagged-value domain — tag/untag, SMI arithmetic (tadd/
+// tsub/tmul/tdiv/tmod/tneg), tagged immediates (tnull/ttrue…), is_smi and
+// jsmi/jnsmi type dispatch, emitted as REAL x86-64, executed on the host
+// CPU, and mirrored by the Kab interpreter over the SAME op arrays.
+// import "kab/aot/aot_fn_x64"
+
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_exec"
+import "kab/aot/aot_native"
+
+// fn cls(v): tagged arg — SMI → untag+1, non-SMI → 77. Exercises
+// load/jsmi/untag plus a mid-fn ret.
+let cls = {
+    "name": "cls",
+    "arity": 1,
+    "locals": 1,
+    "ops": [
+        ["load", 0],
+        ["jsmi", 4],
+        ["const", 77],
+        ["ret"],
+        ["load", 0],
+        ["untag"],
+        ["const", 1],
+        ["add"],
+        ["ret"]
+    ]
+}
+
+// entry: 21 + 77 + tag/untag-roundtrip(5) + untag(tmul 6*7)=42 +
+// untag(tdiv 20/3)=6 + untag(tmod 20%3)=2 + is_smi(tnull)=0 +
+// is_smi(tconst 9)=1 + untag(tneg(tconst 8))=-8 → 146.
+let main = {
+    "name": "main",
+    "arity": 0,
+    "locals": 0,
+    "ops": [
+        ["tconst", 20],
+        ["call", 1],
+        ["tnull"],
+        ["call", 1],
+        ["add"],
+        ["const", 5],
+        ["tag"],
+        ["untag"],
+        ["add"],
+        ["tconst", 6],
+        ["tconst", 7],
+        ["tmul"],
+        ["untag"],
+        ["add"],
+        ["tconst", 20],
+        ["tconst", 3],
+        ["tdiv"],
+        ["untag"],
+        ["add"],
+        ["tconst", 20],
+        ["tconst", 3],
+        ["tmod"],
+        ["untag"],
+        ["add"],
+        ["tnull"],
+        ["is_smi"],
+        ["add"],
+        ["tconst", 9],
+        ["is_smi"],
+        ["add"],
+        ["tconst", 8],
+        ["tneg"],
+        ["untag"],
+        ["add"],
+        ["ret"]
+    ]
+}
+
+let fns = [main, cls]
+let image = aotFnImageEmit(fns)
+if image == "" {
+    return 1
+}
+os_write("_aot_tagged.kabi", image)
+let back = os_read("_aot_tagged.kabi")
+if back != image {
+    return 2
+}
+let bytes = aotEntryCodeBytes(back)
+let abi = aotNativeHostAbi()
+let r = aotX64EmitFns(fns, abi)
+if len(bytes) != r["total"] {
+    return 3
+}
+
+let rax = os_native_exec(bytes, 0, [])
+if rax != 146 {
+    return 4
+}
+if aotFnMirror(fns, 0) != rax {
+    return 5
+}
+
+// Honest reject legs: tconst out of i31 range must refuse, not truncate.
+let badC = {
+    "name": "bad", "arity": 0, "locals": 0,
+    "ops": [["tconst", 1073741824], ["ret"]]
+}
+if aotFnImageEmit([badC]) != "" {
+    return 6
+}
+// jsmi target out of range must refuse.
+let badJ = {
+    "name": "badj", "arity": 0, "locals": 0,
+    "ops": [["tnull"], ["jsmi", 99], ["ret"]]
+}
+if aotFnImageEmit([badJ]) != "" {
+    return 7
+}
+
+return 42

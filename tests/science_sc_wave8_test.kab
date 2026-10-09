@@ -1,0 +1,25 @@
+// kabtest port of tests/science_sc_wave8.rs — SC5b deeper Kab-port leg on the
+// Kab VM. The FIR/IIR/biquad and gpu_matmul legs are NOT portable: lib
+// science/signal.kab and science/gpu.kab are thin shims over Rust-native
+// builtins (num_*/gpu_*), which do not exist on the Kab VM. Debt: those tests
+// stay Rust-side until the science shims get Kab-native implementations.
+
+import "kabtest/core"
+import "science"
+import "science/kab_algo"
+
+// kab_algo_deeper_port — pure Kab implementations
+let sm = softmaxKab([1.0, 2.0, 3.0])
+let lr = linregKab([1.0, 2.0, 3.0], [2.0, 4.0, 6.0])
+let d = dotKab([1.0, 2.0], [3.0, 4.0])
+let cl = clipKab([-2.0, 0.5, 9.0], 0.0, 1.0)
+let mk = movingAvgKab([1.0, 2.0, 3.0], 2)
+
+ktAssertTrue(sm[2] > sm[0], "softmax ordering")
+ktAssertTrue(lr[0] > 1.9 && lr[0] < 2.1, "linreg slope")
+ktAssertEq(d, 11.0, "dot")
+ktAssertEq(cl[0], 0.0, "clip lo")
+ktAssertEq(cl[2], 1.0, "clip hi")
+ktAssertEq(mk[1], 1.5, "movingAvgKab")
+
+return true

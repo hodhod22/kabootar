@@ -746,31 +746,37 @@ pub fn emitSym(E, store, sym) {
 }
 
 // SH5: fn scope / nested named fn / generic class meth (was emit_fn_scope).
+// Stack-based: nested specialization (generic fn body compiling a method
+// call that installs another specialization) must not clobber the outer
+// save — eSave* single slots did.
 pub fn emitFnScopeSave(E) {
-    E["eSaveInFn"] = E["eInFn"]
-    E["eSaveFnOps"] = arrUtil(E, "snap", E["eFnOps"])
-    E["eSaveFnOpsN"] = E["eFnOpsN"]
-    E["eSaveFnLocals"] = arrUtil(E, "snap", E["eFnLocals"])
-    E["eSaveFnGlobals"] = arrUtil(E, "snap", E["eFnGlobals"])
-    E["eSaveParams"] = E["eParams"]
-    E["eSaveFnSave"] = E["eFnSave"]
-    E["eSaveFnBody"] = E["eFnBody"]
-    E["eSaveParamDefaults"] = E["eParamDefaults"]
-    E["eSaveFnRest"] = E["eFnRest"]
+    object_array_push(E, "eFnScopeStack", {
+        "inFn": E["eInFn"],
+        "fnOps": arrUtil(E, "snap", E["eFnOps"]),
+        "fnOpsN": E["eFnOpsN"],
+        "fnLocals": arrUtil(E, "snap", E["eFnLocals"]),
+        "fnGlobals": arrUtil(E, "snap", E["eFnGlobals"]),
+        "params": E["eParams"],
+        "fnSave": E["eFnSave"],
+        "fnBody": E["eFnBody"],
+        "paramDefaults": E["eParamDefaults"],
+        "fnRest": E["eFnRest"]
+    })
 }
 
 pub fn emitFnScopeRestore(E) {
-    E["eInFn"] = E["eSaveInFn"]
-    E["eFnOps"] = E["eSaveFnOps"]
-    E["eFnOpsN"] = E["eSaveFnOpsN"]
-    E["eFnLocals"] = E["eSaveFnLocals"]
+    let sv = object_array_pop(E, "eFnScopeStack")
+    E["eInFn"] = sv["inFn"]
+    E["eFnOps"] = sv["fnOps"]
+    E["eFnOpsN"] = sv["fnOpsN"]
+    E["eFnLocals"] = sv["fnLocals"]
     rebuildLocalMap(E)
-    E["eFnGlobals"] = E["eSaveFnGlobals"]
-    E["eParams"] = E["eSaveParams"]
-    E["eFnSave"] = E["eSaveFnSave"]
-    E["eFnBody"] = E["eSaveFnBody"]
-    E["eParamDefaults"] = E["eSaveParamDefaults"]
-    E["eFnRest"] = E["eSaveFnRest"]
+    E["eFnGlobals"] = sv["fnGlobals"]
+    E["eParams"] = sv["params"]
+    E["eFnSave"] = sv["fnSave"]
+    E["eFnBody"] = sv["fnBody"]
+    E["eParamDefaults"] = sv["paramDefaults"]
+    E["eFnRest"] = sv["fnRest"]
 }
 
 /// Missing args stay undefined in Kab-VM; apply default via jump_if_not_nullish.

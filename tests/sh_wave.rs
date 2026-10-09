@@ -25616,6 +25616,94 @@ fn sh28_aot_exe_smoke() {
         .expect("join");
 }
 
+/// SH28: aot-tv1 tagged-value domain — tag/untag, SMI arithmetic
+/// (tadd/tsub/tmul/tdiv/tmod/tneg), tagged immediates (tnull/ttrue…),
+/// is_smi and jsmi/jnsmi type dispatch, all executed natively on the host
+/// CPU with Kab-mirror parity over the same op arrays, plus honest
+/// rejects (tconst range, bad jsmi target).
+#[test]
+fn sh28_aot_tagged_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_tagged_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-tagged".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot tagged smoke");
+            let value = eval_program(&program, &mut env).expect("run aot tagged smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot tagged smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 Kab heap — hbase/halloc bump allocation on the data page,
+/// hstore/hload fixed-offset and hstorex/hloadx runtime-indexed qword
+/// access through tagged pointers (bit0=1), a native traversal loop that
+// accumulates across heap cells, and the image persist/reload round-trip.
+/// Native result (43) must equal the Kab mirror over the same op arrays.
+#[test]
+fn sh28_aot_heap_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_heap_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-heap".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot heap smoke");
+            let value = eval_program(&program, &mut env).expect("run aot heap smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot heap smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 dynamic breadth — native code builds and traverses a
+/// string cell (hstoreb/hloadb byte ops), a record (hstore/hload fixed
+/// offsets) and an array (hstorex/hloadx), with header introspection
+/// (hlen/htag) and SMI/heap type dispatch (jsmi/jnsmi). Native result
+/// (899) must equal the Kab mirror over the same op arrays; negative
+/// offsets and out-of-range branch targets are rejected honestly.
+#[test]
+fn sh28_aot_dyn_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_dyn_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-dyn".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot dyn smoke");
+            let value = eval_program(&program, &mut env).expect("run aot dyn smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot dyn smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH28: OS-spawned process exec — the persisted image's code bytes run
 /// under a pid the OS spawned (os_spawn → process table → own VA space),
 /// not the init process's guest-MM slot. The nollAotProcess leg.

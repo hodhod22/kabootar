@@ -66,7 +66,13 @@ import "kabtest/ci"         // KT9: produkt-gate vs cargo src-skuld
 
 Idag: **KT1–KT8** klara — `test_runner.rs` är raderad, `kabootar test` kör kabtest på Kab-VM. **KT9**: `import "kabtest/ci"` (`ktCiIsProductGate`) + `.github/workflows/kabtest.yml` kör `kabootar test` som produkt-gate; `cargo test` täcker bara `src/`-skuld.
 
-**Migration `tests/*.rs` → `*_test.kab` (första batchen):** 6 filer porterade och gröna via `kabootar test` — `v19_language`, `stdlib_wave`, `app_module`, `science_sc_wave12`, `sh6_vm_optimizations`, `generics` (in-line semantik + monomorfisering via `compileIr`-records: `id$Number`, `Box$*`, `Option$*`, `echo$Number`, `extends`). Rust-originalen ligger kvar tills .kab-täckningen är ekvivalent — legs som är host-yta (AST-fält, host-fel-texter) eller riktiga Kab-VM-luckor (struct-metodanrop, ärvd `init`, `implements Trait<T>`) stannar som dokumenterad debt i filhuvudena. `nollKabtestProductCi` stannar `false` tills sviten är komplett.
+**Migration `tests/*.rs` → `*_test.kab` (första batchen):** 6 filer porterade och gröna via `kabootar test` — `v19_language`, `stdlib_wave`, `app_module`, `science_sc_wave12`, `sh6_vm_optimizations`, `generics` (in-line semantik + monomorfisering via `compileIr`-records: `id$Number`, `Box$*`, `Option$*`, `echo$Number`, `extends`).
+
+**Andra batchen:** 5 filer till — `v25_language` (super/extends: `super.init` + `super.greet` på Kab-VM), `iot_module` (MQTT-bus/sensorer), `v219_language` (arrayer/index/while + `compileIr`-checks), `v220_language` (objekt/index-write/for-of/for-classic), `science_sc_wave8` (kab_algo-leggen — FIR/IIR- och gpu-legsen är ej porterbara: `science/signal`, `science/gpu`, `science/transformer`, `science/ml` är shims över Rust-builtins `num_*`/`gpu_*`/`tf_*`/`job_map_chunks` som saknas på Kab-VM). `science_sc_wave13` droppad — alla tre legs är Rust-bundna (BLAS `sci_blas_dgemm`, `jobMapChunks`, `tf_*`-backprop).
+
+**VM-buggar fixade av batchen:** ärvd `init` via `extends`-kedja (`vResolveInit`/`vMemberGetClass` går nu upp i superklasserna), generisk `where`-dispatch (delat `_callDone`-flaggstate läckte vid nästlad specialisering → anrops-ops droppades), metodanrop på konstruktoruttryck `P(9).show()` (`eArgN` klöbbrades av nästlat anrop → `call 1` istf `call 0`), `xs.length`/`s.length` via `get_member` (array+string-length saknades). `try/catch`, `for-of`, `for`-classic är fn-scope-only i self-host emit — portar wrappar i fns. VM-interna fel (`super` utanför metod) kan inte fångas av in-språk try/catch — negativa exec-legs markeras som debt.
+
+Rust-originalen ligger kvar tills .kab-täckningen är ekvivalent — legs som är host-yta (AST-fält, host-fel-texter, Rust-native builtins) stannar som dokumenterad debt i filhuvudena. `nollKabtestProductCi` stannar `false` tills sviten är komplett.
 
 ## Relaterat
 

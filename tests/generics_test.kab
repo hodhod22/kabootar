@@ -77,11 +77,8 @@ class GBoxV<T> {
 }
 ktAssertEq(GBoxV(42).value, 0, "ctor infer")
 
-// generic_class_inheritance_resolves_extends — static legs below.
-// NB: instantiating a subclass that only inherits `init` fails on the
-// Kab VM ("vm class has no init") — a real self-host VM gap, so the run
-// leg is NOT ported here (stays as Rust/host debt); the `extends` symbol
-// resolution is still asserted statically via compileIr in Module C.
+// generic_class_inheritance_resolves_extends — inherited-init run leg
+// now works on the Kab VM (vResolveInit/vMemberGetClass walk `extends`).
 class GBase<T> {
     tag: Number;
     fn init(v) {
@@ -90,7 +87,7 @@ class GBase<T> {
 }
 class GChild<T> extends GBase<T> {
 }
-ktAssertTrue(true, "extends decl parses")
+ktAssertEq(GChild(42).tag, 1, "inherited init")
 
 // generic_enum_some/two/match
 enum GOption<T> {
@@ -110,13 +107,11 @@ class GShown implements GShow {
     fn show() { return 1 }
 }
 fn gShowIt<T>(x: T) where T: GShow {
-    return 42
+    return x.show()
 }
-ktAssertEq(gShowIt<GShown>(GShown()), 42, "where ok")
+ktAssertEq(gShowIt<GShown>(GShown()), 1, "where dispatch")
 
-// r3_generic_struct_box — ctor+field on Kab VM. NB: struct METHOD calls
-// (.get()) underflow the Kab VM today — a real self-host gap, asserted on
-// the host VM by the Rust original; kept as debt, not faked.
+// r3_generic_struct_box — ctor+field+method on Kab VM.
 struct GStructBox<T> {
     value: T;
     fn init(v: T) { self.value = v }
@@ -124,11 +119,10 @@ struct GStructBox<T> {
 }
 let gSb = GStructBox(42)
 ktAssertEq(gSb.value, 42, "struct box ctor")
+ktAssertEq(gSb.get(), 42, "struct box get")
 
-// t2_generic_trait_implements — declaration compiles, but instantiating
-// a class bound to a GENERIC trait (`implements GShowT<Number>`)
-// underflows the Kab VM today — real self-host gap, call leg stays as
-// host/Rust debt (the Rust original asserts it on the host VM).
+// t2_generic_trait_implements — class bound to a GENERIC trait,
+// declaration + call leg on the Kab VM.
 trait GShowT<T> {
     fn show();
 }
@@ -137,7 +131,7 @@ class GPoint implements GShowT<Number> {
     fn init(n) { this.x = n }
     fn show() { return this.x }
 }
-ktAssertTrue(true, "generic trait decl compiles")
+ktAssertEq(GPoint(9).show(), 9, "generic trait impl call")
 
 // t3_associated_types
 trait GIter {
@@ -218,9 +212,7 @@ ktAssertTrue(hB != null && hasSym(symsOf(hB, "methods"), "echo$Number"), "echo$N
 ktAssertTrue(hB != null && hasSym(symsOf(hB, "methods"), "echo") == false, "no plain echo")
 ktAssertEq(runModule(bcB), 3, "module B run")
 
-// Module C: specialized-class method + inheritance extends (static —
-// no runModule: inherited-init instantiation underflows the Kab VM, see
-// the GChild note above).
+// Module C: specialized-class method + inheritance extends.
 let bcC = compileIr("class Box<T> { fn init(v) {} fn echo<U>(x) { return x } } class Base<T> { tag: Number fn init(v) { this.tag = 1 } } class Child<T> extends Base<T> {} let b = Box(42) let c = Child(42) return b.echo(1)")
 let bnC = findCls(bcC, "Box$Number")
 ktAssertTrue(bnC != null, "Box$Number found")

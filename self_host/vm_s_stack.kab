@@ -49,6 +49,24 @@ pub fn vFindClassByName(S, name) {
     return null
 }
 
+// Walk the `extends` chain (same traversal as vInstanceofS) for the first
+// classDef that defines `name`; own methods shadow parent methods.
+pub fn vFindMethodChain(S, classDef, name) {
+    let cur = classDef
+    while cur != null {
+        let meth = vFindMethod(cur, name)
+        if meth != null {
+            return meth
+        }
+        let parentName = cur["extends"]
+        if parentName == null || parentName == undefined {
+            return null
+        }
+        cur = vFindClassByName(S, parentName)
+    }
+    return null
+}
+
 // --- vm_s_host ---
 // P6b: host call / map get (pure).
 pub fn vCallHost(callee, ordered) {
@@ -1358,7 +1376,7 @@ pub fn vMemberGetClass(S, obj, key) {
     if ci < 0 || ci >= len(classes) {
         return undefined
     }
-    let meth = vFindMethod(classes[ci], key)
+    let meth = vFindMethodChain(S, classes[ci], key)
     if meth != null {
         return { "vmM": meth, "vmR": vCanonicalInstS(S, obj) }
     }
@@ -1445,7 +1463,10 @@ pub fn vMemberGetS(S, obj, key) {
     if vObjGet(obj, "vmC") != undefined {
         return vMemberGetClass(S, obj, key)
     }
-    if typeof(obj) == "array" {
+    if typeof(obj) == "array" || typeof(obj) == "string" {
+        if "" + key == "length" {
+            return len(obj)
+        }
         return vIndexGet(obj, key)
     }
     let ks = "" + key

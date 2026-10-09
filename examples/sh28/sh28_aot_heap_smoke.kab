@@ -1,0 +1,120 @@
+// SH28: aot-tv1 Kab-owned heap — hbase/halloc/hload/hstore/hloadx/
+// hstorex ops bump-allocate qword cells in the image's RW data page
+// (r12 base), store a length-prefixed record holding tagged SMIs, and
+// traverse it in a loop with runtime indexing. Executed on the real CPU
+// via os_native_exec with mirror parity (aotFnMirrorH) on the SAME ops.
+// import "kab/aot/aot_fn_x64"
+
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_exec"
+import "kab/aot/aot_native"
+
+// Data page layout: globals[0] = heap bump pointer (seeded by hbase),
+// then 64 heap qwords. Cell 0: [header tag2|len3][t10][t20][t12].
+let main = {
+    "name": "main",
+    "arity": 0,
+    "locals": 3,
+    "ops": [
+        ["hbase", 1],          // heap start = r12 + 1*8 (past global 0)
+        ["gstore", 0],         // globals[0] = bump pointer
+        ["const", 4],          // 4 qwords: header + 3 elements
+        ["halloc", 0],         // tagged ptr → stack
+        ["store", 0],          // local0 = ptr
+        ["load", 0],
+        ["const", 196610],     // header: tag=2 | flags=0 | len=3<<16
+        ["hstore", 0],
+        ["load", 0],
+        ["const", 1],
+        ["tconst", 10],
+        ["hstorex"],           // cell[1] = tagged 10
+        ["load", 0],
+        ["const", 2],
+        ["tconst", 20],
+        ["hstorex"],           // cell[2] = tagged 20
+        ["load", 0],
+        ["const", 3],
+        ["tconst", 12],
+        ["hstorex"],           // cell[3] = tagged 12
+        ["const", 0],
+        ["store", 1],          // sum = 0
+        ["const", 0],
+        ["store", 2],          // i = 0
+        ["load", 2],           // loop head
+        ["const", 3],
+        ["lt"],
+        ["jz", 42],
+        ["load", 0],
+        ["load", 2],
+        ["const", 1],
+        ["add"],               // payload index = i + 1
+        ["hloadx"],            // tagged element
+        ["untag"],
+        ["load", 1],
+        ["add"],
+        ["store", 1],          // sum += elem
+        ["load", 2],
+        ["const", 1],
+        ["add"],
+        ["store", 2],          // i++
+        ["jmp", 24],
+        ["load", 1],           // sum = 42
+        ["load", 0],
+        ["hload", 0],          // header qword
+        ["const", 196610],
+        ["eq"],                // 1 — header intact
+        ["add"],               // 43
+        ["ret"]
+    ]
+}
+
+let fns = [main]
+let ng = 1
+// Data page: global 0 = bump pointer (8B) + heap beyond — the exec maps
+// a full page (4096B) even when the payload is smaller, so a small
+// literal suffices; the bump allocator stays well inside the mapping.
+// (Element-wise push is O(n^2) on the interpreted VM and a >255-element
+// literal overflows make_array's u8.)
+let data = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+println("data " + len(data))
+let image = aotFnImageEmitData(fns, data)
+println("image " + len(image))
+if image == "" {
+    return 1
+}
+os_write("_aot_heap.kabi", image)
+let back = os_read("_aot_heap.kabi")
+if back != image {
+    return 2
+}
+println("back " + len(back))
+let bytes = aotEntryCodeBytes(back)
+println("bytes " + len(bytes))
+let abi = aotNativeHostAbi()
+let r = aotX64EmitFns(fns, abi)
+if len(bytes) != r["total"] {
+    return 3
+}
+
+println("total " + r["total"])
+let rax = os_native_exec(bytes, 0, data)
+println("rax " + rax)
+if rax != 43 {
+    return 4
+}
+if aotFnMirrorH(fns, 0, ng, 64) != rax {
+    return 5
+}
+
+// Honest reject: negative heap offset/args must refuse.
+let badH = {
+    "name": "bad", "arity": 0, "locals": 0,
+    "ops": [["const", 1], ["halloc", -1], ["ret"]]
+}
+if aotFnImageEmit([badH]) != "" {
+    return 6
+}
+
+return 42

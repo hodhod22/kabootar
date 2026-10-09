@@ -364,8 +364,11 @@ pub fn emitExpr_callArgvN(E) {
     E["eArgN"] = object_array_pop(E, "eCallArgNStack")
     object_array_pop(E, "eCallArgIStack")
     E["eCallArgDepth"] = E["eCallArgDepth"] - 1
+    // Snapshot before emitCallCallee: compiling the callee may itself emit a
+    // nested call (ctor member-call `G(1).m()`) which clobbers eArgN.
+    let callArgN = E["eArgN"]
     emitCallCallee(E)
-    emitOp(E, OP_CALL, E["eArgN"])
+    emitOp(E, OP_CALL, callArgN)
     E["_callDone"] = 1
     return 0
 }
@@ -1550,10 +1553,10 @@ pub fn emitExpr_call_h1(E) {
             emitExpr_call_h2(E)
             E["eArgs"] = saveArgsFn
             E["eArgN"] = saveArgNFn
-            if E["_callDone"] == 1 {
-                E["_callDone"] = 1
-                return 0
-            }
+            // h2 specializes by compiling the template body — nested call
+            // emission inside it leaves _callDone=1. The outer call still
+            // needs emitExpr_callArgv, so clear the stale flag.
+            E["_callDone"] = 0
         }
         eCallRet = symIndex(E, "class",E["eGenSym"])
         E["eClassIdx"] = eCallRet

@@ -1,0 +1,39 @@
+// kabtest port of tests/iot_module.rs — IoT module MVP: MQTT memory bus,
+// sensors, protocol stubs on the Kab VM.
+
+import "kabtest/core"
+import "iot"
+import "sim"
+import "sim/robot"
+
+// iot_mqtt_sensors_stubs
+let bus = createBroker()
+let linked = connect(bus, "c1")
+bus = linked["broker"]
+bus = subscribe(bus, "c1", "iot/sensors/#")
+let temp = createTemperature({ "base": 20.0 })
+let s = sample(temp, 0.5)
+bus = publish(bus, topicFor(s["sensor"]), s["reading"])
+let polled = poll(bus, "c1")
+let msgs = polled["messages"]
+let ep = createEndpoint()
+let putRes = put(ep, "/x", 1)
+let ble = bleScan(createBleAdapter(), 100)
+let tcp = connectTcp("127.0.0.1", 1883)
+
+let armBus = createBroker()
+let arm = createArm3(defaultArmParams())
+let twinPoll = connect(armBus, "t1")
+armBus = twinPoll["broker"]
+armBus = subscribe(armBus, "t1", "twin/t/#")
+armBus = publishSimSensors(armBus, arm, "twin/t")
+let tp = poll(armBus, "t1")
+
+ktAssertEq(len(msgs), 1, "one message polled")
+ktAssertEq(msgs[0]["payload"]["type"], "temperature", "temperature payload")
+ktAssertTrue(putRes["ok"], "put ok")
+ktAssertEq(ble["mode"], "stub", "ble stub")
+ktAssertTrue(tcp["transport"] == "stub" || tcp["transport"] == "tcp", "tcp transport")
+ktAssertTrue(len(tp["messages"]) >= 1, "twin messages")
+
+return true

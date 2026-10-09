@@ -1,0 +1,220 @@
+// SH28: aot-tv1 dynamic breadth — build+traverse a string cell (tag=4,
+// byte payload via hstoreb/hloadb), a record (tag=10, fields via
+// hstore/hload fixed offsets), and an array (tag=5, hstorex/hloadx),
+// plus header introspection (hlen/htag) and SMI/heap dispatch
+// (jsmi/jnsmi). Executed natively via os_native_exec with aotFnMirrorH
+// parity over the same op arrays. Native result must equal mirror.
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_exec"
+import "kab/aot/aot_native"
+
+// locals: 0=str ptr, 1=rec ptr, 2=arr ptr, 3=sum, 4=i
+// expected sum: bytes "kabootar"=851 + fields 30+7 + elems 1+2+4
+//             + hlen eq 1 + htag eq 1 + heap-dispatch 1 + smi-dispatch 1
+//             = 899
+let main = {
+    "name": "main",
+    "arity": 0,
+    "locals": 5,
+    "ops": [
+        ["hbase", 1],
+        ["gstore", 0],
+        ["const", 3],
+        ["halloc", 0],
+        ["store", 0],
+        ["load", 0],
+        ["const", 262152],
+        ["hstore", 0],
+        ["load", 0],
+        ["const", 0],
+        ["const", 107],
+        ["hstoreb"],
+        ["load", 0],
+        ["const", 1],
+        ["const", 97],
+        ["hstoreb"],
+        ["load", 0],
+        ["const", 2],
+        ["const", 98],
+        ["hstoreb"],
+        ["load", 0],
+        ["const", 3],
+        ["const", 111],
+        ["hstoreb"],
+        ["load", 0],
+        ["const", 4],
+        ["const", 111],
+        ["hstoreb"],
+        ["load", 0],
+        ["const", 5],
+        ["const", 116],
+        ["hstoreb"],
+        ["load", 0],
+        ["const", 6],
+        ["const", 97],
+        ["hstoreb"],
+        ["load", 0],
+        ["const", 7],
+        ["const", 114],
+        ["hstoreb"],
+        ["const", 3],
+        ["halloc", 0],
+        ["store", 1],
+        ["load", 1],
+        ["const", 655362],
+        ["hstore", 0],
+        ["load", 1],
+        ["tconst", 30],
+        ["hstore", 8],
+        ["load", 1],
+        ["tconst", 7],
+        ["hstore", 16],
+        ["const", 4],
+        ["halloc", 0],
+        ["store", 2],
+        ["load", 2],
+        ["const", 327683],
+        ["hstore", 0],
+        ["load", 2],
+        ["const", 1],
+        ["tconst", 1],
+        ["hstorex"],
+        ["load", 2],
+        ["const", 2],
+        ["tconst", 2],
+        ["hstorex"],
+        ["load", 2],
+        ["const", 3],
+        ["tconst", 4],
+        ["hstorex"],
+        ["const", 0],
+        ["store", 3],
+        ["const", 0],
+        ["store", 4],
+        ["load", 4],
+        ["const", 8],
+        ["lt"],
+        ["jz", 89],
+        ["load", 0],
+        ["load", 4],
+        ["hloadb"],
+        ["load", 3],
+        ["add"],
+        ["store", 3],
+        ["load", 4],
+        ["const", 1],
+        ["add"],
+        ["store", 4],
+        ["jmp", 74],
+        ["load", 1],
+        ["hload", 8],
+        ["untag"],
+        ["load", 3],
+        ["add"],
+        ["store", 3],
+        ["load", 1],
+        ["hload", 16],
+        ["untag"],
+        ["load", 3],
+        ["add"],
+        ["store", 3],
+        ["load", 2],
+        ["const", 1],
+        ["hloadx"],
+        ["untag"],
+        ["load", 3],
+        ["add"],
+        ["store", 3],
+        ["load", 2],
+        ["const", 2],
+        ["hloadx"],
+        ["untag"],
+        ["load", 3],
+        ["add"],
+        ["store", 3],
+        ["load", 2],
+        ["const", 3],
+        ["hloadx"],
+        ["untag"],
+        ["load", 3],
+        ["add"],
+        ["store", 3],
+        ["load", 0],
+        ["hlen"],
+        ["tconst", 8],
+        ["eq"],
+        ["load", 3],
+        ["add"],
+        ["store", 3],
+        ["load", 0],
+        ["htag"],
+        ["tconst", 4],
+        ["eq"],
+        ["load", 3],
+        ["add"],
+        ["store", 3],
+        ["load", 0],
+        ["jsmi", 142],
+        ["load", 3],
+        ["const", 1],
+        ["add"],
+        ["store", 3],
+        ["tconst", 5],
+        ["jnsmi", 148],
+        ["load", 3],
+        ["const", 1],
+        ["add"],
+        ["store", 3],
+        ["load", 3],
+        ["ret"]
+    ]
+}
+
+let fns = [main]
+let ng = 1
+let data = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+let image = aotFnImageEmitData(fns, data)
+if image == "" {
+    return 1
+}
+os_write("_aot_dyn.kabi", image)
+let back = os_read("_aot_dyn.kabi")
+if back != image {
+    return 2
+}
+let bytes = aotEntryCodeBytes(back)
+let abi = aotNativeHostAbi()
+let r = aotX64EmitFns(fns, abi)
+if len(bytes) != r["total"] {
+    return 3
+}
+
+let rax = os_native_exec(bytes, 0, data)
+println("rax " + rax)
+if rax != 899 {
+    return 4
+}
+if aotFnMirrorH(fns, 0, ng, 64) != rax {
+    return 5
+}
+
+// Honest rejects: negative heap offset and a jsmi target outside the
+// op array must refuse rather than emit garbage.
+let badOff = {
+    "name": "bad", "arity": 0, "locals": 0,
+    "ops": [["load", 0], ["hload", -8], ["ret"]]
+}
+if aotFnImageEmit([badOff]) != "" {
+    return 6
+}
+let badJsmi = {
+    "name": "bad2", "arity": 0, "locals": 1,
+    "ops": [["tconst", 1], ["jsmi", 99], ["ret"]]
+}
+if aotFnImageEmit([badJsmi]) != "" {
+    return 7
+}
+
+return 42

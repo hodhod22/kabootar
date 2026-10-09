@@ -746,6 +746,7 @@ pub fn eMakeSession() {
     E["eSaveFnOpsN"] = 0
     E["eSaveFnLocals"] = []
     E["eSaveFnGlobals"] = []
+    E["eFnScopeStack"] = []
     E["eGenI"] = 0
     E["eInferType"] = ""
     E["eResolveI"] = 0
@@ -903,6 +904,7 @@ pub fn eResetSession(E) {
     E["eSaveFnOpsN"] = 0
     E["eSaveFnLocals"] = []
     E["eSaveFnGlobals"] = []
+    E["eFnScopeStack"] = []
     E["eGenI"] = 0
     E["eInferType"] = ""
     E["eResolveI"] = 0

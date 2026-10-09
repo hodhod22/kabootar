@@ -1,0 +1,35 @@
+// kabtest port of tests/v219_language.rs — bytecode arrays, index, while,
+// assign on the Kab VM. bytecode_can_compile legs are asserted via compileIr
+// (self-host compile must succeed on the same constructs).
+
+import "kabtest/core"
+import "self_host/compile"
+
+// bytecode_array_literal_and_index
+let xs = [10, 20, 30]
+ktAssertEq(xs[1], 20, "array index")
+
+// bytecode_array_length_member
+let xs4 = [1, 2, 3, 4]
+ktAssertEq(xs4.length, 4, "array .length")
+
+// bytecode_while_loop_with_assign
+let ws = [1, 2, 3]
+let i = 0
+let sum = 0
+while i < ws.length {
+    sum = sum + ws[i]
+    i = i + 1
+}
+ktAssertEq(sum, 6, "while + assign sum")
+
+// bytecode_can_compile_arrays_and_while — compileIr must succeed
+let bcSrc = "let xs = [1, 2]\nlet i = 0\nwhile i < xs.length {\n    i = i + 1\n}\nxs[0]"
+compileIr(bcSrc)
+ktAssertTrue(true, "can_compile arrays+while")
+
+// spread_array_uses_bytecode
+compileIr("let xs = [...a, 1]")
+ktAssertTrue(true, "can_compile spread")
+
+return true

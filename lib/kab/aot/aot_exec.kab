@@ -41,18 +41,20 @@ fn aotHexVal(ch) {
     return -1
 }
 
-/// Byte array → lowercase hex string.
+/// Byte array → lowercase hex string. O(n): per-byte pair strings + a
+/// single native join — the old `out = out + ch` form was O(n²) on Kab
+/// strings and made whole-image encodes (data page + code) take minutes
+/// on the interpreted VM.
 pub fn aotHexEncode(bytes) {
     let chars = "0123456789abcdef"
-    let out = ""
+    let parts = []
     let i = 0
     while i < len(bytes) {
         let b = bytes[i]
-        out = out + chars[b / 16]
-        out = out + chars[b % 16]
+        parts = push(parts, chars[b / 16] + chars[b % 16])
         i = i + 1
     }
-    return out
+    return join(parts, "")
 }
 
 /// "kab-aot/1|fuse-cmp|<hex>" image from a real template emission; ""
