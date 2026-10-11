@@ -29,6 +29,23 @@ pub fn aotX64PackU32(v) {
     return x64PushSImm32(b, v)
 }
 
+/// Push a little-endian imm64 — any signed i64, normalized per byte
+/// (Kab % is remainder, not mask, so negatives wrap +256 each step).
+pub fn x64PushU64(b, v) {
+    let i = 0
+    while i < 8 {
+        let d = v % 256
+        let dn = d
+        if dn < 0 {
+            dn = dn + 256
+        }
+        b = push(b, dn)
+        v = (v - dn) / 256
+        i = i + 1
+    }
+    return b
+}
+
 /// Signed-arith domain: |n|,|k| <= 64 and k != 0 — k=0 is a real #DE fault
 /// under idiv, so the check is mandatory.
 fn aotX64ISignOk(n, k) {

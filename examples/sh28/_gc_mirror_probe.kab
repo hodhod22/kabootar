@@ -1,0 +1,39 @@
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_gc"
+
+// minimal: 1 array cell rooted via gl[2]; dead cell after it.
+let prog = {
+    "name": "p", "arity": 0, "locals": 1,
+    "ops": [
+        ["hbase", 8],
+        ["gstore", 0],
+        ["hlimit", 64],
+        ["gstore", 1],
+        ["const", 2],
+        ["halloc", 0, 1],
+        ["gstore", 2],
+        ["gload", 2],
+        ["const", 327681],
+        ["hstore", 0],
+        ["const", 2],
+        ["halloc", 0, 1],
+        ["const", 327681],
+        ["hstore", 0],
+        ["gload", 2],
+        ["store", 0],
+        ["gload", 2],
+        ["gcollect", 0, 8, 4, 1],
+        ["hload", 0],
+        ["const", 327681],
+        ["eq"],
+        ["store", 0],
+        ["gload", 0],
+        ["load", 0],
+        ["add"],
+        ["ret"]
+    ]
+}
+println("start")
+let r = aotFnMirrorHS([prog], 0, 4, 64)
+println("v " + r["v"])
+return 42

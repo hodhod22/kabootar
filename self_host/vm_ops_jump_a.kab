@@ -189,7 +189,21 @@ pub fn runOpJumpMatchJump(S, name, arg, op, pool, globals, functions) {
     }
     if name == "jump_unless_object_empty" {
         let v = vPeekS(S)
-        if !(vIsPlainObjS(v) && len(v) == 0) {
+        // Mirror object_is_pattern_empty: "empty" = every key is an
+        // internal __kab_* marker — the oid stamp must not defeat the
+        // `{}` pattern like raw len() would.
+        let pempty = vIsPlainObjS(v)
+        if pempty {
+            let ks = object_keys(v)
+            let ki = 0
+            while ki < len(ks) {
+                if str_slice(ks[ki], 0, 6) != "__kab_" {
+                    pempty = false
+                }
+                ki = ki + 1
+            }
+        }
+        if pempty == false {
             vAddIpS(S, 1 + arg)
             return 1
         }

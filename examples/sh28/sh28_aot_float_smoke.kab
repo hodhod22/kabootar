@@ -1,0 +1,133 @@
+// SH28: aot-tv1 float cells — fmk builds a 2-qword Float heap cell
+// (header tag 1<<16|1, payload = f64 bits via imm64), fadd/fsub/fmul/
+// fdiv run real SSE addsd/subsd/mulsd/divsd on the payloads and alloc
+// the result on the same bump heap. Native rax (5 checks) must equal
+// the mirror (which keeps Kab floats — Kab cannot reinterpret f64 bits,
+// so fmk carries both representations; parity is semantic).
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_exec"
+import "kab/aot/aot_native"
+
+// f64 bit patterns: 1.5=4609434218613702656, 2.5=4612811918334230528,
+// 4.0=4616189618054758400, 5.0=4617315517961601024, 2.0=4611686018427387904.
+// bump at global 1, heap starts at slot 2. local0 = check counter.
+let main = {
+    "name": "main",
+    "arity": 0,
+    "locals": 1,
+    "ops": [
+        ["hbase", 2],
+        ["gstore", 1],
+        ["hlimit", 256],
+        ["gstore", 0],
+        ["const", 0],
+        ["store", 0],
+        // 1.5 + 2.5 == 4.0
+        ["fmk", 1, 0, 4609434218613702656, 1.5],
+        ["fmk", 1, 0, 4612811918334230528, 2.5],
+        ["fadd", 1, 0],
+        ["hload", 8],
+        ["fmk", 1, 0, 4616189618054758400, 4.0],
+        ["hload", 8],
+        ["eq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // 4.0 - 1.5 == 2.5
+        ["fmk", 1, 0, 4616189618054758400, 4.0],
+        ["fmk", 1, 0, 4609434218613702656, 1.5],
+        ["fsub", 1, 0],
+        ["hload", 8],
+        ["fmk", 1, 0, 4612811918334230528, 2.5],
+        ["hload", 8],
+        ["eq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // 2.5 * 2.0 == 5.0
+        ["fmk", 1, 0, 4612811918334230528, 2.5],
+        ["fmk", 1, 0, 4611686018427387904, 2.0],
+        ["fmul", 1, 0],
+        ["hload", 8],
+        ["fmk", 1, 0, 4617315517961601024, 5.0],
+        ["hload", 8],
+        ["eq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // 5.0 / 2.5 == 2.0
+        ["fmk", 1, 0, 4617315517961601024, 5.0],
+        ["fmk", 1, 0, 4612811918334230528, 2.5],
+        ["fdiv", 1, 0],
+        ["hload", 8],
+        ["fmk", 1, 0, 4611686018427387904, 2.0],
+        ["hload", 8],
+        ["eq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // header tag of a float cell is 1
+        ["fmk", 1, 0, 4609434218613702656, 1.5],
+        ["htag"],
+        ["tconst", 1],
+        ["eq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // 1.5 < 2.5 via flt (ucomisd)
+        ["fmk", 1, 0, 4609434218613702656, 1.5],
+        ["fmk", 1, 0, 4612811918334230528, 2.5],
+        ["flt"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // 4.0 == 4.0 across two DISTINCT cells — value equality, not
+        // pointer identity (feq compares f64 payloads).
+        ["fmk", 1, 0, 4616189618054758400, 4.0],
+        ["fmk", 1, 0, 4616189618054758400, 4.0],
+        ["feq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // 2.5 != 1.5 via fne
+        ["fmk", 1, 0, 4612811918334230528, 2.5],
+        ["fmk", 1, 0, 4609434218613702656, 1.5],
+        ["fne"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        ["load", 0],
+        ["ret"]
+    ]
+}
+
+let fns = [main]
+let data = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+let image = aotFnImageEmitData(fns, data)
+if image == "" {
+    return 1
+}
+os_write("_aot_float.kabi", image)
+let back = os_read("_aot_float.kabi")
+if back != image {
+    return 2
+}
+let bytes = aotEntryCodeBytes(back)
+let r = aotX64EmitFns(fns, aotNativeHostAbi())
+if len(bytes) != r["total"] {
+    return 3
+}
+
+let rax = os_native_exec(bytes, 0, data)
+println("rax " + rax)
+if rax != 8 {
+    return 4
+}
+let mir = aotFnMirrorH(fns, 0, 2, 64)
+println("mirror " + mir)
+if mir != rax {
+    return 5
+}
+return 42

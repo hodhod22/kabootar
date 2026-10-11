@@ -11,16 +11,19 @@ import "kab/aot/aot_exec"
 import "kab/aot/aot_native"
 
 // Data page layout: globals[0] = heap bump pointer (seeded by hbase),
-// then 64 heap qwords. Cell 0: [header tag2|len3][t10][t20][t12].
+// globals[1] = heap bound (seeded by hlimit), then heap qwords.
+// Cell 0: [header tag2|len3][t10][t20][t12].
 let main = {
     "name": "main",
     "arity": 0,
     "locals": 3,
     "ops": [
-        ["hbase", 1],          // heap start = r12 + 1*8 (past global 0)
+        ["hbase", 2],          // heap start = r12 + 2*8 (past slots 0,1)
         ["gstore", 0],         // globals[0] = bump pointer
+        ["hlimit", 256],       // bound = 256 qwords into the data page
+        ["gstore", 1],         // globals[1] = heap limit
         ["const", 4],          // 4 qwords: header + 3 elements
-        ["halloc", 0],         // tagged ptr → stack
+        ["halloc", 0, 1],      // bound-checked tagged ptr → stack
         ["store", 0],          // local0 = ptr
         ["load", 0],
         ["const", 196610],     // header: tag=2 | flags=0 | len=3<<16
@@ -44,7 +47,7 @@ let main = {
         ["load", 2],           // loop head
         ["const", 3],
         ["lt"],
-        ["jz", 42],
+        ["jz", 44],
         ["load", 0],
         ["load", 2],
         ["const", 1],
@@ -58,7 +61,7 @@ let main = {
         ["const", 1],
         ["add"],
         ["store", 2],          // i++
-        ["jmp", 24],
+        ["jmp", 26],
         ["load", 1],           // sum = 42
         ["load", 0],
         ["hload", 0],          // header qword
@@ -70,7 +73,7 @@ let main = {
 }
 
 let fns = [main]
-let ng = 1
+let ng = 2
 // Data page: global 0 = bump pointer (8B) + heap beyond — the exec maps
 // a full page (4096B) even when the payload is smaller, so a small
 // literal suffices; the bump allocator stays well inside the mapping.
@@ -115,6 +118,80 @@ let badH = {
 }
 if aotFnImageEmit([badH]) != "" {
     return 6
+}
+
+// Heap growth: bound-checked alloc + load/store PAST the old 4096-byte
+// single-page cap. exec_bytes_data accepts data payloads up to 16 MiB,
+// so the image's data mapping spans multiple pages; hlimit 1000 qwords
+// (8000 bytes) sits inside it. Cell payload written at byte offset
+// 4800 lives on the second page.
+let grow = {
+    "name": "grow", "arity": 0, "locals": 1,
+    "ops": [
+        ["hbase", 2],
+        ["gstore", 0],
+        ["hlimit", 1000],
+        ["gstore", 1],
+        ["const", 600],
+        ["halloc", 0, 1],
+        ["store", 0],
+        ["load", 0],
+        ["tconst", 77],
+        ["hstore", 4800],
+        ["load", 0],
+        ["hload", 4800],
+        ["untag"],
+        ["ret"]
+    ]
+}
+// concat is a native builtin — geometric doubling builds the 8192-byte
+// payload fast (literal/push loops are pathological on the Kab VM).
+let big = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+let bi = 0
+while bi < 7 {
+    big = concat(big, big)
+    bi = bi + 1
+}
+let image2 = aotFnImageEmitData([grow], big)
+if image2 == "" {
+    return 7
+}
+let bytes2 = aotEntryCodeBytes(image2)
+let rax2 = os_native_exec(bytes2, 0, big)
+println("rax2 " + rax2)
+if rax2 != 77 {
+    return 8
+}
+if aotFnMirrorH([grow], 0, ng, 1024) != rax2 {
+    return 9
+}
+
+// Honest bound: mirror must throw when an alloc exceeds the limit slot
+// (native raises ud2 — a SIGILL fault, not silent corruption — which
+// cannot be caught in-process, so the mirror proves the check).
+fn overlimitProbe() {
+    let over = {
+        "name": "over", "arity": 0, "locals": 0,
+        "ops": [
+            ["hbase", 2],
+            ["gstore", 0],
+            ["hlimit", 10],
+            ["gstore", 1],
+            ["const", 20],
+            ["halloc", 0, 1],
+            ["ret"]
+        ]
+    }
+    let r = "no-throw"
+    try {
+        aotFnMirrorH([over], 0, 2, 64)
+    } catch (e) {
+        r = "caught"
+    }
+    return r
+}
+if overlimitProbe() != "caught" {
+    return 10
 }
 
 return 42

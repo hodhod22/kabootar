@@ -1,0 +1,62 @@
+// SH28: aot-tv1 CLOSURE path — a real .kab source with an arrow fn is
+// compiled to compileIr (make_arrow_fn + a dynamic `call` on a data
+// global), lowered by aotFnLowerModuleTv1 into closure ops:
+//   make_arrow_fn → load<cap> + mkclo (bound-checked heap cell
+//     [hdr tag6 | fnidx | cap…]), arrow bodies appended as image fns
+//     with the cell convention (rcx = tagged cell → local0; `this` and
+//     captures seeded from the cell via hload),
+//   dynamic call → callv (cell → rcx as hidden arg0, args → rdx/r8/r9;
+//     fnidx compare-chain to direct calls; SMI callee or unknown index
+//     traps via ud2; mirror throws the same).
+// h(2) on mk(40)'s closure: 40+2 → tagged 84. Mirror runs the SAME ops.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+let bc = compileIr("fn mk(a) { let g = (b) => { return a + b } return g } let h = mk(40) return h(2)")
+let lo = aotFnLowerModuleTv1(bc, 200)
+if lo["ok"] == false {
+    println("REJECT " + lo["reason"])
+    return 1
+}
+let fns = lo["fns"]
+let ng = lo["nglobals"]
+let data = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+let r = aotX64EmitFns(fns, aotNativeHostAbi())
+if len(r["code"]) == 0 {
+    return 2
+}
+let rax = os_native_exec(r["code"], 0, data)
+println("rax " + rax)
+if rax != 84 {
+    return 3
+}
+let mir = aotFnMirrorH(fns, 0, ng, 64)
+println("mirror " + mir)
+if mir != rax {
+    return 4
+}
+
+// Two independent closures over different captures — each cell keeps
+// its own fnidx+cap; the SAME callv site dispatches both.
+let bc2 = compileIr("fn mk(a) { return (b) => { return a * b } } let f = mk(6) let g = mk(7) return f(1) + g(2)")
+let lo2 = aotFnLowerModuleTv1(bc2, 200)
+if lo2["ok"] == false {
+    println("REJECT2 " + lo2["reason"])
+    return 5
+}
+let data2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+let r2 = aotX64EmitFns(lo2["fns"], aotNativeHostAbi())
+// f(1)=6, g(2)=14 → 20 → tagged 40.
+let rax2 = os_native_exec(r2["code"], 0, data2)
+println("rax2 " + rax2)
+if rax2 != 40 {
+    return 6
+}
+if aotFnMirrorH(lo2["fns"], 0, lo2["nglobals"], 64) != rax2 {
+    return 7
+}
+return 42

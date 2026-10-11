@@ -1,0 +1,57 @@
+// kabtest port of tests/v223_language.rs — sync arrow fns + match
+// (destructuring Option/Result, literals, wildcard, guards) on the Kab
+// VM. The Rust-only `can_compile` legs and the async-arrow compile
+// check have no Kab-VM counterpart — covered instead by the eval legs
+// below which exercise the same lowering paths.
+
+import "kabtest/core"
+
+// bytecode_arrow_expression
+let double = (x) => x * 2
+ktAssertEq(double(5), 10, "arrow expression body")
+
+// bytecode_arrow_block_body
+let add = (a, b) => {
+    return a + b
+}
+ktAssertEq(add(3, 4), 7, "arrow block body")
+
+// bytecode_arrow_in_map
+let xs = [1, 2, 3]
+ktAssertEq(len(map(xs, (x) => x * 2)), 3, "arrow passed as fn value")
+
+// bytecode_match_option
+let x = Some(42)
+let r = match x {
+    Some(n) => n,
+    _ => 0
+}
+ktAssertEq(r, 42, "match Some(n)")
+
+// bytecode_match_result_err
+let e = match Err("bad") {
+    Ok(_) => 1,
+    Err(e2) => e2
+}
+ktAssertEq(e, "bad", "match Err(e) binds payload")
+
+// bytecode_match_literal_and_wildcard
+let m1 = match 7 {
+    7 => "seven",
+    _ => "other"
+}
+ktAssertEq(m1, "seven", "match literal")
+
+let m2 = match 8 {
+    7 => "seven",
+    _ => "other"
+}
+ktAssertEq(m2, "other", "match wildcard")
+
+// bytecode_match_guard
+let g = match 2 {
+    x2 if x2 > 10 => "big",
+    x2 if x2 > 0 => "small",
+    _ => "other"
+}
+ktAssertEq(g, "small", "match guard picks second arm")

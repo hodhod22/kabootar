@@ -37,11 +37,260 @@ fn aotLowerReject(reason) {
     return { "ok": false, "reason": reason }
 }
 
+// --- aot-tv1 closures ---
+// compileIr emits `make_arrow_fn ai` whose arg indexes the ENCLOSING
+// record's `arrows` array (main: bc["arrows"], fn/arrow: rec["arrows"]).
+// Arrow `locals` = [params…, "this", captures…] — capture slots resolve
+// by NAME against the enclosing record's `locals`. A closure cell is
+// [hdr=tag6<<16|(1+ncap) | fnidx(raw) | cap…] invoked via `callv`: the
+// cell lands in rcx (hidden arg0 = lowered local 0), args in rdx/r8/r9.
+
+/// Depth-first: assign each arrow record its image fn index (`__imgIdx`),
+/// recursing into nested arrows (an arrow's own `arrows` array).
+fn aotCloAssign(arrows, next, acc) {
+    let i = 0
+    while i < len(arrows) {
+        arrows[i]["__imgIdx"] = next
+        acc = push(acc, arrows[i])
+        next = next + 1
+        i = i + 1
+    }
+    i = 0
+    while i < len(arrows) {
+        let sub = arrows[i]["arrows"]
+        if sub != undefined && len(sub) > 0 {
+            let r = aotCloAssign(sub, next, acc)
+            next = r["next"]
+            acc = r["acc"]
+        }
+        i = i + 1
+    }
+    return { "next": next, "acc": acc }
+}
+
+/// Scan one compileIr op array for fn-valued global loads that are NOT
+/// fused into a static call (the `load_global`+`call` pair) — those need
+/// a closure wrapper so the value can live on the heap. Appends each
+/// wanted fn index to `want` (deduped).
+fn aotCloWant(ops, bc, want) {
+    let i = 0
+    while i < len(ops) {
+        if ops[i]["op"] == "load_global" {
+            let gname = bc["globals"][ops[i]["arg"]]
+            let fi = aotLowerFnIndex(bc, gname)
+            if fi >= 0 {
+                let fused = i + 1 < len(ops) && ops[i + 1]["op"] == "call"
+                if fused == false {
+                    let seen = false
+                    let j = 0
+                    while j < len(want) {
+                        if want[j] == fi {
+                            seen = true
+                        }
+                        j = j + 1
+                    }
+                    if seen == false {
+                        want = push(want, fi)
+                    }
+                }
+            }
+        }
+        i = i + 1
+    }
+    return want
+}
+
+/// tv1 numeric dispatch: compileIr `add/sub/mul/div` may see Float cells
+/// at runtime (the lowerer cannot prove SMI statically for load-produced
+/// values). Emits: both-SMI → t<op> fast path; both Float cells (htag 1)
+/// → f<op> slow path; anything else → trap (honest fault, no silent
+/// garbage). `mod` traps on non-SMI (no fmod op). Jump targets are
+/// absolute lowered-op indices — the layout below is fixed.
+fn aotLowerArithTv1(out, name, bump, limit, scratch) {
+    let s = len(out)
+    let sc = scratch
+    let sc1 = scratch + 1
+    out = push(out, ["store", sc1])
+    out = push(out, ["store", sc])
+    out = push(out, ["load", sc])
+    out = push(out, ["is_smi"])
+    out = push(out, ["load", sc1])
+    out = push(out, ["is_smi"])
+    out = push(out, ["mul"])
+    if name == "mod" {
+        out = push(out, ["jz", s + 12])
+        out = push(out, ["load", sc])
+        out = push(out, ["load", sc1])
+        out = push(out, ["tmod"])
+        out = push(out, ["jmp", s + 13])
+        out = push(out, ["trap"])
+        return out
+    }
+    out = push(out, ["jz", s + 12])
+    out = push(out, ["load", sc])
+    out = push(out, ["load", sc1])
+    out = push(out, ["t" + name])
+    out = push(out, ["jmp", s + 33])
+    // SLOW (s+12): a non-SMI operand — require two Float cells.
+    out = push(out, ["load", sc])
+    out = push(out, ["is_smi"])
+    out = push(out, ["jnz", s + 32])
+    out = push(out, ["load", sc1])
+    out = push(out, ["is_smi"])
+    out = push(out, ["jnz", s + 32])
+    out = push(out, ["load", sc])
+    out = push(out, ["htag"])
+    out = push(out, ["tconst", 1])
+    out = push(out, ["eq"])
+    out = push(out, ["jz", s + 32])
+    out = push(out, ["load", sc1])
+    out = push(out, ["htag"])
+    out = push(out, ["tconst", 1])
+    out = push(out, ["eq"])
+    out = push(out, ["jz", s + 32])
+    out = push(out, ["load", sc])
+    out = push(out, ["load", sc1])
+    out = push(out, ["f" + name, bump, limit])
+    out = push(out, ["jmp", s + 33])
+    out = push(out, ["trap"])
+    return out
+}
+
+/// tv1 `neg`: SMI → tneg; Float cell → fmk(0.0) - x via fsub (mirror:
+/// Kab 0 minus the float — same result); else trap.
+fn aotLowerNegTv1(out, bump, limit, scratch) {
+    let s = len(out)
+    let sc = scratch
+    out = push(out, ["store", sc])
+    out = push(out, ["load", sc])
+    out = push(out, ["is_smi"])
+    out = push(out, ["jz", s + 7])
+    out = push(out, ["load", sc])
+    out = push(out, ["tneg"])
+    out = push(out, ["jmp", s + 17])
+    out = push(out, ["load", sc])
+    out = push(out, ["htag"])
+    out = push(out, ["tconst", 1])
+    out = push(out, ["eq"])
+    out = push(out, ["jz", s + 16])
+    out = push(out, ["fmk", bump, limit, 0, 0])
+    out = push(out, ["load", sc])
+    out = push(out, ["fsub", bump, limit])
+    out = push(out, ["jmp", s + 17])
+    out = push(out, ["trap"])
+    return out
+}
+
+/// tv1 `eq`/`ne`: SMI pair → raw compare; mixed SMI/heap → const 0/1
+/// (distinct tags are never equal); two Float cells → feq/fne on the
+/// f64 payloads; other heap cells → pointer identity (documented
+/// semantics for arrays/strings/records in tv1).
+fn aotLowerEqTv1(out, name, scratch) {
+    let s = len(out)
+    let sc = scratch
+    let sc1 = scratch + 1
+    out = push(out, ["store", sc1])
+    out = push(out, ["store", sc])
+    out = push(out, ["load", sc])
+    out = push(out, ["is_smi"])
+    out = push(out, ["load", sc1])
+    out = push(out, ["is_smi"])
+    out = push(out, ["mul"])
+    out = push(out, ["jz", s + 12])
+    out = push(out, ["load", sc])
+    out = push(out, ["load", sc1])
+    out = push(out, [name])
+    out = push(out, ["jmp", s + 37])
+    out = push(out, ["load", sc])
+    out = push(out, ["is_smi"])
+    out = push(out, ["jnz", s + 32])
+    out = push(out, ["load", sc1])
+    out = push(out, ["is_smi"])
+    out = push(out, ["jnz", s + 32])
+    out = push(out, ["load", sc])
+    out = push(out, ["htag"])
+    out = push(out, ["tconst", 1])
+    out = push(out, ["eq"])
+    out = push(out, ["jz", s + 34])
+    out = push(out, ["load", sc1])
+    out = push(out, ["htag"])
+    out = push(out, ["tconst", 1])
+    out = push(out, ["eq"])
+    out = push(out, ["jz", s + 34])
+    out = push(out, ["load", sc])
+    out = push(out, ["load", sc1])
+    out = push(out, ["f" + name])
+    out = push(out, ["jmp", s + 37])
+    if name == "eq" {
+        out = push(out, ["const", 0])
+    } else {
+        out = push(out, ["const", 1])
+    }
+    out = push(out, ["jmp", s + 37])
+    out = push(out, ["load", sc])
+    out = push(out, ["load", sc1])
+    out = push(out, [name])
+    return out
+}
+
+/// tv1 ordering compares: SMI pair → raw cmp (<<1 preserves order); a
+/// Float pair → f<cmp> (ucomisd); mixed SMI/heap or non-Float cells →
+/// trap (no SMI→Float promotion yet — documented).
+fn aotLowerCmpTv1(out, name, bump, scratch) {
+    let s = len(out)
+    let sc = scratch
+    let sc1 = scratch + 1
+    out = push(out, ["store", sc1])
+    out = push(out, ["store", sc])
+    out = push(out, ["load", sc])
+    out = push(out, ["is_smi"])
+    out = push(out, ["load", sc1])
+    out = push(out, ["is_smi"])
+    out = push(out, ["mul"])
+    out = push(out, ["jz", s + 12])
+    out = push(out, ["load", sc])
+    out = push(out, ["load", sc1])
+    out = push(out, [name])
+    out = push(out, ["jmp", s + 33])
+    out = push(out, ["load", sc])
+    out = push(out, ["is_smi"])
+    out = push(out, ["jnz", s + 32])
+    out = push(out, ["load", sc1])
+    out = push(out, ["is_smi"])
+    out = push(out, ["jnz", s + 32])
+    out = push(out, ["load", sc])
+    out = push(out, ["htag"])
+    out = push(out, ["tconst", 1])
+    out = push(out, ["eq"])
+    out = push(out, ["jz", s + 32])
+    out = push(out, ["load", sc1])
+    out = push(out, ["htag"])
+    out = push(out, ["tconst", 1])
+    out = push(out, ["eq"])
+    out = push(out, ["jz", s + 32])
+    out = push(out, ["load", sc])
+    out = push(out, ["load", sc1])
+    out = push(out, ["f" + name])
+    out = push(out, ["jmp", s + 33])
+    out = push(out, ["trap"])
+    return out
+}
+
 /// Lower one {op, arg} op array into the aot_fn_x64 op shape. Two passes:
 /// pass 1 emits ops + records ipMap (orig ip → lowered index) and jump
 /// fixups (relative targets), pass 2 resolves fixups to absolute lowered
 /// indices. Returns {"ok": true, "ops"} or {"ok": false, "reason"}.
-fn aotLowerOps(ops, bc) {
+///
+/// `tv1` selects the tagged domain: stack slots hold tagged values —
+/// const→tconst, arith→t*, array ops → heap cells (aget/aset/hlen,
+/// tag 5<<16|len header), make_array bump-allocates via global `bump`
+/// (caller reserves the slot). `scratch` is the first free local index —
+/// index/make_array lowering uses scratch..scratch+1 as spill temps.
+/// `clo` = {"owner", "cands", "wmap", "lshift"} — the enclosing record
+/// (for make_arrow_fn resolution), the callv candidate index list, the
+/// fn-global → wrapper-index map, and the +1 local shift arrow bodies
+/// need (their lowered local 0 holds the closure cell).
+fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
     let out = []
     let ipMap = []
     let fixups = []
@@ -53,14 +302,71 @@ fn aotLowerOps(ops, bc) {
         let arg = o["arg"]
         if name == "const" {
             let v = bc["constants"][arg]
-            if typeof(v) != "number" || v % 1 != 0 || v < -2147483648 || v > 2147483647 {
-                return aotLowerReject("const not i32 @" + i)
+            if tv1 {
+                // Float constants need IEEE-754 bits, which Kab cannot
+                // derive in-language — reject honestly until an f64→bits
+                // builtin exists (fmk exists for emitter-level use where
+                // the bits are precomputed).
+                if is_float(v) {
+                    return aotLowerReject("const float has no f64->bits path @" + i)
+                }
+                if typeof(v) != "number" || v % 1 != 0 || v < -1073741824 || v > 1073741823 {
+                    return aotLowerReject("const not tagged-i31 @" + i)
+                }
+                out = push(out, ["tconst", v])
+            } else {
+                if typeof(v) != "number" || v % 1 != 0 || v < -2147483648 || v > 2147483647 {
+                    return aotLowerReject("const not i32 @" + i)
+                }
+                out = push(out, ["const", v])
             }
-            out = push(out, ["const", v])
+        } else if tv1 && name == "make_array" {
+            // [e0..e_{n-1}] → tagged array ptr. Cell = header(tag 5<<16|n)
+            // + n tagged qwords; bump-allocated at slot `bump`.
+            let n = arg
+            out = push(out, ["const", n + 1])
+            out = push(out, ["halloc", bump, limit])
+            out = push(out, ["store", scratch])
+            let k = n - 1
+            while k >= 0 {
+                out = push(out, ["store", scratch + 1])
+                out = push(out, ["load", scratch])
+                out = push(out, ["tconst", k])
+                out = push(out, ["load", scratch + 1])
+                out = push(out, ["aset"])
+                out = push(out, ["pop"])
+                out = push(out, ["pop"])
+                k = k - 1
+            }
+            out = push(out, ["load", scratch])
+            out = push(out, ["const", 327680 + n])
+            out = push(out, ["hstore", 0])
+            out = push(out, ["load", scratch])
+        } else if tv1 && name == "index_get_local" {
+            // [idx] → local[arg][idx]; aget takes a tagged index.
+            out = push(out, ["store", scratch])
+            out = push(out, ["load", arg + clo["lshift"]])
+            out = push(out, ["load", scratch])
+            out = push(out, ["aget"])
+        } else if tv1 && name == "index_get_global" {
+            out = push(out, ["store", scratch])
+            out = push(out, ["gload", arg])
+            out = push(out, ["load", scratch])
+            out = push(out, ["aget"])
+        } else if tv1 && name == "index_get" {
+            out = push(out, ["aget"])
+        } else if tv1 && name == "index_set" {
+            out = push(out, ["aset"])
+        } else if tv1 && name == "get_member" {
+            if bc["constants"][arg] == "length" {
+                out = push(out, ["hlen"])
+            } else {
+                return aotLowerReject("get_member '" + bc["constants"][arg] + "' not supported in tv1 @" + i)
+            }
         } else if name == "load_local" {
-            out = push(out, ["load", arg])
+            out = push(out, ["load", arg + clo["lshift"]])
         } else if name == "store_local" {
-            out = push(out, ["store", arg])
+            out = push(out, ["store", arg + clo["lshift"]])
         } else if name == "store_global" {
             let gname2 = bc["globals"][arg]
             if aotLowerFnIndex(bc, gname2) >= 0 {
@@ -69,17 +375,40 @@ fn aotLowerOps(ops, bc) {
             out = push(out, ["gstore", arg])
         } else if name == "acc_add_local" {
             // fused `local[arg] += pop` — pure i64 local mutation.
-            out = push(out, ["acc_add", arg])
+            out = push(out, ["acc_add", arg + clo["lshift"]])
         } else if name == "acc_add_global" {
             let gname3 = bc["globals"][arg]
             if aotLowerFnIndex(bc, gname3) >= 0 {
                 return aotLowerReject("acc_add_global on module fn '" + gname3 + "' @" + i)
             }
             out = push(out, ["acc_add_g", arg])
-        } else if name == "add" || name == "sub" || name == "mul" || name == "div" || name == "mod" || name == "lt" || name == "le" || name == "gt" || name == "ge" || name == "eq" || name == "ne" {
-            out = push(out, [name])
+        } else if name == "add" || name == "sub" || name == "mul" || name == "div" || name == "mod" {
+            if tv1 {
+                out = aotLowerArithTv1(out, name, bump, limit, scratch)
+            } else {
+                out = push(out, [name])
+            }
+        } else if name == "lt" || name == "le" || name == "gt" || name == "ge" {
+            if tv1 {
+                out = aotLowerCmpTv1(out, name, bump, scratch)
+            } else {
+                out = push(out, [name])
+            }
+        } else if name == "eq" || name == "ne" {
+            if tv1 {
+                out = aotLowerEqTv1(out, name, scratch)
+            } else {
+                out = push(out, [name])
+            }
         } else if name == "neg" || name == "not" || name == "bit_not" {
-            out = push(out, [name])
+            if tv1 && name != "neg" {
+                return aotLowerReject("unary '" + name + "' not lowered in tv1 @" + i)
+            }
+            if tv1 {
+                out = aotLowerNegTv1(out, bump, limit, scratch)
+            } else {
+                out = push(out, [name])
+            }
         } else if name == "jump" || name == "jump_if_false" || name == "jump_if_true" {
             let jn = "jmp"
             if name == "jump_if_false" {
@@ -95,36 +424,95 @@ fn aotLowerOps(ops, bc) {
             let fi = aotLowerFnIndex(bc, gname)
             if i + 1 < len(ops) && ops[i + 1]["op"] == "call" {
                 // Dynamic callee: lowers ONLY when the global names a
-                // module function → one static callN op.
+                // module function → one static callN op. A data global
+                // falls through to gload — the call op emits callv.
                 if fi < 0 {
-                    return aotLowerReject("call target not a module fn: " + gname)
+                    if tv1 {
+                        out = push(out, ["gload", arg])
+                        i = i + 1
+                        ipMap = push(ipMap, len(out))
+                        let ncv = ops[i]["arg"]
+                        if ncv < 0 || ncv > 3 {
+                            return aotLowerReject("callv arity > 3 @" + i)
+                        }
+                        out = push(out, ["callv", ncv, clo["cands"]])
+                    } else {
+                        return aotLowerReject("call target not a module fn: " + gname)
+                    }
+                } else {
+                    let n = ops[i + 1]["arg"]
+                    let cn = "call0"
+                    if n == 1 {
+                        cn = "call"
+                    } else if n == 2 {
+                        cn = "call2"
+                    } else if n == 3 {
+                        cn = "call3"
+                    } else if n == 4 {
+                        cn = "call4"
+                    } else if n != 0 {
+                        return aotLowerReject("call arity > 4 @" + i)
+                    }
+                    out = push(out, [cn, fi + 1])
+                    i = i + 1
+                    ipMap = push(ipMap, len(out))
                 }
-                let n = ops[i + 1]["arg"]
-                let cn = "call0"
-                if n == 1 {
-                    cn = "call"
-                } else if n == 2 {
-                    cn = "call2"
-                } else if n == 3 {
-                    cn = "call3"
-                } else if n == 4 {
-                    cn = "call4"
-                } else if n != 0 {
-                    return aotLowerReject("call arity > 4 @" + i)
-                }
-                out = push(out, [cn, fi + 1])
-                i = i + 1
-                ipMap = push(ipMap, len(out))
             } else {
                 // A data-global load (v2 domain widened: i64 slots in the
-                // image data page); a fn-valued load escapes — reject.
+                // image data page); a fn-valued load becomes a 0-cap
+                // closure cell via the fn's wrapper in tv1.
                 if fi >= 0 {
-                    return aotLowerReject("fn value '" + gname + "' used as data @" + i)
+                    if tv1 {
+                        let wi = clo["wmap"]["" + fi]
+                        if wi == undefined {
+                            return aotLowerReject("fn value '" + gname + "' has no wrapper @" + i)
+                        }
+                        out = push(out, ["mkclo", bump, limit, wi, 0])
+                    } else {
+                        return aotLowerReject("fn value '" + gname + "' used as data @" + i)
+                    }
+                } else {
+                    out = push(out, ["gload", arg])
                 }
-                out = push(out, ["gload", arg])
             }
+        } else if tv1 && name == "make_arrow_fn" {
+            // Closure cell: snapshot each capture by name from the
+            // enclosing record's locals, then bound-checked alloc.
+            let owner = clo["owner"]
+            let arrs = owner["arrows"]
+            if arrs == undefined || arg < 0 || arg >= len(arrs) {
+                return aotLowerReject("make_arrow_fn index out of range @" + i)
+            }
+            let ar = arrs[arg]
+            let np2 = len(ar["params"])
+            let ncap2 = len(ar["locals"]) - np2 - 1
+            let olocals = owner["locals"]
+            let ck = 0
+            while ck < ncap2 {
+                let cname = ar["locals"][np2 + 1 + ck]
+                let oi = 0
+                while oi < len(olocals) {
+                    if olocals[oi] == cname {
+                        break
+                    }
+                    oi = oi + 1
+                }
+                if oi >= len(olocals) {
+                    return aotLowerReject("capture '" + cname + "' not in enclosing locals @" + i)
+                }
+                out = push(out, ["load", oi + clo["lshift"]])
+                ck = ck + 1
+            }
+            out = push(out, ["mkclo", bump, limit, ar["__imgIdx"], ncap2])
         } else if name == "call" {
-            return aotLowerReject("dynamic call @" + i)
+            if tv1 {
+                if arg < 0 || arg > 3 {
+                    return aotLowerReject("callv arity > 3 @" + i)
+                }
+                out = push(out, ["callv", arg, clo["cands"]])
+            } else {
+                return aotLowerReject("dynamic call @" + i)
+            }
         } else if name == "return" {
             out = push(out, ["ret"])
         } else if name == "pop" {
@@ -152,30 +540,212 @@ fn aotLowerOps(ops, bc) {
 /// Lower a whole compileIr module into the aotX64EmitFns input shape:
 /// {"ok": true, "fns": [{name, locals, arity, ops}…]} with the module main
 /// as fns[0], or {"ok": false, "reason"} on the first out-of-domain fn.
-pub fn aotFnLowerModule(bc) {
+/// `tv1` selects the tagged domain — one extra global slot (bump pointer)
+/// is reserved at index nglobals, main gets a hbase/gstore prologue, and
+/// every fn reserves two scratch locals for index/make_array lowering.
+fn aotLowerModuleMode(bc, tv1, heapQ) {
     if typeof(bc) != "object" || bc == null || bc["ops"] == undefined || bc["functions"] == undefined {
         return aotLowerReject("not a compileIr module record")
     }
-    let mainR = aotLowerOps(bc["ops"], bc)
+    let ng = len(bc["globals"])
+    let bump = ng
+    let xtra = 0
+    if tv1 {
+        xtra = 2
+    }
+    let bcf = bc["functions"]
+    let nf = len(bcf)
+    // Closure pass 1: image index = main(0) + module fns(1..nf) + every
+    // arrow record reachable from main/fn arrow arrays (depth-first) +
+    // wrapper fns for fn-valued globals (found by the want-scan below).
+    let arecs = []
+    let next = 1 + nf
+    if tv1 {
+        if bc["arrows"] != undefined && len(bc["arrows"]) > 0 {
+            let rr = aotCloAssign(bc["arrows"], next, arecs)
+            next = rr["next"]
+            arecs = rr["acc"]
+        }
+        let ai2 = 0
+        while ai2 < nf {
+            let sub2 = bcf[ai2]["arrows"]
+            if sub2 != undefined && len(sub2) > 0 {
+                let rr2 = aotCloAssign(sub2, next, arecs)
+                next = rr2["next"]
+                arecs = rr2["acc"]
+            }
+            ai2 = ai2 + 1
+        }
+    }
+    // Wanted wrappers: fn-valued global loads not fused into callN.
+    let want = []
+    if tv1 {
+        want = aotCloWant(bc["ops"], bc, want)
+        let wi2 = 0
+        while wi2 < nf {
+            want = aotCloWant(bcf[wi2]["ops"], bc, want)
+            wi2 = wi2 + 1
+        }
+        let wi3 = 0
+        while wi3 < len(arecs) {
+            want = aotCloWant(arecs[wi3]["ops"], bc, want)
+            wi3 = wi3 + 1
+        }
+    }
+    let wmap = {}
+    let wj = 0
+    while wj < len(want) {
+        wmap["" + want[wj]] = next
+        next = next + 1
+        wj = wj + 1
+    }
+    // callv candidates: every arrow + wrapper index in the image.
+    let cands = []
+    let ck2 = 1 + nf
+    while ck2 < next {
+        cands = push(cands, ck2)
+        ck2 = ck2 + 1
+    }
+    let mainClo = { "owner": bc, "cands": cands, "wmap": wmap, "lshift": 0 }
+    let mainR = aotLowerOps(bc["ops"], bc, tv1, bump, ng + 1, 0, mainClo)
     if mainR["ok"] == false {
         return aotLowerReject("main: " + mainR["reason"])
     }
-    let fns = [{ "name": "main", "locals": 0, "arity": 0, "ops": mainR["ops"] }]
-    let bcf = bc["functions"]
+    // NOTE: record field access returns a deep copy in the VM — keep one
+    // fetched array (`rawOps`) and mutate/reuse its elements, or the
+    // jump shift below would edit a copy that is never pushed.
+    let rawOps = mainR["ops"]
+    let mainOps = rawOps
+    if tv1 {
+        // Bump+limit seed: heap starts past globals + the two slots;
+        // every jump target shifts by the four prepended prologue ops.
+        let si = 0
+        while si < len(rawOps) {
+            let sn = rawOps[si][0]
+            if sn == "jmp" || sn == "jz" || sn == "jnz" || sn == "jsmi" || sn == "jnsmi" {
+                rawOps[si][1] = rawOps[si][1] + 4
+            }
+            si = si + 1
+        }
+        mainOps = [["hbase", bump + 2], ["gstore", bump], ["hlimit", bump + 2 + heapQ], ["gstore", bump + 1]]
+        let mi = 0
+        while mi < len(rawOps) {
+            mainOps = push(mainOps, rawOps[mi])
+            mi = mi + 1
+        }
+    }
+    let fns = [{ "name": "main", "locals": xtra, "arity": 0, "ops": mainOps }]
     let i = 0
     while i < len(bcf) {
         let f = bcf[i]
-        let r = aotLowerOps(f["ops"], bc)
+        let fclo = { "owner": f, "cands": cands, "wmap": wmap, "lshift": 0 }
+        let r = aotLowerOps(f["ops"], bc, tv1, bump, ng + 1, len(f["locals"]), fclo)
         if r["ok"] == false {
             return aotLowerReject(f["sym"] + ": " + r["reason"])
         }
         fns = push(fns, {
             "name": f["sym"],
-            "locals": len(f["locals"]),
+            "locals": len(f["locals"]) + xtra,
             "arity": len(f["params"]),
             "ops": r["ops"]
         })
         i = i + 1
     }
-    return { "ok": true, "fns": fns, "nglobals": len(bc["globals"]) }
+    // Arrow bodies: lowered with the cell convention — local 0 = the
+    // closure cell (rcx), params shifted +1, `this` seeded with the
+    // cell itself, captures loaded out of the cell via hload. Their
+    // own ops shift +1 local (cell occupies slot 0); the prologue
+    // insertion shifts jump targets by 2 + 3*ncap.
+    let aj = 0
+    while aj < len(arecs) {
+        let ar = arecs[aj]
+        let np = len(ar["params"])
+        let ncap = len(ar["locals"]) - np - 1
+        let aclo = { "owner": ar, "cands": cands, "wmap": wmap, "lshift": 1 }
+        let ar2 = aotLowerOps(ar["ops"], bc, tv1, bump, ng + 1, 1 + len(ar["locals"]), aclo)
+        if ar2["ok"] == false {
+            return aotLowerReject(ar["sym"] + ": " + ar2["reason"])
+        }
+        let aops = ar2["ops"]
+        let prolen = 2 + 3 * ncap
+        let sj = 0
+        while sj < len(aops) {
+            let sn2 = aops[sj][0]
+            if sn2 == "jmp" || sn2 == "jz" || sn2 == "jnz" || sn2 == "jsmi" || sn2 == "jnsmi" {
+                aops[sj][1] = aops[sj][1] + prolen
+            }
+            sj = sj + 1
+        }
+        let pro = [["load", 0], ["store", np + 1]]
+        let ck3 = 0
+        while ck3 < ncap {
+            pro = push(pro, ["load", 0])
+            pro = push(pro, ["hload", 16 + 8 * ck3])
+            pro = push(pro, ["store", np + 2 + ck3])
+            ck3 = ck3 + 1
+        }
+        let mj = 0
+        while mj < len(aops) {
+            pro = push(pro, aops[mj])
+            mj = mj + 1
+        }
+        fns = push(fns, {
+            "name": ar["sym"],
+            "locals": 1 + len(ar["locals"]) + xtra,
+            "arity": 1 + np,
+            "ops": pro
+        })
+        aj = aj + 1
+    }
+    // Wrappers for fn-valued globals: cell convention, ignore the cell —
+    // reload the real params and tail-call the module fn directly.
+    wj = 0
+    while wj < len(want) {
+        let wfi = want[wj]
+        let wf = bcf[wfi]
+        let wnp = len(wf["params"])
+        let wops = []
+        let wk = 0
+        while wk < wnp {
+            wops = push(wops, ["load", 1 + wk])
+            wk = wk + 1
+        }
+        let wcn = "call0"
+        if wnp == 1 {
+            wcn = "call"
+        } else if wnp == 2 {
+            wcn = "call2"
+        } else if wnp == 3 {
+            wcn = "call3"
+        } else if wnp == 4 {
+            wcn = "call4"
+        } else if wnp > 4 {
+            return aotLowerReject("fn-value wrapper arity > 4: " + wf["sym"])
+        }
+        wops = push(wops, [wcn, wfi + 1])
+        wops = push(wops, ["ret"])
+        fns = push(fns, {
+            "name": wf["sym"] + "$clo",
+            "locals": 1 + wnp,
+            "arity": 1 + wnp,
+            "ops": wops
+        })
+        wj = wj + 1
+    }
+    let ngOut = ng
+    if tv1 {
+        ngOut = ng + 2
+    }
+    return { "ok": true, "fns": fns, "nglobals": ngOut }
+}
+
+/// i64 domain (aot-i64v1) — the original behaviour.
+pub fn aotFnLowerModule(bc) {
+    return aotLowerModuleMode(bc, false, 0)
+}
+
+/// Tagged domain (aot-tv1) — every stack value is a tagged word; arrays
+/// are heap cells, index ops use aget/aset, `x.length` uses hlen.
+pub fn aotFnLowerModuleTv1(bc, heapQ) {
+    return aotLowerModuleMode(bc, true, heapQ)
 }

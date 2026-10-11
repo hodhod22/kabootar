@@ -1,0 +1,30 @@
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_gc"
+
+// heap: A@4 array(3qw, elems [tconst11=22, ptr C@9=73]), B@7 dead
+// array(2qw), C@9 record(2qw, field tconst7=14), D@11 dead string(3qw).
+// Roots live in data[0..4): bump14, 64, A(33), C(73). top=14, rc=4.
+let gcf = aotGcSynthFn()
+println("ops " + len(gcf["ops"]))
+let hp = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+hp[0] = 14
+hp[1] = 64
+hp[2] = 33
+hp[3] = 73
+hp[4] = 327682
+hp[5] = 22
+hp[6] = 73
+hp[7] = 327681
+hp[8] = 0
+hp[9] = 655361
+hp[10] = 14
+hp[11] = 262153
+hp[12] = 0
+hp[13] = 0
+let r = aotFnRunG([gcf], 0, 14, 4, 4, 0, [], hp)
+println("ret " + r["v"])
+hp = r["hp"]
+println("h3 " + hp[3] + " h4 " + hp[4] + " h6 " + hp[6] + " h7 " + hp[7] + " h8 " + hp[8])
+// expect ret 9; hp[3]=57 (C rewritten); hp[4]=A hdr; hp[6]=57 (A[1]);
+// hp[7]=C hdr 655361, hp[8]=14
+return 42

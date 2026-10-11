@@ -18,10 +18,12 @@ let main = {
     "arity": 0,
     "locals": 5,
     "ops": [
-        ["hbase", 1],
+        ["hbase", 2],
         ["gstore", 0],
+        ["hlimit", 256],
+        ["gstore", 1],
         ["const", 3],
-        ["halloc", 0],
+        ["halloc", 0, 1],
         ["store", 0],
         ["load", 0],
         ["const", 262152],
@@ -59,7 +61,7 @@ let main = {
         ["const", 114],
         ["hstoreb"],
         ["const", 3],
-        ["halloc", 0],
+        ["halloc", 0, 1],
         ["store", 1],
         ["load", 1],
         ["const", 655362],
@@ -71,7 +73,7 @@ let main = {
         ["tconst", 7],
         ["hstore", 16],
         ["const", 4],
-        ["halloc", 0],
+        ["halloc", 0, 1],
         ["store", 2],
         ["load", 2],
         ["const", 327683],
@@ -95,7 +97,7 @@ let main = {
         ["load", 4],
         ["const", 8],
         ["lt"],
-        ["jz", 89],
+        ["jz", 91],
         ["load", 0],
         ["load", 4],
         ["hloadb"],
@@ -106,7 +108,7 @@ let main = {
         ["const", 1],
         ["add"],
         ["store", 4],
-        ["jmp", 74],
+        ["jmp", 76],
         ["load", 1],
         ["hload", 8],
         ["untag"],
@@ -155,13 +157,13 @@ let main = {
         ["add"],
         ["store", 3],
         ["load", 0],
-        ["jsmi", 142],
+        ["jsmi", 144],
         ["load", 3],
         ["const", 1],
         ["add"],
         ["store", 3],
         ["tconst", 5],
-        ["jnsmi", 148],
+        ["jnsmi", 150],
         ["load", 3],
         ["const", 1],
         ["add"],
@@ -172,7 +174,7 @@ let main = {
 }
 
 let fns = [main]
-let ng = 1
+let ng = 2
 let data = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 
 let image = aotFnImageEmitData(fns, data)

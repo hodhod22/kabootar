@@ -1,0 +1,732 @@
+// SH28: aot-tv1 heap audit — real mark/walk ANALYSIS over the tagged
+// heap (hp = qword array; cells [hdr=tag<<16|len | payload…]; values
+// tagged SMI v*2 | ptr idx*8|1). Audit-only like gc_vm_audit: the pass
+// traces real tagged pointers through real cell layouts and counts
+// live/dead, but NOTHING is freed — halloc stays bump-only on both
+// backends so native/mirror parity holds. The audit proves the tracing
+// algorithm against the real layout before a native gcollect emission
+// exists. import "kab/aot/aot_gc"
+
+/// Payload qword range a cell exposes to the tracer, as offsets from
+/// the cell base: float (1) and string (4) payloads are raw bits/bytes —
+/// never scanned; closure (6) payload[0] is the raw fn index (not a
+/// tagged value) — captures start at offset 2; array/record/other tags
+/// scan all `len` payload qwords. Empty range lo>hi = no pointers.
+pub fn aotGcCellScan(hdr) {
+    let tag = (hdr / 65536) % 256
+    let ln = hdr % 65536
+    if tag == 1 {
+        return { "lo": 1, "hi": 0 }
+    }
+    if tag == 4 {
+        return { "lo": 1, "hi": 0 }
+    }
+    if tag == 6 {
+        return { "lo": 2, "hi": ln }
+    }
+    return { "lo": 1, "hi": ln }
+}
+
+/// Cell footprint in qwords: strings (tag 4) store len BYTES packed in
+/// qwords; every other tag stores len payload qwords.
+pub fn aotGcCellQwords(hdr) {
+    let tag = (hdr / 65536) % 256
+    let ln = hdr % 65536
+    if tag == 4 {
+        return 1 + (ln + 7) / 8
+    }
+    return 1 + ln
+}
+
+/// Mark cells reachable from `roots` (tagged values). Returns a seen
+/// map {"<baseQwordIndex>": true} — worklist traversal over tagged
+/// fields, real pointer tracing (transitively reachable cells stay
+/// live). Only ptrs decoding into [lo, hi) are followed — a bogus odd
+/// qword cannot reach outside the bump region.
+pub fn aotGcMarkHp(hp, lo, hi, roots) {
+    let seen = {}
+    let work = roots
+    while len(work) > 0 {
+        let v = work[len(work) - 1]
+        work = slice(work, 0, len(work) - 1)
+        if v % 2 == 1 {
+            let base = (v - 1) / 8
+            if base >= lo && base < hi && seen[" " + base] == undefined {
+                seen[" " + base] = true
+                let sc = aotGcCellScan(hp[base])
+                let i = sc["lo"]
+                while i <= sc["hi"] {
+                    work = push(work, hp[base + i])
+                    i = i + 1
+                }
+            }
+        }
+    }
+    return seen
+}
+
+/// Walk the bump region [lo, hi) cell-by-cell counting live (marked)
+/// vs dead cells + qwords. Dead headers stay intact — hstore/hstorex
+/// only write payload offsets — so sizes decode safely; a malformed
+/// hdr (footprint <= 0) steps 1 qword defensively instead of looping.
+pub fn aotGcAuditHp(hp, lo, hi, roots) {
+    let seen = aotGcMarkHp(hp, lo, hi, roots)
+    let live = 0
+    let dead = 0
+    let liveQ = 0
+    let deadQ = 0
+    let i = lo
+    while i < hi {
+        let n = aotGcCellQwords(hp[i])
+        if n <= 0 {
+            n = 1
+        }
+        if seen[" " + i] == true {
+            live = live + 1
+            liveQ = liveQ + n
+        } else {
+            dead = dead + 1
+            deadQ = deadQ + n
+        }
+        i = i + n
+    }
+    return { "live": live, "dead": dead, "liveQ": liveQ, "deadQ": deadQ }
+}
+
+/// Gate: live/dead cell counts must match exactly (gcVmAuditOk style).
+pub fn aotGcAuditOk(hp, lo, hi, roots, wantLive, wantDead) {
+    let a = aotGcAuditHp(hp, lo, hi, roots)
+    if a["live"] != wantLive {
+        return false
+    }
+    return a["dead"] == wantDead
+}
+
+/// Sliding compaction — a REAL moving collect over the mirror heap:
+/// pass 1 assigns each live cell a new base at the bump start (order
+/// preserved); pass 2 moves the cell qwords down (dst < src always, so
+/// the forward byte-copy never overwrites unconsumed source) and
+/// rewrites the moved cell's pointer fields through the forwarding
+/// map. Returns {"hp","top","fwd"} — callers rewrite their own root
+/// slots via aotGcFwdVal (st/locals/globals live outside hp).
+pub fn aotGcCompactHp(hp, lo, hi, roots) {
+    let seen = aotGcMarkHp(hp, lo, hi, roots)
+    let fwd = {}
+    let nt = lo
+    let i = lo
+    while i < hi {
+        let n = aotGcCellQwords(hp[i])
+        if n <= 0 {
+            n = 1
+        }
+        if seen[" " + i] == true {
+            fwd[" " + i] = nt
+            nt = nt + n
+        }
+        i = i + n
+    }
+    i = lo
+    while i < hi {
+        let n = aotGcCellQwords(hp[i])
+        if n <= 0 {
+            n = 1
+        }
+        if seen[" " + i] == true {
+            let nb = fwd[" " + i]
+            if nb != i {
+                let k = 0
+                while k < n {
+                    hp[nb + k] = hp[i + k]
+                    k = k + 1
+                }
+            }
+            let sc = aotGcCellScan(hp[nb])
+            let j = sc["lo"]
+            while j <= sc["hi"] {
+                let v = hp[nb + j]
+                if v % 2 == 1 {
+                    let b2 = (v - 1) / 8
+                    if fwd[" " + b2] != undefined {
+                        hp[nb + j] = fwd[" " + b2] * 8 + 1
+                    }
+                }
+                j = j + 1
+            }
+        }
+        i = i + n
+    }
+    return { "hp": hp, "top": nt, "fwd": fwd }
+}
+
+/// Forwarding lookup for one tagged root value — pointers that moved
+/// come back as their new tagged address; SMIs and unmoved/foreign
+/// ptrs pass through unchanged.
+pub fn aotGcFwdVal(fwd, v) {
+    if v % 2 == 1 {
+        let b = (v - 1) / 8
+        if fwd[" " + b] != undefined {
+            return fwd[" " + b] * 8 + 1
+        }
+    }
+    return v
+}
+
+// ------------------------------------------------------------------
+// Native-side collect: the emitter appends this synthesized fn when a
+// gcollect/hcalloc op exists. It implements the SAME sliding compact
+// in the tv1 op language — raw qword ops + hload/hstore on hand-built
+// tagged pointers. `dbase` unifies the two backends: mirror passes 0
+// (ptr = idx*8+1 → hp[idx]); native passes r12 (ptr = r12+idx*8+1 →
+// data[idx] through the same hload/hstore decode).
+//
+// Layout contract: [globals rb | spill locals+stack | heap lo..top) —
+// the caller spills locals+stack to data[rb..rc) so the GC scans
+// data[0..rc) as one contiguous root area. Marks live in header
+// bit23; forwarding is h + nt*2^24 (mark bit preserved, tag/len
+// extraction in the low 24 bits unaffected since 2^23 and nt*2^24
+// are multiples of 2^16).
+//   arity 4: a1=top(0)  a2=lo(1)  a3=rc(2)  a4=dbase(3)
+//   work:    v=4 b=5 h=6 nt=7 j=8 len=9 prog=10 scanLo=11 nb=13
+//            tag=14 n=15 i=16
+//   returns: new top (slot-index units — the emitter stores it into
+//            the bump slot, converting units as needed).
+// ------------------------------------------------------------------
+
+// push ops that turn a slot index already on the stack into the
+// tagged pointer dbase + idx*8 + 1 (mirror dbase=0 → idx*8+1).
+fn aotGcPtrSeq(ops) {
+    ops = push(ops, ["const", 8])
+    ops = push(ops, ["mul"])
+    ops = push(ops, ["load", 3])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["add"])
+    return ops
+}
+
+// decode v(4) → b(5): b = (v - 1 - dbase) / 8.
+fn aotGcDecSeq(ops) {
+    ops = push(ops, ["load", 4])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["sub"])
+    ops = push(ops, ["load", 3])
+    ops = push(ops, ["sub"])
+    ops = push(ops, ["const", 8])
+    ops = push(ops, ["div"])
+    ops = push(ops, ["store", 5])
+    return ops
+}
+
+// mark check on h(6): pushes (h/8388608)%2 — 1 when the mark bit is
+// set (works on both marked headers and forwarded ones since
+// nt*2^24 contributes an even multiple of 2^23).
+fn aotGcMarkedSeq(ops) {
+    ops = push(ops, ["load", 6])
+    ops = push(ops, ["const", 8388608])
+    ops = push(ops, ["div"])
+    ops = push(ops, ["const", 2])
+    ops = push(ops, ["mod"])
+    return ops
+}
+
+// mark(v->b->h) sequence: sets the mark bit on the target cell when v
+// is a live in-heap pointer; prog=1 also flags progress(10). Returns
+// [ops, F] with fixups for the caller's skip label.
+fn aotGcMarkSeq(ops, F, skip, prog) {
+    ops = push(ops, ["load", 4])
+    ops = push(ops, ["const", 2])
+    ops = push(ops, ["mod"])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["eq"])
+    F = push(F, { "at": len(ops), "to": skip })
+    ops = push(ops, ["jz", -1])
+    ops = aotGcDecSeq(ops)
+    ops = push(ops, ["load", 5])
+    ops = push(ops, ["load", 1])
+    ops = push(ops, ["lt"])
+    F = push(F, { "at": len(ops), "to": skip })
+    ops = push(ops, ["jnz", -1])
+    ops = push(ops, ["load", 5])
+    ops = push(ops, ["load", 0])
+    ops = push(ops, ["ge"])
+    F = push(F, { "at": len(ops), "to": skip })
+    ops = push(ops, ["jnz", -1])
+    ops = push(ops, ["load", 5])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hload", 0])
+    ops = push(ops, ["store", 6])
+    ops = aotGcMarkedSeq(ops)
+    F = push(F, { "at": len(ops), "to": skip })
+    ops = push(ops, ["jnz", -1])
+    ops = push(ops, ["load", 5])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["load", 6])
+    ops = push(ops, ["const", 8388608])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["hstore", 0])
+    if prog == 1 {
+        ops = push(ops, ["const", 1])
+        ops = push(ops, ["store", 10])
+    }
+    return [ops, F]
+}
+
+// header introspection: len→9, tag→14 from h(6).
+fn aotGcHdrSeq(ops) {
+    ops = push(ops, ["load", 6])
+    ops = push(ops, ["const", 65536])
+    ops = push(ops, ["mod"])
+    ops = push(ops, ["store", 9])
+    ops = push(ops, ["load", 6])
+    ops = push(ops, ["const", 65536])
+    ops = push(ops, ["div"])
+    ops = push(ops, ["const", 128])
+    ops = push(ops, ["mod"])
+    ops = push(ops, ["store", 14])
+    return ops
+}
+
+// cell size → n(15) from tag(14)/len(9): tag4 → 1+(len+7)/8 else len+1.
+fn aotGcSizeSeq(ops, F, strlab, donelab) {
+    ops = push(ops, ["load", 14])
+    ops = push(ops, ["const", 4])
+    ops = push(ops, ["eq"])
+    F = push(F, { "at": len(ops), "to": strlab })
+    ops = push(ops, ["jnz", -1])
+    ops = push(ops, ["load", 9])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["store", 15])
+    F = push(F, { "at": len(ops), "to": donelab })
+    ops = push(ops, ["jmp", -1])
+    return [ops, F]
+}
+
+fn aotGcSizeStrSeq(ops) {
+    ops = push(ops, ["load", 9])
+    ops = push(ops, ["const", 7])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["const", 8])
+    ops = push(ops, ["div"])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["store", 15])
+    return ops
+}
+
+// i(16) += n(15)
+fn aotGcAdvSeq(ops) {
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 15])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["store", 16])
+    return ops
+}
+
+// h(6) = data[i(16)] — header load via the unified pointer.
+fn aotGcHgetSeq(ops) {
+    ops = push(ops, ["load", 16])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hload", 0])
+    ops = push(ops, ["store", 6])
+    return ops
+}
+
+// pointer-bearing scan range → scanLo(11): tag1/tag4 → skip label,
+// tag6 → 2 (skip raw fnidx), else 1.
+fn aotGcScanSeq(ops, F, skip, t6lab, golab) {
+    ops = push(ops, ["load", 14])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["eq"])
+    F = push(F, { "at": len(ops), "to": skip })
+    ops = push(ops, ["jnz", -1])
+    ops = push(ops, ["load", 14])
+    ops = push(ops, ["const", 4])
+    ops = push(ops, ["eq"])
+    F = push(F, { "at": len(ops), "to": skip })
+    ops = push(ops, ["jnz", -1])
+    ops = push(ops, ["load", 14])
+    ops = push(ops, ["const", 6])
+    ops = push(ops, ["eq"])
+    F = push(F, { "at": len(ops), "to": t6lab })
+    ops = push(ops, ["jnz", -1])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["store", 11])
+    F = push(F, { "at": len(ops), "to": golab })
+    ops = push(ops, ["jmp", -1])
+    return [ops, F]
+}
+
+// shared tail of a pointer rewrite: decodes v(4)→b(5), bounds-checks
+// against [lo,top), loads hp[b]→h(6), and jz-exits to `ud` when the
+// referent is dead. On fall-through h(6) holds the fwd header — the
+// caller emits the actual hstore.
+fn aotGcUpdSeq(ops, F, ud) {
+    ops = aotGcDecSeq(ops)
+    ops = push(ops, ["load", 5])
+    ops = push(ops, ["load", 1])
+    ops = push(ops, ["lt"])
+    F = push(F, { "at": len(ops), "to": ud })
+    ops = push(ops, ["jnz", -1])
+    ops = push(ops, ["load", 5])
+    ops = push(ops, ["load", 0])
+    ops = push(ops, ["ge"])
+    F = push(F, { "at": len(ops), "to": ud })
+    ops = push(ops, ["jnz", -1])
+    ops = push(ops, ["load", 5])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hload", 0])
+    ops = push(ops, ["store", 6])
+    ops = aotGcMarkedSeq(ops)
+    F = push(F, { "at": len(ops), "to": ud })
+    ops = push(ops, ["jz", -1])
+    return [ops, F]
+}
+
+// The synthesized fn is deterministic — build its op array once per
+// process (the label/fixup pass is the slowest part of a GC emit).
+let gcSynthCache = []
+
+pub fn aotGcSynthFn() {
+    if len(gcSynthCache) > 0 {
+        return gcSynthCache[0]
+    }
+    let ops = []
+    let L = {}
+    let F = []
+
+    // ---- Phase A: mark roots — i=0; while i<rc scan data[i] as v ----
+    ops = push(ops, ["const", 0])
+    ops = push(ops, ["store", 16])
+    L["A_LOOP"] = len(ops)
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 2])
+    ops = push(ops, ["lt"])
+    F = push(F, { "at": len(ops), "to": "A_DONE" })
+    ops = push(ops, ["jz", -1])
+    ops = push(ops, ["load", 16])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hload", 0])
+    ops = push(ops, ["store", 4])
+    let mr = aotGcMarkSeq(ops, F, "M0D", 0)
+    ops = mr[0]
+    F = mr[1]
+    L["M0D"] = len(ops)
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["store", 16])
+    F = push(F, { "at": len(ops), "to": "A_LOOP" })
+    ops = push(ops, ["jmp", -1])
+    L["A_DONE"] = len(ops)
+
+    // ---- Phase B: fixpoint mark — rescan heap until no progress ----
+    L["B_OUTER"] = len(ops)
+    ops = push(ops, ["const", 0])
+    ops = push(ops, ["store", 10])
+    ops = push(ops, ["load", 1])
+    ops = push(ops, ["store", 16])
+    L["B_LOOP"] = len(ops)
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 0])
+    ops = push(ops, ["lt"])
+    F = push(F, { "at": len(ops), "to": "B_DONE" })
+    ops = push(ops, ["jz", -1])
+    ops = aotGcHgetSeq(ops)
+    ops = aotGcHdrSeq(ops)
+    ops = aotGcMarkedSeq(ops)
+    F = push(F, { "at": len(ops), "to": "B_NEXT" })
+    ops = push(ops, ["jz", -1])
+    let sr = aotGcScanSeq(ops, F, "B_NEXT", "B_T6", "B_SCAN")
+    ops = sr[0]
+    F = sr[1]
+    L["B_T6"] = len(ops)
+    ops = push(ops, ["const", 2])
+    ops = push(ops, ["store", 11])
+    L["B_SCAN"] = len(ops)
+    ops = push(ops, ["load", 11])
+    ops = push(ops, ["store", 8])
+    L["B_FIELD"] = len(ops)
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["load", 9])
+    ops = push(ops, ["le"])
+    F = push(F, { "at": len(ops), "to": "B_NEXT" })
+    ops = push(ops, ["jz", -1])
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["add"])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hload", 0])
+    ops = push(ops, ["store", 4])
+    let mr2 = aotGcMarkSeq(ops, F, "M1D", 1)
+    ops = mr2[0]
+    F = mr2[1]
+    L["M1D"] = len(ops)
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["store", 8])
+    F = push(F, { "at": len(ops), "to": "B_FIELD" })
+    ops = push(ops, ["jmp", -1])
+    L["B_NEXT"] = len(ops)
+    let sz = aotGcSizeSeq(ops, F, "B_STRSZ", "B_ADV")
+    ops = sz[0]
+    F = sz[1]
+    L["B_STRSZ"] = len(ops)
+    ops = aotGcSizeStrSeq(ops)
+    L["B_ADV"] = len(ops)
+    ops = aotGcAdvSeq(ops)
+    F = push(F, { "at": len(ops), "to": "B_LOOP" })
+    ops = push(ops, ["jmp", -1])
+    L["B_DONE"] = len(ops)
+    ops = push(ops, ["load", 10])
+    ops = push(ops, ["const", 0])
+    ops = push(ops, ["gt"])
+    F = push(F, { "at": len(ops), "to": "B_OUTER" })
+    ops = push(ops, ["jnz", -1])
+
+    // ---- Phase C: assign forwarding — nt<<24 into live headers ----
+    // size is computed BEFORE the mark branch so the marked path can
+    // bump nt by the same n that advances i.
+    ops = push(ops, ["load", 1])
+    ops = push(ops, ["store", 7])
+    ops = push(ops, ["load", 1])
+    ops = push(ops, ["store", 16])
+    L["C_LOOP"] = len(ops)
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 0])
+    ops = push(ops, ["lt"])
+    F = push(F, { "at": len(ops), "to": "C_DONE" })
+    ops = push(ops, ["jz", -1])
+    ops = aotGcHgetSeq(ops)
+    ops = aotGcHdrSeq(ops)
+    let sz2 = aotGcSizeSeq(ops, F, "C_STRSZ", "C_SZD")
+    ops = sz2[0]
+    F = sz2[1]
+    L["C_STRSZ"] = len(ops)
+    ops = aotGcSizeStrSeq(ops)
+    L["C_SZD"] = len(ops)
+    ops = aotGcMarkedSeq(ops)
+    F = push(F, { "at": len(ops), "to": "C_ADV" })
+    ops = push(ops, ["jz", -1])
+    ops = push(ops, ["load", 16])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["load", 6])
+    ops = push(ops, ["load", 7])
+    ops = push(ops, ["const", 16777216])
+    ops = push(ops, ["mul"])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["hstore", 0])
+    // nt += n — only live cells consume destination space
+    ops = push(ops, ["load", 7])
+    ops = push(ops, ["load", 15])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["store", 7])
+    L["C_ADV"] = len(ops)
+    ops = aotGcAdvSeq(ops)
+    F = push(F, { "at": len(ops), "to": "C_LOOP" })
+    ops = push(ops, ["jmp", -1])
+    L["C_DONE"] = len(ops)
+
+    // ---- Phase D: rewrite pointer fields + roots through fwd ----
+    // field v at data[i+j]: if it points at a live cell, replace with
+    // dbase + (hp[b]/2^24)*8 + 1.
+    ops = push(ops, ["load", 1])
+    ops = push(ops, ["store", 16])
+    L["D_LOOP"] = len(ops)
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 0])
+    ops = push(ops, ["lt"])
+    F = push(F, { "at": len(ops), "to": "D_CDONE" })
+    ops = push(ops, ["jz", -1])
+    ops = aotGcHgetSeq(ops)
+    ops = aotGcHdrSeq(ops)
+    ops = aotGcMarkedSeq(ops)
+    F = push(F, { "at": len(ops), "to": "D_NEXT" })
+    ops = push(ops, ["jz", -1])
+    let sr2 = aotGcScanSeq(ops, F, "D_NEXT", "D_T6", "D_SCAN")
+    ops = sr2[0]
+    F = sr2[1]
+    L["D_T6"] = len(ops)
+    ops = push(ops, ["const", 2])
+    ops = push(ops, ["store", 11])
+    L["D_SCAN"] = len(ops)
+    ops = push(ops, ["load", 11])
+    ops = push(ops, ["store", 8])
+    L["D_FIELD"] = len(ops)
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["load", 9])
+    ops = push(ops, ["le"])
+    F = push(F, { "at": len(ops), "to": "D_NEXT" })
+    ops = push(ops, ["jz", -1])
+    // v(4) = data[i+j]
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["add"])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hload", 0])
+    ops = push(ops, ["store", 4])
+    ops = push(ops, ["load", 4])
+    ops = push(ops, ["const", 2])
+    ops = push(ops, ["mod"])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["eq"])
+    F = push(F, { "at": len(ops), "to": "D_UD" })
+    ops = push(ops, ["jz", -1])
+    let ud1 = aotGcUpdSeq(ops, F, "D_UD")
+    ops = ud1[0]
+    F = ud1[1]
+    // data[i+j] = dbase + (h/2^24)*8 + 1 — h(6) holds hp[b]
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["add"])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["load", 6])
+    ops = push(ops, ["const", 16777216])
+    ops = push(ops, ["div"])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hstore", 0])
+    L["D_UD"] = len(ops)
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["store", 8])
+    F = push(F, { "at": len(ops), "to": "D_FIELD" })
+    ops = push(ops, ["jmp", -1])
+    L["D_NEXT"] = len(ops)
+    let sz3 = aotGcSizeSeq(ops, F, "D_STRSZ", "D_ADV")
+    ops = sz3[0]
+    F = sz3[1]
+    L["D_STRSZ"] = len(ops)
+    ops = aotGcSizeStrSeq(ops)
+    L["D_ADV"] = len(ops)
+    ops = aotGcAdvSeq(ops)
+    F = push(F, { "at": len(ops), "to": "D_LOOP" })
+    ops = push(ops, ["jmp", -1])
+    L["D_CDONE"] = len(ops)
+    // roots: i=0; while i<rc rewrite data[i] through fwd
+    ops = push(ops, ["const", 0])
+    ops = push(ops, ["store", 16])
+    L["D_RLOOP"] = len(ops)
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 2])
+    ops = push(ops, ["lt"])
+    F = push(F, { "at": len(ops), "to": "D_ALLDONE" })
+    ops = push(ops, ["jz", -1])
+    ops = push(ops, ["load", 16])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hload", 0])
+    ops = push(ops, ["store", 4])
+    ops = push(ops, ["load", 4])
+    ops = push(ops, ["const", 2])
+    ops = push(ops, ["mod"])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["eq"])
+    F = push(F, { "at": len(ops), "to": "D_RUD" })
+    ops = push(ops, ["jz", -1])
+    let ud2 = aotGcUpdSeq(ops, F, "D_RUD")
+    ops = ud2[0]
+    F = ud2[1]
+    ops = push(ops, ["load", 16])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["load", 6])
+    ops = push(ops, ["const", 16777216])
+    ops = push(ops, ["div"])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hstore", 0])
+    L["D_RUD"] = len(ops)
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["store", 16])
+    F = push(F, { "at": len(ops), "to": "D_RLOOP" })
+    ops = push(ops, ["jmp", -1])
+    L["D_ALLDONE"] = len(ops)
+
+    // ---- Phase E: slide live cells down, headers cleaned ----
+    ops = push(ops, ["load", 1])
+    ops = push(ops, ["store", 16])
+    L["E_LOOP"] = len(ops)
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 0])
+    ops = push(ops, ["lt"])
+    F = push(F, { "at": len(ops), "to": "E_DONE" })
+    ops = push(ops, ["jz", -1])
+    ops = push(ops, ["load", 16])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hload", 0])
+    ops = push(ops, ["store", 6])
+    // sz from the fwd header — tag/len survive in the low 24 bits
+    ops = aotGcHdrSeq(ops)
+    let sz4 = aotGcSizeSeq(ops, F, "E_STRSZ", "E_HAVE")
+    ops = sz4[0]
+    F = sz4[1]
+    L["E_STRSZ"] = len(ops)
+    ops = aotGcSizeStrSeq(ops)
+    L["E_HAVE"] = len(ops)
+    ops = aotGcMarkedSeq(ops)
+    F = push(F, { "at": len(ops), "to": "E_NEXT" })
+    ops = push(ops, ["jz", -1])
+    // nb(13) = fwd from header bits 24+
+    ops = push(ops, ["load", 6])
+    ops = push(ops, ["const", 16777216])
+    ops = push(ops, ["div"])
+    ops = push(ops, ["store", 13])
+    // data[nb] = clean hdr = tag*65536 + len
+    ops = push(ops, ["load", 13])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["load", 14])
+    ops = push(ops, ["const", 65536])
+    ops = push(ops, ["mul"])
+    ops = push(ops, ["load", 9])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["hstore", 0])
+    // payload copy k=1..n-1 (dst < src — forward copy is safe)
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["store", 8])
+    L["E_COPY"] = len(ops)
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["load", 15])
+    ops = push(ops, ["lt"])
+    F = push(F, { "at": len(ops), "to": "E_NEXT" })
+    ops = push(ops, ["jz", -1])
+    ops = push(ops, ["load", 13])
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["add"])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["load", 16])
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["add"])
+    ops = aotGcPtrSeq(ops)
+    ops = push(ops, ["hload", 0])
+    ops = push(ops, ["hstore", 0])
+    ops = push(ops, ["load", 8])
+    ops = push(ops, ["const", 1])
+    ops = push(ops, ["add"])
+    ops = push(ops, ["store", 8])
+    F = push(F, { "at": len(ops), "to": "E_COPY" })
+    ops = push(ops, ["jmp", -1])
+    L["E_NEXT"] = len(ops)
+    ops = aotGcAdvSeq(ops)
+    F = push(F, { "at": len(ops), "to": "E_LOOP" })
+    ops = push(ops, ["jmp", -1])
+    L["E_DONE"] = len(ops)
+    ops = push(ops, ["load", 7])
+    ops = push(ops, ["ret"])
+
+    // fixup patch pass
+    let fi = 0
+    while fi < len(F) {
+        let fx = F[fi]
+        ops[fx["at"]][1] = L[fx["to"]]
+        fi = fi + 1
+    }
+    let f = {
+        "name": "__gc_collect",
+        "arity": 4,
+        "locals": 17,
+        "ops": ops
+    }
+    gcSynthCache = push(gcSynthCache, f)
+    return f
+}

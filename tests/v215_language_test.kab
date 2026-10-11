@@ -1,0 +1,60 @@
+// kabtest port of tests/v215_language.rs — array/object destructuring
+// patterns in match on the Kab VM (fixed length, rest both ends,
+// field/shorthand/rest object patterns, nested Result+array, empties).
+
+import "kabtest/core"
+
+let a = match [] {
+    [] => 1,
+    _ => 0
+}
+ktAssertEq(a, 1, "empty array pattern")
+
+let b = match [10, 20] {
+    [x, y] => x + y,
+    _ => 0
+}
+ktAssertEq(b, 30, "fixed-length array pattern")
+
+let c = match [1, 2, 3, 4] {
+    [head, ...tail] => head + len(tail),
+    _ => 0
+}
+ktAssertEq(c, 4, "rest pattern at tail")
+
+let d = match [1, 2, 3, 4] {
+    [first, ...mid, last] => first + last + len(mid),
+    _ => 0
+}
+ktAssertEq(d, 7, "rest between fixed ends")
+
+let e = match { name: "Ada", age: 36 } {
+    { name: n } => n,
+    _ => ""
+}
+ktAssertEq(e, "Ada", "object field pattern")
+
+let u = { name: "Lin", age: 22 }
+let f = match u {
+    { name, age } => age,
+    _ => 0
+}
+ktAssertEq(f, 22, "object shorthand pattern")
+
+let g = match { a: 1, b: 2, c: 3 } {
+    { a: x2, ...rest } => x2 + len(keys(rest)),
+    _ => 0
+}
+ktAssertEq(g, 3, "object rest pattern")
+
+let h = match Ok([2, 3]) {
+    Ok([p, q]) => p * q,
+    _ => 0
+}
+ktAssertEq(h, 6, "nested Result + array pattern")
+
+let i = match {} {
+    {} => 1,
+    _ => 0
+}
+ktAssertEq(i, 1, "empty object pattern")

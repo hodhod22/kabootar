@@ -6,9 +6,15 @@
 
 use std::io;
 
-/// Page cap for exec payloads — templates/images are tiny; anything larger
-/// is a malformed image, not a code section.
-const MAX_EXEC_BYTES: usize = 4096;
+/// Page cap for exec payloads — small images stay a malformed-image guard,
+/// but the synthesized AOT GC fn alone is ~5 KiB of x64, so one page is no
+/// longer a valid ceiling; 1 MiB keeps the guard meaningful.
+const MAX_EXEC_BYTES: usize = 1024 * 1024;
+
+/// Data-payload cap — separate from code: the aot-tv1 heap lives in the
+/// RW data mapping and real programs span many pages, so `data:` gets a
+/// 16 MiB ceiling while code keeps the one-page guard.
+const MAX_EXEC_DATA: usize = 16 * 1024 * 1024;
 
 /// Run `bytes` as a real `extern "C" fn() -> i64` on the host CPU. The byte
 /// slice must be position-independent, preserve callee-saved registers, keep
@@ -39,7 +45,7 @@ pub fn exec_bytes_data(bytes: &[u8], arg: i64, data: &[u8]) -> Result<i64, Strin
     if bytes.is_empty() || bytes.len() > MAX_EXEC_BYTES {
         return Err(format!("native_exec: bad length {}", bytes.len()));
     }
-    if data.len() > MAX_EXEC_BYTES {
+    if data.len() > MAX_EXEC_DATA {
         return Err(format!("native_exec: bad data length {}", data.len()));
     }
     let mut code_mm = memmap2::MmapOptions::new()

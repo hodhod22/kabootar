@@ -1,0 +1,106 @@
+// SH28: aot-tv1 SOURCE path — a real .kab source is compiled by the
+// self-host compiler to compileIr, lowered by aotFnLowerModuleTv1 into
+// tagged-domain op arrays (tconst consts, make_array → halloc+aset cell,
+// index_get_local → aget, get_member "length" → hlen, add → tadd), and
+// executed on the real CPU via os_native_exec. The array elements,
+// record layout and tagged results are Kab heap cells on the image's
+// data page; the mirror (aotFnMirrorH) runs the SAME lowered ops for
+// parity. Results are tagged: return a[0]+a[1]+a[2] = 42 → rax 84.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+let bc = compileIr("fn sum(a) { return a[0] + a[1] + a[2] } return sum([10, 20, 12])")
+let lo = aotFnLowerModuleTv1(bc, 200)
+if lo["ok"] == false {
+    println("REJECT " + lo["reason"])
+    return 1
+}
+let fns = lo["fns"]
+let ng = lo["nglobals"]
+let data = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+let image = aotFnImageEmitData(fns, data)
+if image == "" {
+    return 2
+}
+os_write("_aot_tv1src.kabi", image)
+let back = os_read("_aot_tv1src.kabi")
+if back != image {
+    return 3
+}
+let bytes = aotEntryCodeBytes(back)
+let r = aotX64EmitFns(fns, aotNativeHostAbi())
+if len(bytes) != r["total"] {
+    return 4
+}
+
+let rax = os_native_exec(bytes, 0, data)
+println("rax " + rax)
+if rax != 84 {
+    return 5
+}
+let mir = aotFnMirrorH(fns, 0, ng, 64)
+println("mirror " + mir)
+if mir != rax {
+    return 6
+}
+
+// Member-access on the heap array: `a.length` → hlen. f(xs,i) uses
+// index_set (aset) + index_get_local (aget) on a global array → tagged.
+let bc2 = compileIr("fn f(xs, i) { xs[i] = xs[i] + 1 return xs[i] } let a = [1, 2, 3] return f(a, 1) + a.length")
+let lo2 = aotFnLowerModuleTv1(bc2, 200)
+if lo2["ok"] == false {
+    println("REJECT2 " + lo2["reason"])
+    return 7
+}
+let data2 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+let r2 = aotX64EmitFns(lo2["fns"], aotNativeHostAbi())
+if len(r2["code"]) == 0 {
+    return 8
+}
+// f(a,1): a[1] = 2+1 = 3 → returns tagged 3 (6); a.length = 3 →
+// tagged 3 (6); add → tadd → 12 → return tagged 6 → rax 12.
+let rax2 = os_native_exec(r2["code"], 0, data2)
+println("rax2 " + rax2)
+if rax2 != 12 {
+    return 9
+}
+if aotFnMirrorH(lo2["fns"], 0, lo2["nglobals"], 64) != rax2 {
+    return 10
+}
+
+// Honest rejects in tv1: non-length member access and float consts
+// refuse (no f64→bits path exists in-language; fmk is emitter-level).
+// Numeric ops dispatch at runtime — SMI fast path, Float-cell slow
+// path, trap otherwise.
+if aotFnLowerModuleTv1(compileIr("return [1].foo"), 200)["ok"] {
+    return 11
+}
+if aotFnLowerModuleTv1(compileIr("return 1.5"), 200)["ok"] {
+    return 12
+}
+
+// Source-level `if` through the lowerer: exercises the shifted jump
+// fixups in main's prologue AND the arith-compare dispatch fast path
+// (x < 2 on SMIs → lt). x=3 → tagged 6.
+let bc3 = compileIr("let x = 1 if x < 2 { x = 3 } return x")
+let lo3 = aotFnLowerModuleTv1(bc3, 200)
+if lo3["ok"] == false {
+    println("REJECT3 " + lo3["reason"])
+    return 13
+}
+let data3 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+let r3 = aotX64EmitFns(lo3["fns"], aotNativeHostAbi())
+let rax3 = os_native_exec(r3["code"], 0, data3)
+println("rax3 " + rax3)
+if rax3 != 6 {
+    return 14
+}
+if aotFnMirrorH(lo3["fns"], 0, lo3["nglobals"], 64) != rax3 {
+    return 15
+}
+return 42

@@ -25704,6 +25704,126 @@ fn sh28_aot_dyn_smoke() {
         .expect("join");
 }
 
+/// SH28: aot-tv1 source path — a real .kab source goes through
+/// compileIr → aotFnLowerModuleTv1 → aotX64EmitFns → os_native_exec.
+/// make_array lowers to halloc+aset heap cells, index_get_* to aget,
+/// index_set to aset (container+val writeback semantics preserved),
+/// `.length` to hlen, add to tadd. Native rax must equal the Kab
+/// mirror over the same lowered ops; `.foo` members and non-integer
+/// consts are rejected honestly.
+#[test]
+fn sh28_aot_tv1_src_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_tv1_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-tv1src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot tv1 src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot tv1 src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot tv1 src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 float cells — fmk builds a 2-qword Float heap cell
+/// (f64 bits in payload via imm64), fadd/fsub/fmul/fdiv run real SSE
+/// addsd/subsd/mulsd/divsd, feq/fne/flt compare payloads via ucomisd.
+/// Native rax == Kab mirror (mirror keeps Kab floats — fmk carries
+/// both representations).
+#[test]
+fn sh28_aot_float_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_float_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-float".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot float smoke");
+            let value = eval_program(&program, &mut env).expect("run aot float smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot float smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 closures — make_arrow_fn lowers to mkclo (tag6 heap cell
+/// [hdr | fnidx | cap…]), dynamic calls to callv (cell → rcx as hidden
+/// arg0, fnidx compare-chain to direct calls; SMI/unknown → ud2). Arrow
+/// bodies are appended image fns with the cell convention (local0 = the
+/// tagged cell; `this` and captures seeded via hload). Native rax == Kab
+/// mirror; two closures dispatch through the same callv site.
+#[test]
+fn sh28_aot_closure_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_closure_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-closure".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot closure smoke");
+            let value = eval_program(&program, &mut env).expect("run aot closure smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot closure smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 heap GC audit — aotGcAuditHp traces tagged pointers
+/// through the real mirror cell layout (array/record/float/closure/
+/// string tags, byte-sized string footprints) and counts live vs dead:
+/// transitively reachable cells stay live, float/string payloads are
+/// never scanned. Audit-only — halloc stays bump-only on both backends
+/// so native/mirror parity holds.
+#[test]
+fn sh28_aot_gc_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_gc_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-gc".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot gc smoke");
+            let value = eval_program(&program, &mut env).expect("run aot gc smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot gc smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH28: OS-spawned process exec — the persisted image's code bytes run
 /// under a pid the OS spawned (os_spawn → process table → own VA space),
 /// not the init process's guest-MM slot. The nollAotProcess leg.

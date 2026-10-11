@@ -1,0 +1,347 @@
+// SH28: aot-tv1 heap GC AUDIT — a real program builds five cells via
+// the mirror (aotFnMirrorHS returns the post-run {v, gl, hp}), then
+// aotGcAuditHp traces tagged pointers through the real cell layout:
+//   A@4  array tag5 len2  [tconst11, ptr→C]  rooted (result + gl[2])
+//   C@7  record tag10 len1 [tconst7]         reachable via A only
+//   B@9  array tag5 len1                     dead (local dropped)
+//   F@11 float tag1 len1   [f64 payload]     rooted via gl[3], no scan
+//   S@13 string tag4 len9  [byte payload]    dead, byte-sized cell
+// Audit must see live=3 (A, C transitively, F), dead=2 (B, S);
+// liveQ=3+2+2=7, deadQ=2+3=5. Empty roots → all five dead.
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_gc"
+
+let main = {
+    "name": "main",
+    "arity": 0,
+    "locals": 3,
+    "ops": [
+        ["hbase", 4],
+        ["gstore", 0],
+        ["hlimit", 64],
+        ["gstore", 1],
+        // A = array(tag5, len2) → gl[2]
+        ["const", 3],
+        ["halloc", 0, 1],
+        ["gstore", 2],
+        ["gload", 2],
+        ["const", 327682],
+        ["hstore", 0],
+        ["gload", 2],
+        ["const", 1],
+        ["tconst", 11],
+        ["hstorex"],
+        // C = record(tag10, len1) → local 0; field = tconst 7
+        ["const", 2],
+        ["halloc", 0, 1],
+        ["store", 0],
+        ["load", 0],
+        ["const", 655361],
+        ["hstore", 0],
+        ["load", 0],
+        ["tconst", 7],
+        ["hstore", 8],
+        // A[1] = C — the only path to C
+        ["gload", 2],
+        ["const", 2],
+        ["load", 0],
+        ["hstorex"],
+        // B = array(tag5, len1) → local 1 (dies at ret)
+        ["const", 2],
+        ["halloc", 0, 1],
+        ["store", 1],
+        ["load", 1],
+        ["const", 327681],
+        ["hstore", 0],
+        // F = float cell → gl[3]
+        ["fmk", 0, 1, 0, 1.5],
+        ["gstore", 3],
+        // S = string(tag4, 9 bytes) → local 2 (dies at ret)
+        ["const", 3],
+        ["halloc", 0, 1],
+        ["store", 2],
+        ["load", 2],
+        ["const", 262153],
+        ["hstore", 0],
+        ["gload", 2],
+        ["ret"]
+    ]
+}
+
+let r = aotFnMirrorHS([main], 0, 4, 64)
+let gl = r["gl"]
+let hp = r["hp"]
+if r["v"] != 33 {
+    return 1
+}
+if gl[0] != 16 {
+    return 2
+}
+let roots = push(push([], r["v"]), gl[3])
+let a = aotGcAuditHp(hp, 4, gl[0], roots)
+println("live " + a["live"] + " dead " + a["dead"] + " liveQ " + a["liveQ"] + " deadQ " + a["deadQ"])
+if aotGcAuditOk(hp, 4, gl[0], roots, 3, 2) == false {
+    return 3
+}
+if a["liveQ"] != 7 || a["deadQ"] != 5 {
+    return 4
+}
+// No roots → every cell is garbage.
+let a0 = aotGcAuditHp(hp, 4, gl[0], [])
+if a0["live"] != 0 || a0["dead"] != 5 {
+    return 5
+}
+
+// gcollect INSIDE a running program — the SAME algorithm on both
+// backends. Data-page layout: [globals 0..4 | spill 4..8 | heap
+// 8..top); the op spills locals(3)+stack top(1) into 4..8 and the
+// collector scans [0,8) as roots. A (array len2) rooted via gl[2] +
+// local0, B dead, C (record len1) rooted via gl[3] + local1 + the
+// spilled stack slot, D dead string; A[1]=C exercises payload
+// rewriting. Compact: A stays @8, C slides 13→11; bump → 13. Checks
+// are backend-neutral (index vs address units differ): field reads,
+// ptr equality, and byte-distance deltas.
+let gcprog = {
+    "name": "gcprog",
+    "arity": 0,
+    "locals": 3,
+    "ops": [
+        ["hbase", 8],
+        ["gstore", 0],
+        ["hlimit", 64],
+        ["gstore", 1],
+        // A = array(tag5, len2) → gl[2] + local0
+        ["const", 3],
+        ["halloc", 0, 1],
+        ["gstore", 2],
+        ["gload", 2],
+        ["store", 0],
+        ["gload", 2],
+        ["const", 327682],
+        ["hstore", 0],
+        ["gload", 2],
+        ["const", 1],
+        ["tconst", 11],
+        ["hstorex"],
+        // B = array(tag5, len1) — ptr consumed by hstore → dead
+        ["const", 2],
+        ["halloc", 0, 1],
+        ["const", 327681],
+        ["hstore", 0],
+        // C = record(tag10, len1) → gl[3] + local1; field = tconst 7
+        ["const", 2],
+        ["halloc", 0, 1],
+        ["gstore", 3],
+        ["gload", 3],
+        ["store", 1],
+        ["gload", 3],
+        ["const", 655361],
+        ["hstore", 0],
+        ["gload", 3],
+        ["tconst", 7],
+        ["hstore", 8],
+        // D = string(tag4, 9 bytes) — ptr consumed by hstore → dead
+        ["const", 3],
+        ["halloc", 0, 1],
+        ["const", 262153],
+        ["hstore", 0],
+        // link A[1] = C — exercises payload pointer rewriting
+        ["gload", 2],
+        ["const", 2],
+        ["gload", 3],
+        ["hstorex"],
+        // stack root = C's ptr (spilled into data[7])
+        ["gload", 3],
+        // COLLECT: bump 0, heap base 8, root base 4, 1 stack root
+        ["gcollect", 0, 8, 4, 1],
+        // c0: the spilled stack root was rewritten — C's field ok
+        ["hload", 8],
+        ["tconst", 7],
+        ["eq"],
+        ["store", 2],
+        // c1: local root (local1) rewritten == gl[3]
+        ["load", 1],
+        ["gload", 3],
+        ["eq"],
+        ["load", 2],
+        ["add"],
+        ["store", 2],
+        // c2: local0 (A) still == gl[2]
+        ["load", 0],
+        ["gload", 2],
+        ["eq"],
+        ["load", 2],
+        ["add"],
+        ["store", 2],
+        // c3: A[1] payload rewritten == gl[3]
+        ["gload", 2],
+        ["const", 2],
+        ["hloadx"],
+        ["gload", 3],
+        ["eq"],
+        ["load", 2],
+        ["add"],
+        ["store", 2],
+        // c4: next alloc reuses the space — ptr - A ptr == 40 bytes
+        ["const", 2],
+        ["halloc", 0, 1],
+        ["gload", 2],
+        ["sub"],
+        ["const", 40],
+        ["eq"],
+        ["load", 2],
+        ["add"],
+        ["ret"]
+    ]
+}
+let gr = aotFnMirrorHS([gcprog], 0, 4, 64)
+println("gc " + gr["v"])
+if gr["v"] != 5 {
+    return 6
+}
+// Native: the SAME program runs the SAME synthesized collector as
+// machine code — emit leg must accept it and produce the same 5.
+fn nativeGc() {
+    let geb = aotX64EmitFns([gcprog], aotNativeHostAbi())
+    if len(geb["code"]) == 0 {
+        return -1
+    }
+    let gdata = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    return os_native_exec(geb["code"], 0, gdata)
+}
+let ngx = nativeGc()
+println("native gc " + ngx)
+if ngx != 5 {
+    return 7
+}
+
+// hcalloc — collect-on-overflow: the bound check triggers a spill +
+// __gc_collect + retry inside the alloc itself; ud2 only when the
+// heap is STILL full. Layout: [gl 0..3 | spill 3..4 | scr 4 | heap
+// 8..24). L@8 (array len2, rooted via gl[2] + local0), D@11 dead
+// (12q) → bump 23/24. hcalloc(10) overflows (23+10 > 24) → collect
+// (L stays, D reclaimed → bump 11) → retry fits → ptr at 11:
+// ptr - gl[2] = 24 bytes in both backends. The still-full path is
+// honest both ways — mirror throws "over heap limit after gc",
+// native emits ud2 (a hardware trap cannot return through
+// os_native_exec; exec-image proves the byte stream fires it).
+let hcp = {
+    "name": "hcp",
+    "arity": 0,
+    "locals": 1,
+    "ops": [
+        ["hbase", 8],
+        ["gstore", 0],
+        ["hlimit", 24],
+        ["gstore", 1],
+        // live cell L @8: tag5 len2 → header 327682
+        ["const", 3],
+        ["halloc", 0, 1],
+        ["gstore", 2],
+        ["gload", 2],
+        ["store", 0],
+        ["gload", 2],
+        ["const", 327682],
+        ["hstore", 0],
+        // dead cell D @11: 12 qwords — ptr consumed by hstore
+        ["const", 12],
+        ["halloc", 0, 1],
+        ["const", 327691],
+        ["hstore", 0],
+        // hcalloc(10): 23+10 > 24 → collect → bump 11 → 11+10 <= 24
+        ["const", 10],
+        ["hcalloc", 0, 1, 8, 3, 0],
+        // ptr - gl[2] == 24 → c5
+        ["gload", 2],
+        ["sub"],
+        ["const", 24],
+        ["eq"],
+        ["ret"]
+    ]
+}
+let hr = aotFnMirrorHS([hcp], 0, 3, 24)
+println("hcalloc " + hr["v"])
+if hr["v"] != 1 {
+    return 8
+}
+fn nativeHc() {
+    let geb = aotX64EmitFns([hcp], aotNativeHostAbi())
+    if len(geb["code"]) == 0 {
+        return -1
+    }
+    let hdata = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    return os_native_exec(geb["code"], 0, hdata)
+}
+let nhx = nativeHc()
+println("native hcalloc " + nhx)
+if nhx != 1 {
+    return 9
+}
+// Mirror still-full: collect frees 12q (bump → 11) but 30q still
+// does not fit → honest throw (native emits ud2 — proven by the
+// byte stream; a hardware trap cannot return through the call).
+let hcp2 = {
+    "name": "hcp2",
+    "arity": 0,
+    "locals": 1,
+    "ops": [
+        ["hbase", 8],
+        ["gstore", 0],
+        ["hlimit", 24],
+        ["gstore", 1],
+        ["const", 3],
+        ["halloc", 0, 1],
+        ["gstore", 2],
+        ["gload", 2],
+        ["store", 0],
+        ["gload", 2],
+        ["const", 327682],
+        ["hstore", 0],
+        ["const", 12],
+        ["halloc", 0, 1],
+        ["const", 327691],
+        ["hstore", 0],
+        ["const", 30],
+        ["hcalloc", 0, 1, 8, 3, 0],
+        ["const", 0],
+        ["ret"]
+    ]
+}
+fn mirrorHcFail() {
+    try {
+        let mr2 = aotFnMirrorHS([hcp2], 0, 3, 24)
+        return "no-trap " + mr2["v"]
+    } catch (e) {
+        return e
+    }
+}
+let mfe = mirrorHcFail()
+println("hcalloc full " + mfe)
+if mfe != "aot-tv1 hcalloc over heap limit after gc" {
+    return 10
+}
+// Native still-full emit must contain the ud2 at the retry site —
+// the honest trap. Emit leg only (execution cannot return).
+fn nativeHcFail() {
+    let geb = aotX64EmitFns([hcp2], aotNativeHostAbi())
+    if len(geb["code"]) == 0 {
+        return -1
+    }
+    let c = geb["code"]
+    let ui = 0
+    while ui + 1 < len(c) {
+        if c[ui] == 15 && c[ui + 1] == 11 {
+            return ui
+        }
+        ui = ui + 1
+    }
+    return -2
+}
+let nfe = nativeHcFail()
+println("native hcalloc full ud2@" + nfe)
+if nfe < 0 {
+    return 11
+}
+return 42
