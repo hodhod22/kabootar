@@ -29,61 +29,61 @@ RUST_MIN_STACK=67108864 KABOOTAR_COMPILE=self-host \
 
 **Körning A — originalkoden (`main`).** Exakt kommando i en process kraschar redan på test 7 (`f10_aot_apply_reloc_base_reject_exec`: `memory allocation of 128297923241120 bytes failed`, SIGABRT), så libtest skriver aldrig någon sammanfattning. Sviten kördes därför via ett drivskript som kör samma binär med `--test-threads=1 --exact` i 8 delar och noterar kraschat test som ABORT och fortsätter.
 
-**Körning B — med fixen i denna PR** (`merge_object_fields`: hoppa över när `from` och `into` är samma `Rc`), samma drivskript (från ~2240 tester startas processen om var 60:e test för att undvika OOM). **Delresultat: 3723/4603 tester körda när filen skrevs; körningen pågår.**
+**Körning B — med fixen i denna PR** (`merge_object_fields`: hoppa över när `from` och `into` är samma `Rc`), samma drivskript (från ~2240 tester startas processen om var 60:e test, senare var 15:e, för att undvika OOM). De sista testerna fick 900 s timeout per test (TIMEOUT). De `sh28_*`/`sh29_*`-tester som återstod (42 st) kördes i en release-build (`--release` med `debug-assertions` och `overflow-checks` på), eftersom flera av dem inte blev klara på >15 min i debug.
 
-| | Totalt | ok | FAILED | ABORT (krasch) | ignored |
-|---|---|---|---|---|---|
-| A (original) | 4603 | 3296 | 29 | 1273 | 5 |
-| B (med fix) | 3723 | 3687 | 28 | 5 | 3 |
+| | Totalt | ok | FAILED | ABORT (krasch) | TIMEOUT | ignored |
+|---|---|---|---|---|---|---|
+| A (original) | 4603 | 3296 | 29 | 1273 | 0 | 5 |
+| B (med fix) | 4603 | 4546 | 42 | 5 | 5 | 5 |
 
-- `noll*`-tester, körning A: 385 st — 382 ok, 0 FAILED, 3 ABORT: `f10_aot_pgo_fp_cold_ss_noll_aot_ready_dual_bind_arm64_exec`, `f10_aot_pgo_fp_cold_ss_noll_aot_ready_dual_bind_exec`, `f10_aot_pgo_fp_cold_ss_noll_aot_ready_dual_bind_reject_exec`
-- `noll*`-tester, körning B: 147 st — 147 ok, 0 FAILED, 0 ABORT
+- `noll*`-tester, körning A: 385 st — 382 ok, 0 FAILED, 3 ABORT, 0 TIMEOUT: `f10_aot_pgo_fp_cold_ss_noll_aot_ready_dual_bind_arm64_exec`, `f10_aot_pgo_fp_cold_ss_noll_aot_ready_dual_bind_exec`, `f10_aot_pgo_fp_cold_ss_noll_aot_ready_dual_bind_reject_exec`
+- `noll*`-tester, körning B: 385 st — 385 ok, 0 FAILED, 0 ABORT, 0 TIMEOUT
 
-`sh*`-smokes per våg (ok / FAILED / ABORT / ignored):
+`sh*`-smokes per våg (ok / FAILED / ABORT / TIMEOUT / ignored):
 
 | Våg | A (original) | B (med fix) |
 |---|---|---|
-| sh0 | 1 / 0 / 0 / 0 | 1 / 0 / 0 / 0 |
-| sh1 | 3 / 0 / 0 / 1 | 3 / 0 / 0 / 1 |
-| sh2 | 1 / 1 / 1 / 0 | 2 / 1 / 0 / 0 |
-| sh3a | 1 / 0 / 0 / 1 | 1 / 0 / 0 / 1 |
-| sh3b | 1 / 0 / 0 / 0 | 1 / 0 / 0 / 0 |
-| sh3c | 0 / 0 / 1 / 0 | 1 / 0 / 0 / 0 |
-| sh4 | 1 / 1 / 0 / 0 | 1 / 1 / 0 / 0 |
-| sh6 | 24 / 1 / 516 / 0 | 84 / 0 / 0 / 0 |
-| sh7 | 1 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
-| sh7b | 1 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
-| sh8 | 1 / 0 / 3 / 0 | 0 / 0 / 0 / 0 |
-| sh9 | 2 / 4 / 1 / 0 | 0 / 0 / 0 / 0 |
-| sh10 | 1 / 0 / 0 / 0 | 1 / 0 / 0 / 0 |
-| sh12 | 1 / 0 / 0 / 0 | 1 / 0 / 0 / 0 |
-| sh15 | 1 / 1 / 0 / 0 | 1 / 1 / 0 / 0 |
-| sh16 | 5 / 0 / 1 / 0 | 6 / 0 / 0 / 0 |
-| sh17 | 174 / 0 / 33 / 0 | 207 / 0 / 0 / 0 |
-| sh18 | 63 / 1 / 32 / 0 | 95 / 0 / 0 / 0 |
-| sh19 | 53 / 0 / 4 / 0 | 50 / 0 / 0 / 0 |
-| sh20 | 244 / 0 / 2 / 0 | 233 / 0 / 0 / 0 |
-| sh21 | 25 / 0 / 2 / 0 | 27 / 0 / 0 / 0 |
-| sh22 | 28 / 0 / 1 / 0 | 29 / 0 / 0 / 0 |
-| sh23 | 25 / 1 / 17 / 0 | 37 / 1 / 0 / 0 |
-| sh24 | 18 / 1 / 1 / 0 | 14 / 1 / 0 / 0 |
-| sh25 | 55 / 0 / 1 / 0 | 36 / 0 / 0 / 0 |
-| sh26 | 65 / 0 / 1 / 0 | 41 / 0 / 0 / 0 |
-| sh27 | 922 / 0 / 9 / 0 | 860 / 1 / 0 / 0 |
-| sh28 | 380 / 0 / 22 / 3 | 149 / 0 / 1 / 1 |
-| sh29 | 0 / 0 / 1 / 0 | 0 / 0 / 0 / 0 |
-| sh30 | 0 / 0 / 1 / 0 | 0 / 1 / 0 / 0 |
-| sh31 | 0 / 0 / 1 / 0 | 0 / 1 / 0 / 0 |
-| sh32 | 0 / 0 / 1 / 0 | 0 / 1 / 0 / 0 |
-| sh33 | 0 / 0 / 1 / 0 | 0 / 1 / 0 / 0 |
+| sh0 | 1 / 0 / 0 / 0 / 0 | 1 / 0 / 0 / 0 / 0 |
+| sh1 | 3 / 0 / 0 / 0 / 1 | 3 / 0 / 0 / 0 / 1 |
+| sh2 | 1 / 1 / 1 / 0 / 0 | 2 / 1 / 0 / 0 / 0 |
+| sh3a | 1 / 0 / 0 / 0 / 1 | 1 / 0 / 0 / 0 / 1 |
+| sh3b | 1 / 0 / 0 / 0 / 0 | 1 / 0 / 0 / 0 / 0 |
+| sh3c | 0 / 0 / 1 / 0 / 0 | 1 / 0 / 0 / 0 / 0 |
+| sh4 | 1 / 1 / 0 / 0 / 0 | 1 / 1 / 0 / 0 / 0 |
+| sh6 | 24 / 1 / 516 / 0 / 0 | 534 / 7 / 0 / 0 / 0 |
+| sh7 | 1 / 0 / 0 / 0 / 0 | 1 / 0 / 0 / 0 / 0 |
+| sh7b | 1 / 0 / 0 / 0 / 0 | 1 / 0 / 0 / 0 / 0 |
+| sh8 | 1 / 0 / 3 / 0 / 0 | 3 / 1 / 0 / 0 / 0 |
+| sh9 | 2 / 4 / 1 / 0 / 0 | 2 / 5 / 0 / 0 / 0 |
+| sh10 | 1 / 0 / 0 / 0 / 0 | 1 / 0 / 0 / 0 / 0 |
+| sh12 | 1 / 0 / 0 / 0 / 0 | 1 / 0 / 0 / 0 / 0 |
+| sh15 | 1 / 1 / 0 / 0 / 0 | 1 / 1 / 0 / 0 / 0 |
+| sh16 | 5 / 0 / 1 / 0 / 0 | 6 / 0 / 0 / 0 / 0 |
+| sh17 | 174 / 0 / 33 / 0 / 0 | 207 / 0 / 0 / 0 / 0 |
+| sh18 | 63 / 1 / 32 / 0 / 0 | 96 / 0 / 0 / 0 / 0 |
+| sh19 | 53 / 0 / 4 / 0 / 0 | 57 / 0 / 0 / 0 / 0 |
+| sh20 | 244 / 0 / 2 / 0 / 0 | 246 / 0 / 0 / 0 / 0 |
+| sh21 | 25 / 0 / 2 / 0 / 0 | 27 / 0 / 0 / 0 / 0 |
+| sh22 | 28 / 0 / 1 / 0 / 0 | 29 / 0 / 0 / 0 / 0 |
+| sh23 | 25 / 1 / 17 / 0 / 0 | 42 / 1 / 0 / 0 / 0 |
+| sh24 | 18 / 1 / 1 / 0 / 0 | 19 / 1 / 0 / 0 / 0 |
+| sh25 | 55 / 0 / 1 / 0 / 0 | 56 / 0 / 0 / 0 / 0 |
+| sh26 | 65 / 0 / 1 / 0 / 0 | 66 / 0 / 0 / 0 / 0 |
+| sh27 | 922 / 0 / 9 / 0 / 0 | 930 / 1 / 0 / 0 / 0 |
+| sh28 | 380 / 0 / 22 / 0 / 3 | 396 / 1 / 1 / 4 / 3 |
+| sh29 | 0 / 0 / 1 / 0 / 0 | 0 / 0 / 0 / 1 / 0 |
+| sh30 | 0 / 0 / 1 / 0 / 0 | 0 / 1 / 0 / 0 / 0 |
+| sh31 | 0 / 0 / 1 / 0 / 0 | 0 / 1 / 0 / 0 / 0 |
+| sh32 | 0 / 0 / 1 / 0 / 0 | 0 / 1 / 0 / 0 / 0 |
+| sh33 | 0 / 0 / 1 / 0 / 0 | 0 / 1 / 0 / 0 / 0 |
 
 Röda/ignorerade tester i körning B:
 
-- `f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_arm64_exec` — ABORT (OOM-kill: testprocessen hade vuxit till >10 GB efter ~1000 tester; inte testets fel)
-- `f10_aot_apply_reloc_dual_bind_rodata_hex_loaded_arm64_exec` — ABORT (OOM-kill: testprocessen hade vuxit till >10 GB efter ~1000 tester; inte testets fel)
+- `f10_aot_apply_reloc_dual_bind_load_verify_ship_at40_arm64_exec` — ABORT (OOM-kill i sviten: testprocessen hade vuxit till >10 GB; grönt när det körs isolerat, 10–22 s)
+- `f10_aot_apply_reloc_dual_bind_rodata_hex_loaded_arm64_exec` — ABORT (OOM-kill i sviten: testprocessen hade vuxit till >10 GB; grönt när det körs isolerat, 10–22 s)
 - `f10_aot_jg_smokes_in_kab` — FAILED (läser borttagna `examples/f10_aot_verify_jg_*.kab`)
-- `f10_aot_pgo_fp_cold_ss_entry_load_verify_ship_arm64_exec` — ABORT (OOM-kill: testprocessen hade vuxit till >10 GB efter ~1000 tester; inte testets fel)
-- `f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_reject_exec` — ABORT (OOM-kill: testprocessen hade vuxit till >10 GB efter ~1000 tester; inte testets fel)
+- `f10_aot_pgo_fp_cold_ss_entry_load_verify_ship_arm64_exec` — ABORT (OOM-kill i sviten: testprocessen hade vuxit till >10 GB; grönt när det körs isolerat, 10–22 s)
+- `f10_aot_pgo_fp_cold_ss_sym_reloc_seal_dual_bind_reject_exec` — ABORT (OOM-kill i sviten: testprocessen hade vuxit till >10 GB; grönt när det körs isolerat, 10–22 s)
 - `f14_io_aread_in_kab` — FAILED (läser borttagen `lib/kab/<modul>.kab` — NotFound)
 - `f14_io_async_in_kab` — FAILED (läser borttagen `lib/kab/<modul>.kab` — NotFound)
 - `f14_io_await_in_kab` — FAILED (läser borttagen `lib/kab/<modul>.kab` — NotFound)
@@ -106,8 +106,16 @@ Röda/ignorerade tester i körning B:
 - `sh23_crypto_tls_ecdsa_eval_smoke` — FAILED (`tlsCertEcdsaEvalOk()` returnerar inte `true`)
 - `sh24_http_host_in_kab` — FAILED (läser gammal sökväg `lib/kab/http_host.kab`; filen ligger nu i `lib/kab/http/`)
 - `sh27_krender_display_list_smoke` — FAILED (`KABOOTAR_COMPILE=self-host`: "SH16: rust compile disabled for app")
+- `sh28_aot_arr_src_smoke` — TIMEOUT (release-build)
+- `sh28_aot_builtin_src_smoke` — TIMEOUT (release-build)
+- `sh28_aot_match_src_smoke` — TIMEOUT (release-build)
 - `sh28_aot_native_exec_smoke` — ABORT (stack overflow i tråden `sh28-aot-native-exec`)
+- `sh28_aot_src_native_smoke` — FAILED (returnerar `Number(29)` i stället för förväntat värde; i körning A maskerat av krasch)
+- `sh28_aot_try_src_smoke` — TIMEOUT (release-build)
+- `sh28_self_host_seed_dual_bind` — ignored
 - `sh28_self_host_seed_write_smoke` — ignored
+- `sh28_self_host_seed_write_toolchain_cache_probe` — ignored (release-build)
+- `sh29_aot_class_src_smoke` — TIMEOUT (release-build)
 - `sh2_parser_emit_exec_are_per_call_session` — FAILED (källtext-assert: `pMakeSession()`/`tramp(sess)` finns inte längre i parsern)
 - `sh30_aot_calln_src_smoke` — FAILED (FAILED i sviten; >15 min timeout isolerat)
 - `sh31_aot_bitops_src_smoke` — FAILED (FAILED i sviten)
@@ -115,6 +123,19 @@ Röda/ignorerade tester i körning B:
 - `sh33_aot_link_src_smoke` — FAILED (FAILED i sviten)
 - `sh3a_self_host_push_len_nested` — ignored
 - `sh4_kbcb_v2_faster_than_text` — FAILED (läser borttagen `self_host/seed/emit_impl.kab.kbc`)
+- `sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_throw_done_ok` — FAILED (assert `left: "0"`, `right: "1"`; reproducerbart även i release; i körning A maskerat av krasch)
+- `sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_throw_null_ok` — FAILED (assert `left: "0"`, `right: "1"`; reproducerbart även i release; i körning A maskerat av krasch)
+- `sh6_self_host_super_member_index_computed_delete_ok` — FAILED (`SH6: Kab VM failed (no host fallback): Array index must be a number`)
+- `sh6_self_host_super_member_nested_index_computed_delete_ok` — FAILED (`SH6: Kab VM failed (no host fallback): Array index must be a number`)
+- `sh6_self_host_this_member_index_computed_delete_ok` — FAILED (`SH6: Kab VM failed (no host fallback): Array index must be a number`)
+- `sh6_self_host_this_member_nested_index_computed_delete_ok` — FAILED (`SH6: Kab VM failed (no host fallback): Array index must be a number`)
+- `sh6_vm_policy_in_kab` — FAILED (assert: "self-host len(wrap(1)) nested call → get_length without clobbering eArgs")
+- `sh8_tiny_self_host_compile` — FAILED (`SH9: compile() of tiny/medium should hit Cranelift`: hits=0 under `KABOOTAR_COMPILE=self-host`)
+- `sh9_emit_acc_count_jit_hits` — FAILED (`expected Cranelift ...`: jit hits=0 compiled=0 under `KABOOTAR_COMPILE=self-host`)
+- `sh9_emit_idx_sum_arr_jit_hits` — FAILED (`expected Cranelift ...`: jit hits=0 compiled=0 under `KABOOTAR_COMPILE=self-host`)
+- `sh9_emit_idx_sum_jit_hits` — FAILED (`expected Cranelift ...`: jit hits=0 compiled=0 under `KABOOTAR_COMPILE=self-host`)
+- `sh9_emit_str_count_jit_hits` — FAILED (`expected Cranelift ...`: jit hits=0 compiled=0 under `KABOOTAR_COMPILE=self-host`)
+- `sh9_serialize_ser_count_jit_hits` — FAILED (`expected Cranelift ...`: jit hits=0 compiled=0 under `KABOOTAR_COMPILE=self-host`)
 
 ## 1. Aggregatgrind
 
