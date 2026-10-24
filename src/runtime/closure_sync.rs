@@ -59,6 +59,9 @@ pub fn merge_object_fields(from: &Value, into: &mut Value) {
     let Value::Object(dst) = into else {
         return;
     };
+    if std::rc::Rc::ptr_eq(src, dst) {
+        return;
+    }
     let dst = Value::object_make_mut(dst);
     for (k, v) in src.iter() {
         if !k.starts_with("__kab_") {
