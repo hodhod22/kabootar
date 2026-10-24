@@ -1,0 +1,3 @@
+let m = os_syscall("mounts")
+println("mounts: " + json_stringify(m))
+return 0

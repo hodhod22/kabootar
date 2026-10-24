@@ -48,6 +48,13 @@ pub fn deserMisc(st, line) {
         })
         return "ok"
     }
+    if starts_with(line, "export ") {
+        let rest = str_slice(line, 7, len(line))
+        let sp = str_index_of(rest, " ")
+        let name = unescapeKbc(trim(str_slice(rest, sp + 1, len(rest))))
+        st["exports"] = push(st["exports"], name)
+        return "ok"
+    }
     if starts_with(line, "pub_import ") {
         let rest = str_slice(line, 11, len(line))
         let sp = str_index_of(rest, " ")

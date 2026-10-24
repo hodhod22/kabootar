@@ -1,0 +1,17 @@
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_native"
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let j = json_parse(os_read("/host/examples/sh33/_lower_cache.json"))
+let fns = j["fns"]
+let i = 11
+println("fn " + i + " " + fns[i]["name"] + " nops=" + len(fns[i]["ops"]))
+let names = {}
+let k = 0
+while k < len(fns[i]["ops"]) {
+    names[fns[i]["ops"][k][0]] = 1
+    k = k + 1
+}
+println("opnames: " + json_stringify(names))
+let r = aotX64EmitFns([fns[i]], aotNativeHostAbi())
+println("emitted " + len(r["code"]))
+return 0

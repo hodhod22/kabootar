@@ -1,0 +1,6 @@
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+println("exists pre: " + os_exists("/host/examples/sh33/_wtest.txt"))
+os_write("/host/examples/sh33/_wtest.txt", "hej")
+println("exists post: " + os_exists("/host/examples/sh33/_wtest.txt"))
+println("read: " + os_read("/host/examples/sh33/_wtest.txt"))
+return 0

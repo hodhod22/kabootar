@@ -1,0 +1,19 @@
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_native"
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let j = json_parse(os_read("/host/examples/sh33/_lower_cache.json"))
+let fns = j["fns"]
+let hi = len(fns)
+let i = 11
+while i < hi {
+    let r = aotX64EmitFns([fns[i]], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        println("fn " + i + " " + fns[i]["name"] + " rejected")
+    }
+    if i % 50 == 0 {
+        println(".. " + i)
+    }
+    i = i + 1
+}
+println("done")
+return 0

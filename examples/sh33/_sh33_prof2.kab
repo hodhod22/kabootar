@@ -1,0 +1,20 @@
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_native"
+
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let outp = "/host/examples/sh33/_prof2_out.txt"
+os_write(outp, "phase: load\n")
+let j = json_parse(os_read("/host/examples/sh33/_fn160.json"))
+let f = j["f"]
+let fa = j["fa"]
+let ops = f["ops"]
+let nl = f["locals"]
+os_write(outp, "phase: oplen loop ops=" + len(ops) + "\n")
+let i = 0
+let s = 0
+while i < len(ops) {
+    s = s + aotFnOpLen(ops[i], nl, fa)
+    i = i + 1
+}
+os_write(outp, "phase: oplen done s=" + s + "\n")
+return 0

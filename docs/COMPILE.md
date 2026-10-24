@@ -84,7 +84,8 @@ Profilerar compile-faser. Använd för att hitta flaskhalsar — **inte** i varj
 ## `.kbc`-cache
 
 - Rust `compile::load_program_for_file` cachar parse/bytecode under `.kabootar/cache/<cwd-rel-path>.kbc` (`/` → `__`)
-- Ogiltigförklaras när källfilens mtime är **nyare**, fingerprint ändras, eller `source=` inte matchar sökvägen
+- Ogiltigförklaras när källfilens mtime är **nyare**, fingerprint ändras, `source=` inte matchar sökvägen, **eller `compiler=` (toolchain-fingerprint) inte matchar**
+- Toolchain-fingerprinten = hash av `seed/compiler.kbcb` (eller `seed/dag`-listningen) **+ alla `self_host/compile`-DAG-källors fingerprints** — emitter/parser-editeringar i `self_host/` invaliderar därför CA-`.kbcb`:er (`ca/v<ver>_<tc>_<srcfp>.kbcb`) och path-keyed artefakter automatiskt, även utan seed-regenerering
 - Self-host output: `_emit_full_out.kbc`, `_serialize_full_out.kbc` i repo root
 - **Stale guard:** `self_host_emit_kbc_freshness_guard` / `assert_fresh_serialize_kbc` i `tests/self_host.rs`
 

@@ -354,6 +354,9 @@ pub fn emitStmt_class(E) {
     if E["eNode"].kind != AST_CLASS {
         return false
     }
+        if E["eInFn"] == 1 {
+            throw "class declaration only supported at top level (self-host emit)"
+        }
         E["eFnSave"] = "" + E["eNode"]["sym"]
         E["eTypeParams"] = E["eNode"]["typeParams"]
         if E["eTypeParams"] == undefined {
@@ -594,6 +597,9 @@ pub fn emitStmt_enum(E) {
     if E["eNode"].kind != AST_ENUM {
         return false
     }
+        if E["eInFn"] == 1 {
+            throw "enum declaration only supported at top level (self-host emit)"
+        }
         E["eTypeParams"] = E["eNode"]["typeParams"]
         if E["eTypeParams"] == undefined {
             E["eTypeParams"] = []
@@ -635,10 +641,11 @@ pub fn emitStmt_expr(E) {
         return false
     }
         E["eExprStmt"] = E["eNode"]["expr"]
-        eCallExpr(E, E["eExprStmt"])
-        if E["eExprStmt"].kind != AST_THROW {
-            if E["eExprStmt"].kind == AST_UNARY {
-                if E["eExprStmt"]["op"] == "yield" {
+        let esNode = E["eExprStmt"]
+        eCallExpr(E, esNode)
+        if esNode.kind != AST_THROW {
+            if esNode.kind == AST_UNARY {
+                if esNode["op"] == "yield" {
                     return true
                 }
             }
@@ -1169,6 +1176,9 @@ pub fn emitStmt_index_assign(E) {
 pub fn emitStmt_interface(E) {
     if E["eNode"].kind != AST_INTERFACE {
         return false
+    }
+    if E["eInFn"] == 1 {
+        throw "interface declaration only supported at top level (self-host emit)"
     }
     E["eIfaceSym"] = "" + E["eNode"]["sym"]
     E["eIfaceAssoc"] = E["eNode"]["associatedTypes"]

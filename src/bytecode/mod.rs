@@ -21,7 +21,8 @@ pub use jit::{
 };
 pub use typed::{fn_is_typed_i64, typed_i64_reset_for_tests, typed_i64_stats};
 pub use types::{
-    deserialize, serialize, BytecodeFnDef, BytecodeModule, Constant, Opcode, FORMAT_HEADER,
+    deserialize, serialize, BytecodeFnDef, BytecodeModule, Constant, GeneratorTryRegion,
+    Opcode, FORMAT_HEADER,
 };
 pub use vm::{
     bind_bytecode_params, call_ic_mega_hits, call_ic_reset_for_tests, call_ic_stats, call_value,

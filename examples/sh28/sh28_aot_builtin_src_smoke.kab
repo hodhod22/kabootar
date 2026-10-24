@@ -1,0 +1,123 @@
+// SH28: aot-tv1 builtin-call lowering through the SOURCE path —
+// `load_global <builtin>; call n` with no module-fn target lowers
+// inline via aotBuiltinSeq (the callee global never materialises).
+// Covered: len/push/pop/slice/concat, typeof, str_slice/substring,
+// char_at/char_code_at/str_at, from_char_code, parse_int, abs/min/
+// max/floor/ceil/round, is_* family, object_has_own/has_key and
+// object_array_push/pop (read-modify-writeback into the slots cell).
+// Uncovered names still fall through to gload+callv → honest trap.
+// Native rax must equal the mirror and the host expectation.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 2048 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+// len() on a non-name arg goes through the builtin (name args compile
+// to len_local/len_global instead — those are covered elsewhere).
+acc = acc + srcOk("return len([1, 2, 3])", 6)
+acc = acc + srcOk("return len(\"hej\")", 6)
+acc = acc + srcOk("return len({a: 1, b: 2})", 4)
+// push() builtin returns the extended copy; the source is untouched.
+acc = acc + srcOk("let a = [1] let b = push(a, 7) return b[1]", 14)
+acc = acc + srcOk("let a = [1] let b = push(a, 9) return len(a)", 2)
+// pop() builtin returns the shortened array.
+acc = acc + srcOk("let a = [1, 2, 3] let b = pop(a) return len(b)", 4)
+acc = acc + srcOk("let a = [1, 2, 3] let b = pop(a) return b[1]", 4)
+// slice() with runtime bounds, negatives, swapped ends, default end.
+acc = acc + srcOk("let b = slice([1, 2, 3, 4], 1, 3) return b[0] + b[1]", 10)
+acc = acc + srcOk("return len(slice([1, 2, 3, 4], -2))", 4)
+acc = acc + srcOk("return len(slice([1, 2, 3, 4], 3, 1))", 4)
+// concat() folds variadic args right-to-left on the stack.
+acc = acc + srcOk("let c = concat([1], [2, 3], [4]) return len(c)", 8)
+acc = acc + srcOk("let c = concat([1], [2]) return c[1]", 4)
+// typeof via smk literals; fn-valued global goes through mkclo (tag 6).
+acc = acc + srcOk("return typeof(1) == \"number\"", 27)
+acc = acc + srcOk("return typeof(\"x\") == \"string\"", 27)
+acc = acc + srcOk("return typeof(true) == \"boolean\"", 27)
+acc = acc + srcOk("return typeof([1]) == \"array\"", 27)
+acc = acc + srcOk("return typeof({a: 1}) == \"object\"", 27)
+acc = acc + srcOk("return typeof(null) == \"null\"", 27)
+acc = acc + srcOk("return typeof(undefined) == \"undefined\"", 27)
+acc = acc + srcOk("fn f() { return 1 } return typeof(f) == \"function\"", 27)
+// str_slice (substring semantics): clamps, swap, byte copies.
+acc = acc + srcOk("return len(str_slice(\"hello\", 1, 3))", 4)
+acc = acc + srcOk("return str_slice(\"hello\", -3) == \"llo\"", 27)
+acc = acc + srcOk("return str_slice(\"abc\", 5, 9) == \"\"", 27)
+// char_at / char_code_at / str_at: norm + OOB contract per host.
+acc = acc + srcOk("return char_at(\"abc\", 1) == \"b\"", 27)
+acc = acc + srcOk("return char_code_at(\"abc\", 1)", 196)
+acc = acc + srcOk("return len(char_at(\"abc\", 9))", 0)
+acc = acc + srcOk("return is_nan(char_code_at(\"a\", 5))", 27)
+// from_char_code: variadic 1-byte str cells concatenated in order.
+acc = acc + srcOk("return from_char_code(65) == \"A\"", 27)
+acc = acc + srcOk("return from_char_code(72, 105) == \"Hi\"", 27)
+// parse_int: trim, radix, prefixes, garbage-stop, SMI passthrough.
+acc = acc + srcOk("return parse_int(\"42\")", 84)
+acc = acc + srcOk("return parse_int(\"  17x\")", 34)
+acc = acc + srcOk("return parse_int(\"ff\", 16)", 510)
+acc = acc + srcOk("return parse_int(\"0x20\", 16)", 64)
+acc = acc + srcOk("return parse_int(\"101\", 2)", 10)
+acc = acc + srcOk("return parse_int(33)", 66)
+acc = acc + srcOk("return is_nan(parse_int(\"xyz\"))", 27)
+// is_* family — tag dispatch → tagged bool.
+acc = acc + srcOk("return is_null(null)", 27)
+acc = acc + srcOk("return is_null(5)", 19)
+acc = acc + srcOk("return is_undefined(undefined)", 27)
+acc = acc + srcOk("return is_number(3)", 27)
+acc = acc + srcOk("return is_number(1.5)", 27)
+acc = acc + srcOk("return is_string(\"a\")", 27)
+acc = acc + srcOk("return is_array([])", 27)
+acc = acc + srcOk("return is_object({x: 1})", 27)
+acc = acc + srcOk("return is_bool(false)", 27)
+// abs/min/max (SMI domain; floats trap honestly) + floor family.
+acc = acc + srcOk("return min(3, 7)", 6)
+acc = acc + srcOk("return max(3, 7)", 14)
+acc = acc + srcOk("return abs(0 - 9)", 18)
+acc = acc + srcOk("return floor(5)", 10)
+// object_has_own: record kid-scan + array index bounds.
+acc = acc + srcOk("let o = {a: 1} return object_has_own(o, \"a\")", 27)
+acc = acc + srcOk("let o = {a: 1} return object_has_own(o, \"b\")", 19)
+acc = acc + srcOk("return object_has_own([1, 2, 3], 2)", 27)
+acc = acc + srcOk("return object_has_own([1, 2, 3], 5)", 19)
+// object_array_push/pop: read → copy-op → slots writeback.
+acc = acc + srcOk("let o = {xs: [1, 2]} let n = object_array_push(o, \"xs\", 9) return n", 6)
+acc = acc + srcOk("let o = {xs: [1, 2]} object_array_push(o, \"xs\", 9) return o[\"xs\"][2]", 18)
+acc = acc + srcOk("let o = {xs: [1, 2, 3]} let v = object_array_pop(o, \"xs\") return v", 6)
+acc = acc + srcOk("let o = {xs: [1, 2, 3]} object_array_pop(o, \"xs\") return len(o[\"xs\"])", 4)
+// Builtins compose with call lowering (args can be call results).
+acc = acc + srcOk("fn g() { return [4, 5] } return len(g())", 4)
+println("acc " + acc)
+if acc == 58 {
+    return 42
+}
+return acc

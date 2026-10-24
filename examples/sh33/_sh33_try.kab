@@ -1,0 +1,11 @@
+fn t() {
+    try {
+        let x = bc_module_ir("nonexistent_xyz.kab")
+        println("no err")
+    } catch (e) {
+        println("caught: " + e)
+    }
+    return 1
+}
+println("ret=" + t())
+return 0

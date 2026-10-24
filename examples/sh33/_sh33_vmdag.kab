@@ -1,0 +1,44 @@
+import "kab/aot/aot_link"
+import "kab/aot/aot_fn_lower"
+
+fn modBc(name) {
+    let r = bc_module_ir(name + ".kab")
+    if r["ok"] == false {
+        r = bc_module_ir("lib/" + name + ".kab")
+    }
+    if r["ok"] == false {
+        println("MISS " + name + ": " + r["reason"])
+        return null
+    }
+    return r["bc"]
+}
+
+fn dagVisit(name, seen, out) {
+    if seen[name] == 1 { return out }
+    seen[name] = 1
+    let bc = modBc(name)
+    if bc == null { return out }
+    let i = 0
+    while i < len(bc["imports"]) {
+        out = dagVisit(bc["imports"][i], seen, out)
+        i = i + 1
+    }
+    println("loaded " + name + " fns=" + len(bc["functions"]))
+    out = push(out, { "name": name, "bc": bc })
+    return out
+}
+
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let t0 = date_now_ms()
+let mods = dagVisit("self_host/vm_run_ops_loop", {}, [])
+println("dag mods=" + len(mods) + " ms=" + (date_now_ms() - t0))
+t0 = date_now_ms()
+let bc = aotLinkModules(mods)
+println("linked nfns=" + len(bc["functions"]) + " ng=" + len(bc["globals"]) + " ms=" + (date_now_ms() - t0))
+t0 = date_now_ms()
+let lr = aotFnLowerModuleTv1(bc, 1048576)
+println("lower ok=" + json_stringify(lr["ok"]) + " nfns=" + len(lr["fns"]) + " ms=" + (date_now_ms() - t0))
+if lr["ok"] == false {
+    println("reason: " + json_stringify(lr["reason"]))
+}
+return 0

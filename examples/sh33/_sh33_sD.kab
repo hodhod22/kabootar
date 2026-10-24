@@ -1,0 +1,38 @@
+import "kab/aot/aot_native"
+
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let j = json_parse(os_read("/host/examples/sh33/_lower_cache.json"))
+let ng = j["nglobals"]
+let bj = json_parse(os_read("/host/examples/sh33/_stageB.json"))
+let nf2 = bj["nf2"]
+println("sD nf2=" + nf2 + " total=" + bj["total"] + " ng=" + ng)
+
+let code = []
+let i = 0
+while i < nf2 {
+    let p = "/host/examples/sh33/_stageE_" + i + ".json"
+    if os_exists(p) == false {
+        println("sD MISSING " + p)
+        return 1
+    }
+    let e = json_parse(os_read(p))
+    code = concat(code, e["bytes"])
+    i = i + 1
+}
+println("sD code bytes=" + len(code))
+if len(code) != bj["total"] {
+    println("sD WARN len != total (" + len(code) + " vs " + bj["total"] + ")")
+}
+os_write("/host/examples/sh33/_emit_cache.json", json_stringify({ "code": code }))
+
+// Data-page layout: [globals | bump=ng-2 | limit=ng-1 | heap at
+// qword ng .. ng+heapQ). heapQ raised to 1Mi qwords (lower-cache hlimit
+// index patched) → bound address ~8.4MB. The 4th os_native_exec arg
+// sizes the RW mapping directly — no giant Kab zero array needed.
+let d = []
+while len(d) < ng * 8 { d = push(d, 0) }
+let mapLen = (274 + 1048576 + 64) * 8
+let t0 = date_now_ms()
+let nr = os_native_exec(code, 0, d, mapLen)
+println("native=" + nr + " ms=" + (date_now_ms() - t0))
+return 0

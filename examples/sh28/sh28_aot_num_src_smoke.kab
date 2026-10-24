@@ -1,0 +1,52 @@
+// SH28: aot-tv1 numeric widening through the SOURCE path — real
+// compileIr bytecode lowered by aotFnLowerModuleTv1: mixed SMI/Float
+// arith promotes the SMI via fcast, float consts lower to fmk via the
+// f64-halves path, wide int consts lower to tconst64, % on floats is
+// truncating fmod. Native rax must equal the mirror and the host
+// result.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 200)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 64)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+acc = acc + srcOk("return 1.5 == 1.5", 27)
+acc = acc + srcOk("return 2 == 2.0", 27)
+acc = acc + srcOk("return 1 + 0.5 == 1.5", 27)
+acc = acc + srcOk("return 2.5 - 1 == 1.5", 27)
+acc = acc + srcOk("return 7.5 % 2 == 1.5", 27)
+acc = acc + srcOk("return 1 < 1.5", 27)
+acc = acc + srcOk("return 2.0 > 1", 27)
+acc = acc + srcOk("return 1099511627776", 2199023255552)
+acc = acc + srcOk("return 1099511627776 + 1", 2199023255554)
+println("acc " + acc)
+if acc != 9 {
+    return 9
+}
+return 42

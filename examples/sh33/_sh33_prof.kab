@@ -1,0 +1,34 @@
+import "kab/aot/aot_link"
+
+fn modBc(name) {
+    let r = bc_module_ir(name + ".kab")
+    if r["ok"] == false {
+        r = bc_module_ir("lib/" + name + ".kab")
+    }
+    if r["ok"] == false {
+        println("MISS " + name + ": " + r["reason"])
+        return null
+    }
+    return r["bc"]
+}
+
+let names = ["self_host/lexer_scan", "self_host/ast_defs", "self_host/emit_defs",
+             "kab/gc", "kab/gc/gc_prom", "kab/gc/gc_alloc", "kab/gc/gc_pace",
+             "kab/gc/gc_host", "self_host/vm_s_stack", "self_host/vm_ops_arith_a"]
+let i = 0
+while i < len(names) {
+    let bc = modBc(names[i])
+    if bc != null {
+        let nops = len(bc["ops"])
+        let f = 0
+        while f < len(bc["functions"]) {
+            nops = nops + len(bc["functions"][f]["ops"])
+            f = f + 1
+        }
+        let t0 = date_now_ms()
+        let one = aotLinkModules([{ "name": names[i], "bc": bc }])
+        println(names[i] + " ops=" + nops + " fns=" + len(bc["functions"]) + " glob=" + len(bc["globals"]) + " link_ms=" + (date_now_ms() - t0))
+    }
+    i = i + 1
+}
+return 0

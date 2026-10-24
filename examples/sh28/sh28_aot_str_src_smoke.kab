@@ -1,0 +1,55 @@
+// SH28: aot-tv1 STRING values through the SOURCE path — real compileIr
+// bytecode lowered by aotFnLowerModuleTv1: tag-4 string cells carry a
+// content-hash kid in bits 32+, add concatenates (str+str, str+smi,
+// smi+str via itoa), eq/ne compare BYTES not pointers, .length reads
+// the header, s[i] returns a 1-char cell (oob → undefined), and
+// runtime-built keys (o["a"+"b"]) hash to the same kid as the static
+// literal "ab". Native rax must equal the mirror and the host.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 200)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 64)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+acc = acc + srcOk("return (\"a\" + \"b\").length", 4)
+acc = acc + srcOk("return \"a\" + \"b\" == \"ab\"", 27)
+acc = acc + srcOk("return \"a\" + \"b\" == \"ac\"", 19)
+acc = acc + srcOk("return (\"x\" + 5).length", 4)
+acc = acc + srcOk("return \"x\" + 5 == \"x5\"", 27)
+acc = acc + srcOk("return 5 + \"x\" == \"5x\"", 27)
+acc = acc + srcOk("return \"n\" + -7 == \"n-7\"", 27)
+acc = acc + srcOk("return \"hello\"[1] == \"e\"", 27)
+acc = acc + srcOk("return \"hello\"[9]", 11)
+acc = acc + srcOk("let o = {\"ab\": 21}; return o[\"a\" + \"b\"]", 42)
+acc = acc + srcOk("let s = \"hey\"; return s[0] == \"h\"", 27)
+println("acc " + acc)
+if acc == 11 {
+    return 42
+}
+return acc

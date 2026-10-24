@@ -98,8 +98,8 @@ pub fn emitCallArgsAsArray(E, args) {
 }
 
 pub fn emitExpr_callSpread(E) {
-    emitCallArgsAsArray(E, E["eArgs"])
     let callee = E["eCallee"]
+    emitCallArgsAsArray(E, E["eArgs"])
     if callee.kind == AST_VAR {
         let ci = symIndex(E, "class", callee["sym"])
         if ci >= 0 {
@@ -629,6 +629,10 @@ pub fn emitExpr_call_h3_gen(E) {
     if E["eFound"] != 0 {
         return 0
     }
+    // The first specialization emits class method bodies mid-expression —
+    // isolate the enclosing fn's emit state (eFnOps/locals/spec fields) so a
+    // `Generic<T>(x)` call inside a fn body cannot clobber it.
+    emitFnScopeSave(E)
     emitSpecializeParentClass(E)
     let specTmpl = E["eGenTmpl"]
     E["eClassIsStruct"] = specTmpl["isStruct"]
@@ -683,6 +687,7 @@ pub fn emitExpr_call_h3_gen(E) {
     }
     E["eClassesN"] = E["eClassesN"] + 1
     symIndex(E, "global", E["eMangled"])
+    emitFnScopeRestore(E)
     return 0
 }
 
@@ -691,14 +696,15 @@ let eCallRet = 0
 
 // Emit ctor args + NEW_INSTANCE for specialized class call.
 pub fn emitExpr_call_h3_inst(E) {
+    let instMangled = E["eMangled"]
     object_array_push(E, "eCallArgIStack", 0)
     object_array_push(E, "eCallArgNStack", E["eArgN"])
     object_array_push(E, "eArgsStack", E["eArgs"])
     emitCallArgExprs(E)
-    eCallRet = symIndex(E, "class", E["eMangled"])
+    eCallRet = symIndex(E, "class", instMangled)
     E["eClassIdx"] = eCallRet
     if E["eClassIdx"] < 0 {
-        throw "Missing specialized class " + E["eMangled"]
+        throw "Missing specialized class " + instMangled
     }
     if E["eInFn"] == 1 {
         object_array_push(E, "eFnOps", { "op": OP_NEW_INSTANCE, "arg": E["eClassIdx"], "arg2": E["eArgN"] })
@@ -748,12 +754,14 @@ pub fn emitExpr_call_h5_do_install(E) {
 pub fn emitExpr_call_h5_emit(E) {
     let saveArgN = E["eArgN"]
     let saveArgs = E["eArgs"]
+    let h5Obj = E["eMemObj"]
+    let h5Mangled = E["eMethodMangled"]
     object_array_push(E, "eCallArgIStack", 0)
     object_array_push(E, "eCallArgNStack", saveArgN)
     object_array_push(E, "eArgsStack", saveArgs)
     emitCallArgExprs(E)
-    eCallExpr(E, E["eMemObj"])
-    eCallRet = symIndex(E, "const", E["eMethodMangled"])
+    eCallExpr(E, h5Obj)
+    eCallRet = symIndex(E, "const", h5Mangled)
     E["eIdx"] = eCallRet
     emitOp(E, OP_GET_MEMBER, eCallRet)
     emitOp(E, OP_CALL, saveArgN)
@@ -796,12 +804,14 @@ pub fn emitExpr_call_h7(E) {
     E["eMangled"] = E["eGenSym"]
     emitMangleWithTypeArgs(E, "eMangled")
     emitEnsureSpecializedEnum(E)
+    let h7Mangled = E["eMangled"]
+    let h7Fld = E["eMemFld"]
     object_array_push(E, "eCallArgIStack", 0)
     object_array_push(E, "eCallArgNStack", saveArgN)
     object_array_push(E, "eArgsStack", saveArgs)
     emitCallArgExprs(E)
-    emitSym(E, 0, E["eMangled"])
-    eCallRet = symIndex(E, "const", E["eMemFld"])
+    emitSym(E, 0, h7Mangled)
+    eCallRet = symIndex(E, "const", h7Fld)
     E["eIdx"] = eCallRet
     emitOp(E, OP_GET_MEMBER, eCallRet)
     emitOp(E, OP_CALL, saveArgN)

@@ -1,0 +1,55 @@
+// SH28: aot-tv1 Option/Result values through the SOURCE path — real
+// compileIr bytecode lowered by aotFnLowerModuleTv1: tag-12 "sum" cells
+// [hdr|v] where hdr = 12<<16|variant (0 none / 1 some / 2 ok / 3 err).
+// make_some/none/ok/err allocate the cell, jump_unless_* peek at the
+// scrutinee's variant, unwrap_* push the payload (wrong kind traps),
+// match_fail traps, `?` unwraps Ok and keeps Err — plus the new
+// dup/swap emitter ops the match machinery needs. Native rax must
+// equal the mirror and the host result.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 200)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 64)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+acc = acc + srcOk("return match Some(7) { Some(n) => n, None => 0 }", 14)
+acc = acc + srcOk("return match None { Some(n) => n, None => 5 }", 10)
+acc = acc + srcOk("return match Ok(9) { Ok(n) => n, Err(e) => 0 }", 18)
+acc = acc + srcOk("return match Err(3) { Ok(n) => n, Err(e) => e }", 6)
+acc = acc + srcOk("return match Some(2) { Some(n) => n + 1, _ => 0 }", 6)
+acc = acc + srcOk("return match Some(2) { Some(n) => n + 1, None => 0 }", 6)
+acc = acc + srcOk("return match Err(\"x\") { Ok(n) => 1, Err(e) => e == \"x\" }", 27)
+acc = acc + srcOk("let r = Ok(9); let u = r?; return u + 1", 20)
+acc = acc + srcOk("return match Some(\"a\" + \"b\") { Some(s) => s == \"ab\", None => false }", 27)
+acc = acc + srcOk("let o = Some(4); return match o { Some(n) => n * 2, None => 0 }", 16)
+println("acc " + acc)
+if acc == 10 {
+    return 42
+}
+return acc

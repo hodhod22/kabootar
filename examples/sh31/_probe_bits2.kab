@@ -1,0 +1,10 @@
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_fn_lower"
+
+let bc = compileIr("return 3 + 4")
+let lo = aotFnLowerModuleTv1(bc, 512)
+println("lower ok=" + lo["ok"])
+let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+println("mirror=" + mr)

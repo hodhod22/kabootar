@@ -276,6 +276,22 @@ fn peephole(code: &mut Vec<Opcode>, constants: &[Constant], regions: &mut [Gener
     if code.is_empty() {
         return;
     }
+    // Removing an op that is a jump target is only safe when the op is
+    // stack-neutral by itself. `Const;Pop`, `LoadLocal;StoreLocal`, and
+    // `Not;Not` pairs are net-zero only when entered at the first op — a path
+    // that jumps directly to the second op carries a stack delta (e.g. an
+    // else-if chain's per-branch value arriving at the merge Pop) and
+    // silently corrupts/overflows the operand stack if the pair is deleted.
+    let mut jump_targets = std::collections::HashSet::new();
+    for (ip, op) in code.iter().enumerate() {
+        if let Some(off) = jump_offset(op) {
+            let t = (ip as i32 + 1 + off).clamp(0, code.len() as i32) as usize;
+            jump_targets.insert(t);
+        }
+    }
+    let targeted = |i: usize, j: usize| {
+        jump_targets.contains(&i) || jump_targets.contains(&j)
+    };
     let mut live: Vec<Option<Opcode>> = code.iter().cloned().map(Some).collect();
     let mut i = 0;
     while i < live.len() {
@@ -285,42 +301,52 @@ fn peephole(code: &mut Vec<Opcode>, constants: &[Constant], regions: &mut [Gener
         };
         match &op {
             Opcode::Jump(0) | Opcode::JumpIfFalse(0) | Opcode::JumpIfResultErr(0) => {
-                live[i] = None;
-                stats.peepholes += 1;
+                // JumpIfFalse/JumpIfResultErr pop their condition — only dead
+                // if no other path can land on them mid-consumption.
+                if !jump_targets.contains(&i) {
+                    live[i] = None;
+                    stats.peepholes += 1;
+                }
             }
             Opcode::Const(ci) => {
                 if let Some(j) = next_live(&live, i + 1) {
                     match live[j].clone() {
-                        Some(Opcode::IndexGet) => match constants.get(*ci as usize) {
-                            Some(Constant::String(s)) if ident_member_key(s) => {
-                                live[i] = Some(Opcode::GetMember(*ci));
-                                live[j] = None;
-                                stats.peepholes += 1;
+                        Some(Opcode::IndexGet) if !targeted(i, j) => {
+                            match constants.get(*ci as usize) {
+                                Some(Constant::String(s)) if ident_member_key(s) => {
+                                    live[i] = Some(Opcode::GetMember(*ci));
+                                    live[j] = None;
+                                    stats.peepholes += 1;
+                                }
+                                _ => {}
                             }
-                            _ => {}
-                        },
-                        Some(Opcode::IndexGetLocal(li)) => match constants.get(*ci as usize) {
-                            Some(Constant::String(s)) if ident_member_key(s) => {
-                                live[i] = Some(Opcode::LoadLocal(li));
-                                live[j] = Some(Opcode::GetMember(*ci));
-                                stats.peepholes += 1;
+                        }
+                        Some(Opcode::IndexGetLocal(li)) if !targeted(i, j) => {
+                            match constants.get(*ci as usize) {
+                                Some(Constant::String(s)) if ident_member_key(s) => {
+                                    live[i] = Some(Opcode::LoadLocal(li));
+                                    live[j] = Some(Opcode::GetMember(*ci));
+                                    stats.peepholes += 1;
+                                }
+                                _ => {}
                             }
-                            _ => {}
-                        },
-                        Some(Opcode::IndexGetGlobal(gi)) => match constants.get(*ci as usize) {
-                            Some(Constant::String(s)) if ident_member_key(s) => {
-                                live[i] = Some(Opcode::LoadGlobal(gi));
-                                live[j] = Some(Opcode::GetMember(*ci));
-                                stats.peepholes += 1;
+                        }
+                        Some(Opcode::IndexGetGlobal(gi)) if !targeted(i, j) => {
+                            match constants.get(*ci as usize) {
+                                Some(Constant::String(s)) if ident_member_key(s) => {
+                                    live[i] = Some(Opcode::LoadGlobal(gi));
+                                    live[j] = Some(Opcode::GetMember(*ci));
+                                    stats.peepholes += 1;
+                                }
+                                _ => {}
                             }
-                            _ => {}
-                        },
-                        Some(Opcode::Pop) => {
+                        }
+                        Some(Opcode::Pop) if !targeted(i, j) => {
                             live[i] = None;
                             live[j] = None;
                             stats.peepholes += 2;
                         }
-                        Some(Opcode::JumpIfFalse(off)) => {
+                        Some(Opcode::JumpIfFalse(off)) if !targeted(i, j) => {
                             match constants.get(*ci as usize).and_then(const_is_truthy) {
                                 Some(false) => {
                                     live[i] = None;
@@ -341,7 +367,9 @@ fn peephole(code: &mut Vec<Opcode>, constants: &[Constant], regions: &mut [Gener
             }
             Opcode::LoadLocal(a) => {
                 if let Some(j) = next_live(&live, i + 1) {
-                    if matches!(live[j], Some(Opcode::StoreLocal(b)) if b == *a) {
+                    if !targeted(i, j)
+                        && matches!(live[j], Some(Opcode::StoreLocal(b)) if b == *a)
+                    {
                         live[i] = None;
                         live[j] = None;
                         stats.peepholes += 2;
@@ -350,7 +378,7 @@ fn peephole(code: &mut Vec<Opcode>, constants: &[Constant], regions: &mut [Gener
             }
             Opcode::Not if i > 0 => {
                 if let Some(p) = (0..i).rev().find(|&k| live[k].is_some()) {
-                    if matches!(live[p], Some(Opcode::Not)) {
+                    if !targeted(p, i) && matches!(live[p], Some(Opcode::Not)) {
                         live[i] = None;
                         live[p] = None;
                         stats.peepholes += 2;

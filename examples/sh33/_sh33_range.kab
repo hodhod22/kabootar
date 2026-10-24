@@ -1,0 +1,18 @@
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_native"
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let j = json_parse(os_read("/host/examples/sh33/_lower_cache.json"))
+let fns = j["fns"]
+let lo = 0
+let hi = 105
+let sub = []
+let i = lo
+while i < hi {
+    sub = push(sub, fns[i])
+    i = i + 1
+}
+// entry must be fns[0] for arity/entry conventions — test halves instead
+println("emitting fns[0.." + hi + "]")
+let r = aotX64EmitFns(sub, aotNativeHostAbi())
+println("emitted " + len(r["code"]))
+return 0

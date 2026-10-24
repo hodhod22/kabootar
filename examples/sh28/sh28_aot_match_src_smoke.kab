@@ -1,0 +1,81 @@
+// SH28: aot-tv1 match machinery through the SOURCE path — real compileIr
+// match arms lowered by aotFnLowerModuleTv1. jump_unless_{array,object,
+// object_empty,has_member,const_eq,enum_variant} peek at the scrutinee,
+// unpack_enum_fields pushes the variant payload reversed, plus
+// index_peek_from_end / array_slice_rest for [f, …rest, l] patterns,
+// get_length for length checks, jump_if_not_nullish for ?./?? — and the
+// enum pipeline end-to-end: `enum` installs a {vmEnumNs,typeName,
+// variants} record into its global slot, `E.V` resolves through it to a
+// vmEnum/vmEnumCtor record, and `call` on a ctor builds the enum value.
+// Native rax must equal the mirror and the host result.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 2048 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+// const_eq: SMI hit, miss→wild, string content, bool, undefined, or.
+acc = acc + srcOk("return match 7 { 7 => 1, _ => 0 }", 2)
+acc = acc + srcOk("return match 8 { 7 => 1, _ => 3 }", 6)
+acc = acc + srcOk("return match \"ab\" { \"ab\" => 2, _ => 0 }", 4)
+acc = acc + srcOk("return match true { true => 4, _ => 0 }", 8)
+acc = acc + srcOk("return match undefined { undefined => 6, _ => 0 }", 12)
+acc = acc + srcOk("return match 2 { 1 | 2 => 6, _ => 0 }", 12)
+// Array patterns: fixed pieces, rest-mid window, from-end peek,
+// length-select.
+acc = acc + srcOk("return match [1, 2] { [a, b] => a + b, _ => 0 }", 6)
+acc = acc + srcOk("return match [1, 2, 3, 4] { [f, ...rest, l] => f + l, _ => 0 }", 10)
+acc = acc + srcOk("return match [1, 2, 3, 4] { [f, ...rest, l] => rest[0] + rest[1], _ => 0 }", 10)
+acc = acc + srcOk("return match [1, 2, 3] { [a] => 0, [a, b, c] => c, _ => -1 }", 6)
+// Object patterns: empty, shorthand bind, field-const, rest.
+acc = acc + srcOk("return match {} { {} => 7, _ => 0 }", 14)
+acc = acc + srcOk("return match {x: 1} { {} => 0, {x} => x, _ => -1 }", 2)
+acc = acc + srcOk("return match {x: 1, y: 2} { {x, y} => x + y, _ => 0 }", 6)
+acc = acc + srcOk("return match {x: 1, y: 2} { {x, ...rest} => rest.y, _ => 0 }", 4)
+acc = acc + srcOk("return match {k: 5} { {k: 5} => 8, _ => 0 }", 16)
+// Nullish paths (?., ??) exercise jump_if_not_nullish.
+acc = acc + srcOk("let o = {x: 9}; return o?.x", 18)
+acc = acc + srcOk("let o = null; return o?.x", 11)
+acc = acc + srcOk("return null ?? 7", 14)
+acc = acc + srcOk("return 9 ?? 7", 18)
+// Enum pipeline: ns install → E.V member resolve → ctor call →
+// jump_unless_enum_variant + unpack_enum_fields in match arms.
+acc = acc + srcOk("enum Color { Red, Rgb(r, g, b) } return match Color.Red { Color.Red => 5, _ => 0 }", 10)
+acc = acc + srcOk("enum Color { Red, Rgb(r, g, b) } return match Color.Rgb(3, 4, 5) { Color.Rgb(a, b, c) => a + b + c, _ => 0 }", 24)
+acc = acc + srcOk("enum Color { Red, Rgb(r, g, b) } return match Color.Red { Color.Rgb(a, b, c) => 0, Color.Red => 9, _ => 1 }", 18)
+acc = acc + srcOk("enum Shape { Pt(x, y) } let p = Shape.Pt(10, 20); return match p { Shape.Pt(a, b) => a * b, _ => 0 }", 400)
+acc = acc + srcOk("enum E { A } return match 9 { E.A => 1, _ => 2 }", 4)
+println("acc " + acc)
+if acc == 24 {
+    return 42
+}
+return acc

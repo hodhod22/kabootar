@@ -70,7 +70,7 @@ fn aotFnGcRoots(hp, gl, locals, st, rb, nsp) {
 
 /// Public for GC/audit probes: run fn `fi` and get the mutated state
 /// back — {v, gl, hp} since Kab copies arrays at call boundaries.
-pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
+pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp, xs) {
     let f = fns[fi]
     let ops = f["ops"]
     let locals = []
@@ -91,6 +91,13 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
     if f["arity"] >= 4 {
         locals[3] = a4
     }
+    // Stack-arg slots (calln/callv spill convention): caller extras
+    // arrive in the rest array — local i≥4 takes xs[i-4].
+    let xi = 0
+    while xi < len(xs) && 4 + xi < f["locals"] {
+        locals[4 + xi] = xs[xi]
+        xi = xi + 1
+    }
     let st = []
     let ip = 0
     while ip < len(ops) {
@@ -109,6 +116,15 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
         if name == "pop" {
             st = slice(st, 0, len(st) - 1)
         }
+        if name == "dup" {
+            let dtop = st[len(st) - 1]
+            st = push(st, dtop)
+        }
+        if name == "swap" {
+            let swa = st[len(st) - 1]
+            st[len(st) - 1] = st[len(st) - 2]
+            st[len(st) - 2] = swa
+        }
         // aot-tv1 tagged ops — same bit-level semantics as the emitter.
         if name == "tag" {
             st[len(st) - 1] = st[len(st) - 1] * 2
@@ -124,7 +140,7 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
                 st[len(st) - 1] = 0
             }
         }
-        if name == "tconst" {
+        if name == "tconst" || name == "tconst64" {
             st = push(st, op[1] * 2)
         }
         if name == "tnull" {
@@ -161,6 +177,63 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
         }
         if name == "tneg" {
             st[len(st) - 1] = 0 - st[len(st) - 1]
+        }
+        // aot-tv1 bitwise: Kab's & | ^ ~ << >> >>> already carry the
+        // JS i32 semantics the host VM implements (to_int32 on operands,
+        // i32 result sign-extended to Number) — mirror: detag (÷2),
+        // apply the Kab op, retag (×2). Non-SMI never reaches these
+        // ops: the lowerer emits them only behind is_smi dispatch.
+        if name == "tband" || name == "tbor" || name == "tbxor" || name == "tshl" || name == "tshr" || name == "tushr" {
+            let br = st[len(st) - 1] / 2
+            let bl = st[len(st) - 2] / 2
+            st = slice(st, 0, len(st) - 2)
+            if name == "tband" {
+                st = push(st, (bl & br) * 2)
+            }
+            if name == "tbor" {
+                st = push(st, (bl | br) * 2)
+            }
+            if name == "tbxor" {
+                st = push(st, (bl ^ br) * 2)
+            }
+            if name == "tshl" {
+                st = push(st, (bl << br) * 2)
+            }
+            if name == "tshr" {
+                st = push(st, (bl >> br) * 2)
+            }
+            if name == "tushr" {
+                st = push(st, (bl >>> br) * 2)
+            }
+        }
+        if name == "tbnot" {
+            st[len(st) - 1] = (~(st[len(st) - 1] / 2)) * 2
+        }
+        // aot-tv1 pow: detagged i64 loop matching the native op —
+        // exp<0 throws (native ud2; host eval_pow would give Float,
+        // no fpow op exists), i64 overflow and results past the SMI
+        // range (|r| ≥ 2^62) throw the same way.
+        if name == "tpow" {
+            let pe = st[len(st) - 1] / 2
+            let pb = st[len(st) - 2] / 2
+            st = slice(st, 0, len(st) - 2)
+            if pe < 0 {
+                throw "aot-tv1 tpow: negative exponent"
+            }
+            let pr = 1
+            let pi = 0
+            while pi < pe {
+                let pn = pr * pb
+                if pb != 0 && pn / pb != pr {
+                    throw "aot-tv1 tpow: i64 overflow"
+                }
+                pr = pn
+                pi = pi + 1
+            }
+            if pr >= 4611686018427387904 || pr <= -4611686018427387904 {
+                throw "aot-tv1 tpow: result out of SMI range"
+            }
+            st = push(st, pr * 2)
         }
         // aot-tv1 heap: hbase pushes the heap-start "address" (qword
         // index 0 — the native side emits r12 + ng*8); halloc bumps the
@@ -212,24 +285,17 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
         if name == "callv" {
             // ["callv", n, [fi…]] — callee cell on TOP (args pushed
             // first, callee last): pop the cell, then the args; the cell
-            // lands in a1 (hidden arg0), params in a2..a4.
+            // lands in a1 (hidden arg0), params in a2..a4, extras (a4+)
+            // go through the rest array like the native stack spill.
             let cn = op[1]
             let ccell = st[len(st) - 1]
             st = slice(st, 0, len(st) - 1)
-            let ca1 = 0
-            let ca2 = 0
-            let ca3 = 0
-            if cn > 2 {
-                ca3 = st[len(st) - 1]
+            let cav = []
+            let ck = 0
+            while ck < cn {
+                cav = push(cav, st[len(st) - 1])
                 st = slice(st, 0, len(st) - 1)
-            }
-            if cn > 1 {
-                ca2 = st[len(st) - 1]
-                st = slice(st, 0, len(st) - 1)
-            }
-            if cn > 0 {
-                ca1 = st[len(st) - 1]
-                st = slice(st, 0, len(st) - 1)
+                ck = ck + 1
             }
             if ccell % 2 == 0 {
                 throw "aot-tv1 callv: callee is not a heap cell"
@@ -246,10 +312,52 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
             if cmatch < 0 {
                 throw "aot-tv1 callv: closure fn index out of image"
             }
-            let crr = aotFnRunG(fns, cmatch, ccell, ca1, ca2, ca3, gl, hp)
+            // cav[k] = a_{n-k}: a1..a3 → named slots, a4..a_n → rest.
+            let crest = []
+            let ck2 = 0
+            while ck2 < cn - 3 {
+                crest = push(crest, cav[cn - 4 - ck2])
+                ck2 = ck2 + 1
+            }
+            let ca1 = 0
+            let ca2 = 0
+            let ca3 = 0
+            if cn > 0 {
+                ca1 = cav[cn - 1]
+            }
+            if cn > 1 {
+                ca2 = cav[cn - 2]
+            }
+            if cn > 2 {
+                ca3 = cav[cn - 3]
+            }
+            let crr = aotFnRunG(fns, cmatch, ccell, ca1, ca2, ca3, gl, hp, crest)
             gl = crr["gl"]
             hp = crr["hp"]
             st = push(st, crr["v"])
+        }
+        if name == "calln" {
+            // ["calln", fi, n, scr] — n>=5 direct call: pop args
+            // top-down (cav[k]=a_{n-k}), first four into the named
+            // slots, a5..a_n through the rest array.
+            let cnn = op[2]
+            let cnav = []
+            let cnk = 0
+            while cnk < cnn {
+                cnav = push(cnav, st[len(st) - 1])
+                st = slice(st, 0, len(st) - 1)
+                cnk = cnk + 1
+            }
+            let cnrest = []
+            let cnk2 = 0
+            while cnk2 < cnn - 4 {
+                cnrest = push(cnrest, cnav[cnn - 5 - cnk2])
+                cnk2 = cnk2 + 1
+            }
+            let cnrr = aotFnRunG(fns, op[1], cnav[cnn - 1], cnav[cnn - 2], cnav[cnn - 3], cnav[cnn - 4], gl, hp, cnrest)
+            gl = cnrr["gl"]
+            hp = cnrr["hp"]
+            st = push(st, cnrr["v"])
         }
         if name == "hcalloc" {
             // ["hcalloc", bump, limit, lo, rb, nspill] — bump-alloc with
@@ -265,7 +373,7 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
             } else {
                 let hrc = aotFnGcSpill(hp, gl, locals, st, op[4], op[5])
                 hp = hrc["hp"]
-                let hrr = aotFnRunG([aotGcSynthFn()], 0, gl[op[1]], op[3], hrc["rc"], 0, [], hp)
+                let hrr = aotFnRunG([aotGcSynthFn()], 0, gl[op[1]], op[3], hrc["rc"], 0, [], hp, [])
                 hp = hrr["hp"]
                 let hnt = hrr["v"]
                 let hback = aotFnGcRoots(hp, gl, locals, st, op[4], op[5])
@@ -290,7 +398,7 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
             // copied back. bump is restored from the return value.
             let gsp = aotFnGcSpill(hp, gl, locals, st, op[3], op[4])
             hp = gsp["hp"]
-            let gr2 = aotFnRunG([aotGcSynthFn()], 0, gl[op[1]], op[2], gsp["rc"], 0, [], hp)
+            let gr2 = aotFnRunG([aotGcSynthFn()], 0, gl[op[1]], op[2], gsp["rc"], 0, [], hp, [])
             hp = gr2["hp"]
             let gback = aotFnGcRoots(hp, gl, locals, st, op[3], op[4])
             gl = gback["gl"]
@@ -365,6 +473,43 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
             let oldq = hp[qi]
             hp[qi] = oldq - ((oldq / bsh2) % 256) * bsh2 + (bv % 256) * bsh2
         }
+        if name == "hkid" {
+            // [strptr] → tagged kid (hdr >> 32, tagged). The str cell
+            // header carries the interned member-key id in bits 32+.
+            let kp = st[len(st) - 1]
+            let kh = hp[(kp - 1) / 8]
+            let kk = (kh - (kh % 4294967296)) / 4294967296
+            st[len(st) - 1] = kk * 2
+        }
+        if name == "smk" {
+            // ["smk", bump, limit, text, kid] — bound-checked alloc of
+            // 1+ceil(len/8) qwords: hdr = kid<<32 | 4<<16 | len, payload
+            // = char bytes packed LE per qword (same view hloadb reads;
+            // byte lanes 6-7 are below f64 precision — comparisons use
+            // kid, never payload bytes).
+            let ss = op[3]
+            let ssl = len(ss)
+            let ssq = 1 + (ssl + 7) / 8
+            let sst = gl[op[1]]
+            if sst + ssq > gl[op[2]] {
+                throw "aot-tv1 smk over heap limit"
+            }
+            gl[op[1]] = sst + ssq
+            hp[sst] = op[4] * 4294967296 + 262144 + ssl
+            let sbi = 0
+            while sbi < ssl {
+                let sqi = sst + 1 + (sbi - (sbi % 8)) / 8
+                let sbsh = 1
+                let sbk2 = 0
+                while sbk2 < sbi % 8 {
+                    sbsh = sbsh * 256
+                    sbk2 = sbk2 + 1
+                }
+                hp[sqi] = hp[sqi] + (char_code_at(ss, sbi) % 256) * sbsh
+                sbi = sbi + 1
+            }
+            st = push(st, sst * 8 + 1)
+        }
         if name == "aget" {
             // [ptr, tidx] → element k=tidx/2 at qword (p-1)/8 + 1 + k.
             let ai = st[len(st) - 1]
@@ -399,9 +544,24 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
             hp[fo + 1] = op[4]
             st = push(st, fo * 8 + 1)
         }
-        if name == "fadd" || name == "fsub" || name == "fmul" || name == "fdiv" {
+        if name == "fcast" {
+            // ["fcast", bump, limit] — pop a tagged SMI, push a Float
+            // cell (mirror keeps the Kab float v/2 in the payload).
+            let fc = st[len(st) - 1]
+            st = slice(st, 0, len(st) - 1)
+            let ffo = gl[op[1]]
+            if ffo + 2 > gl[op[2]] {
+                throw "aot-tv1 fcast over heap limit"
+            }
+            gl[op[1]] = ffo + 2
+            hp[ffo] = 65537
+            hp[ffo + 1] = fc / 2
+            st = push(st, ffo * 8 + 1)
+        }
+        if name == "fadd" || name == "fsub" || name == "fmul" || name == "fdiv" || name == "fmod" {
             // ["f<op>", bump, limit] — [lptr, rptr] → bound-checked new
-            // float cell (lp OP rp) via the bump slot.
+            // float cell (lp OP rp) via the bump slot. fmod is Kab % —
+            // truncating fmod, same as the roundsd-trunc emit.
             let fr = st[len(st) - 1]
             let fl = st[len(st) - 2]
             st = slice(st, 0, len(st) - 2)
@@ -419,6 +579,9 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
             }
             if name == "fdiv" {
                 fres = flv / frv
+            }
+            if name == "fmod" {
+                fres = flv % frv
             }
             let fo2 = gl[op[1]]
             if fo2 + 2 > gl[op[2]] {
@@ -593,14 +756,14 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
                     if name == "call" {
                         let a = st[len(st) - 1]
                         st = slice(st, 0, len(st) - 1)
-                        let r1 = aotFnRunG(fns, op[1], a, 0, 0, 0, gl, hp)
+                        let r1 = aotFnRunG(fns, op[1], a, 0, 0, 0, gl, hp, [])
                         gl = r1["gl"]
                         hp = r1["hp"]
                         st = push(st, r1["v"])
                         ip = ip + 1
                     } else {
                         if name == "call0" {
-                            let r0 = aotFnRunG(fns, op[1], 0, 0, 0, 0, gl, hp)
+                            let r0 = aotFnRunG(fns, op[1], 0, 0, 0, 0, gl, hp, [])
                             gl = r0["gl"]
                             hp = r0["hp"]
                             st = push(st, r0["v"])
@@ -610,7 +773,7 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
                                 let b2 = st[len(st) - 1]
                                 let a2v = st[len(st) - 2]
                                 st = slice(st, 0, len(st) - 2)
-                                let r2 = aotFnRunG(fns, op[1], a2v, b2, 0, 0, gl, hp)
+                                let r2 = aotFnRunG(fns, op[1], a2v, b2, 0, 0, gl, hp, [])
                                 gl = r2["gl"]
                                 hp = r2["hp"]
                                 st = push(st, r2["v"])
@@ -621,7 +784,7 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
                                     let b3 = st[len(st) - 2]
                                     let a3v = st[len(st) - 3]
                                     st = slice(st, 0, len(st) - 3)
-                                    let r3 = aotFnRunG(fns, op[1], a3v, b3, c3, 0, gl, hp)
+                                    let r3 = aotFnRunG(fns, op[1], a3v, b3, c3, 0, gl, hp, [])
                                     gl = r3["gl"]
                                     hp = r3["hp"]
                                     st = push(st, r3["v"])
@@ -633,7 +796,7 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
                                         let b4 = st[len(st) - 3]
                                         let a4v = st[len(st) - 4]
                                         st = slice(st, 0, len(st) - 4)
-                                        let r4 = aotFnRunG(fns, op[1], a4v, b4, c4, d4, gl, hp)
+                                        let r4 = aotFnRunG(fns, op[1], a4v, b4, c4, d4, gl, hp, [])
                                         gl = r4["gl"]
                                         hp = r4["hp"]
                                         st = push(st, r4["v"])
@@ -657,14 +820,14 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp) {
 
 /// Compatibility wrapper — no data globals.
 fn aotFnRun(fns, fi, a1, a2) {
-    return aotFnRunG(fns, fi, a1, a2, 0, 0, [], [])["v"]
+    return aotFnRunG(fns, fi, a1, a2, 0, 0, [], [], [])["v"]
 }
 
-/// Mirror of the entry fn: aotFnRunG(fns, 0, arg, 0, 0, 0, [], []).
+/// Mirror of the entry fn: aotFnRunG(fns, 0, arg, 0, 0, 0, [], [], []).
 /// aotFnRunG returns {v, gl, hp} — the mutated state arrays travel back
 /// explicitly since Kab copies arrays at call boundaries.
 pub fn aotFnMirror(fns, arg) {
-    return aotFnRunG(fns, 0, arg, 0, 0, 0, [], [])["v"]
+    return aotFnRunG(fns, 0, arg, 0, 0, 0, [], [], [])["v"]
 }
 
 /// Mirror of the entry fn with `ng` zeroed module-global slots —
@@ -676,7 +839,7 @@ pub fn aotFnMirrorG(fns, arg, ng) {
         gl = push(gl, 0)
         i = i + 1
     }
-    return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, [])["v"]
+    return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, [], [])["v"]
 }
 
 /// Mirror of the entry fn with `ng` globals AND an `hq`-qword heap —
@@ -694,7 +857,7 @@ pub fn aotFnMirrorH(fns, arg, ng, hq) {
         hp = push(hp, 0)
         j = j + 1
     }
-    return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, hp)["v"]
+    return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, hp, [])["v"]
 }
 
 /// State-returning mirror — the heap-audit/GC entry point: full
@@ -713,7 +876,7 @@ pub fn aotFnMirrorHS(fns, arg, ng, hq) {
         hp = push(hp, 0)
         j = j + 1
     }
-    return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, hp)
+    return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, hp, [])
 }
 
 /// kabootar-native/1 image for an emitted fn set — one sym per fn

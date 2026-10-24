@@ -66,19 +66,221 @@
 import "kab/aot/aot_x64"
 import "kab/aot/aot_gc"
 
+/// IEEE-754 halves of a Kab f64 → [lo32, hi32] as SIGNED i32s (ready for
+/// x64PushSImm32). Kab cannot reinterpret f64 bits, so this extracts them
+/// arithmetically: sign via 1/v (-0), NaN canonicalized, inf/zero
+/// special-cased, exponent by power-of-two scaling, 52 fraction bits by
+/// successive doubling — every step is exact in binary FP (x2, /2 and
+/// integer subtract within 2^53 never round).
+pub fn aotF64Halves(v) {
+    if v != v {
+        return [0, 2146959360]
+    }
+    let sign = 0
+    // -0 vs +0 is indistinguishable in Kab f64 (and 1/0 would trap), so
+    // only the strict negative test is safe here.
+    if v < 0 {
+        sign = 1
+    }
+    let a = v
+    if a < 0 {
+        a = 0 - a
+    }
+    let sgn = 0
+    if sign == 1 {
+        sgn = -2147483648
+    }
+    if a == 0 {
+        return [0, sgn]
+    }
+    if a / 2 == a {
+        return [0, sgn + 2146435072]
+    }
+    let e = 0
+    while a >= 2 {
+        a = a / 2
+        e = e + 1
+    }
+    while a < 1 {
+        a = a * 2
+        e = e - 1
+    }
+    let frac = 0
+    let biased = e + 1023
+    if biased <= 0 {
+        // Subnormal: mantissa = a * 2^(e+1074) — an exact integer ≤ 2^52.
+        biased = 0
+        let sh = e + 1074
+        let k = 0
+        while k < sh {
+            a = a * 2
+            k = k + 1
+        }
+        frac = a
+    } else {
+        let m = a - 1
+        let k = 0
+        while k < 52 {
+            m = m * 2
+            frac = frac * 2
+            if m >= 1 {
+                frac = frac + 1
+                m = m - 1
+            }
+            k = k + 1
+        }
+    }
+    let flo = frac % 4294967296
+    let fhi = (frac - flo) / 4294967296
+    let hi32 = sgn + biased * 1048576 + fhi
+    let lo32 = flo
+    if lo32 >= 2147483648 {
+        lo32 = lo32 - 4294967296
+    }
+    return [lo32, hi32]
+}
+
 /// Bytes-per-op, used by pass 1 to fix label offsets. -1 = unsupported op
 /// (emit must refuse). Disp sizes: slot offset <= 128 → disp8 forms (5B
 /// load/store), wider → disp32 forms (8B).
 /// op byte-length; `nl` = enclosing fn's locals count (gcollect/hcalloc
 /// spill sequences are proportional to it). Pass 0 when nl is unknown —
 /// collect ops then return -1 rather than lie about their size.
-fn aotFnOpLen(op, nl) {
+// Op-name → fixed byte length for every op whose encoding doesn't
+// depend on operands. Record lookup replaces a ~60-deep if-chain —
+// this function runs several times per machine op (offsets, aotFnOk,
+// emit audit) and dominated interpreted emit time on real images.
+let AOT_LEN_FIXED = {
+    "const": 8, "add": 6, "sub": 6, "mul": 7, "div": 15, "mod": 18,
+    "neg": 5, "bit_not": 5, "not": 11,
+    "lt": 12, "le": 12, "gt": 12, "ge": 12, "eq": 12, "ne": 12,
+    "jmp": 5, "jz": 10, "jnz": 10,
+    "pop": 1, "dup": 5, "swap": 4, "tag": 5, "untag": 5, "is_smi": 10,
+    "jsmi": 9, "jnsmi": 9,
+    "tconst": 8, "tnull": 8, "tundef": 8, "tfalse": 8, "ttrue": 8,
+    "tconst64": 11, "tadd": 6, "tsub": 6, "tneg": 5, "tmul": 10,
+    "tdiv": 24, "tmod": 27,
+    "tband": 17, "tbor": 17, "tbxor": 17, "tbnot": 13,
+    "tshl": 20, "tshr": 20, "tushr": 20, "tpow": 49,
+    "hloadx": 15, "hstorex": 15, "hlen": 17, "htag": 21,
+    "hloadb": 12, "hstoreb": 11, "aget": 16, "aset": 22,
+    "const64": 11, "hkid": 16,
+    "feq": 28, "flt": 28, "fle": 28, "fne": 35, "fgt": 26, "fge": 26,
+    "trap": 2, "ret": 5
+}
+
+// Hot variable-length ops — name → small kind code.
+let AOT_LEN_VARHOT = {
+    "load": 1, "store": 1, "acc_add": 1,
+    "gload": 2, "gstore": 2, "acc_add_g": 2,
+    "hbase": 3, "hlimit": 3,
+    "hload": 4, "hstore": 4,
+    "call0": 5, "call": 6, "call2": 7, "call3": 8, "call4": 9
+}
+
+// Base lengths for call0..call4 before callee-arity padding. When the
+// callee declares more params than the call supplies, the emit side
+// writes `mov rX, 11` (tagged undefined) into each missing arg reg —
+// 7 bytes each — matching the VM's missing-arg-is-undefined rule.
+let AOT_LEN_CALLBASE = [6, 7, 8, 10, 12]
+
+// Missing-arg pad count for a direct call: callee arity beyond the
+// supplied arg count, capped at the 4 register slots. `fa` is the fn
+// arity table; undefined/oob → 0 (validation reports the bounds error).
+fn aotCallPadN(fa, t, want) {
+    if fa == undefined || t < 0 || t >= len(fa) {
+        return 0
+    }
+    let ca = fa[t]
+    if ca > 4 {
+        ca = 4
+    }
+    if ca > want {
+        return ca - want
+    }
+    return 0
+}
+
+// Emit `mov argreg_p, 11` — tagged undefined for one missing arg.
+// Positions: 1=rcx 2=rdx 3=r8 4=r9 (49 prefix for r8/r9).
+fn aotX64PadArg(b, p) {
+    if p == 1 {
+        b = push(b, 72)
+        b = push(b, 199)
+        b = push(b, 193)
+    } else if p == 2 {
+        b = push(b, 72)
+        b = push(b, 199)
+        b = push(b, 194)
+    } else if p == 3 {
+        b = push(b, 73)
+        b = push(b, 199)
+        b = push(b, 192)
+    } else {
+        b = push(b, 73)
+        b = push(b, 199)
+        b = push(b, 193)
+    }
+    b = push(b, 11)
+    b = push(b, 0)
+    b = push(b, 0)
+    b = push(b, 0)
+    return b
+}
+
+pub fn aotFnOpLen(op, nl, fa) {
     let name = op[0]
+    let fx = AOT_LEN_FIXED[name]
+    if fx != undefined {
+        return fx
+    }
+    let vk = AOT_LEN_VARHOT[name]
+    if vk != undefined {
+        if vk >= 5 {
+            // call0..call4: [name, fi] — pad = min(arity,4) - want.
+            if len(op) < 2 {
+                return -1
+            }
+            let cbase = AOT_LEN_CALLBASE[vk - 5]
+            return cbase + 7 * aotCallPadN(fa, op[1], vk - 5)
+        }
+        if len(op) < 2 {
+            return -1
+        }
+        if vk == 1 {
+            if 8 * (op[1] + 1) <= 128 {
+                return 5
+            }
+            return 8
+        }
+        if vk == 2 {
+            if 8 * (op[1] + 1) <= 128 {
+                return 6
+            }
+            return 9
+        }
+        if vk == 3 {
+            if 8 * op[1] + 8 <= 128 {
+                return 6
+            }
+            return 9
+        }
+        if op[1] <= 127 {
+            return 10
+        }
+        return 13
+    }
+    // Cold variable-length ops keep the original name chain.
     // Arity guard: malformed ops must return -1, not deref undefined
     // operands (e.g. ["halloc", -1] is a reject, not a VM crash).
     let olen = len(op)
-    if name == "halloc" || name == "fadd" || name == "fsub" || name == "fmul" || name == "fdiv" {
+    if name == "halloc" || name == "fadd" || name == "fsub" || name == "fmul" || name == "fdiv" || name == "fcast" || name == "fmod" {
         if olen < 3 {
+            return -1
+        }
+    }
+    if name == "smk" {
+        if olen < 5 {
             return -1
         }
     }
@@ -94,6 +296,14 @@ fn aotFnOpLen(op, nl) {
     }
     if name == "callv" {
         if olen < 3 {
+            return -1
+        }
+        if op[1] > 3 && olen < 4 {
+            return -1
+        }
+    }
+    if name == "calln" {
+        if olen < 4 {
             return -1
         }
     }
@@ -172,8 +382,36 @@ fn aotFnOpLen(op, nl) {
     if name == "call0" {
         return 6
     }
+    if name == "calln" {
+        // ["calln", fi, n, scr] — direct call with n >= 5 args: extra
+        // args a5..a_n pop into scratch locals scr..scr+n-5, a4..a1 pop
+        // into r9/r8/rdx/rcx, the extras push back (a_n first so a5
+        // lands topmost → [rsp+8] at callee entry), E8 rel32,
+        // add rsp,8*(n-4) caller cleanup, push rax.
+        let cna = op[2]
+        let cnk = 0
+        // add rsp: imm8 while 8*(n-4) <= 127 (n <= 19), imm32 at n = 20.
+        let cnn = 6 + 5 + 4 + 1
+        if 8 * (cna - 4) > 127 {
+            cnn = cnn + 3
+        }
+        while cnk < cna - 4 {
+            cnn = cnn + 1 + aotX64LocalLen(op[3] + cnk)
+            cnn = cnn + aotX64LocalLen(op[3] + cnk) + 1
+            cnk = cnk + 1
+        }
+        return cnn
+    }
     if name == "pop" {
         return 1
+    }
+    if name == "dup" {
+        // 48 8B 04 24 mov rax,[rsp] + 50 push rax = 5.
+        return 5
+    }
+    if name == "swap" {
+        // 58 pop rax; 5A pop rdx; 52 push rdx; 50 push rax = 4.
+        return 4
     }
     if name == "tag" || name == "untag" {
         return 5
@@ -189,6 +427,9 @@ fn aotFnOpLen(op, nl) {
     if name == "tconst" || name == "tnull" || name == "tundef" || name == "tfalse" || name == "ttrue" {
         return 8
     }
+    if name == "tconst64" {
+        return 11
+    }
     if name == "tadd" || name == "tsub" {
         return 6
     }
@@ -203,6 +444,28 @@ fn aotFnOpLen(op, nl) {
     }
     if name == "tmod" {
         return 27
+    }
+    // tv1 bitwise: detag both (sar 1), 32-bit op, sign-extend, retag.
+    if name == "tband" || name == "tbor" || name == "tbxor" {
+        // pop rbx;pop rax;sar rbx,1;sar rax,1;<op> eax,ebx;
+        // movsxd rax,eax;shl rax,1;push = 1+1+3+3+2+3+3+1.
+        return 17
+    }
+    if name == "tbnot" {
+        // pop rax;sar rax,1;not eax;movsxd rax,eax;shl rax,1;push.
+        return 13
+    }
+    if name == "tshl" || name == "tshr" || name == "tushr" {
+        // pop rcx;sar rcx,1;pop rax;sar rax,1;and ecx,31;
+        // <sh> eax,cl;movsxd rax,eax;shl rax,1;push.
+        return 20
+    }
+    if name == "tpow" {
+        // pop rcx;pop rax;sar rcx,1;sar rax,1;test rcx,rcx;jns+2;ud2;
+        // mov rdx,rax;mov eax,1;loop{test rcx,rcx;jz+13;imul rax,rdx;
+        // jno+2;ud2;dec rcx;jmp-18};shl rax,1;jno+2;ud2;push.
+        // head 23 + loop 18 + tail 8 = 49.
+        return 49
     }
     if name == "hbase" || name == "hlimit" {
         if 8 * op[1] + 8 <= 128 {
@@ -247,7 +510,7 @@ fn aotFnOpLen(op, nl) {
         return 16
     }
     if name == "aset" {
-        return 18
+        return 22
     }
     if name == "const64" {
         return 11
@@ -274,6 +537,75 @@ fn aotFnOpLen(op, nl) {
             fan = fan + 3
         }
         return fan
+    }
+    if name == "fcast" {
+        // ["fcast", bump, limit] — pop/sar/cvtsi2sd (9) + alloc tail (48:
+        // movq [rdx+8],xmm0 is 6B).
+        let cn = 57
+        if 8 * op[1] + 8 > 128 {
+            cn = cn + 6
+        }
+        if 8 * op[2] + 8 > 128 {
+            cn = cn + 3
+        }
+        return cn
+    }
+    if name == "fmod" {
+        // ["fmod", bump, limit] — SSE prologue (42: movsd/divsd reg-reg
+        // are 4B) + alloc tail (47: movsd [rdx+8],xmm0 is 5B).
+        let mn2 = 89
+        if 8 * op[1] + 8 > 128 {
+            mn2 = mn2 + 6
+        }
+        if 8 * op[2] + 8 > 128 {
+            mn2 = mn2 + 3
+        }
+        return mn2
+    }
+    if name == "hkid" {
+        // ["hkid"] — pop; and; mov; shr 32; shl 1; push.
+        return 16
+    }
+    if name == "smk" {
+        // ["smk", bump, limit, text, kid] — alloc prologue + hdr movabs
+        // store + per-byte C6 stores + or/push tail.
+        let sl2 = len(op[3])
+        let sq2 = 1 + (sl2 + 7) / 8
+        let bigBump = 8 * op[1] + 8 > 128
+        let bigLim = 8 * op[2] + 8 > 128
+        let bigSize = sq2 * 8 > 127
+        let smn = 5
+        if bigBump {
+            smn = smn + 3
+        }
+        smn = smn + 4
+        if bigSize {
+            smn = smn + 3
+        }
+        smn = smn + 5
+        if bigLim {
+            smn = smn + 3
+        }
+        smn = smn + 4
+        smn = smn + 5
+        if bigBump {
+            smn = smn + 3
+        }
+        smn = smn + 3 + 4
+        if bigSize {
+            smn = smn + 3
+        }
+        smn = smn + 13
+        let sb2 = 0
+        while sb2 < (sq2 - 1) * 8 {
+            if 8 + sb2 <= 127 {
+                smn = smn + 4
+            } else {
+                smn = smn + 7
+            }
+            sb2 = sb2 + 1
+        }
+        return smn + 5
     }
     if name == "feq" || name == "flt" || name == "fle" {
         // pop rdx; pop rcx; untag×2; movsd xmm0,[rcx+8]; xor eax,eax;
@@ -329,18 +661,42 @@ fn aotFnOpLen(op, nl) {
         // per candidate); ud2 when the index matches none.
         let vn = 1 + 3 + 2 + 2 + 3 + 4 + 4 + 2 + 1
         let na = op[1]
-        if na > 0 {
-            vn = vn + 1
+        if na <= 3 {
+            // Cumulative reg pops live in the na<=3 branch — the na>3
+            // spill block pops all three regs itself (counted below).
+            if na > 0 {
+                vn = vn + 1
+            }
+            if na > 1 {
+                vn = vn + 2
+            }
+            if na > 2 {
+                vn = vn + 2
+            }
         }
-        if na > 1 {
-            vn = vn + 2
-        }
-        if na > 2 {
-            vn = vn + 2
+        if na > 3 {
+            // Extra args a4..a_n spill: pop→store scratch (na-3),
+            // pop r9/r8/rdx (5B), reload→push, then add rsp caller
+            // cleanup (4B imm8 / 7B imm32 — na=19 → 128 bytes).
+            let vk2 = 0
+            while vk2 < na - 3 {
+                vn = vn + 1 + aotX64LocalLen(op[3] + vk2)
+                vn = vn + aotX64LocalLen(op[3] + vk2) + 1
+                vk2 = vk2 + 1
+            }
+            vn = vn + 5 + 4
+            if 8 * (na - 3) > 127 {
+                vn = vn + 3
+            }
         }
         let vi = 0
         while vi < len(op[2]) {
-            vn = vn + 4 + 2 + 5 + 5
+            // cmp r10,imm8 (4B) or cmp r10,imm32 (7B) + jne + call + jmp.
+            if op[2][vi] > 127 {
+                vn = vn + 7 + 2 + 5 + 5
+            } else {
+                vn = vn + 4 + 2 + 5 + 5
+            }
             vi = vi + 1
         }
         return vn
@@ -384,7 +740,7 @@ fn aotFnOpLen(op, nl) {
 /// mov rdx,rsi 3B for arg2 — win64 needs none since the private
 /// convention already IS rcx/rdx) + entry globals-base load (3B) when
 /// the module uses data globals.
-fn aotFnProLen(nlocals, arity, isEntry, abi, needR12) {
+pub fn aotFnProLen(nlocals, arity, isEntry, abi, needR12) {
     let n = 6
     if nlocals > 0 {
         if nlocals * 8 <= 127 {
@@ -393,7 +749,18 @@ fn aotFnProLen(nlocals, arity, isEntry, abi, needR12) {
             n = n + 7
         }
     }
-    n = n + arity * 4
+    // Arg spill: locals 0..3 seed from the arg regs; locals 4..arity-1
+    // are caller stack args — each costs a positive-disp load +
+    // local store ([rbp+24+8*(i-4)] → [rbp-8*(i+1)]).
+    let pa = 0
+    while pa < arity && pa < 4 {
+        n = n + aotX64LocalLen(pa)
+        pa = pa + 1
+    }
+    while pa < arity {
+        n = n + aotX64LdPosLen(24 + 8 * (pa - 4)) + aotX64LocalLen(pa)
+        pa = pa + 1
+    }
     if isEntry && abi == "sysv" {
         n = n + arity * 3
     }
@@ -404,7 +771,7 @@ fn aotFnProLen(nlocals, arity, isEntry, abi, needR12) {
 }
 
 /// Emit the prologue (+ entry ABI normalization when isEntry).
-fn aotFnPro(b, nlocals, arity, isEntry, abi, needR12) {
+pub fn aotFnPro(b, nlocals, arity, isEntry, abi, needR12) {
     // 41 54 push r12 — first, so it sits ABOVE saved rbp at [rbp+8] and
     // leave+pop r12 restores it. 55 push rbp; 48 89 E5 mov rbp,rsp.
     b = push(b, 65)
@@ -473,7 +840,47 @@ fn aotFnPro(b, nlocals, arity, isEntry, abi, needR12) {
     if arity >= 4 {
         b = aotFnStoreRegH(b, 3, 77)
     }
+    // Stack args (calln/callv spill convention): local i≥4 sits at
+    // [rbp+24+8*(i-4)] — entry rsp+8, then +8 for pushed r12 and +8 for
+    // pushed rbp. Seed each into its local slot.
+    let si = 4
+    while si < arity {
+        b = aotX64LdPos(b, 24 + 8 * (si - 4))
+        b = aotFnStoreReg(b, si, 69)
+        si = si + 1
+    }
     return b
+}
+
+/// Byte length of one `mov r?,[rbp-8*(i+1)]` / `mov [rbp-…],r?` local
+/// access — disp8 (4B) when 8*(i+1)<=128 else disp32 (7B).
+fn aotX64LocalLen(i) {
+    if 8 * (i + 1) <= 128 {
+        return 4
+    }
+    return 7
+}
+
+/// mov rax, [rbp + off] — positive-disp load (stack args above the
+/// saved rbp); 48 8B 45 ib / 48 8B 85 d32.
+fn aotX64LdPos(b, off) {
+    b = push(b, 72)
+    b = push(b, 139)
+    if off <= 127 {
+        b = push(b, 69)
+        b = push(b, off)
+    } else {
+        b = push(b, 133)
+        b = x64PushSImm32(b, off)
+    }
+    return b
+}
+
+fn aotX64LdPosLen(off) {
+    if off <= 127 {
+        return 4
+    }
+    return 7
 }
 
 /// mov [rbp - 8*(i+1)], <reg> — modrm is 0x45/0x85 + reg*8 encoding; the
@@ -663,7 +1070,7 @@ fn aotX64GcCallLen(bumpOff) {
     return aotX64R12LdLen(bumpOff) + aotX64R12StLen(bumpOff) + 33
 }
 
-fn aotX64GcCall(b, bump, lo, rc, gcIdx, fnOffs) {
+fn aotX64GcCall(b, bump, lo, rc, gcIdx, fnOffs, bOff) {
     let bumpOff = 8 * bump
     b = aotX64R12Ld(b, bumpOff, 1)
     // 4C 29 E1 sub rcx,r12; 48 C1 E9 03 shr rcx,3 — addr → qword idx.
@@ -686,7 +1093,7 @@ fn aotX64GcCall(b, bump, lo, rc, gcIdx, fnOffs) {
     b = push(b, 225)
     // E8 rel32 — len(b) is the absolute offset of the rel32 field.
     b = push(b, 232)
-    b = x64PushSImm32(b, fnOffs[gcIdx] - (len(b) + 4))
+    b = x64PushSImm32(b, fnOffs[gcIdx] - (len(b) + bOff + 4))
     // 48 C1 E0 03 shl rax,3; 4C 01 E0 add rax,r12 — idx → addr.
     b = push(b, 72)
     b = push(b, 193)
@@ -772,12 +1179,12 @@ fn aotFnCmp(b, name) {
 
 /// Pass 1: byte offset of every op in a fn body (base = the fn's start
 /// offset inside the combined image). Returns [] on any unknown op.
-fn aotFnOpOffsets(ops, base, nl) {
+pub fn aotFnOpOffsets(ops, base, nl, fa) {
     let offs = []
     let cur = base
     let i = 0
     while i < len(ops) {
-        let l = aotFnOpLen(ops[i], nl)
+        let l = aotFnOpLen(ops[i], nl, fa)
         if l < 0 {
             return []
         }
@@ -793,26 +1200,53 @@ fn aotFnOpOffsets(ops, base, nl) {
 /// fn's locals count (collect spill size); `gcIdx` is the appended
 /// __gc_collect fn index (gcollect/hcalloc ops — always present when
 /// such ops exist since aotX64EmitFns appends the collector).
-fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
-    let i = 0
-    while i < len(ops) {
+// Emit dispatch table — name -> branch code. One record lookup
+// replaces the long string-compare chain per op; ops missing
+// from the table fall through untouched (same as before).
+let AOT_EMIT_CODE = {
+    "const": 1, "load": 2, "store": 3, "acc_add": 4, "add": 5,
+    "sub": 5, "mul": 5, "div": 6, "mod": 6, "neg": 7,
+    "bit_not": 8, "not": 9, "acc_add_g": 10, "gload": 11, "gstore": 12,
+    "lt": 13, "le": 13, "gt": 13, "ge": 13, "eq": 13,
+    "ne": 13, "jmp": 14, "jz": 15, "jnz": 15, "call": 16,
+    "call2": 17, "call0": 18, "call3": 19, "call4": 20, "calln": 21,
+    "pop": 22, "dup": 23, "swap": 24, "tag": 25, "untag": 26,
+    "is_smi": 27, "jsmi": 28, "jnsmi": 28, "tconst": 29, "tconst64": 30,
+    "tnull": 31, "tundef": 31, "tfalse": 31, "ttrue": 31, "tadd": 32,
+    "tsub": 32, "tneg": 33, "tmul": 34, "tdiv": 35, "tmod": 35,
+    "tband": 36, "tbor": 36, "tbxor": 36, "tbnot": 37, "tshl": 38,
+    "tshr": 38, "tushr": 38, "tpow": 39, "hbase": 40, "hlimit": 40,
+    "halloc": 41, "hload": 42, "hstore": 43, "hloadx": 44, "hstorex": 45,
+    "hlen": 46, "htag": 47, "hloadb": 48, "hstoreb": 49, "aget": 50,
+    "aset": 51, "const64": 52, "fmk": 53, "hkid": 54, "smk": 55,
+    "fcast": 56, "fadd": 57, "fsub": 57, "fmul": 57, "fdiv": 57,
+    "fmod": 58, "feq": 59, "fne": 59, "flt": 59, "fle": 59,
+    "fgt": 59, "fge": 59, "mkclo": 60, "callv": 61, "trap": 62,
+    "gcollect": 63, "hcalloc": 64, "ret": 65
+}
+
+// i0..i1 lets a driver emit an op range into a fresh byte buffer (chunked
+// emit of huge fns); bOff is the absolute image offset that len(b) counts
+// from — absolute-position uses (audit, gc call rel32) add it back so both
+// whole-image (bOff=0) and staged per-fn (bOff=fnOffs/chunk offs) emit agree.
+pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
+    let i = i0
+    while i < i1 {
         let op = ops[i]
         let name = op[0]
-        if name == "const" {
+        let ek = AOT_EMIT_CODE[name]
+        if ek == 1 {
             // 48 C7 C0 imm32 = mov rax, sext imm32 (honest i64 sign); push.
             b = push(b, 72)
             b = push(b, 199)
             b = push(b, 192)
             b = x64PushSImm32(b, op[1])
             b = push(b, 80)
-        }
-        if name == "load" {
+        } else if ek == 2 {
             b = aotFnLoadLocal(b, op[1])
-        }
-        if name == "store" {
+        } else if ek == 3 {
             b = aotFnStoreLocal(b, op[1])
-        }
-        if name == "acc_add" {
+        } else if ek == 4 {
             // 58 pop rax; 48 01 45 d8 add [rbp+disp], rax — local += rhs.
             b = push(b, 88)
             let aoff = 8 * (op[1] + 1)
@@ -825,11 +1259,9 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
                 b = push(b, 133)
                 b = x64PushSImm32(b, 0 - aoff)
             }
-        }
-        if name == "add" || name == "sub" || name == "mul" {
+        } else if ek == 5 {
             b = aotFnBinop(b, name)
-        }
-        if name == "div" || name == "mod" {
+        } else if ek == 6 {
             // 59 pop rcx (divisor); 58 pop rax; 48 85 C9 test rcx,rcx;
             // 75 02 jnz +2; 0F 0B ud2 — divide-by-zero TRAPS (SIGILL):
             // Kab throws "Integer division by zero" but the native i64
@@ -857,24 +1289,21 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
                 b = push(b, 208)
             }
             b = push(b, 80)
-        }
-        if name == "neg" {
+        } else if ek == 7 {
             // 58 pop rax; 48 F7 D8 neg rax; 50 push rax.
             b = push(b, 88)
             b = push(b, 72)
             b = push(b, 247)
             b = push(b, 216)
             b = push(b, 80)
-        }
-        if name == "bit_not" {
+        } else if ek == 8 {
             // 58 pop rax; 48 F7 D0 not rax; 50 push rax.
             b = push(b, 88)
             b = push(b, 72)
             b = push(b, 247)
             b = push(b, 208)
             b = push(b, 80)
-        }
-        if name == "not" {
+        } else if ek == 9 {
             // 58 pop rax; 48 85 C0 test rax,rax; 0F 94 C0 setz al;
             // 0F B6 C0 movzx eax,al; 50 push rax — pushes 1 when the
             // popped value is 0, else 0 (i64 truthiness).
@@ -889,8 +1318,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 182)
             b = push(b, 192)
             b = push(b, 80)
-        }
-        if name == "acc_add_g" {
+        } else if ek == 10 {
             // 58 pop rax; 49 01 44 24 d8 / 49 01 84 24 d32 —
             // add [r12+off], rax — globals[g] += rhs.
             let aoff = 8 * op[1]
@@ -906,8 +1334,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
                 b = push(b, 36)
                 b = x64PushSImm32(b, aoff)
             }
-        }
-        if name == "gload" {
+        } else if ek == 11 {
             // 49 8B 44 24 d8 (disp8) / 49 8B 84 24 d32 — mov rax,[r12+off];
             // 50 push rax. r12 = the image data page (globals base).
             let goff = 8 * op[1]
@@ -923,8 +1350,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
                 b = x64PushSImm32(b, goff)
             }
             b = push(b, 80)
-        }
-        if name == "gstore" {
+        } else if ek == 12 {
             // 58 pop rax; 49 89 44 24 d8 / 49 89 84 24 d32 —
             // mov [r12+off], rax.
             let goff2 = 8 * op[1]
@@ -940,17 +1366,14 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
                 b = push(b, 36)
                 b = x64PushSImm32(b, goff2)
             }
-        }
-        if name == "lt" || name == "le" || name == "gt" || name == "ge" || name == "eq" || name == "ne" {
+        } else if ek == 13 {
             b = aotFnCmp(b, name)
-        }
-        if name == "jmp" {
+        } else if ek == 14 {
             // E9 rel32 — target is op index op[1]; rel = dst - next insn.
             b = push(b, 233)
             let next = offs[i] + 5
             b = x64PushSImm32(b, offs[op[1]] - next)
-        }
-        if name == "jz" || name == "jnz" {
+        } else if ek == 15 {
             // 58 pop rax; 48 85 C0 test rax,rax; 0F 84/85 rel32.
             b = push(b, 88)
             b = push(b, 72)
@@ -964,47 +1387,66 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             }
             let next2 = offs[i] + 10
             b = x64PushSImm32(b, offs[op[1]] - next2)
-        }
-        if name == "call" {
+        } else if ek == 16 {
             // 59 pop rcx (arg lands in the private arg1 reg directly);
+            // missing-arg pads (mov rX,11) for callee arity > 1;
             // E8 rel32; 50 push rax.
             b = push(b, 89)
+            let cp1 = aotCallPadN(fa, op[1], 1)
+            let cpa1 = 0
+            while cpa1 < cp1 {
+                b = aotX64PadArg(b, cpa1 + 2)
+                cpa1 = cpa1 + 1
+            }
             b = push(b, 232)
-            let next3 = offs[i] + 6
+            let next3 = offs[i] + 6 + 7 * cp1
             b = x64PushSImm32(b, fnOffs[op[1]] - next3)
             b = push(b, 80)
-        }
-        if name == "call2" {
+        } else if ek == 17 {
             // 5A pop rdx (arg2) + 59 pop rcx (arg1) — both land in the
-            // private arg regs; E8 rel32; 50 push rax.
+            // private arg regs; missing-arg pads; E8 rel32; 50 push rax.
             b = push(b, 90)
             b = push(b, 89)
+            let cp2 = aotCallPadN(fa, op[1], 2)
+            let cpa2 = 0
+            while cpa2 < cp2 {
+                b = aotX64PadArg(b, cpa2 + 3)
+                cpa2 = cpa2 + 1
+            }
             b = push(b, 232)
-            let next4 = offs[i] + 7
+            let next4 = offs[i] + 7 + 7 * cp2
             b = x64PushSImm32(b, fnOffs[op[1]] - next4)
             b = push(b, 80)
-        }
-        if name == "call0" {
-            // E8 rel32; 50 push rax — no args to move.
+        } else if ek == 18 {
+            // E8 rel32; 50 push rax — no args to move, but a callee
+            // with declared arity > 0 still gets undefined pads.
+            let cp0 = aotCallPadN(fa, op[1], 0)
+            let cpa0 = 0
+            while cpa0 < cp0 {
+                b = aotX64PadArg(b, cpa0 + 1)
+                cpa0 = cpa0 + 1
+            }
             b = push(b, 232)
-            let next5 = offs[i] + 5
+            let next5 = offs[i] + 5 + 7 * cp0
             b = x64PushSImm32(b, fnOffs[op[1]] - next5)
             b = push(b, 80)
-        }
-        if name == "call3" {
-            // 41 58 pop r8 (arg3); 5A pop rdx; 59 pop rcx; E8 rel32;
-            // 50 push rax — three args into the private convention.
+        } else if ek == 19 {
+            // 41 58 pop r8 (arg3); 5A pop rdx; 59 pop rcx; missing-arg
+            // pad for a 4-param callee; E8 rel32; 50 push rax.
             b = push(b, 65)
             b = push(b, 88)
             b = push(b, 90)
             b = push(b, 89)
+            let cp3 = aotCallPadN(fa, op[1], 3)
+            if cp3 > 0 {
+                b = aotX64PadArg(b, 4)
+            }
             b = push(b, 232)
-            // rel32 base = the insn AFTER the call: 4B pops + 5B call = +9.
-            let next6 = offs[i] + 9
+            // rel32 base = insn AFTER the call: pops + pads + 5B call.
+            let next6 = offs[i] + 9 + 7 * cp3
             b = x64PushSImm32(b, fnOffs[op[1]] - next6)
             b = push(b, 80)
-        }
-        if name == "call4" {
+        } else if ek == 20 {
             // 41 59 pop r9; 41 58 pop r8; 5A pop rdx; 59 pop rcx;
             // E8 rel32; 50 push rax.
             b = push(b, 65)
@@ -1018,29 +1460,87 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             let next7 = offs[i] + 11
             b = x64PushSImm32(b, fnOffs[op[1]] - next7)
             b = push(b, 80)
-        }
-        if name == "pop" {
+        } else if ek == 21 {
+            // ["calln", fi, n, scr] — n >= 5 args: a5..a_n pop into
+            // scratch locals (top-down: scr+0 gets a_n), a4..a1 pop into
+            // r9/r8/rdx/rcx, extras push back a_n..a_5 (a5 topmost),
+            // E8 rel32, add rsp,8*(n-4), push rax.
+            let cn3 = op[2]
+            let cs3 = op[3]
+            let ck3 = 0
+            while ck3 < cn3 - 4 {
+                b = push(b, 88)
+                b = aotFnStoreReg(b, cs3 + ck3, 69)
+                ck3 = ck3 + 1
+            }
+            b = push(b, 65)
+            b = push(b, 89)
+            b = push(b, 65)
+            b = push(b, 88)
+            b = push(b, 90)
+            b = push(b, 89)
+            ck3 = 0
+            while ck3 < cn3 - 4 {
+                b = aotFnLoadLocal(b, cs3 + ck3)
+                ck3 = ck3 + 1
+            }
+            b = push(b, 232)
+            let cncl = 4
+            if 8 * (cn3 - 4) > 127 {
+                cncl = 7
+            }
+            // rel32 base = the insn AFTER the call: the trailing
+            // add-rsp cleanup (cncl) and push rax (1) follow the E8.
+            let cnext = offs[i] + aotFnOpLen(op, nl, fa) - cncl - 1
+            b = x64PushSImm32(b, fnOffs[op[1]] - cnext)
+            // Caller-owned stack args: 48 83 C4 ib when the total fits
+            // imm8, else 48 81 C4 imm32 (n = 20 → 128 bytes).
+            if 8 * (cn3 - 4) <= 127 {
+                b = push(b, 72)
+                b = push(b, 131)
+                b = push(b, 196)
+                b = push(b, 8 * (cn3 - 4))
+            } else {
+                b = push(b, 72)
+                b = push(b, 129)
+                b = push(b, 196)
+                b = x64PushSImm32(b, 8 * (cn3 - 4))
+            }
+            b = push(b, 80)
+        } else if ek == 22 {
             // 58 pop rax — discard the top of the value stack.
             b = push(b, 88)
+        } else if ek == 23 {
+            // 48 8B 04 24 mov rax,[rsp]; 50 push rax — copy the top.
+            b = push(b, 72)
+            b = push(b, 139)
+            b = push(b, 4)
+            b = push(b, 36)
+            b = push(b, 80)
+        } else if ek == 24 {
+            // 58 pop rax; 5A pop rdx; 50 push rax; 52 push rdx —
+            // [a,b] → [b,a] (rax=b lands under rdx=a).
+            b = push(b, 88)
+            b = push(b, 90)
+            b = push(b, 80)
+            b = push(b, 82)
         }
         // --- aot-tv1: tagged value ops (docs/AOT-VALUES.md layout) ---
-        if name == "tag" {
+        else if ek == 25 {
             // 58 pop rax; 48 D1 E0 shl rax,1; 50 push — raw → SMI.
             b = push(b, 88)
             b = push(b, 72)
             b = push(b, 209)
             b = push(b, 224)
             b = push(b, 80)
-        }
-        if name == "untag" {
+        } else if ek == 26 {
             // 58 pop rax; 48 D1 F8 sar rax,1; 50 push — SMI → raw.
             b = push(b, 88)
             b = push(b, 72)
             b = push(b, 209)
             b = push(b, 248)
             b = push(b, 80)
-        }
-        if name == "is_smi" {
+        } else if ek == 27 {
             // 58 pop rax; A8 01 test al,1; 0F 94 C0 setz al;
             // 0F B6 C0 movzx eax,al; 50 push — RAW 1 when bit0==0.
             b = push(b, 88)
@@ -1053,8 +1553,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 182)
             b = push(b, 192)
             b = push(b, 80)
-        }
-        if name == "jsmi" || name == "jnsmi" {
+        } else if ek == 28 {
             // 58 pop rax; A8 01 test al,1; 0F 84/85 rel32 — type
             // dispatch: jsmi jumps when bit0==0 (SMI), jnsmi when set.
             b = push(b, 88)
@@ -1068,16 +1567,21 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             }
             let nextT = offs[i] + 9
             b = x64PushSImm32(b, offs[op[1]] - nextT)
-        }
-        if name == "tconst" {
+        } else if ek == 29 {
             // 48 C7 C0 imm32 = mov rax, sext(v<<1); push — tag folded.
             b = push(b, 72)
             b = push(b, 199)
             b = push(b, 192)
             b = x64PushSImm32(b, op[1] * 2)
             b = push(b, 80)
-        }
-        if name == "tnull" || name == "tundef" || name == "tfalse" || name == "ttrue" {
+        } else if ek == 30 {
+            // 48 B8 imm64 movabs rax,(v<<1); push — tagged const beyond
+            // the sext-imm32 window. x64PushU64 normalizes negative bytes.
+            b = push(b, 72)
+            b = push(b, 184)
+            b = x64PushU64(b, op[1] * 2)
+            b = push(b, 80)
+        } else if ek == 31 {
             // mov rax, imm32((subtag<<3)|3); push — tagged immediate.
             let sub = 0
             if name == "tundef" {
@@ -1094,8 +1598,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 192)
             b = x64PushSImm32(b, sub * 8 + 3)
             b = push(b, 80)
-        }
-        if name == "tadd" || name == "tsub" {
+        } else if ek == 32 {
             // (a<<1)±(b<<1) = (a±b)<<1 — the raw op IS the tagged op.
             b = push(b, 89)
             b = push(b, 88)
@@ -1107,16 +1610,14 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             }
             b = push(b, 200)
             b = push(b, 80)
-        }
-        if name == "tneg" {
+        } else if ek == 33 {
             // -(a<<1) = (-a)<<1 — identical to raw neg.
             b = push(b, 88)
             b = push(b, 72)
             b = push(b, 247)
             b = push(b, 216)
             b = push(b, 80)
-        }
-        if name == "tmul" {
+        } else if ek == 34 {
             // 59 pop rcx; 48 D1 F9 sar rcx,1 (untag rhs); 58 pop rax;
             // 48 0F AF C1 imul rax,rcx; 50 push → (a<<1)*b = (a*b)<<1.
             b = push(b, 89)
@@ -1129,8 +1630,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 175)
             b = push(b, 193)
             b = push(b, 80)
-        }
-        if name == "tdiv" || name == "tmod" {
+        } else if ek == 35 {
             // 59 pop rcx; 48 D1 F9 sar rcx,1; 58 pop rax; 48 D1 F8
             // sar rax,1 — untag both; then the same zero-check+idiv as
             // the raw div; 48 D1 E0 shl rax,1 — retag the result.
@@ -1164,9 +1664,154 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 209)
             b = push(b, 224)
             b = push(b, 80)
+        } else if ek == 36 {
+            // JS i32 semantics on tagged SMIs: detag both (sar 1),
+            // 32-bit <op> eax,ebx truncates operands to their low 32
+            // (to_int32 for i64 inputs), movsxd sign-extends the i32
+            // result, shl 1 retags. and/or/xor are commutative — pop
+            // order irrelevant. 5B pop rbx; 58 pop rax; 48 D1 FB sar
+            // rbx,1; 48 D1 F8 sar rax,1; <op>; 48 63 C0 movsxd rax,eax;
+            // 48 D1 E0 shl rax,1; 50 push.
+            b = push(b, 91)
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 251)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 248)
+            if name == "tband" {
+                b = push(b, 33)
+            }
+            if name == "tbor" {
+                b = push(b, 9)
+            }
+            if name == "tbxor" {
+                b = push(b, 49)
+            }
+            b = push(b, 216)
+            b = push(b, 72)
+            b = push(b, 99)
+            b = push(b, 192)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 224)
+            b = push(b, 80)
+        } else if ek == 37 {
+            // 58 pop rax; 48 D1 F8 sar rax,1; F7 D0 not eax (i32);
+            // 48 63 C0 movsxd rax,eax; 48 D1 E0 shl rax,1; 50 push.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 248)
+            b = push(b, 247)
+            b = push(b, 208)
+            b = push(b, 72)
+            b = push(b, 99)
+            b = push(b, 192)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 224)
+            b = push(b, 80)
+        } else if ek == 38 {
+            // 59 pop rcx (count); 48 D1 F9 sar rcx,1; 58 pop rax;
+            // 48 D1 F8 sar rax,1; 83 E1 1F and ecx,31 (JS &0x1f);
+            // D3 E0/D3 F8/D3 E8 shl/sar/shr eax,cl (i32 op);
+            // 48 63 C0 movsxd rax,eax; 48 D1 E0 shl rax,1; 50 push.
+            b = push(b, 89)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 249)
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 248)
+            b = push(b, 131)
+            b = push(b, 225)
+            b = push(b, 31)
+            b = push(b, 211)
+            if name == "tshl" {
+                b = push(b, 224)
+            }
+            if name == "tshr" {
+                b = push(b, 248)
+            }
+            if name == "tushr" {
+                b = push(b, 232)
+            }
+            b = push(b, 72)
+            b = push(b, 99)
+            b = push(b, 192)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 224)
+            b = push(b, 80)
+        } else if ek == 39 {
+            // Tagged SMI pow: 59 pop rcx (exp); 58 pop rax (base);
+            // 48 D1 F9 sar rcx,1; 48 D1 F8 sar rax,1 — detag;
+            // 48 85 C9 test rcx,rcx; 79 02 jns +2; 0F 0B ud2 —
+            // exp<0 traps (host would give Float; no fpow op exists);
+            // 48 89 C2 mov rdx,rax (base); B8 01..00 mov eax,1 (acc);
+            // loop: 48 85 C9 test rcx,rcx; 74 0D jz +13 → done;
+            // 48 0F AF C2 imul rax,rdx; 71 02 jno +2; 0F 0B ud2 —
+            // i64 overflow traps (host folds to Float);
+            // 48 FF C9 dec rcx; EB EE jmp -18 → loop;
+            // done: 48 D1 E0 shl rax,1; 71 02 jno +2; 0F 0B ud2 —
+            // result past SMI range traps; 50 push.
+            b = push(b, 89)
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 249)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 248)
+            b = push(b, 72)
+            b = push(b, 133)
+            b = push(b, 201)
+            b = push(b, 121)
+            b = push(b, 2)
+            b = push(b, 15)
+            b = push(b, 11)
+            b = push(b, 72)
+            b = push(b, 137)
+            b = push(b, 194)
+            b = push(b, 184)
+            b = push(b, 1)
+            b = push(b, 0)
+            b = push(b, 0)
+            b = push(b, 0)
+            // loop head (18-byte body back to here):
+            b = push(b, 72)
+            b = push(b, 133)
+            b = push(b, 201)
+            b = push(b, 116)
+            b = push(b, 13)
+            b = push(b, 72)
+            b = push(b, 15)
+            b = push(b, 175)
+            b = push(b, 194)
+            b = push(b, 113)
+            b = push(b, 2)
+            b = push(b, 15)
+            b = push(b, 11)
+            b = push(b, 72)
+            b = push(b, 255)
+            b = push(b, 201)
+            b = push(b, 235)
+            b = push(b, 238)
+            // done: retag + OF guard + push.
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 224)
+            b = push(b, 113)
+            b = push(b, 2)
+            b = push(b, 15)
+            b = push(b, 11)
+            b = push(b, 80)
         }
         // --- aot-tv1: Kab-owned heap (bump allocator on the data page) ---
-        if name == "hbase" || name == "hlimit" {
+        else if ek == 40 {
             // 49 8D 44 24 d8 / 49 8D 84 24 d32 = lea rax,[r12+n*8];
             // (REX.B required — without it the SIB base decodes as rsp;
             // REX.R must be clear or the dest becomes r8)
@@ -1185,8 +1830,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
                 b = x64PushSImm32(b, hoff)
             }
             b = push(b, 80)
-        }
-        if name == "halloc" {
+        } else if ek == 41 {
             // ["halloc", bump, limit] — bound-checked bump-alloc of nw
             // qwords: pop rax (nw); shl rax,3; rcx = [r12+bump] (old top);
             // add rcx,rax; if rcx > [r12+limit] → ud2 (honest fault —
@@ -1254,8 +1898,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 202)
             b = push(b, 1)
             b = push(b, 82)
-        }
-        if name == "hload" {
+        } else if ek == 42 {
             // 58 pop rax (tagged ptr); 48 83 E0 FE and rax,-2 (strip tag);
             // mov rax,[rax+off]; push. off = byte offset inside the cell.
             b = push(b, 88)
@@ -1273,8 +1916,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
                 b = x64PushSImm32(b, op[1])
             }
             b = push(b, 80)
-        }
-        if name == "hstore" {
+        } else if ek == 43 {
             // 58 pop rax (val); 5A pop rdx (tagged ptr); 48 83 E2 FE
             // and rdx,-2; mov [rdx+off], rax.
             b = push(b, 88)
@@ -1292,8 +1934,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
                 b = push(b, 130)
                 b = x64PushSImm32(b, op[1])
             }
-        }
-        if name == "hloadx" {
+        } else if ek == 44 {
             // Runtime-indexed load: stack [ptr, idx] → 58 pop rax (idx);
             // 48 C1 E0 03 shl rax,3; 5A pop rdx (ptr); 48 83 E2 FE
             // and rdx,-2; 48 8B 04 02 mov rax,[rdx+rax]; 50 push.
@@ -1312,8 +1953,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 4)
             b = push(b, 2)
             b = push(b, 80)
-        }
-        if name == "hstorex" {
+        } else if ek == 45 {
             // Runtime-indexed store: stack [ptr, idx, val] →
             // 58 pop rax (val); 59 pop rcx (idx); 48 C1 E1 03 shl rcx,3;
             // 5A pop rdx (ptr); 48 83 E2 FE and rdx,-2;
@@ -1333,8 +1973,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 137)
             b = push(b, 4)
             b = push(b, 10)
-        }
-        if name == "hlen" {
+        } else if ek == 46 {
             // [ptr] → tagged cell length: pop rax; and rax,-2;
             // mov rax,[rax] (header qword); and eax,0xFFFF (len field);
             // shl rax,1 (SMI-tag it); push. = 17B.
@@ -1355,8 +1994,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 209)
             b = push(b, 224)
             b = push(b, 80)
-        }
-        if name == "htag" {
+        } else if ek == 47 {
             // [ptr] → tagged tag byte: pop rax; and rax,-2; mov rax,[rax];
             // shr rax,16; and eax,0xFF; shl rax,1; push. = 21B.
             b = push(b, 88)
@@ -1380,8 +2018,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 209)
             b = push(b, 224)
             b = push(b, 80)
-        }
-        if name == "hloadb" {
+        } else if ek == 48 {
             // Byte-granular load (string payloads): stack [ptr, bidx] →
             // 58 pop rax (bidx); 5A pop rdx (ptr); 48 83 E2 FE and rdx,-2;
             // 0F B6 44 02 08 movzx eax, byte [rdx+rax+8]; 50 push. = 12B.
@@ -1397,8 +2034,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 2)
             b = push(b, 8)
             b = push(b, 80)
-        }
-        if name == "hstoreb" {
+        } else if ek == 49 {
             // Byte-granular store: stack [ptr, bidx, val] →
             // 58 pop rax (val); 59 pop rcx (bidx); 5A pop rdx (ptr);
             // 48 83 E2 FE and rdx,-2; 88 44 0A 08 mov [rdx+rcx+8], al. = 11B.
@@ -1413,8 +2049,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 68)
             b = push(b, 10)
             b = push(b, 8)
-        }
-        if name == "aget" {
+        } else if ek == 50 {
             // Array element load — tagged index, header skipped:
             // stack [ptr, tidx] → 58 pop rax (tidx); 48 C1 E0 02
             // shl rax,2 (v<<1<<2 = v*8); 5A pop rdx (ptr);
@@ -1436,15 +2071,16 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 2)
             b = push(b, 8)
             b = push(b, 80)
-        }
-        if name == "aset" {
+        } else if ek == 51 {
             // Array element store — stack [ptr, tidx, val] →
             // 58 pop rax (val); 59 pop rcx (tidx); 48 C1 E1 02 shl rcx,2;
             // 5A pop rdx (ptr); 48 83 E2 FE and rdx,-2;
-            // 48 89 44 0A 08 mov [rdx+rcx+8],rax; 52 push rdx (updated
-            // container); 50 push rax (val) — matches the VM's index_set
-            // which pushes [container, val] so `pop; store_local` writes
-            // the container back. = 18B.
+            // 48 89 44 0A 08 mov [rdx+rcx+8],rax;
+            // 48 83 CA 01 or rdx,1 (re-tag — the pushed container must
+            // stay a heap pointer, not the raw base address);
+            // 52 push rdx; 50 push rax (val) — matches the VM's
+            // index_set which pushes [container, val] so
+            // `pop; store_local` writes the container back. = 22B.
             b = push(b, 88)
             b = push(b, 89)
             b = push(b, 72)
@@ -1461,18 +2097,20 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 68)
             b = push(b, 10)
             b = push(b, 8)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 202)
+            b = push(b, 1)
             b = push(b, 82)
             b = push(b, 80)
-        }
-        if name == "const64" {
+        } else if ek == 52 {
             // 48 B8 imm64 mov rax,imm64; 50 push — full-width constant
             // (f64 bits, large headers).
             b = push(b, 72)
             b = push(b, 184)
             b = x64PushU64(b, op[1])
             b = push(b, 80)
-        }
-        if name == "fmk" {
+        } else if ek == 53 {
             // Float cell from raw f64 bits: ["fmk", bump, limit, bits,
             // fval] — bound-checked bump-alloc of 2 qwords (ud2 over the
             // limit slot), header 65537 (tag 1, len 1), payload = op[3]
@@ -1533,9 +2171,13 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 199)
             b = push(b, 2)
             b = x64PushSImm32(b, 65537)
+            // Payload bits come from op[4] (the Kab float) via
+            // aotF64Halves — op[3] cannot carry bit63 in a Kab number.
             b = push(b, 72)
             b = push(b, 184)
-            b = x64PushU64(b, op[3])
+            let fhl = aotF64Halves(op[4])
+            b = x64PushSImm32(b, fhl[0])
+            b = x64PushSImm32(b, fhl[1])
             b = push(b, 72)
             b = push(b, 137)
             b = push(b, 66)
@@ -1545,8 +2187,226 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 202)
             b = push(b, 1)
             b = push(b, 82)
-        }
-        if name == "fadd" || name == "fsub" || name == "fmul" || name == "fdiv" {
+        } else if ek == 54 {
+            // ["hkid"] — [strptr] → tagged kid (hdr >> 32, then <<1).
+            // The str cell header carries the interned member-key id in
+            // bits 32+; payload bytes are irrelevant for lookup.
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 224)
+            b = push(b, 254)
+            b = push(b, 72)
+            b = push(b, 139)
+            b = push(b, 0)
+            b = push(b, 72)
+            b = push(b, 193)
+            b = push(b, 232)
+            b = push(b, 32)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 224)
+            b = push(b, 80)
+        } else if ek == 55 {
+            // ["smk", bump, limit, text, kid] — bound-checked bump-alloc
+            // of 1+ceil(len/8) qwords: hdr = kid<<32 | 4<<16 | len, then
+            // packed LE char bytes (char_code_at & 255 per char — same
+            // byte view the mirror builds arithmetically).
+            let s = op[3]
+            let sl = len(s)
+            let sqw = 1 + (sl + 7) / 8
+            let sof = 8 * op[1]
+            let sol = 8 * op[2]
+            // mov rcx,[r12+bump]; add rcx, sqw*8; cmp rcx,[r12+limit];
+            // jbe +2; ud2; mov [r12+bump],rcx; mov rdx,rcx; sub rdx,sqw*8.
+            b = push(b, 73)
+            b = push(b, 139)
+            if sof + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, sof)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, sof)
+            }
+            if sqw * 8 <= 127 {
+                b = push(b, 72)
+                b = push(b, 131)
+                b = push(b, 193)
+                b = push(b, sqw * 8)
+            } else {
+                b = push(b, 72)
+                b = push(b, 129)
+                b = push(b, 193)
+                b = x64PushSImm32(b, sqw * 8)
+            }
+            b = push(b, 73)
+            b = push(b, 59)
+            if sol + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, sol)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, sol)
+            }
+            b = push(b, 118)
+            b = push(b, 2)
+            b = push(b, 15)
+            b = push(b, 11)
+            b = push(b, 73)
+            b = push(b, 137)
+            if sof + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, sof)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, sof)
+            }
+            b = push(b, 72)
+            b = push(b, 137)
+            b = push(b, 202)
+            if sqw * 8 <= 127 {
+                b = push(b, 72)
+                b = push(b, 131)
+                b = push(b, 234)
+                b = push(b, sqw * 8)
+            } else {
+                b = push(b, 72)
+                b = push(b, 129)
+                b = push(b, 234)
+                b = x64PushSImm32(b, sqw * 8)
+            }
+            // hdr qword: kid*2^32 + 4<<16 + len — a raw integer payload,
+            // emitted via x64PushU64 (aotF64Halves would emit the f64
+            // encoding of the number, not the number itself).
+            let shdr = op[4] * 4294967296 + 262144 + sl
+            b = push(b, 72)
+            b = push(b, 184)
+            b = x64PushU64(b, shdr)
+            b = push(b, 72)
+            b = push(b, 137)
+            b = push(b, 2)
+            // payload bytes — C6 42 disp8 imm8 per char (exact; packed
+            // qwords would exceed f64 precision in Kab for bytes 6-7).
+            let sj = 0
+            while sj < sl {
+                let sdo = 8 + sj
+                b = push(b, 198)
+                if sdo <= 127 {
+                    b = push(b, 66)
+                    b = push(b, sdo)
+                } else {
+                    b = push(b, 130)
+                    b = x64PushSImm32(b, sdo)
+                }
+                b = push(b, char_code_at(s, sj) % 256)
+                sj = sj + 1
+            }
+            // zero-pad the tail bytes of the last payload qword.
+            let zp = sqw * 8 - 8
+            while sl < zp {
+                let zdo = 8 + sl
+                b = push(b, 198)
+                if zdo <= 127 {
+                    b = push(b, 66)
+                    b = push(b, zdo)
+                } else {
+                    b = push(b, 130)
+                    b = x64PushSImm32(b, zdo)
+                }
+                b = push(b, 0)
+                sl = sl + 1
+            }
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 202)
+            b = push(b, 1)
+            b = push(b, 82)
+        } else if ek == 56 {
+            // ["fcast", bump, limit] — pop a tagged SMI, push a Float
+            // cell holding cvtsi2sd(v>>1). Bound-checked bump-alloc of
+            // 2 qwords, header 65537 (same tail as fmk).
+            let cfo = 8 * op[1]
+            let cfl = 8 * op[2]
+            b = push(b, 88)
+            b = push(b, 72)
+            b = push(b, 209)
+            b = push(b, 248)
+            b = push(b, 242)
+            b = push(b, 72)
+            b = push(b, 15)
+            b = push(b, 42)
+            b = push(b, 192)
+            b = push(b, 73)
+            b = push(b, 139)
+            if cfo + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, cfo)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, cfo)
+            }
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 193)
+            b = push(b, 16)
+            b = push(b, 73)
+            b = push(b, 59)
+            if cfl + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, cfl)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, cfl)
+            }
+            b = push(b, 118)
+            b = push(b, 2)
+            b = push(b, 15)
+            b = push(b, 11)
+            b = push(b, 73)
+            b = push(b, 137)
+            if cfo + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, cfo)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, cfo)
+            }
+            b = push(b, 72)
+            b = push(b, 137)
+            b = push(b, 202)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 234)
+            b = push(b, 16)
+            b = push(b, 72)
+            b = push(b, 199)
+            b = push(b, 2)
+            b = x64PushSImm32(b, 65537)
+            // movq [rdx+8], xmm0.
+            b = push(b, 102)
+            b = push(b, 72)
+            b = push(b, 15)
+            b = push(b, 126)
+            b = push(b, 66)
+            b = push(b, 8)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 202)
+            b = push(b, 1)
+            b = push(b, 82)
+        } else if ek == 57 {
             // ["f<op>", bump, limit] — [lptr, rptr] → new float cell with
             // (l OP r): untag both, movsd xmm0,[rcx+8]; OPsd xmm0,[rdx+8];
             // bound-checked bump-alloc 2 qwords (ud2 over limit); header
@@ -1646,8 +2506,120 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 202)
             b = push(b, 1)
             b = push(b, 82)
-        }
-        if name == "feq" || name == "fne" || name == "flt" || name == "fle" || name == "fgt" || name == "fge" {
+        } else if ek == 58 {
+            // ["fmod", bump, limit] — [lptr,rptr] → new float cell with
+            // l - trunc(l/r)*r (Kab % / fmod truncating semantics) via
+            // divsd + roundsd imm 0x0B (truncate|suppress) + mulsd + subsd.
+            let mof = 8 * op[1]
+            let mol = 8 * op[2]
+            b = push(b, 90)
+            b = push(b, 89)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 226)
+            b = push(b, 254)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 225)
+            b = push(b, 254)
+            // movsd xmm0,[rcx+8]; movsd xmm2,[rdx+8]
+            b = push(b, 242)
+            b = push(b, 15)
+            b = push(b, 16)
+            b = push(b, 65)
+            b = push(b, 8)
+            b = push(b, 242)
+            b = push(b, 15)
+            b = push(b, 16)
+            b = push(b, 82)
+            b = push(b, 8)
+            // xmm1 = xmm0/xmm2 → trunc → *xmm2; xmm0 -= xmm1.
+            b = push(b, 242)
+            b = push(b, 15)
+            b = push(b, 16)
+            b = push(b, 200)
+            b = push(b, 242)
+            b = push(b, 15)
+            b = push(b, 94)
+            b = push(b, 202)
+            b = push(b, 102)
+            b = push(b, 15)
+            b = push(b, 58)
+            b = push(b, 11)
+            b = push(b, 201)
+            b = push(b, 11)
+            b = push(b, 242)
+            b = push(b, 15)
+            b = push(b, 89)
+            b = push(b, 202)
+            b = push(b, 242)
+            b = push(b, 15)
+            b = push(b, 92)
+            b = push(b, 193)
+            // bound-checked bump-alloc + store (same tail as fadd).
+            b = push(b, 73)
+            b = push(b, 139)
+            if mof + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, mof)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, mof)
+            }
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 193)
+            b = push(b, 16)
+            b = push(b, 73)
+            b = push(b, 59)
+            if mol + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, mol)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, mol)
+            }
+            b = push(b, 118)
+            b = push(b, 2)
+            b = push(b, 15)
+            b = push(b, 11)
+            b = push(b, 73)
+            b = push(b, 137)
+            if mof + 8 <= 128 {
+                b = push(b, 76)
+                b = push(b, 36)
+                b = push(b, mof)
+            } else {
+                b = push(b, 140)
+                b = push(b, 36)
+                b = x64PushSImm32(b, mof)
+            }
+            b = push(b, 72)
+            b = push(b, 137)
+            b = push(b, 202)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 234)
+            b = push(b, 16)
+            b = push(b, 72)
+            b = push(b, 199)
+            b = push(b, 2)
+            b = x64PushSImm32(b, 65537)
+            b = push(b, 242)
+            b = push(b, 15)
+            b = push(b, 17)
+            b = push(b, 66)
+            b = push(b, 8)
+            b = push(b, 72)
+            b = push(b, 131)
+            b = push(b, 202)
+            b = push(b, 1)
+            b = push(b, 82)
+        } else if ek == 59 {
             // [lptr, rptr] → raw 0/1 compare on the f64 payloads.
             // ucomisd sets CF/ZF/PF; unordered (NaN) sets all three.
             // eq/le/lt/fne reject or accept unordered via a jp branch;
@@ -1716,8 +2688,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
                 }
             }
             b = push(b, 80)
-        }
-        if name == "mkclo" {
+        } else if ek == 60 {
             // ["mkclo", bump, limit, fnidx, ncap] — closure cell
             // [hdr=tag6<<16|(1+ncap) | fnidx(raw) | cap0..capN]: bound-
             // checked bump alloc, then the ncap tagged words are popped
@@ -1816,8 +2787,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 202)
             b = push(b, 1)
             b = push(b, 82)
-        }
-        if name == "callv" {
+        } else if ek == 61 {
             // ["callv", nargs, [fi…]] — callee cell sits on TOP of the
             // stack (compileIr evaluates args first, callee last): pop
             // the cell → rcx (hidden arg0), then args → r9/r8/rdx.
@@ -1825,16 +2795,43 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             // candidate; ud2 on SMI callee or unknown index.
             let vna = op[1]
             b = push(b, 89)
-            if vna > 2 {
+            if vna > 3 {
+                // Args a4..a_n spill to scratch locals (op[3] base):
+                // pop top-down (scr+0 = a_n), pop regs a3..a1, then push
+                // the extras back a_n..a_4 so a4 lands topmost → callee
+                // reads local i≥4 at [rbp+24+8*(i-4)].
+                let vs3 = op[3]
+                let vk3 = 0
+                while vk3 < vna - 3 {
+                    b = push(b, 88)
+                    b = aotFnStoreReg(b, vs3 + vk3, 69)
+                    vk3 = vk3 + 1
+                }
                 b = push(b, 65)
                 b = push(b, 89)
-            }
-            if vna > 1 {
                 b = push(b, 65)
                 b = push(b, 88)
-            }
-            if vna > 0 {
                 b = push(b, 90)
+                vk3 = 0
+                while vk3 < vna - 3 {
+                    b = aotFnLoadLocal(b, vs3 + vk3)
+                    vk3 = vk3 + 1
+                }
+            }
+            if vna <= 3 {
+                // Cumulative register pops: a3→r9, a2→r8, a1→rdx (the
+                // na>3 spill block already popped all three itself).
+                if vna >= 3 {
+                    b = push(b, 65)
+                    b = push(b, 89)
+                }
+                if vna >= 2 {
+                    b = push(b, 65)
+                    b = push(b, 88)
+                }
+                if vna >= 1 {
+                    b = push(b, 90)
+                }
             }
             // F6 C1 01 test cl,1; 75 02 jnz +2; 0F 0B ud2 — SMI callee
             // traps honestly instead of dereferencing a small int.
@@ -1865,54 +2862,110 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 8)
             // csz = bytes emitted so far inside this op.
             let csz = 0
-            if vna > 2 {
-                csz = csz + 2
+            if vna > 3 {
+                let ck4 = 0
+                while ck4 < vna - 3 {
+                    csz = csz + 1 + aotX64LocalLen(op[3] + ck4)
+                    ck4 = ck4 + 1
+                }
+                csz = csz + 5
+                ck4 = 0
+                while ck4 < vna - 3 {
+                    csz = csz + aotX64LocalLen(op[3] + ck4) + 1
+                    ck4 = ck4 + 1
+                }
             }
-            if vna > 1 {
-                csz = csz + 2
-            }
-            if vna > 0 {
-                csz = csz + 1
+            if vna <= 3 {
+                if vna >= 3 {
+                    csz = csz + 2
+                }
+                if vna >= 2 {
+                    csz = csz + 2
+                }
+                if vna >= 1 {
+                    csz = csz + 1
+                }
             }
             csz = csz + 1 + 3 + 2 + 2 + 3 + 4 + 4
             let vfi = op[2]
+            // Candidates >= 128 need the cmp r10,imm32 form (19B per
+            // block vs 16B for imm8) — accumulate, stride isn't fixed.
+            let ctot = 0
+            let vk5 = 0
+            while vk5 < len(vfi) {
+                if vfi[vk5] > 127 {
+                    ctot = ctot + 19
+                } else {
+                    ctot = ctot + 16
+                }
+                vk5 = vk5 + 1
+            }
+            let voff = csz
             let vj = 0
             while vj < len(vfi) {
-                // 49 83 FA k cmp r10,imm8; 75 0A jne +10; E8 rel32;
-                // E9 rel32 → done (skips the rest + the trailing ud2).
-                b = push(b, 73)
-                b = push(b, 131)
-                b = push(b, 250)
-                b = push(b, vfi[vj])
+                let cand = vfi[vj]
+                if cand > 127 {
+                    // 49 81 FA id cmp r10,imm32.
+                    b = push(b, 73)
+                    b = push(b, 129)
+                    b = push(b, 250)
+                    b = x64PushSImm32(b, cand)
+                    voff = voff + 7
+                } else {
+                    // 49 83 FA ib cmp r10,imm8.
+                    b = push(b, 73)
+                    b = push(b, 131)
+                    b = push(b, 250)
+                    b = push(b, cand)
+                    voff = voff + 4
+                }
+                // 75 0A jne +10; E8 rel32; E9 rel32 → done (skips the
+                // rest + the trailing ud2).
                 b = push(b, 117)
                 b = push(b, 10)
                 b = push(b, 232)
-                let callEnd = offs[i] + csz + vj * 16 + 6 + 5
-                b = x64PushSImm32(b, fnOffs[vfi[vj]] - callEnd)
+                voff = voff + 2
+                let callEnd = offs[i] + voff + 5
+                b = x64PushSImm32(b, fnOffs[cand] - callEnd)
+                voff = voff + 5
                 b = push(b, 233)
-                let doneOff = offs[i] + csz + len(vfi) * 16 + 2
-                b = x64PushSImm32(b, doneOff - (offs[i] + csz + vj * 16 + 16))
+                let doneOff = offs[i] + csz + ctot + 2
+                b = x64PushSImm32(b, doneOff - (offs[i] + voff + 5))
+                voff = voff + 5
                 vj = vj + 1
             }
             b = push(b, 15)
             b = push(b, 11)
+            if vna > 3 {
+                // add rsp — pop the caller-owned stack args (a4..a_n)
+                // after the callee returns: 48 83 C4 ib while the total
+                // fits imm8, else 48 81 C4 imm32 (na = 19 → 128 bytes).
+                if 8 * (vna - 3) <= 127 {
+                    b = push(b, 72)
+                    b = push(b, 131)
+                    b = push(b, 196)
+                    b = push(b, 8 * (vna - 3))
+                } else {
+                    b = push(b, 72)
+                    b = push(b, 129)
+                    b = push(b, 196)
+                    b = x64PushSImm32(b, 8 * (vna - 3))
+                }
+            }
             b = push(b, 80)
-        }
-        if name == "trap" {
+        } else if ek == 62 {
             b = push(b, 15)
             b = push(b, 11)
-        }
-        if name == "gcollect" {
+        } else if ek == 63 {
             // ["gcollect", bump, lo, rb, nspill] — the root protocol:
             // spill the top nspill stack values and all nl locals into
             // the data-page root area at [rb..rc), call __gc_collect
             // (top idx, lo, rc, r12-dbase), store the returned new top
             // as an address in the bump slot, reload roots.
             b = aotX64GcSpill(b, nl, op[3], op[4], 0)
-            b = aotX64GcCall(b, op[1], op[2], op[3] + nl + op[4], gcIdx, fnOffs)
+            b = aotX64GcCall(b, op[1], op[2], op[3] + nl + op[4], gcIdx, fnOffs, bOff)
             b = aotX64GcSpill(b, nl, op[3], op[4], 1)
-        }
-        if name == "hcalloc" {
+        } else if ek == 64 {
             // ["hcalloc", bump, limit, lo, rb, nspill] — bound-checked
             // bump-alloc with collect-on-overflow. Fast path identical
             // to halloc; over the limit: stash the byte count in the
@@ -1951,7 +3004,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             // slow path — stash nw bytes above the root area, collect.
             b = aotX64R12St(b, scr, 0)
             b = aotX64GcSpill(b, nl, rb2, nsp2, 0)
-            b = aotX64GcCall(b, op[1], op[3], rb2 + nl + nsp2, gcIdx, fnOffs)
+            b = aotX64GcCall(b, op[1], op[3], rb2 + nl + nsp2, gcIdx, fnOffs, bOff)
             b = aotX64GcSpill(b, nl, rb2, nsp2, 1)
             // retry: rax = nw bytes; rcx = new bump; rcx += rax; cmp;
             // 0F 86 rel32 jbe → ALLOC; else ud2.
@@ -2002,8 +3055,7 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 202)
             b = push(b, 1)
             b = push(b, 82)
-        }
-        if name == "ret" {
+        } else if ek == 65 {
             // 58 pop rax; C9 leave; 41 5C pop r12; C3 ret — r12 was
             // pushed first in the prologue so it sits above saved rbp.
             b = push(b, 88)
@@ -2012,26 +3064,79 @@ fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx) {
             b = push(b, 92)
             b = push(b, 195)
         }
+        // Length audit: emitted bytes for this op must equal the declared
+        // aotFnOpLen — a drift here shifts every later op so jump rel32s
+        // land mid-instruction (silent corruption, not a clean reject).
+        // The offset table already encodes every op's length, so the
+        // audit reads it as a diff instead of a third aotFnOpLen call.
+        let emittedLen = len(b) + bOff - offs[i]
+        let wantLen = 0
+        if i + 1 < len(ops) {
+            wantLen = offs[i + 1] - offs[i]
+        } else {
+            wantLen = aotFnOpLen(op, nl, fa)
+        }
+        if emittedLen != wantLen {
+            throw "aot-x64 op length mismatch " + name + " @" + i + " emit=" + emittedLen + " decl=" + wantLen
+        }
         i = i + 1
     }
     return b
 }
 
+// Ops that need the globals-base register (r12) — the entry loads the
+// data-page pointer into it when any of these appear.
+let AOT_NEED_R12 = {
+    "gload": 1, "gstore": 1, "acc_add_g": 1, "hbase": 1, "hlimit": 1,
+    "halloc": 1, "mkclo": 1, "fmk": 1, "fadd": 1, "fsub": 1, "fmul": 1,
+    "fdiv": 1, "fcast": 1, "fmod": 1, "smk": 1, "gcollect": 1, "hcalloc": 1
+}
+
+// aotFnOk per-op check tables — name → code replaces a ~15-deep
+// string-compare chain per machine op.
+// needarg: these names must have op[1] present (len(op) >= 2).
+let AOT_OK_NEEDARG = {
+    "const": 1, "tconst": 1, "tconst64": 1, "load": 1, "store": 1,
+    "acc_add": 1, "gload": 1, "gstore": 1, "acc_add_g": 1,
+    "hbase": 1, "hlimit": 1, "hload": 1, "hstore": 1,
+    "jmp": 1, "jz": 1, "jnz": 1, "jsmi": 1, "jnsmi": 1
+}
+// check codes: 1=const 2=tconst 3=tconst64 4=local-slot 5=global-slot
+// 6=heap-slot1 7=halloc(1+2) 8=fop-bump/limit 9=smk 10=mkclo
+// 11=callv 12=calln 13=gcollect 14=hcalloc 15=jump-target.
+let AOT_OK_CHECK = {
+    "const": 1, "tconst": 2, "tconst64": 3,
+    "load": 4, "store": 4, "acc_add": 4,
+    "gload": 5, "gstore": 5, "acc_add_g": 5,
+    "hbase": 6, "hlimit": 6, "hload": 6, "hstore": 6,
+    "halloc": 7,
+    "fmk": 8, "fadd": 8, "fsub": 8, "fmul": 8, "fdiv": 8,
+    "fcast": 8, "fmod": 8,
+    "smk": 9, "mkclo": 10, "callv": 11, "calln": 12,
+    "gcollect": 13, "hcalloc": 14,
+    "jmp": 15, "jz": 15, "jnz": 15, "jsmi": 15, "jnsmi": 15
+}
+
 /// Validate a fn record: {ops, locals, arity, name} within the v1 domain.
-fn aotFnOk(f) {
+pub fn aotFnOk(f, fa) {
     let ops = f["ops"]
     if len(ops) == 0 {
         return false
     }
     let nlocals = f["locals"]
     let arity = f["arity"]
-    if nlocals < 0 || nlocals > 64 {
+    // 4096 locals = 32KiB frame — disp32 paths cover offsets far beyond
+    // the disp8 window, so the cap is a sanity bound, not an encoding
+    // one. Real lowered module mains exceed 256 (lexer_scan hits 264).
+    if nlocals < 0 || nlocals > 4096 {
         return false
     }
-    // Private convention carries at most four args (rcx/rdx/r8/r9); the
-    // per-fn cap is 4 — the ENTRY cap of 2 (the host ABI only supplies
-    // two args) is enforced by aotX64EmitFns which knows fns[0].
-    if arity < 0 || arity > 4 || arity > nlocals {
+    // Private convention: args 1..4 in rcx/rdx/r8/r9, args 5+ spill to
+    // the caller's frame (calln/callv stack-arg convention — local i≥4
+    // reads [rbp+24+8*(i-4)]). Cap at 20 keeps the caller-side
+    // add-rsp,imm8 cleanup in range. The ENTRY cap of 2 (the host ABI
+    // only supplies two args) is enforced by aotX64EmitFns.
+    if arity < 0 || arity > 20 || arity > nlocals {
         return false
     }
     let last = ops[len(ops) - 1]
@@ -2041,70 +3146,103 @@ fn aotFnOk(f) {
     let i = 0
     while i < len(ops) {
         let op = ops[i]
-        if aotFnOpLen(op, nlocals) < 0 {
+        if aotFnOpLen(op, nlocals, fa) < 0 {
             return false
         }
         let name = op[0]
         // Same arity guard as aotFnOpLen for the operand reads below.
         if len(op) < 2 {
-            if name == "const" || name == "tconst" || name == "load" || name == "store" || name == "acc_add" || name == "gload" || name == "gstore" || name == "acc_add_g" || name == "hbase" || name == "hlimit" || name == "hload" || name == "hstore" || name == "jmp" || name == "jz" || name == "jnz" || name == "jsmi" || name == "jnsmi" {
+            if AOT_OK_NEEDARG[name] == 1 {
                 return false
             }
         }
-        if name == "const" {
+        let ck = AOT_OK_CHECK[name]
+        if ck == 1 {
             if op[1] < -2147483648 || op[1] > 2147483647 {
                 return false
             }
-        }
-        if name == "tconst" {
+        } else if ck == 2 {
             // tagged = v<<1 must fit sext imm32 → |v| <= 0x3FFFFFFF.
             if op[1] < -1073741824 || op[1] > 1073741823 {
                 return false
             }
-        }
-        if name == "load" || name == "store" || name == "acc_add" {
+        } else if ck == 3 {
+            // movabs path — Kab integers are exact only to 2^53, so the
+            // tagged value v<<1 must stay inside |v| <= 2^52.
+            if op[1] < -4503599627370496 || op[1] > 4503599627370496 {
+                return false
+            }
+        } else if ck == 4 {
             if op[1] < 0 || op[1] >= nlocals {
                 return false
             }
-        }
-        if name == "gload" || name == "gstore" || name == "acc_add_g" {
+        } else if ck == 5 {
             if op[1] < 0 {
                 return false
             }
-        }
-        if name == "hbase" || name == "hlimit" || name == "halloc" || name == "hload" || name == "hstore" {
+        } else if ck == 6 {
             if op[1] < 0 {
                 return false
             }
-        }
-        if name == "halloc" || name == "fmk" || name == "fadd" || name == "fsub" || name == "fmul" || name == "fdiv" {
+        } else if ck == 7 {
+            // halloc: op[1] and op[2] both checked.
+            if op[1] < 0 {
+                return false
+            }
             if op[2] == undefined || op[2] < 0 {
                 return false
             }
-        }
-        if name == "mkclo" {
+        } else if ck == 8 {
+            // fmk/fadd/fsub/fmul/fdiv/fcast/fmod: bump/limit operands.
+            if op[2] == undefined || op[2] < 0 {
+                return false
+            }
+        } else if ck == 9 {
+            // ["smk", bump, limit, text, kid] — string payload + interned
+            // kid slot; bump/limit must be non-negative global slots.
+            if op[1] == undefined || op[1] < 0 || op[2] == undefined || op[2] < 0 {
+                return false
+            }
+            if typeof(op[3]) != "string" || typeof(op[4]) != "number" || op[4] < 0 || op[4] >= 1048576 {
+                return false
+            }
+        } else if ck == 10 {
             if op[3] == undefined || op[3] < 0 || op[4] == undefined || op[4] < 0 {
                 return false
             }
-        }
-        if name == "callv" {
-            // op[1] = nargs (0..3 — rcx is the cell); op[2] = fn-index
-            // candidate list (imm8 compare → each < 128).
-            if op[1] == undefined || op[1] < 0 || op[1] > 3 {
+        } else if ck == 11 {
+            // op[1] = nargs (rcx is the cell; a4+ spill via op[3]=scr).
+            // 19 = callee arity 20 minus the hidden cell arg.
+            if op[1] == undefined || op[1] < 0 || op[1] > 19 {
                 return false
+            }
+            if op[1] > 3 {
+                // Scratch region scr..scr+na-4 must fit in the frame.
+                if len(op) < 4 || op[3] == undefined || op[3] < 0 || op[3] + op[1] - 3 > nlocals {
+                    return false
+                }
             }
             if op[2] == undefined || typeof(op[2]) != "array" {
                 return false
             }
             let vci = 0
             while vci < len(op[2]) {
-                if op[2][vci] < 0 || op[2][vci] > 127 {
+                // imm32 compare covers large images; the emit pass
+                // range-checks candidates against the fn table.
+                if op[2][vci] < 0 || op[2][vci] > 1073741823 {
                     return false
                 }
                 vci = vci + 1
             }
-        }
-        if name == "gcollect" {
+        } else if ck == 12 {
+            // ["calln", fi, n, scr] — n>=5; scr..scr+n-5 must fit.
+            if len(op) < 4 || op[2] == undefined || op[2] < 5 || op[2] > 20 {
+                return false
+            }
+            if op[3] == undefined || op[3] < 0 || op[3] + op[2] - 4 > nlocals {
+                return false
+            }
+        } else if ck == 13 {
             // ["gcollect", bump, lo, rb, nspill] — the root area
             // [rb, rb+nlocals+nspill) must fit below the heap base.
             if len(op) < 5 || op[1] < 0 || op[2] < 0 || op[3] < 0 || op[4] < 0 {
@@ -2113,8 +3251,7 @@ fn aotFnOk(f) {
             if op[3] + nlocals + op[4] > op[2] {
                 return false
             }
-        }
-        if name == "hcalloc" {
+        } else if ck == 14 {
             // ["hcalloc", bump, limit, lo, rb, nspill] — same root-area
             // check plus one scratch slot for the byte count.
             if len(op) < 6 || op[1] < 0 || op[2] < 0 || op[3] < 0 || op[4] < 0 || op[5] < 0 {
@@ -2123,8 +3260,7 @@ fn aotFnOk(f) {
             if op[4] + nlocals + op[5] + 1 > op[3] {
                 return false
             }
-        }
-        if name == "jmp" || name == "jz" || name == "jnz" || name == "jsmi" || name == "jnsmi" {
+        } else if ck == 15 {
             if op[1] < 0 || op[1] >= len(ops) {
                 return false
             }
@@ -2158,7 +3294,7 @@ pub fn aotX64EmitFns(fns, abi) {
         let gj = 0
         while gj < len(gops) {
             let gn = gops[gj][0]
-            if gn == "gload" || gn == "gstore" || gn == "acc_add_g" || gn == "hbase" || gn == "hlimit" || gn == "halloc" || gn == "mkclo" || gn == "fmk" || gn == "fadd" || gn == "fsub" || gn == "fmul" || gn == "fdiv" || gn == "gcollect" || gn == "hcalloc" {
+            if AOT_NEED_R12[gn] == 1 {
                 needR12 = true
             }
             if gn == "gcollect" || gn == "hcalloc" {
@@ -2178,6 +3314,15 @@ pub fn aotX64EmitFns(fns, abi) {
     if fns[0]["arity"] > 2 {
         return { "code": [] }
     }
+    // Callee-arity table: a call with fewer args than the callee's
+    // declared params pads the missing arg regs with tagged undefined
+    // (VM semantics), which changes the emitted op length.
+    let fa = []
+    let fai = 0
+    while fai < len(fns) {
+        fa = push(fa, fns[fai]["arity"])
+        fai = fai + 1
+    }
     // Pass 1a: per-fn op offsets + fn start offsets.
     let fnOffs = []
     let allOffs = []
@@ -2185,22 +3330,25 @@ pub fn aotX64EmitFns(fns, abi) {
     let fi = 0
     while fi < len(fns) {
         let f = fns[fi]
-        if aotFnOk(f) == false {
+        if aotFnOk(f, fa) == false {
+            println("emit reject: aotFnOk " + f["name"])
             return { "code": [] }
         }
         let isEntry = fi == 0
         let pro = aotFnProLen(f["locals"], f["arity"], isEntry, abi, needR12)
         cur = cur + pro
-        let offs = aotFnOpOffsets(f["ops"], cur, f["locals"])
+        let offs = aotFnOpOffsets(f["ops"], cur, f["locals"], fa)
         if len(offs) == 0 {
+            println("emit reject: offsets " + f["name"])
             return { "code": [] }
         }
         allOffs = push(allOffs, offs)
         let lastOp = f["ops"][len(f["ops"]) - 1]
-        cur = offs[len(offs) - 1] + aotFnOpLen(lastOp, f["locals"])
+        cur = offs[len(offs) - 1] + aotFnOpLen(lastOp, f["locals"], fa)
         fnOffs = push(fnOffs, offs[0] - pro)
         fi = fi + 1
     }
+
     // Validate call targets now that fn count is known — target index AND
     // the callee's declared arity must match the callN arg count.
     let fi2 = 0
@@ -2224,10 +3372,41 @@ pub fn aotX64EmitFns(fns, abi) {
             if want >= 0 {
                 let t = ops2[j][1]
                 if t < 0 || t >= len(fns) {
+                    println("emit reject: call target " + fns[fi2]["name"] + " -> " + t)
                     return { "code": [] }
                 }
-                if fns[t]["arity"] != want {
+                // Missing args pad to tagged undefined in the emit —
+                // legal when the callee's arity stays within the four
+                // register slots. Extra args (want > arity) are dropped,
+                // also matching the VM.
+                let ctar = fns[t]["arity"]
+                if ctar > want && ctar > 4 {
+                    println("emit reject: arity " + fns[fi2]["name"] + " -> " + fns[t]["name"] + " want=" + want + " got=" + ctar)
                     return { "code": [] }
+                }
+            }
+            if n2 == "calln" {
+                let t2 = ops2[j][1]
+                if t2 < 0 || t2 >= len(fns) {
+                    println("emit reject: calln target " + fns[fi2]["name"] + " -> " + t2)
+                    return { "code": [] }
+                }
+                // Fewer supplied args than callee params would leave
+                // stack-arg slots unpadded — reject; extras are dropped.
+                if fns[t2]["arity"] > ops2[j][2] {
+                    println("emit reject: calln arity " + fns[fi2]["name"] + " -> " + fns[t2]["name"])
+                    return { "code": [] }
+                }
+            }
+            if n2 == "callv" {
+                let cands2 = ops2[j][2]
+                let ci9 = 0
+                while ci9 < len(cands2) {
+                    if cands2[ci9] < 0 || cands2[ci9] >= len(fns) {
+                        println("emit reject: callv cand " + fns[fi2]["name"] + " -> " + cands2[ci9])
+                        return { "code": [] }
+                    }
+                    ci9 = ci9 + 1
                 }
             }
             j = j + 1
@@ -2240,7 +3419,7 @@ pub fn aotX64EmitFns(fns, abi) {
     while fi3 < len(fns) {
         let f = fns[fi3]
         b = aotFnPro(b, f["locals"], f["arity"], fi3 == 0, abi, needR12)
-        b = aotFnEmitOps(b, f["ops"], allOffs[fi3], fnOffs, f["locals"], gcIdx)
+        b = aotFnEmitOps(b, f["ops"], allOffs[fi3], fnOffs, f["locals"], gcIdx, fa, 0, len(f["ops"]), 0)
         fi3 = fi3 + 1
     }
     return { "code": b, "fnOffs": fnOffs, "total": cur }

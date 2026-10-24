@@ -1,0 +1,59 @@
+// SH28: aot-tv1 records/objects through the SOURCE path — real compileIr
+// bytecode lowered by aotFnLowerModuleTv1. Record cells: tag-10 shell →
+// tag-11 slots [kid v …]; member names intern to tagged kid SMIs so
+// lookups are exact compares on both backends. Covers make_object,
+// get_member, member_set (hit + grow), merge via spread, dynamic
+// o["k"]/o["k"]=v through index_get/index_set, alias semantics through
+// the shell indirection, undefined member misses, and record identity.
+// Native rax must equal the mirror result.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 200)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 64)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+// SMI results are tagged (v*2); eq/relational results are raw 0/1.
+acc = acc + srcOk("let o = {a: 3, b: 4}; return o.a * 10 + o.b", 68)
+acc = acc + srcOk("let o = {x: 5}; o.x = 7; return o.x", 14)
+acc = acc + srcOk("let o = {x: 5}; o.y = 9; return o.x * 10 + o.y", 118)
+acc = acc + srcOk("let o = {x: 1}; let p = o; p.y = 8; return o.x * 10 + o.y", 36)
+acc = acc + srcOk("let a = {x: 1, y: 2}; let b = {y: 20, z: 3}; let m = {...a, ...b}; return m.x * 100 + m.y * 10 + m.z", 606)
+acc = acc + srcOk("let o = {a: 1}; return o.nope == undefined", 27)
+acc = acc + srcOk("let o = {a: 42}; return o[\"a\"]", 84)
+acc = acc + srcOk("let o = {a: 1}; o[\"b\"] = 9; return o.a * 10 + o.b", 38)
+acc = acc + srcOk("let a = {x: 1}; let b = a; return a == b", 27)
+acc = acc + srcOk("return {x: 1} == {x: 1}", 19)
+acc = acc + srcOk("return {a: 1}.a + {b: 2}.b", 6)
+acc = acc + srcOk("return [1, 2, 3][1]", 4)
+acc = acc + srcOk("let o = {a: {b: 5}}; return o.a.b", 10)
+println("acc " + acc)
+if acc != 13 {
+    return 13
+}
+return 42

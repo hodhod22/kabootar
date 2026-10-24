@@ -2826,6 +2826,36 @@ mod tests {
     }
 
     #[test]
+    fn vm_else_if_chain_no_stack_leak() {
+        // Peephole must not delete `Const;Pop` when the Pop is a jump target:
+        // else-if branches each push a null and jump to the merge Pop — after
+        // deletion every iteration leaked one slot → MAX_BYTECODE_STACK.
+        let p = compile_source(
+            r#"
+            let i = 0
+            let r = 0
+            while i < 9000 {
+              let c = i % 3
+              if c == 0 {
+                r = r + 1
+              } else if c == 1 {
+                r = r + 2
+              } else if c == 2 {
+                r = r + 3
+              }
+              i = i + 1
+            }
+            r
+            "#,
+        )
+        .unwrap();
+        let bc = try_compile(&p.stmts).unwrap();
+        let mut env = create_global_env();
+        let v = run_module(&bc, &mut env).unwrap();
+        assert!(matches!(v, Value::Number(18000)), "got {v:?}");
+    }
+
+    #[test]
     fn rejects_direct_array_self_cycle() {
         use std::rc::Rc;
         let arr = Value::from_array(vec![Value::Number(1)]);

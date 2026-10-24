@@ -1,0 +1,103 @@
+// SH28: aot-tv1 numeric widening — fcast promotes a tagged SMI to a
+// Float cell, fmod is truncating f64 modulo on payloads (Kab % — same
+// as ops.rs), tconst64 carries tagged constants wider than i31, and
+// negative f64 bit patterns flow through the halves path (Kab ints
+// cannot hold u64 payloads with bit 63 set — fmk derives bits from the
+// f64 via aotF64Halves). Native rax must equal the mirror.
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+
+// f64 bit patterns: 7.5=4619567317775286272, 2.0=4611686018427387904,
+// 3.5=4614256656552045568, 1.5=4609434218613702656.
+// -7.5 bits = 0xC01E000000000000 (>2^63 — halves only), -1.5 bits =
+// 0xBFF8000000000000. bump at global 1, heap starts at slot 2.
+// local0 = check counter.
+let main = {
+    "name": "main",
+    "arity": 0,
+    "locals": 1,
+    "ops": [
+        ["hbase", 2],
+        ["gstore", 1],
+        ["hlimit", 256],
+        ["gstore", 0],
+        ["const", 0],
+        ["store", 0],
+        // fcast(3) + 0.5 == 3.5 — SMI → Float promotion
+        ["tconst", 3],
+        ["fcast", 1, 0],
+        ["fmk", 1, 0, 4609434218613702656, 0.5],
+        ["fadd", 1, 0],
+        ["fmk", 1, 0, 4614256656552045568, 3.5],
+        ["feq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // 7.5 % 2.0 == 1.5 — truncating fmod
+        ["fmk", 1, 0, 4619567317775286272, 7.5],
+        ["fmk", 1, 0, 4611686018427387904, 2.0],
+        ["fmod", 1, 0],
+        ["fmk", 1, 0, 4609434218613702656, 1.5],
+        ["feq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // -7.5 % 2.0 == -1.5 — sign follows dividend (truncated rem)
+        ["fmk", 1, 0, 0, -7.5],
+        ["fmk", 1, 0, 4611686018427387904, 2.0],
+        ["fmod", 1, 0],
+        ["fmk", 1, 0, 0, -1.5],
+        ["feq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // two -7.5 cells: identical payloads — bit 63 set, so the
+        // halves path (not a Kab u64) built both payloads.
+        ["fmk", 1, 0, 0, -7.5],
+        ["hload", 8],
+        ["fmk", 1, 0, 0, -7.5],
+        ["hload", 8],
+        ["eq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // tconst64: 2^40-1 round-trips through tagging (raw*2 > i32)
+        ["tconst64", 1099511627775],
+        ["tconst64", 1099511627775],
+        ["eq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        // tconst64 arithmetic: 2^40 + 1 == 2^40+1 (i31 would overflow)
+        ["tconst64", 1099511627776],
+        ["tconst", 1],
+        ["tadd"],
+        ["tconst64", 1099511627777],
+        ["eq"],
+        ["load", 0],
+        ["add"],
+        ["store", 0],
+        ["load", 0],
+        ["ret"]
+    ]
+}
+
+let fns = [main]
+let data = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+let r = aotX64EmitFns(fns, aotNativeHostAbi())
+if len(r["code"]) == 0 {
+    return 1
+}
+let rax = os_native_exec(r["code"], 0, data)
+println("rax " + rax)
+if rax != 6 {
+    return 2
+}
+let mir = aotFnMirrorH(fns, 0, 2, 64)
+println("mirror " + mir)
+if mir != rax {
+    return 3
+}
+return 42

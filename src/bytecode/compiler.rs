@@ -1056,21 +1056,38 @@ impl Compiler {
                 Ok(())
             }
             Expr::If(cond, then_b, else_b) => {
+                // `else <expr>` (e.g. `else if` chains) yields a value: that
+                // value is the if's result, so the then-side pushes the
+                // fallback null itself. Otherwise both sides produce nothing
+                // and a single null after `end` is the statement's value.
+                let else_valued = matches!(else_b.as_deref(), Some(e) if !matches!(e, Expr::Block(_)));
                 self.compile_expr(cond)?;
                 let jump_false = self.code.len();
                 self.emit(Opcode::JumpIfFalse(0));
                 self.compile_block_or_expr(then_b, false)?;
+                if else_valued {
+                    let null_idx = self.const_index(Constant::Null);
+                    self.emit(Opcode::Const(null_idx));
+                }
                 let jump_end = self.code.len();
                 self.emit(Opcode::Jump(0));
                 let else_start = self.code.len();
                 patch_jump(&mut self.code, jump_false, else_start);
-                if let Some(e) = else_b {
-                    self.compile_block_or_expr(e, false)?;
+                match else_b.as_deref() {
+                    Some(e) if else_valued => {
+                        self.compile_expr(e)?;
+                    }
+                    Some(e) => {
+                        self.compile_block_or_expr(e, false)?;
+                    }
+                    None => {}
                 }
                 let end = self.code.len();
                 patch_jump(&mut self.code, jump_end, end);
-                let null_idx = self.const_index(Constant::Null);
-                self.emit(Opcode::Const(null_idx));
+                if !else_valued {
+                    let null_idx = self.const_index(Constant::Null);
+                    self.emit(Opcode::Const(null_idx));
+                }
                 Ok(())
             }
             Expr::IfLet {
@@ -2678,7 +2695,16 @@ impl Compiler {
                 }
                 Ok(())
             }
-            other => self.compile_expr(other),
+            other => {
+                self.compile_expr(other)?;
+                if !want_value {
+                    // A non-block else-branch (`else if` chains compile as a
+                    // nested `Expr::If`) yields a value nobody consumes —
+                    // each level would leak one stack slot per evaluation.
+                    self.emit(Opcode::Pop);
+                }
+                Ok(())
+            }
         }
     }
 

@@ -760,7 +760,32 @@ pub fn emitFnScopeSave(E) {
         "fnSave": E["eFnSave"],
         "fnBody": E["eFnBody"],
         "paramDefaults": E["eParamDefaults"],
-        "fnRest": E["eFnRest"]
+        "fnRest": E["eFnRest"],
+        "fnTryRegions": arrUtil(E, "snap", E["eFnTryRegions"]),
+        "tryEmitStack": arrUtil(E, "snap", E["eTryEmitStack"]),
+        "finStack": arrUtil(E, "snap", E["eFinStack"]),
+        "mangled": E["eMangled"],
+        "parentMangled": E["eParentMangled"],
+        "typeArgs": E["eTypeArgs"],
+        "genTmpl": E["eGenTmpl"],
+        "meth": E["eMeth"],
+        "methTypeParams": E["eMethTypeParams"],
+        "mi": E["eMi"],
+        "classMethods": E["eClassMethods"],
+        "classIsStruct": E["eClassIsStruct"],
+        "paramI": E["eParamI"],
+        "loopSave": E["eLoopSave"],
+        "memObj": E["eMemObj"],
+        "memFld": E["eMemFld"],
+        "memTypeArgs": E["eMemTypeArgs"],
+        "methodMangled": E["eMethodMangled"],
+        "recvClass": E["eRecvClass"],
+        "methTmpl": E["eMethTmpl"],
+        "genSym": E["eGenSym"],
+        "genI": E["eGenI"],
+        "found": E["eFound"],
+        "ctorCallee": E["eCtorCallee"],
+        "ctorName": E["eCtorName"]
     })
 }
 
@@ -777,6 +802,31 @@ pub fn emitFnScopeRestore(E) {
     E["eFnBody"] = sv["fnBody"]
     E["eParamDefaults"] = sv["paramDefaults"]
     E["eFnRest"] = sv["fnRest"]
+    E["eFnTryRegions"] = sv["fnTryRegions"]
+    E["eTryEmitStack"] = sv["tryEmitStack"]
+    E["eFinStack"] = sv["finStack"]
+    E["eMangled"] = sv["mangled"]
+    E["eParentMangled"] = sv["parentMangled"]
+    E["eTypeArgs"] = sv["typeArgs"]
+    E["eGenTmpl"] = sv["genTmpl"]
+    E["eMeth"] = sv["meth"]
+    E["eMethTypeParams"] = sv["methTypeParams"]
+    E["eMi"] = sv["mi"]
+    E["eClassMethods"] = sv["classMethods"]
+    E["eClassIsStruct"] = sv["classIsStruct"]
+    E["eParamI"] = sv["paramI"]
+    E["eLoopSave"] = sv["loopSave"]
+    E["eMemObj"] = sv["memObj"]
+    E["eMemFld"] = sv["memFld"]
+    E["eMemTypeArgs"] = sv["memTypeArgs"]
+    E["eMethodMangled"] = sv["methodMangled"]
+    E["eRecvClass"] = sv["recvClass"]
+    E["eMethTmpl"] = sv["methTmpl"]
+    E["eGenSym"] = sv["genSym"]
+    E["eGenI"] = sv["genI"]
+    E["eFound"] = sv["found"]
+    E["eCtorCallee"] = sv["ctorCallee"]
+    E["eCtorName"] = sv["ctorName"]
 }
 
 /// Missing args stay undefined in Kab-VM; apply default via jump_if_not_nullish.

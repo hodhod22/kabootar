@@ -1,0 +1,79 @@
+// SH29: aot-tv1 class support through the SOURCE path —
+// new_instance / new_instance_from_array, init (incl. inherited and
+// "constructor" fallback), method dispatch via the get_member miss
+// path (vmC marker → bound-method closure cell), this binding,
+// member_set/member_get on instance fields, extends-chain method
+// lookup, get_super_method, and instanceof builtin. Instances are
+// tag-10 records {vmC, vmI} where vmI is the shell's own tagged
+// pointer (aliases share the cell = shared identity). Native rax
+// must equal the mirror and the host expectation.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 2048 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+// ctor + init + field write through this.
+acc = acc + srcOk("class A { x = 0 fn init(v) { this.x = v } fn get() { return this.x } } let o = A(7) return o.get()", 14)
+// method with params (this.x + a + b = 7+1+2).
+acc = acc + srcOk("class A { x = 0 fn init(v) { this.x = v } fn add(a, b) { return this.x + a + b } } let o = A(7) return o.add(1, 2)", 20)
+// in-place mutation visible to the caller (record slots are shared).
+acc = acc + srcOk("class A { x = 0 fn init(v) { this.x = v } fn bump() { this.x = this.x + 1 } fn get() { return this.x } } let o = A(4) o.bump() o.bump() return o.get()", 12)
+// no init, zero-arg ctor.
+acc = acc + srcOk("class B { fn hi() { return 3 } } let b = B() return b.hi()", 6)
+// two independent instances.
+acc = acc + srcOk("class A { x = 0 fn init(v) { this.x = v } fn get() { return this.x } } let a = A(1) let b = A(9) return a.get() + b.get()", 20)
+// field write from outside (member_set on the instance record).
+acc = acc + srcOk("class A { x = 0 fn get() { return this.x } } let o = A() o.x = 21 return o.get()", 42)
+// bound method as a first-class value: get_member → tag-6 cell → callv.
+acc = acc + srcOk("class A { x = 0 fn init(v) { this.x = v } fn get() { return this.x } } let o = A(8) let m = o.get return m()", 16)
+// extends: child inherits the parent method (own-then-chain lookup).
+acc = acc + srcOk("class P { fn base() { return 4 } } class C extends P { } let c = C() return c.base()", 8)
+// inherited init (chain walk with vmC of the child).
+acc = acc + srcOk("class P { x = 0 fn init(v) { this.x = v } fn get() { return this.x } } class C extends P { } let c = C(6) return c.get()", 12)
+// override shadows the parent method on the same receiver.
+acc = acc + srcOk("class P { fn base() { return 4 } } class C extends P { fn base() { return 10 } } let c = C() return c.base()", 20)
+// super.<method> binds the PARENT method to this receiver.
+acc = acc + srcOk("class P { fn base() { return 4 } } class C extends P { fn sup() { return super.base() } } let c = C() return c.sup()", 8)
+// super + override compose: child override wins for direct calls.
+acc = acc + srcOk("class P { fn base() { return 4 } } class C extends P { fn base() { return 10 } fn sup() { return super.base() + this.base() } } let c = C() return c.sup()", 28)
+// new_instance_from_array: spread ctor call.
+acc = acc + srcOk("class A { x = 0 fn init(v) { this.x = v } fn get() { return this.x } } let xs = [5] let o = A(...xs) return o.get()", 10)
+// instanceof walks the extends chain on the class-name string.
+acc = acc + srcOk("class P { } class C extends P { } let c = C() return instanceof(c, \"C\")", 27)
+acc = acc + srcOk("class P { } class C extends P { } let c = C() return instanceof(c, \"P\")", 27)
+acc = acc + srcOk("class P { } class C extends P { } class U { } let c = C() return instanceof(c, \"U\")", 19)
+println("acc " + acc)
+if acc == 16 {
+    return 42
+}
+return acc

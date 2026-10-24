@@ -1,0 +1,84 @@
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_gc"
+
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let j = json_parse(os_read("/host/examples/sh33/_lower_cache.json"))
+let fns = j["fns"]
+let nf = len(fns)
+println("sB nf=" + nf)
+
+let needR12 = false
+let needGc = false
+let allOk = true
+let opslens = []
+let i = 0
+while i < nf {
+    let a = json_parse(os_read("/host/examples/sh33/_stageA_" + i + ".json"))
+    if a["ok"] == false {
+        println("sB REJECT aotFnOk " + a["name"])
+        allOk = false
+    }
+    if a["badcall"] >= 0 {
+        println("sB REJECT call " + a["name"] + " at op " + a["badcall"])
+        allOk = false
+    }
+    if a["r12"] == 1 { needR12 = true }
+    if a["gc"] == 1 { needGc = true }
+    opslens = push(opslens, a["opslen"])
+    i = i + 1
+}
+if allOk == false {
+    println("sB FAIL")
+    return 1
+}
+
+let gcIdx = -1
+if needGc {
+    let synth = aotGcSynthFn()
+    fns = push(fns, synth)
+    gcIdx = len(fns) - 1
+    let fa2 = []
+    let i2 = 0
+    while i2 < len(fns) {
+        fa2 = push(fa2, fns[i2]["arity"])
+        i2 = i2 + 1
+    }
+    let slops = synth["ops"]
+    let slen = 0
+    let k = 0
+    while k < len(slops) {
+        slen = slen + aotFnOpLen(slops[k], synth["locals"], fa2)
+        k = k + 1
+    }
+    opslens = push(opslens, slen)
+    if aotFnOk(synth, fa2) == false {
+        println("sB REJECT aotFnOk gc-synth")
+        return 1
+    }
+    println("sB gc synth opslen=" + slen)
+}
+
+if fns[0]["arity"] > 2 {
+    println("sB REJECT entry arity " + fns[0]["arity"])
+    return 1
+}
+
+let pros = []
+let fnOffs = []
+let cur = 0
+let fi = 0
+while fi < len(fns) {
+    let pro = aotFnProLen(fns[fi]["locals"], fns[fi]["arity"], fi == 0, "win64", needR12)
+    pros = push(pros, pro)
+    fnOffs = push(fnOffs, cur)
+    cur = cur + pro + opslens[fi]
+    fi = fi + 1
+}
+
+os_write("/host/examples/sh33/_stageB.json", json_stringify({
+    "needR12": needR12, "needGc": needGc, "gcIdx": gcIdx,
+    "pros": pros, "fnOffs": fnOffs, "total": cur, "nf2": len(fns)
+}))
+println("sB done nf2=" + len(fns) + " total=" + cur + " needR12=" + needR12 + " gcIdx=" + gcIdx)
+return 0

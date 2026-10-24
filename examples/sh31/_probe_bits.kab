@@ -1,0 +1,19 @@
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_fn_lower"
+
+let bc = compileIr("return 12 | 10")
+let lo = aotFnLowerModuleTv1(bc, 512)
+println("lower ok=" + lo["ok"])
+if lo["ok"] == true {
+    let f0 = lo["fns"][0]
+    println("nops=" + len(f0["ops"]))
+    let i = 0
+    while i < len(f0["ops"]) {
+        println("  " + f0["ops"][i])
+        i = i + 1
+    }
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+    println("mirror=" + mr)
+}

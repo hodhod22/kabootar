@@ -22,6 +22,7 @@ pub fn deserializeKbc(text) {
         "enums": [],
         "imports": [],
         "pub_imports": [],
+        "exports": [],
         "arrows": [],
         "tryRegions": [],
         "ops": [],
@@ -50,6 +51,7 @@ pub fn deserializeKbc(text) {
         "enums": st["enums"],
         "imports": st["imports"],
         "pub_imports": st["pub_imports"],
+        "exports": st["exports"],
         "arrows": st["arrows"],
         "tryRegions": st["tryRegions"],
         "ops": st["ops"]

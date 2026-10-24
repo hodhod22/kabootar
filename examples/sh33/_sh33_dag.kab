@@ -1,0 +1,95 @@
+import "kab/aot/aot_link"
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+
+fn modBc(name) {
+    let r = bc_module_ir(name + ".kab")
+    if r["ok"] == false {
+        r = bc_module_ir("lib/" + name + ".kab")
+    }
+    if r["ok"] == false {
+        println("MISS " + name + ": " + r["reason"])
+        return null
+    }
+    return r["bc"]
+}
+
+fn dagVisit(name, seen, out) {
+    if seen[name] == 1 { return out }
+    seen[name] = 1
+    let bc = modBc(name)
+    if bc == null { return out }
+    let i = 0
+    while i < len(bc["imports"]) {
+        out = dagVisit(bc["imports"][i], seen, out)
+        i = i + 1
+    }
+    println("loaded " + name + " fns=" + len(bc["functions"]))
+    out = push(out, { "name": name, "bc": bc })
+    return out
+}
+
+let cachePath = "/host/examples/sh33/_lower_cache.json"
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let cached = null
+if os_exists(cachePath) {
+    cached = os_read(cachePath)
+}
+let fns = null
+let ng = 0
+if typeof(cached) == "string" {
+    let j = json_parse(cached)
+    fns = j["fns"]
+    ng = j["nglobals"]
+    println("lower cache hit: nfns=" + len(fns) + " ng=" + ng)
+} else {
+    let t0 = date_now_ms()
+    let mods = dagVisit("self_host/vm_ops_arith_a", {}, [])
+    println("dag mods=" + len(mods) + " ms=" + (date_now_ms() - t0))
+    t0 = date_now_ms()
+    let bc = aotLinkModules(mods)
+    println("linked nfns=" + len(bc["functions"]) + " ng=" + len(bc["globals"]) + " ms=" + (date_now_ms() - t0))
+    t0 = date_now_ms()
+    // heapQ=1Mi qwords: the 512-qword default heap ran out during module
+    // init (honest ud2). Bound = r12+(ng+2+heapQ)*8 must fit the mapping.
+    let lr = aotFnLowerModuleTv1(bc, 1048576)
+    println("lower ok=" + json_stringify(lr["ok"]) + " nfns=" + len(lr["fns"]) + " ms=" + (date_now_ms() - t0))
+    if lr["ok"] {
+        os_write(cachePath, json_stringify({ "nglobals": lr["nglobals"], "fns": lr["fns"] }))
+        fns = lr["fns"]
+        ng = lr["nglobals"]
+    } else {
+        println("reason: " + json_stringify(lr["reason"]))
+    }
+}
+if fns != null {
+    let emitPath = "/host/examples/sh33/_emit_cache.json"
+    let code = null
+    let ecached = null
+    if os_exists(emitPath) {
+        ecached = os_read(emitPath)
+    }
+    if typeof(ecached) == "string" {
+        let ej = json_parse(ecached)
+        code = ej["code"]
+        println("emit cache hit: bytes=" + len(code))
+    } else {
+        let t0 = date_now_ms()
+        let r = aotX64EmitFns(fns, aotNativeHostAbi())
+        println("emit bytes=" + len(r["code"]) + " ms=" + (date_now_ms() - t0))
+        if len(r["code"]) > 0 {
+            code = r["code"]
+            os_write(emitPath, json_stringify({ "code": code }))
+        }
+    }
+    if code != null && len(code) > 0 {
+        let d = []
+        while len(d) < ng * 8 { d = push(d, 0) }
+        let nr = os_native_exec(code, 0, d, (ng + 1048576 + 64) * 8)
+        let mr = -1 // mirror skipped: 340k-op image too slow interpreted
+        println("native=" + nr + " mirror=skipped")
+    }
+}
+return 0

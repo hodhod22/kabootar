@@ -1,0 +1,55 @@
+// Regression: nested index expressions `a[b[i]]` must index `a`, not `b`.
+// The self-host emitter shared E["eBxL"] across the recursive index compile,
+// so `locals[op[1]]` was emitted as `op[op[1]]`. These legs run INLINE —
+// this file is itself compiled by the self-host compiler, so a regression
+// in emit_expr_leaf shows up as wrong values here.
+
+import "kabtest/core"
+
+fn nestedIndexLocals() {
+    let ops = [["load", 1]]
+    let locals = ["a", "b", "c"]
+    let op = ops[0]
+    return locals[op[1]]
+}
+
+ktAssertEq(nestedIndexLocals(), "b", "a[b[i]] indexes a")
+
+// member expr inside the index slot also clobbered the shared field
+fn nestedIndexMember() {
+    let rec = { "k": 1 }
+    let arr = ["x", "y", "z"]
+    return arr[rec.k]
+}
+
+ktAssertEq(nestedIndexMember(), "y", "a[b.c] indexes a")
+
+// three levels deep
+fn nestedIndexDeep() {
+    let d = [[0, 1]]
+    let mid = [5, 0]
+    let base = ["p", "q", "r"]
+    return base[mid[d[0][1]]]
+}
+
+ktAssertEq(nestedIndexDeep(), "p", "a[b[c[d]]] indexes a")
+
+// chained index a[i][j] — different AST but same emitExpr_index
+fn chainedIndex() {
+    let m = [[1, 2], [3, 4]]
+    return m[1][0]
+}
+
+ktAssertEq(chainedIndex(), 3, "a[i][j]")
+
+// index-assign with nested index must store into the right container
+fn nestedIndexAssign() {
+    let idx = [0, 2]
+    let arr = ["u", "v", "w"]
+    arr[idx[1]] = "X"
+    return arr[2]
+}
+
+ktAssertEq(nestedIndexAssign(), "X", "a[b[i]] = v stores into a")
+
+return true

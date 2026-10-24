@@ -25824,6 +25824,437 @@ fn sh28_aot_gc_smoke() {
         .expect("join");
 }
 
+/// SH28: aot-tv1 numeric widening at the raw-op level — fcast (SMI→Float
+/// promotion), fmod (truncating SSE remainder), tconst64 (movabs wide
+/// integer constants) and negative-float bit patterns through the
+/// aotF64Halves path. Native rax == Kab mirror on the same op arrays.
+#[test]
+fn sh28_aot_num_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_num_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-num".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot num smoke");
+            let value = eval_program(&program, &mut env).expect("run aot num smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot num smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 numeric widening through the SOURCE path — nine real
+/// compileIr programs (mixed SMI/Float arith and compares, float mod,
+/// wide int consts) lowered by aotFnLowerModuleTv1, emitted to x64 and
+/// run natively; native rax == mirror == host answer.
+#[test]
+fn sh28_aot_num_src_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_num_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-num-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot num src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot num src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot num src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 records through the SOURCE path — thirteen real
+/// compileIr programs covering make_object, get_member/member_set
+/// (hit+grow), spread merge, dynamic o["k"]/o["k"]=v, alias semantics,
+/// member misses and identity. Native rax == Kab mirror on the same op
+/// arrays.
+#[test]
+fn sh28_aot_rec_src_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_rec_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-rec-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot rec src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot rec src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot rec src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 strings through the SOURCE path — eleven real
+/// compileIr programs covering add-concat (str+str, str±SMI via itoa,
+/// negative itoa), content eq/ne, .length, s[i] (incl. oob → undef) and
+/// runtime-built record keys o["a"+"b"] via the content-hash kid.
+/// Native rax == Kab mirror on the same op arrays.
+#[test]
+fn sh28_aot_str_src_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_str_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-str-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot str src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot str src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot str src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 Option/Result through the SOURCE path — ten real
+/// compileIr programs covering make_some/none/ok/err (tag-12 sum
+/// cells), match with jump_unless_*/unwrap_* (incl. _ wildcard and
+/// string-payload Err), `?` result_question, and the dup/swap ops the
+/// match machinery emits. Native rax == Kab mirror on the same ops.
+#[test]
+fn sh28_aot_opt_src_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_opt_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-opt-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot opt src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot opt src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot opt src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 match machinery through the SOURCE path — real
+/// compileIr match arms covering const_eq (int/string/bool/undefined/or),
+/// array patterns (fixed pieces, rest-mid window via array_slice_rest +
+/// index_peek_from_end, length-select), object patterns (empty, shorthand,
+/// field-const, object_rest), nullish paths (?. and ?? →
+/// jump_if_not_nullish), and the enum pipeline end-to-end (ns install,
+/// E.V resolve, ctor call, jump_unless_enum_variant, unpack_enum_fields).
+/// Native rax == Kab mirror on the same ops.
+#[test]
+fn sh28_aot_match_src_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_match_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-match-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot match src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot match src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot match src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 array/slot ops through the SOURCE path — real compileIr
+/// ops: take_local/take_global + array_push_local/array_push_global (the
+/// `a = push(a, v)` desugar), len_local/len_global/get_length,
+/// concat_array for spread literals, array_slice_rest via let-destructure,
+/// and call_from_array for f(...xs) spread calls. Push/pop/concat allocate
+/// fresh tag-5 cells (Kab push copies — alias safety); call_from_array
+/// dispatches 0..3 args onto the static callv registers. Native rax ==
+/// Kab mirror on the same ops.
+#[test]
+fn sh28_aot_arr_src_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_arr_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-arr-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot arr src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot arr src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot arr src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 throw + try/catch through the SOURCE path — real
+/// compileIr tryRegions. An in-region `throw` lowers to a bare jmp to
+/// catchStart (its store_local binds the reason); an uncaught throw
+/// wraps the reason in a tag-13 marker cell and `ret`s it — every
+/// callN/callv/call_from_array site appends a marker check that either
+/// jumps into the enclosing catch or re-returns the marker upward.
+/// Covers same-frame, cross-fn, multi-frame propagation, nested-try
+/// outer-tiebreak (vFindTry `>=` rule — inner catch dead when bodyStart
+/// ties), finally, and uncaught-at-main marker parity. Lowering also
+/// maps jump-to-end (len(ops)) onto a tundef/ret landing pad — the VM's
+/// implicit `return undefined`. Native rax == Kab mirror on same ops.
+#[test]
+fn sh28_aot_try_src_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_try_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-try-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot try src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot try src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot try src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH28: aot-tv1 builtin-call lowering through the SOURCE path —
+/// `load_global <builtin>; call n` with no module-fn target lowers
+/// inline via aotBuiltinSeq (args on the stack; the callee global never
+/// materialises). Covers len/push/pop/slice/concat, typeof, str_slice,
+/// char_at/char_code_at/str_at, from_char_code, parse_int (radix +
+/// prefixes + NaN), abs/min/max/floor, the is_* family, object_has_own,
+/// and object_array_push/pop via slots-cell writeback. Uncovered names
+/// fall through to gload+callv → honest trap. Native rax == mirror.
+#[test]
+fn sh28_aot_builtin_src_smoke() {
+    let path = format!(
+        "{}/examples/sh28/sh28_aot_builtin_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-aot-builtin-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot builtin src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot builtin src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot builtin src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH29: aot-tv1 class lowering through the SOURCE path. Instances are
+/// tag-10 record shells `{vmC, vmI}` matching the Kab VM layout (declared
+/// field defaults are NOT materialised — same as vNewInstance). Method
+/// dispatch goes through get_member's miss path → compile-time class
+/// lookup → bound closure over a `Class$method$clo` wrapper. Covers
+/// new_instance (init + inherited init + constructor fallback + arity
+/// traps), method calls incl. `this` mutation, inherited methods, super
+/// via get_super_method, new_instance_from_array (callN only when
+/// argN==np else honest trap), and instanceof over the extends chain.
+/// Native rax == Kab mirror on same ops.
+#[test]
+fn sh29_aot_class_src_smoke() {
+    let path = format!(
+        "{}/examples/sh29/sh29_aot_class_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh29-aot-class-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot class src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot class src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot class src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH30: extended call convention — static calln (5..20 args: first
+/// four in rcx/rdx/r8/r9, extras through the caller's frame, callee
+/// seeds local i>=4 from [rbp+24+8*(i-4)]), dynamic callv >3 args via
+/// the same spill (cell hidden in rcx), call_from_array spread calls
+/// with 4..19 elements, and class ctor/method calls above the old
+/// four-arg register bound. Native rax == Kab mirror on same ops.
+#[test]
+fn sh30_aot_calln_src_smoke() {
+    let path = format!(
+        "{}/examples/sh30/sh30_aot_calln_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh30-aot-calln-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot calln src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot calln src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot calln src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH31: tagged bitwise ops — bit_and/bit_or/bit_xor/shl/shr/ushr and
+/// unary bit_not lower in aot-tv1 behind an is_smi pair-guard to the
+/// t* machine ops (detag via sar 1 → 32-bit op = to_int32 truncation →
+/// movsxd sign-extend → shl 1 retag; shift counts masked &0x1f; ushr
+/// mirrors the host's `as i32` wrap). Float operands trap honestly —
+/// no f→i32 op exists. Native rax == Kab mirror on same ops.
+#[test]
+fn sh31_aot_bitops_src_smoke() {
+    let path = format!(
+        "{}/examples/sh31/sh31_aot_bitops_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh31-aot-bitops-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot bitops src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot bitops src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot bitops src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH32: tagged pow — `pow` lowers in aot-tv1 behind an is_smi
+/// pair-guard to `tpow` (detag → i64 multiply loop → retag with
+/// overflow guards). SMI base + SMI non-negative exponent covered;
+/// exp<0, i64 overflow and results past the SMI range trap (ud2)
+/// rather than silently widening to Float — no fpow op exists.
+/// Native rax == Kab mirror on same ops.
+#[test]
+fn sh32_aot_pow_src_smoke() {
+    let path = format!(
+        "{}/examples/sh32/sh32_aot_pow_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh32-aot-pow-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot pow src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot pow src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot pow src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH33: multi-module linking — `aotLinkModules` merges several
+/// compileIr module records into one image. Each module main becomes
+/// a `$main::<name>` fn invoked in dependency order; imported pub
+/// names alias the exporter's global slot (live-binding semantics);
+/// own fn names mangle to `mod::sym` so load_global+call fusion
+/// resolves the right fn across modules and private-name collisions
+/// stay isolated. Covers pub-fn calls, pub-let data, indirect fn
+/// values (callv), transitive imports and private collisions.
+/// Native rax == Kab mirror == tagged expect on every case.
+#[test]
+fn sh33_aot_link_src_smoke() {
+    let path = format!(
+        "{}/examples/sh33/sh33_aot_link_src_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh33-aot-link-src".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile aot link src smoke");
+            let value = eval_program(&program, &mut env).expect("run aot link src smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Number(42)),
+                "aot link src smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH28: OS-spawned process exec — the persisted image's code bytes run
 /// under a pid the OS spawned (os_spawn → process table → own VA space),
 /// not the init process's guest-MM slot. The nollAotProcess leg.

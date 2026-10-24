@@ -903,10 +903,17 @@ fn cache_path_kbcb(base: &Path, path: &str) -> PathBuf {
 /// (`seed/compiler.kbcb`) embeds every DAG leaf fingerprint, so hashing its
 /// bytes captures emitter/parser/serializer changes — `COMPILER_IMAGE_VERSION`
 /// alone is a manual constant that does not move on toolchain edits. Cached by
-/// (mtime, len) so a mid-process image regen still invalidates. When the image
-/// is absent (live-source toolchain) the `seed/dag` dir listing is hashed.
+/// (mtime, len, dag-source key) so a mid-process image regen still invalidates.
+/// When the image is absent (live-source toolchain) the `seed/dag` dir listing
+/// is hashed.
+///
+/// The DAG-source key also feeds the fingerprint: `self_host/*.kab` edits change
+/// the effective toolchain even while the packed `compiler.kbcb` seed is
+/// untouched — the seed modules whose fingerprints mismatch get rust-compiled
+/// from live sources at import time. Without this, keyed `.kbc`/`.kbcb` caches
+/// silently serve bytecode emitted by the pre-edit compiler.
 fn toolchain_fingerprint() -> String {
-    static FP: OnceLock<Mutex<(u64, u64, String)>> = OnceLock::new();
+    static FP: OnceLock<Mutex<(u64, u64, u64, String)>> = OnceLock::new();
     let path = compiler_image_path();
     let (mt, len) = fs::metadata(&path)
         .ok()
@@ -920,13 +927,25 @@ fn toolchain_fingerprint() -> String {
             )
         })
         .unwrap_or((0, 0));
-    let slot = FP.get_or_init(|| Mutex::new((u64::MAX, 0, String::new())));
+    let src_key = compile_dag_source_key();
+    let slot = FP.get_or_init(|| Mutex::new((u64::MAX, 0, 0, String::new())));
     if let Ok(map) = slot.lock() {
-        if map.0 == mt && map.1 == len && !map.2.is_empty() {
-            return map.2.clone();
+        if map.0 == mt && map.1 == len && map.2 == src_key && !map.3.is_empty() {
+            return map.3.clone();
         }
     }
     let mut hasher = DefaultHasher::new();
+    src_key.hash(&mut hasher);
+    // Rust-side bytecode toolchain: edits to the op generator, peephole
+    // optimizer, or .kbc serializer must evict cached bytecode — the packed
+    // compiler image only covers self_host sources.
+    for bytes in [
+        include_bytes!("../bytecode/compiler.rs") as &[u8],
+        include_bytes!("../bytecode/optimize.rs"),
+        include_bytes!("../bytecode/types.rs"),
+    ] {
+        bytes.hash(&mut hasher);
+    }
     if mt != 0 {
         if let Ok(bytes) = fs::read(&path) {
             bytes.hash(&mut hasher);
@@ -951,9 +970,33 @@ fn toolchain_fingerprint() -> String {
     }
     let fp = format!("{:016x}", hasher.finish());
     if let Ok(mut map) = slot.lock() {
-        *map = (mt, len, fp.clone());
+        *map = (mt, len, src_key, fp.clone());
     }
     fp
+}
+
+/// Combined fingerprint of every `self_host/compile` DAG shard's current
+/// source. Unreadable shards still contribute their path so a missing file
+/// never collides with a present one.
+fn compile_dag_source_key() -> u64 {
+    let mut h = DefaultHasher::new();
+    let dir = dag::self_host_dir();
+    let root = dir.parent().unwrap_or(&dir).to_path_buf();
+    if let Ok(dag_list) = walk_compile_dag() {
+        for rel in dag_list {
+            let p = root.join(&rel);
+            match fs::read_to_string(&p) {
+                Ok(source) => {
+                    source_fingerprint(&p.to_string_lossy(), &source).hash(&mut h);
+                }
+                Err(_) => {
+                    rel.hash(&mut h);
+                    "missing".hash(&mut h);
+                }
+            }
+        }
+    }
+    h.finish()
 }
 
 fn cache_path_kbcb_ca(base: &Path, fingerprint: &str) -> PathBuf {

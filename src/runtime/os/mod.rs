@@ -940,9 +940,354 @@ fn os_native_exec_native(args: &[Value], _env: &mut Environment) -> Result<Value
         Some(_) => return Err("os_native_exec data expects byte array".to_string()),
         None => Vec::new(),
     };
-    Ok(Value::Number(crate::runtime::native_exec::exec_bytes_data(
-        &data, arg, &payload,
+    // Optional fourth arg: RW mapping size in bytes. The data array only
+    // carries the initial bytes — the mapping itself can legitimately be
+    // much larger (the aot-tv1 heap bound address is baked into the image,
+    // and an ~8 MiB zero page is far cheaper to reserve natively than to
+    // materialize as a Kab array). Anonymous maps are zero-filled, so bytes
+    // past `payload.len()` are 0 — matching an extended zero array.
+    let map_len = match args.get(3) {
+        Some(Value::Number(n)) if *n >= 0 => *n as usize,
+        Some(_) => return Err("os_native_exec data_size expects number".to_string()),
+        None => payload.len(),
+    };
+    Ok(Value::Number(crate::runtime::native_exec::exec_bytes_data_sized(
+        &data, arg, &payload, map_len,
     )?))
+}
+
+/// SH33-capstone: expose a module's compiled IR as the same record shape the
+/// self-host `deserializeKbc` produces — lets Kab AOT drivers link/lower real
+/// modules without interpreting megabytes of `.kbc` text per module.
+fn bc_module_ir_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    let path = expect_string(args, 0, "bc_module_ir()")?;
+    let prefer = if crate::compile::rust_fallback_allowed(&path) {
+        crate::compile::CompilePrefer::Rust
+    } else {
+        crate::compile::CompilePrefer::from_args_and_env(&[])
+    };
+    let mut m = std::collections::HashMap::new();
+    match crate::compile::compile_file_prefer_cached(&path, prefer) {
+        Ok((program, _backend)) => match program.bytecode {
+            Some(bc) => {
+                m.insert("ok".into(), Value::Bool(true));
+                m.insert("bc".into(), bytecode_module_to_value(&bc));
+            }
+            None => {
+                m.insert("ok".into(), Value::Bool(false));
+                m.insert(
+                    "reason".into(),
+                    Value::String(format!("no bytecode for {path}")),
+                );
+            }
+        },
+        Err(e) => {
+            m.insert("ok".into(), Value::Bool(false));
+            m.insert("reason".into(), Value::String(e));
+        }
+    }
+    Ok(Value::Object(std::rc::Rc::new(m)))
+}
+
+fn bc_const_to_value(c: &crate::bytecode::Constant) -> Value {
+    use crate::bytecode::Constant;
+    match c {
+        Constant::Number(n) => Value::Number(*n),
+        Constant::Float(f) => Value::Float(*f),
+        Constant::BigInt(s) => Value::String(s.clone()),
+        Constant::String(s) => Value::String(s.clone()),
+        Constant::Bool(b) => Value::Bool(*b),
+        Constant::Null => Value::Null,
+        Constant::Undefined => Value::Undefined,
+        Constant::Nan => Value::Float(f64::NAN),
+    }
+}
+
+fn bc_op_rec(name: &str, fields: &[(&str, i64)]) -> Value {
+    let mut m = std::collections::HashMap::new();
+    m.insert("op".into(), Value::String(name.to_string()));
+    for (k, v) in fields {
+        m.insert((*k).to_string(), Value::Number(*v));
+    }
+    Value::Object(std::rc::Rc::new(m))
+}
+
+fn bc_op_to_value(op: &crate::bytecode::Opcode) -> Value {
+    use crate::bytecode::Opcode;
+    let (name, a, a2): (&str, i64, i64) = match op {
+        Opcode::Const(i) => ("const", *i as i64, 0),
+        Opcode::LoadLocal(i) => ("load_local", *i as i64, 0),
+        Opcode::StoreLocal(i) => ("store_local", *i as i64, 0),
+        Opcode::LoadGlobal(i) => ("load_global", *i as i64, 0),
+        Opcode::StoreGlobal(i) => ("store_global", *i as i64, 0),
+        Opcode::Jump(off) => ("jump", *off as i64, 0),
+        Opcode::JumpIfFalse(off) => ("jump_if_false", *off as i64, 0),
+        Opcode::JumpIfNotNullish(off) => ("jump_if_not_nullish", *off as i64, 0),
+        Opcode::JumpIfResultErr(off) => ("jump_if_result_err", *off as i64, 0),
+        Opcode::JumpUnlessResultOk(off) => ("jump_unless_result_ok", *off as i64, 0),
+        Opcode::JumpUnlessResultErr(off) => ("jump_unless_result_err", *off as i64, 0),
+        Opcode::JumpUnlessOptionSome(off) => ("jump_unless_option_some", *off as i64, 0),
+        Opcode::JumpUnlessOptionNone(off) => ("jump_unless_option_none", *off as i64, 0),
+        Opcode::JumpUnlessConstEq(i, off) => {
+            return bc_op_rec(
+                "jump_unless_const_eq",
+                &[("arg", *i as i64), ("arg2", *off as i64)],
+            );
+        }
+        Opcode::JumpUnlessArray(off) => ("jump_unless_array", *off as i64, 0),
+        Opcode::JumpUnlessObject(off) => ("jump_unless_object", *off as i64, 0),
+        Opcode::JumpUnlessObjectEmpty(off) => ("jump_unless_object_empty", *off as i64, 0),
+        Opcode::JumpUnlessHasMember(k, off) => {
+            return bc_op_rec(
+                "jump_unless_has_member",
+                &[("arg", *k as i64), ("arg2", *off as i64)],
+            );
+        }
+        Opcode::JumpUnlessEnumVariant(t, v, off) => {
+            return bc_op_rec(
+                "jump_unless_enum_variant",
+                &[
+                    ("arg", *t as i64),
+                    ("arg2", *v as i64),
+                    ("arg3", *off as i64),
+                ],
+            );
+        }
+        Opcode::UnpackEnumFields(n) => ("unpack_enum_fields", *n as i64, 0),
+        Opcode::IndexPeekFromEnd(n) => ("index_peek_from_end", *n as i64, 0),
+        Opcode::ArraySliceRest(s, e) => {
+            return bc_op_rec(
+                "array_slice_rest",
+                &[("arg", *s as i64), ("arg2", *e as i64)],
+            );
+        }
+        Opcode::ObjectRest(n) => ("object_rest", *n as i64, 0),
+        Opcode::NewInstance(c, n) => {
+            return bc_op_rec(
+                "new_instance",
+                &[("arg", *c as i64), ("arg2", *n as i64)],
+            );
+        }
+        Opcode::NewInstanceFromArray(c) => ("new_instance_from_array", *c as i64, 0),
+        Opcode::GetSuperMethod(i) => ("get_super_method", *i as i64, 0),
+        Opcode::Call(n) => ("call", *n as i64, 0),
+        Opcode::MakeArray(n) => ("make_array", *n as i64, 0),
+        Opcode::MakeObject(n) => ("make_object", *n as i64, 0),
+        Opcode::TakeLocal(i) => ("take_local", *i as i64, 0),
+        Opcode::TakeGlobal(i) => ("take_global", *i as i64, 0),
+        Opcode::ArrayPushLocal(i) => ("array_push_local", *i as i64, 0),
+        Opcode::ArrayPushGlobal(i) => ("array_push_global", *i as i64, 0),
+        Opcode::ArrayPopLocal(i) => ("array_pop_local", *i as i64, 0),
+        Opcode::ArrayPopGlobal(i) => ("array_pop_global", *i as i64, 0),
+        Opcode::AccAddLocal(i) => ("acc_add_local", *i as i64, 0),
+        Opcode::AccAddGlobal(i) => ("acc_add_global", *i as i64, 0),
+        Opcode::LenLocal(i) => ("len_local", *i as i64, 0),
+        Opcode::LenGlobal(i) => ("len_global", *i as i64, 0),
+        Opcode::IndexGetLocal(i) => ("index_get_local", *i as i64, 0),
+        Opcode::IndexGetGlobal(i) => ("index_get_global", *i as i64, 0),
+        Opcode::GetMember(i) => ("get_member", *i as i64, 0),
+        Opcode::MemberSet(i) => ("member_set", *i as i64, 0),
+        Opcode::ArraySliceFrom(n) => ("array_slice_from", *n as i64, 0),
+        Opcode::MakeArrowFn(i) => ("make_arrow_fn", *i as i64, 0),
+        Opcode::Pop => ("pop", 0, 0),
+        Opcode::Add => ("add", 0, 0),
+        Opcode::Sub => ("sub", 0, 0),
+        Opcode::Mul => ("mul", 0, 0),
+        Opcode::Div => ("div", 0, 0),
+        Opcode::Mod => ("mod", 0, 0),
+        Opcode::Pow => ("pow", 0, 0),
+        Opcode::Eq => ("eq", 0, 0),
+        Opcode::Ne => ("ne", 0, 0),
+        Opcode::Lt => ("lt", 0, 0),
+        Opcode::Le => ("le", 0, 0),
+        Opcode::Gt => ("gt", 0, 0),
+        Opcode::Ge => ("ge", 0, 0),
+        Opcode::And => ("and", 0, 0),
+        Opcode::Or => ("or", 0, 0),
+        Opcode::In => ("in", 0, 0),
+        Opcode::BitAnd => ("bit_and", 0, 0),
+        Opcode::BitOr => ("bit_or", 0, 0),
+        Opcode::BitXor => ("bit_xor", 0, 0),
+        Opcode::Shl => ("shl", 0, 0),
+        Opcode::Shr => ("shr", 0, 0),
+        Opcode::Ushr => ("ushr", 0, 0),
+        Opcode::Not => ("not", 0, 0),
+        Opcode::Neg => ("neg", 0, 0),
+        Opcode::BitNot => ("bit_not", 0, 0),
+        Opcode::Dup => ("dup", 0, 0),
+        Opcode::IndexGet => ("index_get", 0, 0),
+        Opcode::IndexSet => ("index_set", 0, 0),
+        Opcode::GetLength => ("get_length", 0, 0),
+        Opcode::ArrayPush => ("array_push", 0, 0),
+        Opcode::Swap => ("swap", 0, 0),
+        Opcode::ConcatArray => ("concat_array", 0, 0),
+        Opcode::MergeObject => ("merge_object", 0, 0),
+        Opcode::CallFromArray => ("call_from_array", 0, 0),
+        Opcode::MakeOk => ("make_ok", 0, 0),
+        Opcode::MakeErr => ("make_err", 0, 0),
+        Opcode::MakeSome => ("make_some", 0, 0),
+        Opcode::MakeNone => ("make_none", 0, 0),
+        Opcode::Await => ("await", 0, 0),
+        Opcode::Yield => ("yield", 0, 0),
+        Opcode::YieldStar => ("yield_star", 0, 0),
+        Opcode::IteratorStepInPlace => ("iterator_step_in_place", 0, 0),
+        Opcode::AsyncIteratorStepInPlace => ("async_iterator_step_in_place", 0, 0),
+        Opcode::UnwrapResultOk => ("unwrap_result_ok", 0, 0),
+        Opcode::UnwrapResultErr => ("unwrap_result_err", 0, 0),
+        Opcode::UnwrapOptionSome => ("unwrap_option_some", 0, 0),
+        Opcode::ResultQuestion => ("result_question", 0, 0),
+        Opcode::MatchFail => ("match_fail", 0, 0),
+        Opcode::Throw => ("throw", 0, 0),
+        Opcode::Return => ("return", 0, 0),
+        Opcode::Halt => ("halt", 0, 0),
+    };
+    let _ = a2;
+    bc_op_rec(name, &[("arg", a)])
+}
+
+fn bc_try_region_to_value(r: &crate::bytecode::GeneratorTryRegion) -> Value {
+    let mut m = std::collections::HashMap::new();
+    m.insert("bodyStart".into(), Value::Number(r.body_start as i64));
+    m.insert("bodyEnd".into(), Value::Number(r.body_end as i64));
+    m.insert("catchStart".into(), Value::Number(r.catch_start as i64));
+    m.insert("errLocal".into(), Value::Number(r.err_local as i64));
+    Value::Object(std::rc::Rc::new(m))
+}
+
+fn bc_fn_to_value(f: &crate::bytecode::BytecodeFnDef) -> Value {
+    let mut m = std::collections::HashMap::new();
+    m.insert("sym".into(), Value::String(f.name.clone()));
+    m.insert(
+        "params".into(),
+        Value::from_array(f.params.iter().cloned().map(Value::String).collect()),
+    );
+    m.insert(
+        "locals".into(),
+        Value::from_array(f.locals.iter().cloned().map(Value::String).collect()),
+    );
+    if !f.constants.is_empty() {
+        m.insert(
+            "constants".into(),
+            Value::from_array(f.constants.iter().map(bc_const_to_value).collect()),
+        );
+    }
+    m.insert(
+        "ops".into(),
+        Value::from_array(f.code.iter().map(bc_op_to_value).collect()),
+    );
+    m.insert(
+        "tryRegions".into(),
+        Value::from_array(f.try_regions.iter().map(bc_try_region_to_value).collect()),
+    );
+    m.insert(
+        "arrows".into(),
+        Value::from_array(f.arrow_functions.iter().map(bc_fn_to_value).collect()),
+    );
+    if f.async_fn {
+        m.insert("isAsync".into(), Value::Number(1));
+    }
+    if f.generator_fn {
+        m.insert("isGen".into(), Value::Number(1));
+    }
+    Value::Object(std::rc::Rc::new(m))
+}
+
+fn bytecode_module_to_value(bc: &crate::bytecode::BytecodeModule) -> Value {
+    let str_arr = |v: &[String]| {
+        Value::from_array(v.iter().cloned().map(Value::String).collect())
+    };
+    let mut m = std::collections::HashMap::new();
+    m.insert(
+        "constants".into(),
+        Value::from_array(bc.constants.iter().map(bc_const_to_value).collect()),
+    );
+    m.insert("globals".into(), str_arr(&bc.globals));
+    m.insert("locals".into(), str_arr(&bc.main_locals));
+    m.insert(
+        "functions".into(),
+        Value::from_array(bc.functions.iter().map(bc_fn_to_value).collect()),
+    );
+    m.insert(
+        "arrows".into(),
+        Value::from_array(bc.arrow_functions.iter().map(bc_fn_to_value).collect()),
+    );
+    m.insert(
+        "classes".into(),
+        Value::from_array(
+            bc.classes
+                .iter()
+                .map(|c| {
+                    let mut cm = std::collections::HashMap::new();
+                    cm.insert("sym".into(), Value::String(c.name.clone()));
+                    if let Some(p) = &c.extends {
+                        cm.insert("extends".into(), Value::String(p.clone()));
+                    }
+                    cm.insert(
+                        "fields".into(),
+                        Value::from_array(
+                            c.fields
+                                .iter()
+                                .map(|f| {
+                                    let mut fm = std::collections::HashMap::new();
+                                    fm.insert("name".into(), Value::String(f.name.clone()));
+                                    fm.insert(
+                                        "type".into(),
+                                        Value::String(f.type_name.clone().unwrap_or_default()),
+                                    );
+                                    Value::Object(std::rc::Rc::new(fm))
+                                })
+                                .collect(),
+                        ),
+                    );
+                    cm.insert(
+                        "methods".into(),
+                        Value::from_array(c.methods.iter().map(bc_fn_to_value).collect()),
+                    );
+                    cm.insert("isStruct".into(), Value::Number(c.is_struct as i64));
+                    Value::Object(std::rc::Rc::new(cm))
+                })
+                .collect(),
+        ),
+    );
+    m.insert(
+        "enums".into(),
+        Value::from_array(
+            bc.enums
+                .iter()
+                .map(|e| {
+                    let mut em = std::collections::HashMap::new();
+                    em.insert("sym".into(), Value::String(e.name.clone()));
+                    em.insert(
+                        "variants".into(),
+                        Value::from_array(
+                            e.variants
+                                .iter()
+                                .map(|v| {
+                                    let mut vm = std::collections::HashMap::new();
+                                    vm.insert("name".into(), Value::String(v.name.clone()));
+                                    vm.insert("fields".into(), str_arr(&v.fields));
+                                    Value::Object(std::rc::Rc::new(vm))
+                                })
+                                .collect(),
+                        ),
+                    );
+                    Value::Object(std::rc::Rc::new(em))
+                })
+                .collect(),
+        ),
+    );
+    m.insert("imports".into(), str_arr(&bc.imports));
+    m.insert("pub_imports".into(), str_arr(&bc.pub_imports));
+    m.insert("exports".into(), str_arr(&bc.exports));
+    m.insert(
+        "tryRegions".into(),
+        Value::from_array(bc.main_try_regions.iter().map(bc_try_region_to_value).collect()),
+    );
+    m.insert(
+        "ops".into(),
+        Value::from_array(bc.main_code.iter().map(bc_op_to_value).collect()),
+    );
+    Value::Object(std::rc::Rc::new(m))
 }
 
 fn os_process_list_native(_args: &[Value], env: &mut Environment) -> Result<Value, String> {
@@ -1748,6 +2093,10 @@ pub fn os_globals(env: &mut Environment) {
     env.set(
         "os_native_exec".to_string(),
         Value::NativeFunction(os_native_exec_native),
+    );
+    env.set(
+        "bc_module_ir".to_string(),
+        Value::NativeFunction(bc_module_ir_native),
     );
     env.set(
         "os_window_create".to_string(),

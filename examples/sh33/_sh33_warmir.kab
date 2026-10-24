@@ -1,0 +1,8 @@
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_gc"
+import "kab/aot/aot_link"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+println("warm ok")
+return 0

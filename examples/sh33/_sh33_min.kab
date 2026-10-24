@@ -1,0 +1,9 @@
+import "kab/aot/aot_link"
+let bc = { "ops": [{ "op": "const", "arg": 0 }, { "op": "return", "arg": 0 }],
+           "functions": [], "globals": ["x"], "constants": [1],
+           "classes": [], "enums": [], "arrows": [], "imports": [],
+           "exports": [], "locals": [], "tryRegions": [] }
+println("before link")
+let r = aotLinkModules([{ "name": "m", "bc": bc }])
+println("linked nfns=" + len(r["functions"]))
+return 0

@@ -73,14 +73,23 @@ if aotFnMirrorH(lo2["fns"], 0, lo2["nglobals"], 64) != rax2 {
     return 10
 }
 
-// Honest rejects in tv1: non-length member access and float consts
-// refuse (no f64→bits path exists in-language; fmk is emitter-level).
-// Numeric ops dispatch at runtime — SMI fast path, Float-cell slow
-// path, trap otherwise.
-if aotFnLowerModuleTv1(compileIr("return [1].foo"), 200)["ok"] {
+// `[1].foo` lowers now — records made member access a real runtime
+// path; the array-tag check falls through to undefined (tundef=11),
+// matching the VM's vIndexGet on a non-length array member. Float
+// consts lower too — aotF64Halves derives the IEEE-754 halves
+// arithmetically, so `return 1.5` must succeed.
+let lo4 = aotFnLowerModuleTv1(compileIr("return [1].foo"), 200)
+if lo4["ok"] == false {
+    println("REJECT4 " + lo4["reason"])
     return 11
 }
-if aotFnLowerModuleTv1(compileIr("return 1.5"), 200)["ok"] {
+let data4 = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+let r4 = aotX64EmitFns(lo4["fns"], aotNativeHostAbi())
+let rax4 = os_native_exec(r4["code"], 0, data4)
+if rax4 != 11 {
+    return 11
+}
+if aotFnLowerModuleTv1(compileIr("return 1.5"), 200)["ok"] == false {
     return 12
 }
 

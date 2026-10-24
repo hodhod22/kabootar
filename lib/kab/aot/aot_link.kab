@@ -1,0 +1,312 @@
+// AOT multi-module linker — import "kab/aot/aot_link"
+//
+// aotLinkModules(mods) merges compileIr module records into ONE bc record
+// that aotFnLowerModuleTv1 lowers unchanged: the whole import DAG becomes
+// a single image. `mods` is [{ "name", "bc" }…] in dependency order —
+// every module's imports must appear earlier in the array (the runtime
+// loader resolves imports dynamically; the linker does it statically).
+// `name` must equal the exact import spec string ("self_host/vm_s_stack").
+//
+// Model: each module's top-level ops become a fn record "$main::<name>"
+// (arity 0 — its own `return`/`halt`/jumps stay fn-local, no op reindex),
+// and the merged entry ops call them in order, dropping each result. The
+// app module is LAST; its return value is the image result.
+//
+// Globals: every module-local declared global keeps its own merged slot.
+// A global whose name is an IMPORTED pub name aliases the exporter's
+// merged slot — reads/writes hit the same cell (live-binding semantics,
+// and `load_global`-fused calls resolve the exporter's fn via the slot's
+// mangled name "mod::sym"). Fn-valued global slots carry the mangled name
+// so `aotLowerFnIndex` never resolves a same-named foreign fn; data and
+// builtin names stay plain (aotBuiltinSeq dispatches on the raw name).
+//
+// Remap sets inside every op list (main + fns + arrows + methods):
+//   global-family arg → slotmap, const-pool arg → +constBase (incl.
+//   jump_unless_enum_variant arg2), new_instance* arg → +classBase.
+//   Jump offsets are relative — untouched. call args are argc —
+//   untouched. make_arrow_fn args index the owner record — untouched.
+
+// Op-name → arg-kind sets, consulted via record lookup instead of
+// chains of string comparisons (this loop is the linker's hot path).
+fn aotLinkGlobalOps() {
+    return {
+        "load_global": 1, "store_global": 1, "take_global": 1,
+        "acc_add_global": 1, "len_global": 1, "array_push_global": 1,
+        "array_pop_global": 1, "index_get_global": 1, "index_set_global": 1
+    }
+}
+
+fn aotLinkConstOps() {
+    return {
+        "const": 1, "get_member": 1, "member_set": 1,
+        "jump_unless_has_member": 1, "jump_unless_const_eq": 1,
+        "jump_unless_enum_variant": 1, "get_super_method": 1
+    }
+}
+
+// Rewrite one op array: global args → slotmap, const args → +cbase,
+// class args → +clbase. Ops whose args need no remap pass through
+// unchanged — rebuilding every record dominated interpreted link time.
+fn aotLinkOps(ops, slotmap, cbase, clbase) {
+    let gops = aotLinkGlobalOps()
+    let cops = aotLinkConstOps()
+    let out = []
+    let i = 0
+    while i < len(ops) {
+        let o = ops[i]
+        let nm = o["op"]
+        let arg = o["arg"]
+        let narg = arg
+        let narg2 = o["arg2"]
+        if gops[nm] == 1 {
+            narg = slotmap[arg]
+        } else if cops[nm] == 1 {
+            narg = arg + cbase
+        } else if nm == "new_instance" || nm == "new_instance_from_array" {
+            narg = arg + clbase
+        }
+        if nm == "jump_unless_enum_variant" {
+            narg2 = narg2 + cbase
+        }
+        if narg == arg && narg2 == o["arg2"] {
+            out = push(out, o)
+        } else {
+            let n = { "op": nm, "arg": narg }
+            if narg2 != undefined {
+                n["arg2"] = narg2
+            }
+            if o["arg3"] != undefined {
+                n["arg3"] = o["arg3"]
+            }
+            out = push(out, n)
+        }
+        i = i + 1
+    }
+    return out
+}
+
+// Deep-rewrite an arrow/fn record list: ops + nested arrows.
+fn aotLinkFnList(fns, slotmap, cbase, clbase, prefix) {
+    let out = []
+    let i = 0
+    while i < len(fns) {
+        let f = fns[i]
+        let nf = {}
+        nf["sym"] = prefix + f["sym"]
+        nf["params"] = f["params"]
+        nf["locals"] = f["locals"]
+        nf["ops"] = aotLinkOps(f["ops"], slotmap, cbase, clbase)
+        nf["tryRegions"] = f["tryRegions"]
+        nf["globals"] = f["globals"]
+        nf["isAsync"] = f["isAsync"]
+        nf["isGen"] = f["isGen"]
+        if f["arrows"] != undefined {
+            nf["arrows"] = aotLinkFnList(f["arrows"], slotmap, cbase, clbase, prefix)
+        }
+        out = push(out, nf)
+        i = i + 1
+    }
+    return out
+}
+
+pub fn aotLinkModules(mods) {
+    let mGlobals = []
+    let mConsts = []
+    let mFns = []
+    let mClasses = []
+    let mEnums = []
+    let mOps = []
+    // Per-module export-name → merged global slot (a record used as a
+    // map), filled as each module is processed (importers only see
+    // earlier modules — topo order).
+    let exportSlotOf = []
+    // modIdx: module name → position in mods, for O(1) dep lookups.
+    let modIdx = {}
+    let mxi = 0
+    while mxi < len(mods) {
+        modIdx[mods[mxi]["name"]] = mxi
+        mxi = mxi + 1
+    }
+    let mi = 0
+    while mi < len(mods) {
+        let m = mods[mi]
+        let bc = m["bc"]
+        let prefix = m["name"] + "::"
+        let globals = bc["globals"]
+        // Which earlier modules does this module import?
+        let imps = bc["imports"]
+        // ownFnSet/ownExpSet: name → 1, so the per-global loop is a
+        // record lookup instead of linear scans.
+        let ownFnSet = {}
+        if bc["functions"] != undefined {
+            let ofi = 0
+            while ofi < len(bc["functions"]) {
+                ownFnSet[bc["functions"][ofi]["sym"]] = 1
+                ofi = ofi + 1
+            }
+        }
+        let ownExpSet = {}
+        if bc["exports"] != undefined {
+            let oei = 0
+            while oei < len(bc["exports"]) {
+                ownExpSet[bc["exports"][oei]] = 1
+                oei = oei + 1
+            }
+        }
+        // slotmap: importer-global index → merged-global index;
+        // gslot: global name → merged slot (drives the export map).
+        let slotmap = []
+        let gslot = {}
+        let gi = 0
+        while gi < len(globals) {
+            let gname = globals[gi]
+            let slot = -1
+            // Own fn decl beats an import binding of the same name.
+            let own = ownFnSet[gname] == 1
+            let ownExp = ownExpSet[gname] == 1
+            if own == false && ownExp == false && imps != undefined {
+                // Imported? name ∈ exports of a module m imports.
+                let dii = 0
+                while dii < len(imps) && slot < 0 {
+                    let di = modIdx[imps[dii]]
+                    if di != undefined && di < mi {
+                        let es = exportSlotOf[di][gname]
+                        if es != undefined {
+                            slot = es
+                        }
+                    }
+                    dii = dii + 1
+                }
+            }
+            if slot < 0 {
+                slot = len(mGlobals)
+                // Fn-valued slots carry the mangled name so fusion
+                // resolves "mod::sym"; data/builtin names stay plain.
+                if own {
+                    mGlobals = push(mGlobals, prefix + gname)
+                } else {
+                    mGlobals = push(mGlobals, gname)
+                }
+            }
+            slotmap = push(slotmap, slot)
+            gslot[gname] = slot
+            gi = gi + 1
+        }
+        // Record this module's exports for later importers.
+        let em2 = {}
+        if bc["exports"] != undefined {
+            let ej = 0
+            while ej < len(bc["exports"]) {
+                let en = bc["exports"][ej]
+                let es = gslot[en]
+                if es != undefined {
+                    em2[en] = es
+                }
+                ej = ej + 1
+            }
+        }
+        exportSlotOf = push(exportSlotOf, em2)
+        let cbase = len(mConsts)
+        if bc["constants"] != undefined {
+            let ci = 0
+            while ci < len(bc["constants"]) {
+                mConsts = push(mConsts, bc["constants"][ci])
+                ci = ci + 1
+            }
+        }
+        let clbase = len(mClasses)
+        if bc["classes"] != undefined {
+            let cj = 0
+            while cj < len(bc["classes"]) {
+                // Class records pass through except method ops — methods
+                // hold fn-like records with ops/arrows to rewrite.
+                let cl = bc["classes"][cj]
+                let ncl = {}
+                ncl["sym"] = cl["sym"]
+                if cl["extends"] != undefined {
+                    ncl["extends"] = cl["extends"]
+                }
+                if cl["fields"] != undefined {
+                    ncl["fields"] = cl["fields"]
+                }
+                if cl["methods"] != undefined {
+                    let ms = []
+                    let mk = 0
+                    while mk < len(cl["methods"]) {
+                        ms = push(ms, cl["methods"][mk])
+                        mk = mk + 1
+                    }
+                    ncl["methods"] = aotLinkFnList(ms, slotmap, cbase, clbase, "")
+                }
+                mClasses = push(mClasses, ncl)
+                cj = cj + 1
+            }
+        }
+        if bc["enums"] != undefined {
+            let ek = 0
+            while ek < len(bc["enums"]) {
+                mEnums = push(mEnums, bc["enums"][ek])
+                ek = ek + 1
+            }
+        }
+        // Module fns: rewrite ops, mangle sym (cross-module collision
+        // protection — fusion looks names up in ONE merged table).
+        if bc["functions"] != undefined {
+            let fi2 = 0
+            while fi2 < len(bc["functions"]) {
+                let rl = aotLinkFnList([bc["functions"][fi2]], slotmap, cbase, clbase, prefix)
+                mFns = push(mFns, rl[0])
+                fi2 = fi2 + 1
+            }
+        }
+        // Module main ops → a fn record "$main::<name>" (arity 0).
+        let mainFns = [{
+            "sym": "$main::" + m["name"],
+            "params": [],
+            "locals": bc["locals"],
+            "ops": bc["ops"],
+            "tryRegions": bc["tryRegions"],
+            "globals": [],
+            "isAsync": 0,
+            "isGen": 0,
+            "arrows": bc["arrows"]
+        }]
+        let mw = aotLinkFnList(mainFns, slotmap, cbase, clbase, "")
+        mFns = push(mFns, mw[0])
+        mi = mi + 1
+    }
+    // Entry ops: call each module main in order; intermediate results
+    // are dropped, the app (last) result is the image return value.
+    // "$main::m" slots exist purely so load_global+call fuses to a
+    // direct call — no cell materialisation needed.
+    let ei = 0
+    while ei < len(mods) {
+        let gs = len(mGlobals)
+        mGlobals = push(mGlobals, "$main::" + mods[ei]["name"])
+        mOps = push(mOps, { "op": "load_global", "arg": gs })
+        mOps = push(mOps, { "op": "call", "arg": 0 })
+        if ei + 1 < len(mods) {
+            mOps = push(mOps, { "op": "pop", "arg": 0 })
+        } else {
+            mOps = push(mOps, { "op": "return", "arg": 0 })
+        }
+        ei = ei + 1
+    }
+    mOps = push(mOps, { "op": "halt", "arg": 0 })
+    return {
+        "ops": mOps,
+        "functions": mFns,
+        "globals": mGlobals,
+        "constants": mConsts,
+        "classes": mClasses,
+        "enums": mEnums,
+        "arrows": [],
+        "imports": [],
+        "exports": [],
+        "interfaces": [],
+        "genericMethodTemplates": [],
+        "locals": [],
+        "pub_imports": [],
+        "tryRegions": []
+    }
+}

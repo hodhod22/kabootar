@@ -1,0 +1,73 @@
+// SH28: aot-tv1 array/slot ops through the SOURCE path — real compileIr
+// ops lowered by aotFnLowerModuleTv1: take_local/take_global +
+// array_push_local/array_push_global (the `a = push(a, v)` desugar),
+// len_local/len_global/get_length, concat_array for spread literals,
+// array_slice_rest via `let [h, ...rest]`, and call_from_array for
+// f(...xs) spread calls.
+// All lowered out of existing primitives — Kab arrays copy on push/pop
+// so each op allocates a fresh tag-5 cell (alias safety), and the
+// spread call dispatches 0..3 args onto the static callv registers.
+// Native rax must equal the mirror and the host result.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 2048 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+// take_global + array_push_global: `a = push(a, v)` assign desugar on a
+// top-level let (global slot).
+acc = acc + srcOk("let a = [1, 2]; a = push(a, 3); return a[2]", 6)
+acc = acc + srcOk("let a = [1, 2]; a = push(a, 3); a = push(a, 4); return a[0] + a[3]", 10)
+// push copies — the pre-push view must not see the new element.
+acc = acc + srcOk("let a = [1]; let b = a; a = push(a, 9); return b.length + a.length", 6)
+// take_local + array_push_local: same desugar on a fn-local.
+acc = acc + srcOk("fn f() { let a = [1, 2]; a = push(a, 7); return a[2] } return f()", 14)
+// len_local (fn-local len(a)/a.length), len_global, get_length.
+acc = acc + srcOk("fn f() { let a = [1, 2, 3]; return len(a) } return f()", 6)
+acc = acc + srcOk("fn f() { let a = [4, 5]; return a.length } return f()", 4)
+acc = acc + srcOk("let g = [1, 2, 3, 4]; return len(g)", 8)
+acc = acc + srcOk("return len([1, 2, 3])", 6)
+// concat_array via spread literals; copy semantics keep sources intact.
+acc = acc + srcOk("let a = [1, 2]; let b = [3]; return ([...a, ...b]).length", 6)
+acc = acc + srcOk("let a = [1]; let c = [...a, 9, ...[8]]; return c[1] + c[2] + a.length", 36)
+// array_slice_rest via let [h, ...rest] destructuring.
+acc = acc + srcOk("let a = [1, 2, 3]; let [h, ...rest] = a; return h * 10 + rest.length", 24)
+// call_from_array: spread call f(...xs) through callv (0..3 args),
+// incl. a mixed literal+spread arg list (concat_array in call args).
+acc = acc + srcOk("fn add3(a, b, c) { return a + b + c } let xs = [1, 2, 3]; return add3(...xs)", 12)
+acc = acc + srcOk("fn two(a, b) { return a * b } let xs = [6, 7]; return two(...xs)", 84)
+acc = acc + srcOk("fn h(a, b) { return a + b } let xs = [9]; return h(10, ...xs)", 38)
+println("acc " + acc)
+if acc == 14 {
+    return 42
+}
+return acc

@@ -1,0 +1,6 @@
+import "kab/os/os_fs"
+println("a: " + kabOsIsFile("self_host/vm_ops_arith_a.kab"))
+println("b: " + kabOsIsFile("/self_host/vm_ops_arith_a.kab"))
+println("c: " + kabOsIsFile("C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter/self_host/vm_ops_arith_a.kab"))
+println("d: " + kabOsIsFile("examples/sh33/sh33_aot_link_src_smoke.kab"))
+return 0

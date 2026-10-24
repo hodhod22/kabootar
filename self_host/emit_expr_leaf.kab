@@ -254,18 +254,19 @@ pub fn emitExpr_index(E) {
         // P6b: name[i] → IndexGetLocal/Global (clone element only).
         E["eBxL"] = E["eNode"]["object"]
         if E["eBxL"].kind == AST_VAR {
+            let bxSym = E["eBxL"]["sym"]
             object_array_push(E, "eIndexStack", E["eNode"]["index"])
             E["eIndexDepth"] = E["eIndexDepth"] + 1
             eCallExpr(E, E["eIndexStack"][E["eIndexDepth"] - 1])
             object_array_pop(E, "eIndexStack")
             E["eIndexDepth"] = E["eIndexDepth"] - 1
-            E["eSym"] = E["eBxL"]["sym"]
-            let ili = localSymIndex(E, E["eSym"])
+            E["eSym"] = bxSym
+            let ili = localSymIndex(E, bxSym)
             if ili >= 0 {
                 emitOp(E, OP_INDEX_GET_LOCAL, ili)
                 return true
             }
-            let igi = symIndex(E, "global", E["eSym"])
+            let igi = symIndex(E, "global", bxSym)
             emitOp(E, OP_INDEX_GET_GLOBAL, igi)
             return true
         }

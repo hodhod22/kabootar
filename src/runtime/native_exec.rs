@@ -9,7 +9,11 @@ use std::io;
 /// Page cap for exec payloads — small images stay a malformed-image guard,
 /// but the synthesized AOT GC fn alone is ~5 KiB of x64, so one page is no
 /// longer a valid ceiling; 1 MiB keeps the guard meaningful.
-const MAX_EXEC_BYTES: usize = 1024 * 1024;
+///
+/// SH33: the linked self-host DAG lowers ~340k ops to ~3.4 MiB of x64 — real
+/// capstone images legitimately exceed the smoke-test ceiling. 64 MiB keeps
+/// the malformed-image guard without rejecting working images.
+const MAX_EXEC_BYTES: usize = 64 * 1024 * 1024;
 
 /// Data-payload cap — separate from code: the aot-tv1 heap lives in the
 /// RW data mapping and real programs span many pages, so `data:` gets a
@@ -42,11 +46,26 @@ pub fn exec_bytes_arg(bytes: &[u8], arg: i64) -> Result<i64, String> {
 /// read through a live pointer, not baked immediates. Empty `data` passes 0.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn exec_bytes_data(bytes: &[u8], arg: i64, data: &[u8]) -> Result<i64, String> {
+    exec_bytes_data_sized(bytes, arg, data, data.len())
+}
+
+/// `exec_bytes_data` with an explicit data-mapping size: `data_len` may
+/// exceed `data.len()` — the anonymous mapping is zero-filled past the
+/// copied payload, which is how large mostly-zero data pages (aot-tv1
+/// globals + bump heap) get mapped without materializing every byte.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn exec_bytes_data_sized(
+    bytes: &[u8],
+    arg: i64,
+    data: &[u8],
+    data_len: usize,
+) -> Result<i64, String> {
     if bytes.is_empty() || bytes.len() > MAX_EXEC_BYTES {
         return Err(format!("native_exec: bad length {}", bytes.len()));
     }
-    if data.len() > MAX_EXEC_DATA {
-        return Err(format!("native_exec: bad data length {}", data.len()));
+    let map_len = data_len.max(data.len());
+    if map_len > MAX_EXEC_DATA {
+        return Err(format!("native_exec: bad data length {}", map_len));
     }
     let mut code_mm = memmap2::MmapOptions::new()
         .len(bytes.len().max(1))
@@ -57,14 +76,14 @@ pub fn exec_bytes_data(bytes: &[u8], arg: i64, data: &[u8]) -> Result<i64, Strin
         .make_exec()
         .map_err(|e: io::Error| format!("native_exec: make_exec: {e}"))?;
     // Keep the data mapping alive across the call.
-    let data_mm = if data.is_empty() {
+    let data_mm = if map_len == 0 {
         None
     } else {
         let mut m = memmap2::MmapOptions::new()
-            .len(data.len())
+            .len(map_len)
             .map_anon()
             .map_err(|e: io::Error| format!("native_exec: data map: {e}"))?;
-        m[..].copy_from_slice(data);
+        m[..data.len()].copy_from_slice(data);
         Some(m)
     };
     let data_ptr = data_mm.as_ref().map(|m| m.as_ptr() as i64).unwrap_or(0);

@@ -1,0 +1,78 @@
+// SH30: extended call convention — aot-tv1 static calls with 5..20
+// args (calln: args 1..4 in rcx/rdx/r8/r9, extras through the caller's
+// frame; callee seeds local i>=4 from [rbp+24+8*(i-4)]), dynamic callv
+// with >3 explicit args (same spill, cell hidden in rcx), spread calls
+// via call_from_array, and class ctor/method calls above the old
+// register bound. Native rax must equal the mirror in every case.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 2048 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+// Static call5 — fused load_global+call with five args.
+acc = acc + srcOk("fn sum5(a, b, c, d, e) { return a + b + c + d + e } return sum5(1, 2, 3, 4, 5)", 30)
+// Static call9 — nine args, extras through the caller frame.
+acc = acc + srcOk("fn sum9(a, b, c, d, e, f, g, h, i) { return a + b + c + d + e + f + g + h + i } return sum9(1, 2, 3, 4, 5, 6, 7, 8, 9)", 90)
+// Static call20 — the arity ceiling.
+acc = acc + srcOk("fn s20(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t) { return a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t } return s20(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)", 420)
+// Arg order across the spill boundary — last arg must land correctly.
+acc = acc + srcOk("fn last(a, b, c, d, e, f) { return f } return last(1, 2, 3, 4, 5, 60)", 120)
+// Mixed reg/spill read: arg 4 (reg) + arg 6 (stack).
+acc = acc + srcOk("fn mid(a, b, c, d, e, f, g) { return d + g } return mid(1, 2, 3, 40, 5, 6, 7)", 94)
+// Dynamic callv with 6 args — cell hidden in rcx, a4.. spill.
+acc = acc + srcOk("fn s6(a, b, c, d, e, f) { return a + b + c + d + e + f } let g = s6 return g(1, 2, 3, 4, 5, 6)", 42)
+// callv arg order — last param is the deepest stack slot.
+acc = acc + srcOk("fn pick(a, b, c, d, e, f, g, h) { return h } let p = pick return p(1, 2, 3, 4, 5, 6, 7, 80)", 160)
+// callv with 12 args.
+acc = acc + srcOk("fn p12(a,b,c,d,e,f,g,h,i,j,k,l) { return l + a } let q = p12 return q(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 120)", 242)
+// callv with 19 args — the dynamic-call ceiling.
+acc = acc + srcOk("fn p19(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s) { return s + a } let q = p19 return q(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,190)", 382)
+// call_from_array: spread with 6 elements (spill branch).
+acc = acc + srcOk("fn s6(a, b, c, d, e, f) { return a + b + c + d + e + f } let xs = [1, 2, 3, 4, 5, 6] return s6(...xs)", 42)
+// call_from_array with 10 elements.
+acc = acc + srcOk("fn s10(a,b,c,d,e,f,g,h,i,j) { return j - a } let xs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 30] return s10(...xs)", 58)
+// Class ctor with 5 params — init arity 6 (receiver + 5).
+acc = acc + srcOk("class A { x = 0 fn init(a, b, c, d, e) { this.x = a + b + c + d + e } fn get() { return this.x } } let o = A(1, 2, 3, 4, 5) return o.get()", 30)
+// Class ctor arg order across the spill.
+acc = acc + srcOk("class A { x = 0 fn init(a, b, c, d, e) { this.x = e } fn get() { return this.x } } let o = A(1, 2, 3, 4, 50) return o.get()", 100)
+// Method with 6 params — dispatch through the get_member miss path.
+acc = acc + srcOk("class A { x = 0 fn init(v) { this.x = v } fn add6(a, b, c, d, e, f) { return this.x + a + b + c + d + e + f } } let o = A(10) return o.add6(1, 2, 3, 4, 5, 6)", 62)
+// Bound-method value with 6 params — wrapper tail-call through calln.
+acc = acc + srcOk("class A { x = 0 fn init(v) { this.x = v } fn add6(a, b, c, d, e, f) { return this.x + a + b + c + d + e + f } } let o = A(10) let m = o.add6 return m(1, 2, 3, 4, 5, 6)", 62)
+// new_instance_from_array with a 5-param ctor (calln branch).
+acc = acc + srcOk("class A { x = 0 fn init(a, b, c, d, e) { this.x = a + b + c + d + e } fn get() { return this.x } } let xs = [1, 2, 3, 4, 5] let o = A(...xs) return o.get()", 30)
+println("acc " + acc)
+if acc == 16 {
+    return 42
+}
+return acc

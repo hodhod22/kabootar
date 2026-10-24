@@ -1,0 +1,69 @@
+// SH32: tagged pow — aot-tv1 lowers `pow` behind an is_smi pair-guard
+// to `tpow` (detag → i64 multiply loop → overflow/retag-guard → retag).
+// The host VM computes base.powf(exp) and folds integral results back
+// to Number; the AOT subset covers SMI base + SMI non-negative exp
+// with in-range results — exp<0, i64 overflow and results past ±2^62
+// trap (ud2) instead of silently widening to Float (no fpow op).
+// Native rax must equal the mirror in every case; expects are TAGGED
+// (v<<1). Needed for capstone: self_host/vm_ops_arith_a uses `a ** b`.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 2048 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+// Basic exponentiation.
+acc = acc + srcOk("return 2 ** 3", 16)
+acc = acc + srcOk("return 3 ** 4", 162)
+acc = acc + srcOk("return 2 ** 10", 2048)
+// Exponent zero — powf gives 1, folds to Number(1) → tagged 2.
+acc = acc + srcOk("return 5 ** 0", 2)
+acc = acc + srcOk("return 0 ** 0", 2)
+// Negative base.
+acc = acc + srcOk("return (-2) ** 3", -16)
+acc = acc + srcOk("return (-3) ** 2", 18)
+// Degenerate bases.
+acc = acc + srcOk("return 1 ** 999", 2)
+acc = acc + srcOk("return 0 ** 5", 0)
+// Larger in-range result.
+acc = acc + srcOk("return 10 ** 6", 2000000)
+// Precedence: ** binds tighter than +.
+acc = acc + srcOk("return 2 ** 3 + 1", 18)
+// pow through a fn call boundary.
+acc = acc + srcOk("fn p(b, e) { return b ** e } return p(3, 3)", 54)
+// Nested pow: (2 ** 3) ** 2 = 64.
+acc = acc + srcOk("return (2 ** 3) ** 2", 128)
+println("acc " + acc)
+if acc == 13 {
+    return 42
+}
+return acc

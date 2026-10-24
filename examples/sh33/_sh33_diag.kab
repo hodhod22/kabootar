@@ -1,0 +1,27 @@
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let j = json_parse(os_read("/host/examples/sh33/_lower_cache.json"))
+let fns = j["fns"]
+let i = 0
+while i < len(fns) {
+    if fns[i]["name"] == "self_host/lexer_scan::pCallHook" {
+        let f = fns[i]
+        println("locals=" + f["locals"] + " arity=" + f["arity"] + " nops=" + len(f["ops"]))
+        let n = len(f["ops"])
+        let k = 0
+        if n > 20 { k = n - 20 }
+        while k < n {
+            println("" + k + ": " + json_stringify(f["ops"][k]))
+            k = k + 1
+        }
+        // distinct op names
+        let names = {}
+        k = 0
+        while k < n {
+            names[f["ops"][k][0]] = 1
+            k = k + 1
+        }
+        println("opnames: " + json_stringify(names))
+    }
+    i = i + 1
+}
+return 0

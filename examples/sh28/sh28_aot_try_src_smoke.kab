@@ -1,0 +1,120 @@
+// SH28: aot-tv1 throw + try/catch through the SOURCE path — real
+// compileIr tryRegions lowered by aotFnLowerModuleTv1. An in-frame
+// `throw` inside a region lowers to a bare jmp to catchStart (the
+// store_local there binds the reason — vCatchThrow's pop+push nets
+// zero); an uncaught throw wraps its reason in a tag-13 marker cell
+// [hdr=13<<16|1 | reason] and returns it via `ret`. Every call site
+// (callN/callv/call_from_array) appends a marker check: marker + region
+// → push reason + jmp catchStart; marker + no region → ret the marker
+// to keep unwinding. Native rax must equal the mirror and the host
+// result; uncaught-at-main yields the marker on both sides (checked
+// structurally — tag 13 + same payload).
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 2048 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect)
+        return -4
+    }
+    return 1
+}
+
+// Uncaught top-level throw: both sides must return a tag-13 marker
+// cell. The native marker lives at an absolute address — only its
+// shape (≡1 mod 8 tagged cell) is checkable here; the mirror heap is
+// index-addressable so its header/payload can be read directly.
+fn srcMarker(s, reasonTagged) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 2048 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d)
+    if nr % 8 != 1 {
+        println("NATIVE not a cell ptr " + nr)
+        return -5
+    }
+    let ms = aotFnMirrorHS(lo["fns"], 0, lo["nglobals"], 2048)
+    let mv = ms["v"]
+    let mhp = ms["hp"]
+    if mv % 8 != 1 {
+        println("MIRROR not a cell ptr " + mv)
+        return -8
+    }
+    let mhdr = mhp[(mv - 1) / 8]
+    if (mhdr / 65536) % 256 != 13 {
+        println("MIRROR hdr tag " + ((mhdr / 65536) % 256) + " want 13")
+        return -9
+    }
+    if mhp[(mv - 1) / 8 + 1] != reasonTagged {
+        println("MIRROR payload " + mhp[(mv - 1) / 8 + 1] + " want " + reasonTagged)
+        return -10
+    }
+    return 1
+}
+
+let acc = 0
+// Same-frame catch: throw in body → jmp catchStart; reason binds e.
+acc = acc + srcOk("fn f() { try { throw 7 } catch (e) { return e } } return f()", 14)
+// Cross-frame: g throws, f's try catches — marker propagates through
+// g's ret and is detected by f's post-call check.
+acc = acc + srcOk("fn g() { throw 5 } fn f() { try { g() } catch (e) { return e * 3 } } return f()", 30)
+// Deeper: h throws through g (no region there) into f's catch.
+acc = acc + srcOk("fn h() { throw 9 } fn g() { return h() } fn f() { try { return g() } catch (e) { return e * 2 } } return f()", 36)
+// No-throw path: try body completes, catch skipped.
+acc = acc + srcOk("fn f() { try { return 3 } catch (e) { return -1 } } return f()", 6)
+// Fallthrough: try assigns, catch skipped, code after runs.
+acc = acc + srcOk("fn f() { let r = 0 try { r = 4 } catch (e) { r = -1 } return r + 1 } return f()", 10)
+// Nested try: the inner body's throw is claimed by the OUTER region —
+// vFindTry picks max bodyStart with >=, and a nested try shares the
+// outer's bodyStart (the inner try IS the outer body), so the inner
+// catch is unreachable here. VM-verified: returns 1.
+acc = acc + srcOk("fn f() { try { try { throw 1 } catch (e) { throw e + 10 } } catch (e2) { return e2 } } return f()", 2)
+// Heap payload survives the marker wrap.
+acc = acc + srcOk("fn f() { try { throw [1, 2, 3] } catch (e) { return e[2] } } return f()", 6)
+// Same bodyStart tie — inner catch dead, outer returns -1.
+acc = acc + srcOk("fn f() { try { try { throw 2 } catch (e) { return e * 5 } } catch (e2) { return -1 } } return f()", -2)
+// try/catch/finally — finally runs after catch.
+acc = acc + srcOk("fn f() { let x = 0 try { throw 1 } catch (e) { x = 5 } finally { x = x + 1 } return x } return f()", 12)
+// finally on the no-throw path too.
+acc = acc + srcOk("fn f() { let x = 1 try { x = x + 2 } catch (e) { x = -1 } finally { x = x * 10 } return x } return f()", 60)
+// Uncaught: top-level marker parity (reason 42 → tagged 84).
+acc = acc + srcMarker("fn g() { throw 42 } g()", 84)
+println("acc " + acc)
+if acc == 11 {
+    return 42
+}
+return acc

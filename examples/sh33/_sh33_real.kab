@@ -1,0 +1,54 @@
+import "kab/aot/aot_link"
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+
+fn modBc(name) {
+    let r = bc_module_ir(name + ".kab")
+    if r["ok"] == false {
+        r = bc_module_ir("lib/" + name + ".kab")
+    }
+    if r["ok"] == false {
+        println("MISS " + name + ": " + r["reason"])
+        return null
+    }
+    return r["bc"]
+}
+
+fn dagVisit(name, seen, out) {
+    if seen[name] == 1 { return out }
+    seen[name] = 1
+    let bc = modBc(name)
+    if bc == null { return out }
+    let i = 0
+    while i < len(bc["imports"]) {
+        out = dagVisit(bc["imports"][i], seen, out)
+        i = i + 1
+    }
+    println("loaded " + name + " fns=" + len(bc["functions"]))
+    out = push(out, { "name": name, "bc": bc })
+    return out
+}
+
+let t0 = date_now_ms()
+let mods = dagVisit("examples/sh33/_sh33_app", {}, [])
+println("dag mods=" + len(mods) + " ms=" + (date_now_ms() - t0))
+t0 = date_now_ms()
+let bc = aotLinkModules(mods)
+println("linked nfns=" + len(bc["functions"]) + " ng=" + len(bc["globals"]) + " ms=" + (date_now_ms() - t0))
+t0 = date_now_ms()
+let lr = aotFnLowerModuleTv1(bc, 512)
+println("lower ok=" + json_stringify(lr["ok"]) + " ms=" + (date_now_ms() - t0))
+if lr["ok"] {
+    let r = aotX64EmitFns(lr["fns"], aotNativeHostAbi())
+    println("emit bytes=" + len(r["code"]))
+    let d = []
+    while len(d) < lr["nglobals"] + 2 + 2048 { d = push(d, 0) }
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lr["fns"], 0, lr["nglobals"], 2048)
+    println("native=" + nr + " mirror=" + mr + " want=256")
+} else {
+    println("reason: " + json_stringify(lr["reason"]))
+}
+return 0

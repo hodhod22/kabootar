@@ -1,0 +1,59 @@
+// Regression: class/enum/interface declarations inside fn bodies must be
+// rejected, not silently miscompiled. The self-host emitter shares module
+// state (eFnSave/eInFn/eFnOps/eFnLocals) across decl emission, so a class
+// inside a fn clobbered the enclosing fn's record — `let` bindings after the
+// decl leaked to top level and `return` fired early. Rust's compile_stmt
+// rejects these via its `_ => Err(CompileError)` arm; we match that here.
+
+import "kabtest/core"
+import "self_host/compile"
+
+fn rejectOk(src, what) {
+    try {
+        compileIr(src)
+        return "COMPILED:" + what
+    } catch (e) {
+        return "reject"
+    }
+}
+
+ktAssertEq(
+    rejectOk("fn f() { class C { fn m() { return 7 } } return 1 } return f()", "class"),
+    "reject",
+    "class decl inside fn rejected"
+)
+
+ktAssertEq(
+    rejectOk("fn f() { enum E { A } return 1 } return f()", "enum"),
+    "reject",
+    "enum decl inside fn rejected"
+)
+
+ktAssertEq(
+    rejectOk("fn f() { interface I { fn m(); } return 1 } return f()", "interface"),
+    "reject",
+    "interface decl inside fn rejected"
+)
+
+// class inside a METHOD body is also inside a fn context
+ktAssertEq(
+    rejectOk("class P { fn m() { class Q { fn n() { return 1 } } return 2 } } fn f() { return P().m() } return f()", "class-in-method"),
+    "reject",
+    "class decl inside method rejected"
+)
+
+// nested named fns remain legal
+fn nestedFnStillWorks() {
+    let bc = compileIr("fn f() { fn g() { return 3 } return g() + 1 } return f()")
+    return len(bc["functions"]) >= 1
+}
+ktAssertEq(nestedFnStillWorks(), true, "nested fn decl still compiles")
+
+// top-level decls unaffected
+fn topLevelStillWorks() {
+    let bc = compileIr("class D { fn m() { return 2 } } enum E { A } fn f() { return D().m() } return f()")
+    return len(bc["classes"]) == 1 && len(bc["enums"]) == 1
+}
+ktAssertEq(topLevelStillWorks(), true, "top-level class+enum compile")
+
+return true

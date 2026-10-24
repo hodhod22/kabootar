@@ -1,0 +1,3 @@
+import "kab/aot/aot_fn_x64"
+println("warm")
+return 0

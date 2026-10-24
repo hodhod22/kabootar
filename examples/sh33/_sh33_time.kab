@@ -1,0 +1,10 @@
+import "self_host/compile"
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+println("t0")
+let src = os_read("/host/self_host/vm_ops_arith_a.kab")
+println("read len=" + len(src))
+let t0 = date_now_ms()
+let bc = compileIr(src)
+println("compileIr ms=" + (date_now_ms() - t0))
+println("nfns=" + len(bc["functions"]) + " imports=" + json_stringify(bc["imports"]))
+return 0

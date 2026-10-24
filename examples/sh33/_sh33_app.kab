@@ -1,0 +1,2 @@
+import "kab/gc/gc_pace"
+return gcPaceGrow(64, 59000, 80, 512)
