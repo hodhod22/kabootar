@@ -49,6 +49,43 @@ pub fn exec_bytes_data(bytes: &[u8], arg: i64, data: &[u8]) -> Result<i64, Strin
     exec_bytes_data_sized(bytes, arg, data, data.len())
 }
 
+/// The first call with a given byte string creates the executable page.
+/// A repeat call keeps that page. A fresh page on every measurement is
+/// scanned by the OS and costs seconds before the image runs.
+#[cfg(not(target_arch = "wasm32"))]
+fn cached_exec_ptr(bytes: &[u8]) -> Result<*const u8, String> {
+    use std::cell::RefCell;
+    struct Page {
+        bytes: Vec<u8>,
+        code: memmap2::Mmap,
+    }
+    thread_local! {
+        static PAGE: RefCell<Option<Page>> = const { RefCell::new(None) };
+    }
+    PAGE.with(|slot| {
+        let hit = slot
+            .borrow()
+            .as_ref()
+            .map(|p| p.bytes.as_slice() == bytes)
+            .unwrap_or(false);
+        if !hit {
+            let mut code_mm = memmap2::MmapOptions::new()
+                .len(bytes.len().max(1))
+                .map_anon()
+                .map_err(|e: io::Error| format!("native_exec: map: {e}"))?;
+            code_mm[..].copy_from_slice(bytes);
+            let code = code_mm
+                .make_exec()
+                .map_err(|e: io::Error| format!("native_exec: make_exec: {e}"))?;
+            *slot.borrow_mut() = Some(Page {
+                bytes: bytes.to_vec(),
+                code,
+            });
+        }
+        Ok(slot.borrow().as_ref().unwrap().code.as_ptr())
+    })
+}
+
 /// `exec_bytes_data` with an explicit data-mapping size: `data_len` may
 /// exceed `data.len()` — the anonymous mapping is zero-filled past the
 /// copied payload, which is how large mostly-zero data pages (aot-tv1
@@ -67,14 +104,7 @@ pub fn exec_bytes_data_sized(
     if map_len > MAX_EXEC_DATA {
         return Err(format!("native_exec: bad data length {}", map_len));
     }
-    let mut code_mm = memmap2::MmapOptions::new()
-        .len(bytes.len().max(1))
-        .map_anon()
-        .map_err(|e: io::Error| format!("native_exec: map: {e}"))?;
-    code_mm[..].copy_from_slice(bytes);
-    let code = code_mm
-        .make_exec()
-        .map_err(|e: io::Error| format!("native_exec: make_exec: {e}"))?;
+    let code_ptr = cached_exec_ptr(bytes)?;
     // Keep the data mapping alive across the call.
     let data_mm = if map_len == 0 {
         None
@@ -88,7 +118,7 @@ pub fn exec_bytes_data_sized(
     };
     let data_ptr = data_mm.as_ref().map(|m| m.as_ptr() as i64).unwrap_or(0);
     let f: unsafe extern "C" fn(i64, i64) -> i64 =
-        unsafe { std::mem::transmute(code.as_ptr()) };
+        unsafe { std::mem::transmute(code_ptr) };
     Ok(unsafe { f(arg, data_ptr) })
 }
 

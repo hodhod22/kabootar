@@ -64,6 +64,10 @@ if S["jitOsrArmed"][" 1"] != true {
 if S["jitOsrExecs"] != 4 {
     return 4
 }
+// Fall-through bodies i = 9,10,11 are the fused i64 increment, not five ops.
+if S["jitOsrIncExecs"] != 3 {
+    return 12
+}
 
 // Armed but out-of-domain: n = 100 keeps every operand > 64 past i = 65 —
 // the header arms (hits >= 8) yet every exec attempt rejects at

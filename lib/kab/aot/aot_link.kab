@@ -109,7 +109,33 @@ fn aotLinkFnList(fns, slotmap, cbase, clbase, prefix) {
     return out
 }
 
+// Index of a merged global name, or -1. Used to call one exported fn
+// after every module main has run.
+fn aotLinkFindGlobal(globals, name) {
+    let i = 0
+    while i < len(globals) {
+        if globals[i] == name {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
 pub fn aotLinkModules(mods) {
+    return aotLinkBuild(mods, "", "")
+}
+
+// Same merge as aotLinkModules, then call `callMod::callSym` with no
+// args and return that value. Every module main still runs first (so
+// pub-let inits happen) and its result is dropped. This is the entry
+// the self-host DAG needs: those mains return undefined, so the image
+// result has to be a named function, not the last main.
+pub fn aotLinkModulesCall(mods, callMod, callSym) {
+    return aotLinkBuild(mods, callMod, callSym)
+}
+
+fn aotLinkBuild(mods, callMod, callSym) {
     let mGlobals = []
     let mConsts = []
     let mFns = []
@@ -275,22 +301,31 @@ pub fn aotLinkModules(mods) {
         mFns = push(mFns, mw[0])
         mi = mi + 1
     }
-    // Entry ops: call each module main in order; intermediate results
-    // are dropped, the app (last) result is the image return value.
-    // "$main::m" slots exist purely so load_global+call fuses to a
-    // direct call — no cell materialisation needed.
+    // Entry ops: call each module main in order. "$main::m" slots exist
+    // purely so load_global+call fuses to a direct call.
+    // Without a named callee, intermediate results are dropped and the
+    // last main's value is the image result (aotLinkModules).
+    // With a callee, every main result is dropped and `mod::sym()` is
+    // the image result (aotLinkModulesCall).
+    let wantCall = callSym != ""
     let ei = 0
     while ei < len(mods) {
         let gs = len(mGlobals)
         mGlobals = push(mGlobals, "$main::" + mods[ei]["name"])
         mOps = push(mOps, { "op": "load_global", "arg": gs })
         mOps = push(mOps, { "op": "call", "arg": 0 })
-        if ei + 1 < len(mods) {
+        if wantCall || ei + 1 < len(mods) {
             mOps = push(mOps, { "op": "pop", "arg": 0 })
         } else {
             mOps = push(mOps, { "op": "return", "arg": 0 })
         }
         ei = ei + 1
+    }
+    if wantCall {
+        let slot = aotLinkFindGlobal(mGlobals, callMod + "::" + callSym)
+        mOps = push(mOps, { "op": "load_global", "arg": slot })
+        mOps = push(mOps, { "op": "call", "arg": 0 })
+        mOps = push(mOps, { "op": "return", "arg": 0 })
     }
     mOps = push(mOps, { "op": "halt", "arg": 0 })
     return {
