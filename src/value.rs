@@ -4,7 +4,7 @@ use crate::runtime::{
     db::DbConnection, http::HttpRouter, kabootar_browser::KabootarBrowser, kabootar_dom::DomNode,
     kv8::Kv8Context, os::OsHandle, security::{DeviceHandle, SecureBytes, SecurityHandle},
 };
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -398,6 +398,60 @@ struct EnvironmentInner {
     exports: RefCell<HashSet<String>>,
     scheduler: Rc<Scheduler>,
     private_access_class: RefCell<Option<String>>,
+    /// Unique per scope; never reused even if the allocation is.
+    id: u64,
+    /// Fresh stamp on every binding write, so callers can detect changes.
+    version: Cell<u64>,
+    log: RefCell<WriteLog>,
+}
+
+/// Recent binding writes of a large scope: every write stamped after `floor`
+/// is in `keys`. Small scopes keep no log (their keys are cheap to rescan).
+#[derive(Default)]
+struct WriteLog {
+    floor: u64,
+    keys: std::collections::VecDeque<(u64, String)>,
+}
+
+const WRITE_LOG_MIN_SCOPE: usize = 64;
+const WRITE_LOG_CAP: usize = 1024;
+
+impl EnvironmentInner {
+    fn note_write(&self, name: &str, scope_len: usize) {
+        let stamp = next_env_stamp();
+        self.version.set(stamp);
+        let mut log = self.log.borrow_mut();
+        if scope_len < WRITE_LOG_MIN_SCOPE {
+            log.floor = stamp;
+            log.keys.clear();
+            return;
+        }
+        if log.keys.len() == WRITE_LOG_CAP {
+            if let Some((evicted, _)) = log.keys.pop_front() {
+                log.floor = evicted;
+            }
+        }
+        log.keys.push_back((stamp, name.to_string()));
+    }
+}
+
+/// A scope's identity and write stamp, plus its keys when it is small.
+pub struct ScopeStamp {
+    id: u64,
+    version: u64,
+    keys: Option<Vec<String>>,
+}
+
+thread_local! {
+    static ENV_STAMP: Cell<u64> = const { Cell::new(0) };
+}
+
+fn next_env_stamp() -> u64 {
+    ENV_STAMP.with(|c| {
+        let n = c.get() + 1;
+        c.set(n);
+        n
+    })
 }
 
 /// Lexical environment — `Clone` snapshots the current frame; parent chain stays shared.
@@ -416,6 +470,9 @@ impl Clone for Environment {
                 exports: RefCell::new(self.inner.exports.borrow().clone()),
                 scheduler: self.inner.scheduler.clone(),
                 private_access_class: RefCell::new(self.inner.private_access_class.borrow().clone()),
+                id: next_env_stamp(),
+                log: RefCell::new(WriteLog::default()),
+                version: Cell::new(next_env_stamp()),
             }),
         }
     }
@@ -446,6 +503,9 @@ impl Environment {
                 exports: RefCell::new(self.inner.exports.borrow().clone()),
                 scheduler: self.inner.scheduler.clone(),
                 private_access_class: RefCell::new(self.inner.private_access_class.borrow().clone()),
+                id: next_env_stamp(),
+                log: RefCell::new(WriteLog::default()),
+                version: Cell::new(next_env_stamp()),
             }),
         }
     }
@@ -468,6 +528,9 @@ impl Clone for EnvironmentInner {
             exports: RefCell::new(self.exports.borrow().clone()),
             scheduler: self.scheduler.clone(),
             private_access_class: RefCell::new(self.private_access_class.borrow().clone()),
+            id: next_env_stamp(),
+            log: RefCell::new(WriteLog::default()),
+            version: Cell::new(next_env_stamp()),
         }
     }
 }
@@ -494,6 +557,9 @@ impl Environment {
                     http_fetch_timeout_ms: RefCell::new(0),
                 }),
                 private_access_class: RefCell::new(None),
+                id: next_env_stamp(),
+                log: RefCell::new(WriteLog::default()),
+                version: Cell::new(next_env_stamp()),
             }),
         }
     }
@@ -517,6 +583,9 @@ impl Environment {
                 exports: RefCell::new(HashSet::new()),
                 scheduler,
                 private_access_class: RefCell::new(None),
+                id: next_env_stamp(),
+                log: RefCell::new(WriteLog::default()),
+                version: Cell::new(next_env_stamp()),
             }),
         }
     }
@@ -533,6 +602,9 @@ impl Environment {
                 exports: RefCell::new(HashSet::new()),
                 scheduler,
                 private_access_class: RefCell::new(parent.inner.private_access_class.borrow().clone()),
+                id: next_env_stamp(),
+                log: RefCell::new(WriteLog::default()),
+                version: Cell::new(next_env_stamp()),
             }),
         }
     }
@@ -550,6 +622,9 @@ impl Environment {
                 exports: RefCell::new(HashSet::new()),
                 scheduler: scheduler_owner.inner.scheduler.clone(),
                 private_access_class: RefCell::new(parent.inner.private_access_class.borrow().clone()),
+                id: next_env_stamp(),
+                log: RefCell::new(WriteLog::default()),
+                version: Cell::new(next_env_stamp()),
             }),
         }
     }
@@ -825,7 +900,9 @@ impl Environment {
         let mut current = Some(self.inner.as_ref());
         while let Some(node) = current {
             let mut bindings = node.bindings.borrow_mut();
+            let scope_len = bindings.len();
             if let Some(v) = bindings.get_mut(name) {
+                node.note_write(name, scope_len);
                 return Ok(std::mem::replace(v, Value::Undefined));
             }
             drop(bindings);
@@ -842,7 +919,9 @@ impl Environment {
         let mut current = Some(self.inner.as_ref());
         while let Some(node) = current {
             let mut bindings = node.bindings.borrow_mut();
+            let scope_len = bindings.len();
             if let Some(v) = bindings.get_mut(name) {
+                node.note_write(name, scope_len);
                 match v {
                     Value::Array(items) => {
                         Value::reject_direct_container_cycle(
@@ -874,7 +953,9 @@ impl Environment {
         let mut current = Some(self.inner.as_ref());
         while let Some(node) = current {
             let mut bindings = node.bindings.borrow_mut();
+            let scope_len = bindings.len();
             if let Some(v) = bindings.get_mut(name) {
+                node.note_write(name, scope_len);
                 match v {
                     Value::Array(items) => {
                         let _ = Value::array_make_mut(items).pop();
@@ -930,7 +1011,9 @@ impl Environment {
         let mut current = Some(self.inner.as_ref());
         while let Some(node) = current {
             let mut bindings = node.bindings.borrow_mut();
+            let scope_len = bindings.len();
             if let Some(v) = bindings.get_mut(name) {
+                node.note_write(name, scope_len);
                 acc_add_value(v, rhs)?;
                 return Ok(());
             }
@@ -946,10 +1029,14 @@ impl Environment {
     }
 
     pub fn set(&mut self, name: String, value: Value) {
+        let scope_len = self.inner.bindings.borrow().len();
+        self.inner.note_write(&name, scope_len);
         self.inner.bindings.borrow_mut().insert(name, value);
     }
 
     pub fn set_const(&mut self, name: String, value: Value) {
+        let scope_len = self.inner.bindings.borrow().len();
+        self.inner.note_write(&name, scope_len);
         self.inner.bindings.borrow_mut().insert(name.clone(), value);
         self.inner.immutable.borrow_mut().insert(name);
     }
@@ -984,6 +1071,149 @@ impl Environment {
         names
     }
 
+    pub fn scope_id(&self) -> u64 {
+        self.inner.id
+    }
+
+    pub fn scope_ids(&self) -> Vec<u64> {
+        let mut out = Vec::new();
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            out.push(node.id);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        out
+    }
+
+    /// Stamp of each scope in the chain, innermost first.
+    pub fn scope_stamps(&self) -> Vec<ScopeStamp> {
+        let mut out = Vec::new();
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            let bindings = node.bindings.borrow();
+            out.push(ScopeStamp {
+                id: node.id,
+                version: node.version.get(),
+                keys: (bindings.len() <= WRITE_LOG_MIN_SCOPE)
+                    .then(|| bindings.keys().cloned().collect()),
+            });
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        out
+    }
+
+    /// Push every name whose resolution may differ from when `old` (a stamp
+    /// of a chain of the same depth) was taken. `false` if that cannot be
+    /// bounded cheaply (callers then rescan everything).
+    pub fn names_written_since(
+        &self,
+        old: &[ScopeStamp],
+        seen: &mut HashSet<String>,
+        out: &mut Vec<String>,
+    ) -> bool {
+        let mut push = |key: &String| {
+            if !seen.contains(key) {
+                seen.insert(key.clone());
+                out.push(key.clone());
+            }
+        };
+        let mut current = Some(self.inner.as_ref());
+        let mut i = 0;
+        while let Some(node) = current {
+            let Some(prev) = old.get(i) else {
+                return false;
+            };
+            let bindings = node.bindings.borrow();
+            if prev.id == node.id {
+                if prev.version != node.version.get() {
+                    let log = node.log.borrow();
+                    if prev.version >= log.floor {
+                        for (stamp, key) in log.keys.iter().rev() {
+                            if *stamp <= prev.version {
+                                break;
+                            }
+                            push(key);
+                        }
+                    } else {
+                        bindings.keys().for_each(&mut push);
+                    }
+                }
+            } else {
+                let Some(prev_keys) = &prev.keys else {
+                    return false;
+                };
+                if bindings.len() > WRITE_LOG_MIN_SCOPE {
+                    return false;
+                }
+                prev_keys.iter().for_each(&mut push);
+                bindings.keys().for_each(&mut push);
+            }
+            i += 1;
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        i == old.len()
+    }
+
+    /// Visit each visible binding (inner scopes shadow outer ones), innermost
+    /// scope first, without cloning names. Stops when `f` returns false.
+    pub fn visit_visible_bindings(&self, mut f: impl FnMut(&str, &Value) -> bool) {
+        let mut inner_scopes: Vec<&EnvironmentInner> = Vec::new();
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            {
+                let bindings = node.bindings.borrow();
+                for (k, v) in bindings.iter() {
+                    if inner_scopes
+                        .iter()
+                        .any(|s| s.bindings.borrow().contains_key(k))
+                    {
+                        continue;
+                    }
+                    if !f(k, v) {
+                        return;
+                    }
+                }
+            }
+            inner_scopes.push(node);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+    }
+
+    /// Binding names whose visible value in `self` can differ from `other`.
+    /// Scopes both chains share (same node) resolve identically, so only
+    /// names bound in the scopes above the first shared node are listed.
+    /// `None` when the chains share no scope.
+    pub fn binding_names_unshared_with(&self, other: &Environment) -> Option<Vec<String>> {
+        let mut other_nodes: Vec<&EnvironmentInner> = Vec::new();
+        let mut current = Some(other.inner.as_ref());
+        while let Some(node) = current {
+            other_nodes.push(node);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        let mut own_prefix: Vec<&EnvironmentInner> = Vec::new();
+        let mut shared_at = None;
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            if let Some(j) = other_nodes.iter().position(|o| std::ptr::eq(*o, node)) {
+                shared_at = Some(j);
+                break;
+            }
+            own_prefix.push(node);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        let j = shared_at?;
+        let mut seen = HashSet::new();
+        let mut names = Vec::new();
+        for node in own_prefix.into_iter().chain(other_nodes[..j].iter().copied()) {
+            for key in node.bindings.borrow().keys() {
+                if seen.insert(key.clone()) {
+                    names.push(key.clone());
+                }
+            }
+        }
+        Some(names)
+    }
+
     pub fn get_class(&self, name: &str) -> Option<ClassDef> {
         let mut current = Some(self.inner.as_ref());
         while let Some(node) = current {
@@ -1013,6 +1243,8 @@ impl Environment {
         let mut current = Some(self.inner.clone());
         while let Some(node) = current {
             if node.bindings.borrow().contains_key(name) {
+                let scope_len = node.bindings.borrow().len();
+                node.note_write(name, scope_len);
                 node.bindings
                     .borrow_mut()
                     .insert(name.to_string(), value);

@@ -951,3 +951,9 @@ pub fn kabootar_browser_globals(env: &mut Environment) {
     env.set("kb_set_backend".into(), Value::NativeFunction(kb_set_backend_native));
     env.set("kb_gpu_info".into(), Value::NativeFunction(kb_gpu_info_native));
 }
+
+impl KabootarBrowser {
+    pub(crate) fn same_handle(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+    }
+}

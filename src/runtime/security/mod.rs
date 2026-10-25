@@ -423,3 +423,9 @@ mod integration_tests {
         }
     }
 }
+
+impl SecurityHandle {
+    pub(crate) fn same_handle(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.providers, &other.providers)
+    }
+}
