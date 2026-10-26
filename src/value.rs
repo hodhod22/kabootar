@@ -1236,6 +1236,27 @@ impl Environment {
 
     /// Visit each visible binding (inner scopes shadow outer ones), innermost
     /// scope first, without cloning names. Stops when `f` returns false.
+    /// First visible (unshadowed) binding matching `pred`, in `visit_visible_bindings`
+    /// order. The shadow check only runs for bindings that match.
+    pub fn find_visible_binding(&self, pred: impl Fn(&Value) -> bool) -> Option<(String, Value)> {
+        let mut inner_scopes: Vec<&EnvironmentInner> = Vec::new();
+        let mut current = Some(self.inner.as_ref());
+        while let Some(node) = current {
+            for (k, v) in node.bindings.borrow().iter() {
+                if pred(v)
+                    && !inner_scopes
+                        .iter()
+                        .any(|s| s.bindings.borrow().contains_key(k))
+                {
+                    return Some((k.clone(), v.clone()));
+                }
+            }
+            inner_scopes.push(node);
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        None
+    }
+
     pub fn visit_visible_bindings(&self, mut f: impl FnMut(&str, &Value) -> bool) {
         let mut inner_scopes: Vec<&EnvironmentInner> = Vec::new();
         let mut current = Some(self.inner.as_ref());

@@ -261,23 +261,14 @@ pub fn writeback_object_args(
         // clone that kept `__kab_oid`) and merge stale fields into it.
         // The caller's own frame usually holds it and shadows outer scopes.
         let mut exact = env.find_own_binding(|v| matches!(v, Value::Object(m) if Rc::ptr_eq(m, arg_map)));
-        let mut oid_fallback: Option<(String, Value)> = None;
-        env.visit_visible_bindings(|name, live| {
-            if exact.is_some() {
-                return false;
-            }
-            let Value::Object(live_map) = live else {
-                return true;
-            };
-            if Rc::ptr_eq(live_map, arg_map) {
-                exact = Some((name.to_string(), live.clone()));
-                return false;
-            }
-            if oid_fallback.is_none() && object_oid_of(live_map) == Some(oid) {
-                oid_fallback = Some((name.to_string(), live.clone()));
-            }
-            true
-        });
+        if exact.is_none() {
+            exact = env.find_visible_binding(|v| matches!(v, Value::Object(m) if Rc::ptr_eq(m, arg_map)));
+        }
+        let oid_fallback = if exact.is_none() {
+            env.find_visible_binding(|v| matches!(v, Value::Object(m) if object_oid_of(m) == Some(oid)))
+        } else {
+            None
+        };
         if let Some((name, live)) = exact.or(oid_fallback) {
             let mut merged = live;
             merge_object_fields(updated, &mut merged);
