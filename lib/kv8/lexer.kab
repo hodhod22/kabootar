@@ -311,9 +311,9 @@ fn lxScan() {
             k8Pos = k8Pos + 1
             k8Col = k8Col + 1
         }
-        let kw = KEYWORDS[id]
+        let kw = K8_KEYWORDS[id]
         if kw == undefined {
-            return { "type": TOKEN_IDENT, "value": id, "line": line, "column": col }
+            return { "type": K8_TOKEN_IDENT, "value": id, "line": line, "column": col }
         }
         return { "type": kw, "value": null, "line": line, "column": col }
     }

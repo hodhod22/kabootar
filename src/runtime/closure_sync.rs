@@ -348,10 +348,16 @@ pub fn apply_object_arg_writebacks_env(env: &mut Environment, wbs: &[(usize, Val
     }
 }
 
+fn is_fn_decl(v: &Value, name: &str) -> bool {
+    matches!(v, Value::BytecodeFn(b) if b.def.name == name)
+}
+
 fn pull_bytecode_global(f: &mut BytecodeFunction, root: &Environment, name: &str) {
     if let Some(v) = root.get(name) {
         if let Some(cur) = f.closure.get(name) {
-            if same_binding_value(&cur, &v) {
+            // A module's own `fn name` must not be replaced by a same-named
+            // function from another module (e.g. the self-host compiler).
+            if same_binding_value(&cur, &v) || is_fn_decl(&cur, name) {
                 return;
             }
             let _ = f.closure.assign(name, v);

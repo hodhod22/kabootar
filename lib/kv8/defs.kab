@@ -4,7 +4,7 @@
 // import "kv8/defs"
 
 pub let TOKEN_EOF = "EOF"
-pub let TOKEN_IDENT = "Ident"
+pub let K8_TOKEN_IDENT = "Ident"
 pub let TOKEN_NUMBER = "Number"
 pub let TOKEN_STRING = "String"
 pub let TOKEN_TEMPLATE = "Template"
@@ -14,7 +14,7 @@ pub let SQUOTE = "'"
 pub let BACKTICK = "`"
 
 // JS keywords -> token type (keyword name as type, value null)
-pub let KEYWORDS = {
+pub let K8_KEYWORDS = {
     "let": "let",
     "var": "var",
     "const": "const",
