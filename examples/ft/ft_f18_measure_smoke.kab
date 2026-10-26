@@ -1,0 +1,69 @@
+// F18: measure the three canonical app budgets. The gates take the
+// measured number, not a constant. HTTP is one same-room response,
+// FPS is 60 gameplay ticks, ND is one dot product.
+import "kab/app_ci"
+import "kab/app_ci_fps"
+import "kab/app_ci_nd"
+
+fn elapsed(t0) {
+    let d = date_now_ms() - t0
+    if typeof(d) != "number" || d < 0 {
+        return 0
+    }
+    return d
+}
+
+fn httpApp() {
+    let row = { "status": 200, "body": "ok" }
+    return "" + row["status"] + " " + row["body"]
+}
+
+fn fpsApp() {
+    let frames = 0
+    let x = 0
+    while frames < 60 {
+        x = x + 1
+        frames = frames + 1
+    }
+    return x
+}
+
+fn ndApp() {
+    let a = [1, 2, 3, 4, 5, 6, 7, 8]
+    let b = [8, 7, 6, 5, 4, 3, 2, 1]
+    let s = 0
+    let i = 0
+    while i < len(a) {
+        s = s + a[i] * b[i]
+        i = i + 1
+    }
+    return s
+}
+
+let t0 = date_now_ms()
+let httpBody = httpApp()
+let httpMs = elapsed(t0)
+if httpBody != "200 ok" {
+    return 1
+}
+
+t0 = date_now_ms()
+let x = fpsApp()
+let frameMs = elapsed(t0)
+if x != 60 {
+    return 2
+}
+let fps = 60000
+if frameMs > 0 {
+    fps = 60000 / frameMs
+}
+
+t0 = date_now_ms()
+let dot = ndApp()
+let ndMs = elapsed(t0)
+if dot != 120 {
+    return 3
+}
+
+println("F18 httpMs=" + httpMs + " httpOk=" + appCiHttpOk(httpMs) + " frameMs=" + frameMs + " fps=" + fps + " fpsOk=" + appCiFpsOk(fps) + " ndMs=" + ndMs + " ndOk=" + appCiNdOk(ndMs))
+return 42

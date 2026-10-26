@@ -260,6 +260,16 @@ pub struct DomNode {
 }
 
 impl DomNode {
+    pub(crate) fn same_tree(&self, other: &Self) -> bool {
+        self.id == other.id
+            && self.tag == other.tag
+            && self.text == other.text
+            && self.attributes == other.attributes
+            && self.listeners == other.listeners
+            && self.children.len() == other.children.len()
+            && self.children.iter().zip(&other.children).all(|(a, b)| a.same_tree(b))
+    }
+
     pub fn element(tag: impl Into<String>) -> Self {
         Self {
             id: next_node_id(),

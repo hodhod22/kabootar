@@ -175,12 +175,23 @@ pub fn runOpsS(S, ops, pool, globals, functions) {
                 }
             }
         }
-        // OSR: an armed loop header ([op,op,cmp,jump_if_*] shape) runs its
-        // fused cmp template instead of the 4 interpreted ops — the guest
-        // branch decision is mirror-validated inside jitFromOpsAnyExecOk;
-        // domain/shape rejects fall through to interpreted stepping.
-        if vJitOsrStepS(S, ops, pool) == 1 {
-            continue
+        // OSR (SH17/F1): the call is per op, so it stays off until a back-edge
+        // has armed a header. An unarmed run never pays vJitOsrStepS.
+        // Armed headers of shape [op,op,cmp,jump_if_*] still take the fused
+        // cmp template; domain/shape rejects fall through to the interpreter.
+        if S["jitOsrArmIps"] != undefined {
+            if vJitOsrStepS(S, ops, pool) == 1 {
+                continue
+            }
+        }
+        let ipNow = S["ip"]
+        if ipNow + 3 < len(ops) {
+            let opNow = ops[ipNow]
+            if opNow["op"] == "load_local" && ops[ipNow + 1]["op"] == "const" && ops[ipNow + 2]["op"] == "lt" && ops[ipNow + 3]["op"] == "jump_if_false" {
+                if vJitCountLoopS(S, ops, pool) == 1 {
+                    continue
+                }
+            }
         }
         let st = runOpsStepS(S, ops, pool, globals, functions)
         if st == 2 {

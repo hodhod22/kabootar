@@ -907,15 +907,47 @@ fn os_spawn_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
 /// SH28: run a byte array as REAL machine code on the host CPU — the AOT
 /// image's x64 text executes natively (anonymous RX mapping + direct call),
 /// unlike os_mm_call which interprets template bytes in the simulated MM.
+fn os_native_exec_code(vals: &std::rc::Rc<Vec<Value>>) -> Result<Vec<u8>, String> {
+    use std::cell::RefCell;
+    struct Hit {
+        ptr: usize,
+        len: usize,
+        bytes: Vec<u8>,
+    }
+    thread_local! {
+        static HIT: RefCell<Option<Hit>> = const { RefCell::new(None) };
+    }
+    let ptr = std::rc::Rc::as_ptr(vals) as usize;
+    let len = vals.len();
+    let cached = HIT.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .filter(|h| h.ptr == ptr && h.len == len)
+            .map(|h| h.bytes.clone())
+    });
+    if let Some(bytes) = cached {
+        return Ok(bytes);
+    }
+    let bytes = vals
+        .iter()
+        .map(|v| match v {
+            Value::Number(n) => Ok(*n as u8),
+            _ => Err("os_native_exec expects byte array".to_string()),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    HIT.with(|slot| {
+        *slot.borrow_mut() = Some(Hit {
+            ptr,
+            len,
+            bytes: bytes.clone(),
+        });
+    });
+    Ok(bytes)
+}
+
 fn os_native_exec_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
     let data: Vec<u8> = match args.first() {
-        Some(Value::Array(vals)) => vals
-            .iter()
-            .map(|v| match v {
-                Value::Number(n) => Ok(*n as u8),
-                _ => Err("os_native_exec expects byte array".to_string()),
-            })
-            .collect::<Result<Vec<_>, _>>()?,
+        Some(Value::Array(vals)) => os_native_exec_code(vals)?,
         _ => return Err("os_native_exec expects byte array".to_string()),
     };
     // Optional second arg: a real i64 handed to the entry across the host
@@ -951,9 +983,8 @@ fn os_native_exec_native(args: &[Value], _env: &mut Environment) -> Result<Value
         Some(_) => return Err("os_native_exec data_size expects number".to_string()),
         None => payload.len(),
     };
-    Ok(Value::Number(crate::runtime::native_exec::exec_bytes_data_sized(
-        &data, arg, &payload, map_len,
-    )?))
+    let r = crate::runtime::native_exec::exec_bytes_data_sized(&data, arg, &payload, map_len)?;
+    Ok(Value::Number(r))
 }
 
 /// SH33-capstone: expose a module's compiled IR as the same record shape the
@@ -2180,5 +2211,11 @@ mod tests {
         assert_eq!(os.read("/apps/a.txt").unwrap(), "hello");
         assert!(os.exists("/apps").unwrap());
         assert_eq!(os.list("/apps").unwrap(), vec!["a.txt"]);
+    }
+}
+
+impl OsHandle {
+    pub(crate) fn same_handle(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.vfs, &other.vfs)
     }
 }

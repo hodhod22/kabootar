@@ -4418,6 +4418,205 @@ fn aotCallCheckSeq(regs, ip, s) {
 /// (for make_arrow_fn resolution), the callv candidate index list, the
 /// fn-global → wrapper-index map, and the +1 local shift arrow bodies
 /// need (their lowered local 0 holds the closure cell).
+/// `in`: stack is [needle, hay]. Array (tag 5) scans elements with `eq`.
+/// String hay requires a string needle and searches bytes (`str_includes`,
+/// empty needle is true). Other types trap — the VM would throw.
+/// yield*: stack top is the iterable. An array yields its first element
+/// (ret). An empty array pushes tagged undefined and continues.
+fn aotYieldStarSeq(s) {
+    return [
+        ["store", s],
+        ["load", s],
+        ["is_smi"],
+        ["jnz", "@bad"],
+        ["load", s],
+        ["htag"],
+        ["tconst", 5],
+        ["eq"],
+        ["jz", "@bad"],
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["const", 0],
+        ["eq"],
+        ["jnz", "@empty"],
+        ["load", s],
+        ["tconst", 0],
+        ["aget"],
+        ["ret"],
+        ["label", "empty"],
+        ["tundef"],
+        ["jmp", "@end"],
+        ["label", "bad"],
+        ["trap"],
+        ["label", "end"]
+    ]
+}
+
+fn aotInSeq(s) {
+    return [
+        ["store", s],
+        ["store", s + 1],
+        ["load", s],
+        ["is_smi"],
+        ["jnz", "@bad"],
+        ["load", s],
+        ["const", 8],
+        ["mod"],
+        ["const", 1],
+        ["eq"],
+        ["jz", "@bad"],
+        ["load", s],
+        ["htag"],
+        ["tconst", 5],
+        ["eq"],
+        ["jnz", "@arr"],
+        ["load", s],
+        ["htag"],
+        ["tconst", 4],
+        ["eq"],
+        ["jnz", "@str"],
+        ["load", s],
+        ["htag"],
+        ["tconst", 10],
+        ["eq"],
+        ["jnz", "@obj"],
+        ["jmp", "@bad"],
+        ["label", "arr"],
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 3],
+        ["const", 0],
+        ["store", s + 2],
+        ["label", "al"],
+        ["load", s + 2],
+        ["load", s + 3],
+        ["lt"],
+        ["jz", "@no"],
+        ["load", s],
+        ["load", s + 2],
+        ["tag"],
+        ["aget"],
+        ["load", s + 1],
+        ["eq"],
+        ["jnz", "@yes"],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["jmp", "@al"],
+        ["label", "str"],
+        ["load", s + 1],
+        ["is_smi"],
+        ["jnz", "@bad"],
+        ["load", s + 1],
+        ["htag"],
+        ["tconst", 4],
+        ["eq"],
+        ["jz", "@bad"],
+        ["load", s],
+        ["hload", 0],
+        ["const", 65536],
+        ["mod"],
+        ["store", s + 3],
+        ["load", s + 1],
+        ["hload", 0],
+        ["const", 65536],
+        ["mod"],
+        ["store", s + 4],
+        ["load", s + 4],
+        ["const", 0],
+        ["eq"],
+        ["jnz", "@yes"],
+        ["const", 0],
+        ["store", s + 2],
+        ["label", "sl"],
+        ["load", s + 2],
+        ["load", s + 4],
+        ["add"],
+        ["load", s + 3],
+        ["le"],
+        ["jz", "@no"],
+        ["const", 0],
+        ["store", s + 5],
+        ["label", "sj"],
+        ["load", s + 5],
+        ["load", s + 4],
+        ["lt"],
+        ["jz", "@yes"],
+        ["load", s],
+        ["load", s + 2],
+        ["load", s + 5],
+        ["add"],
+        ["hloadb"],
+        ["load", s + 1],
+        ["load", s + 5],
+        ["hloadb"],
+        ["eq"],
+        ["jz", "@snxt"],
+        ["load", s + 5],
+        ["const", 1],
+        ["add"],
+        ["store", s + 5],
+        ["jmp", "@sj"],
+        ["label", "snxt"],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["jmp", "@sl"],
+        ["label", "obj"],
+        ["load", s + 1],
+        ["htag"],
+        ["tconst", 4],
+        ["eq"],
+        ["jz", "@bad"],
+        ["load", s + 1],
+        ["hload", 0],
+        ["const", 4294967296],
+        ["div"],
+        ["tag"],
+        ["store", s + 6],
+        ["load", s],
+        ["hload", 8],
+        ["store", s + 3],
+        ["load", s + 3],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 5],
+        ["const", 0],
+        ["store", s + 4],
+        ["label", "ol"],
+        ["load", s + 4],
+        ["load", s + 5],
+        ["lt"],
+        ["jz", "@no"],
+        ["load", s + 3],
+        ["load", s + 4],
+        ["const", 1],
+        ["add"],
+        ["hloadx"],
+        ["load", s + 6],
+        ["eq"],
+        ["jnz", "@yes"],
+        ["load", s + 4],
+        ["const", 2],
+        ["add"],
+        ["store", s + 4],
+        ["jmp", "@ol"],
+        ["label", "yes"],
+        ["ttrue"],
+        ["jmp", "@end"],
+        ["label", "no"],
+        ["tfalse"],
+        ["jmp", "@end"],
+        ["label", "bad"],
+        ["trap"],
+        ["label", "end"]
+    ]
+}
+
 fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
     let out = []
     let ipMap = []
@@ -5536,6 +5735,25 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
             if tsq["catch"] >= 0 {
                 fixups = push(fixups, [tn + tsq["jpos"], tsq["catch"]])
             }
+        } else if tv1 && name == "in" {
+            out = aotLowerAsm(out, aotSeqTag(aotInSeq(scratch), "in" + i))
+        } else if tv1 && name == "await" {
+            // await_all of a value that is not a pending task is that value.
+            // The image has no microtask queue, so a pending task still traps
+            // only when the program actually calls the host scheduler. A
+            // settled value stays on the stack.
+        } else if tv1 && name == "yield" {
+            // One suspension: the yielded value is the function result.
+            // A later resume would need a saved ip in the image; self-host
+            // emit of yield* does not use this opcode for that.
+            out = push(out, ["ret"])
+        } else if tv1 && name == "yield_star" {
+            // Host opcode. Self-host emit already expands yield* into
+            // iterator_step + yield before this lowerer runs. When the
+            // opcode is still present, delegate an array: the first
+            // element is the suspension value. An empty array pushes
+            // undefined, matching a finished iterator's completion.
+            out = aotLowerAsm(out, aotSeqTag(aotYieldStarSeq(scratch), "ys" + i))
         } else if name == "return" {
             out = push(out, ["ret"])
         } else if name == "pop" {

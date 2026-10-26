@@ -705,7 +705,7 @@ kabootar compile self_host/sample.kab
 
 Historiska 1–14 (roundtrip, facader, bootstrap, generics) är klara. **Inte nästa:** fler `_probe`-filer.
 
-**~~SH17–SH27~~ ✅ subset** nedan är **flag-gates i `.kab`**, inte att Rust är raderad. Produktmålet är [noll Rust / SH28](../docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust): `src/` finns, rustc krävs, **SH28 är inte stängd**.
+**Pågående optimering (SH17/F1):** `runOpsS` anropar inte `vJitOsrStepS` förrän `jitOsrArmIps` finns. En armerad fall-through-kropp `load_local i; const k; add; store_local i; jump` tillbaka till headern körs som ett i64-steg (`jitOsrIncExecs`). **F18:** `ft_f18_measure_smoke` mäter HTTP-svar, 60 tickar och en dot-produkt. På Kab-VM missar de budgeten (sekunder, inte 100 ms / 60 fps / 50 ms). **AOT-program:** `sh34_aot_prog_smoke` kör `return 20 + 1` i imagen mot spegeln. `nollAotReady` stannar false eftersom kompilatorn inte körs inuti imagen. **~~SH17–SH27~~ ✅ subset** nedan är **flag-gates i `.kab`**, inte att Rust är raderad. Produktmålet är [noll Rust / SH28](../docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust): `src/` finns, rustc krävs, **SH28 är inte stängd**.
 
 Kort ordning:
 

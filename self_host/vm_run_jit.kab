@@ -606,6 +606,214 @@ fn vOsrOperandVal(S, op, pool) {
     return undefined
 }
 
+/// Counted loop the compiler emits for `while slot < bound { x = x + k }`.
+/// The whole trip count runs as arithmetic on the locals, then ip moves to
+/// the exit. No mmap and no per-iteration dispatch. Returns 1 when applied.
+pub fn vJitCountLoopS(S, ops, pool) {
+    let ip = S["ip"]
+    if ip + 4 >= len(ops) {
+        return 0
+    }
+    let h0 = ops[ip]
+    let h1 = ops[ip + 1]
+    let h2 = ops[ip + 2]
+    let h3 = ops[ip + 3]
+    if h0["op"] != "load_local" || h1["op"] != "const" || h2["op"] != "lt" || h3["op"] != "jump_if_false" {
+        return 0
+    }
+    let counter = h0["arg"]
+    let bi = h1["arg"]
+    if bi < 0 || bi >= len(pool) {
+        return 0
+    }
+    let bound = pool[bi]
+    if typeof(bound) != "number" {
+        return 0
+    }
+    if counter < 0 || counter >= len(S["locals"]) {
+        return 0
+    }
+    let cur = S["locals"][counter]
+    if typeof(cur) != "number" || cur >= bound {
+        return 0
+    }
+    let cursor = ip + 4
+    let slots = []
+    let steps = []
+    let counterStep = 0
+    while cursor + 1 < len(ops) {
+        let constOp = ops[cursor]
+        let addOp = ops[cursor + 1]
+        if constOp["op"] != "const" || addOp["op"] != "acc_add_local" {
+            break
+        }
+        let ci = constOp["arg"]
+        if ci < 0 || ci >= len(pool) {
+            return 0
+        }
+        let step = pool[ci]
+        if typeof(step) != "number" || step == 0 {
+            return 0
+        }
+        let slot = addOp["arg"]
+        if slot < 0 || slot >= len(S["locals"]) {
+            return 0
+        }
+        if typeof(S["locals"][slot]) != "number" {
+            return 0
+        }
+        if slot == counter {
+            counterStep = step
+        }
+        slots = push(slots, slot)
+        steps = push(steps, step)
+        cursor = cursor + 2
+    }
+    if counterStep <= 0 || len(slots) == 0 || cursor >= len(ops) {
+        return 0
+    }
+    let jumpOp = ops[cursor]
+    if jumpOp["op"] != "jump" || cursor + 1 + jumpOp["arg"] != ip {
+        return 0
+    }
+    let span = bound - cur
+    if span % counterStep != 0 {
+        return 0
+    }
+    let trips = span / counterStep
+    if trips <= 0 || trips > 1000000 {
+        return 0
+    }
+    let i = 0
+    while i < len(slots) {
+        let slot = slots[i]
+        S["locals"][slot] = S["locals"][slot] + steps[i] * trips
+        i = i + 1
+    }
+    S["ip"] = ip + 4 + h3["arg"]
+    return 1
+}
+
+/// Armed fall-through body the compiler actually emits for `x = x + k`:
+/// one or more `const k; acc_add_local i` groups, then `jump` back to this
+/// header. Returns 1 when that body ran.
+fn vJitOsrAccBodyS(S, ops, pool, ip) {
+    let cursor = ip + 4
+    let slots = []
+    let steps = []
+    while cursor + 1 < len(ops) {
+        let constOp = ops[cursor]
+        let addOp = ops[cursor + 1]
+        if constOp["op"] != "const" || addOp["op"] != "acc_add_local" {
+            break
+        }
+        let ci = constOp["arg"]
+        if ci < 0 || ci >= len(pool) {
+            return 0
+        }
+        let step = pool[ci]
+        if typeof(step) != "number" {
+            return 0
+        }
+        slots = push(slots, addOp["arg"])
+        steps = push(steps, step)
+        cursor = cursor + 2
+    }
+    if len(slots) == 0 || cursor >= len(ops) {
+        return 0
+    }
+    let jumpOp = ops[cursor]
+    if jumpOp["op"] != "jump" || cursor + 1 + jumpOp["arg"] != ip {
+        return 0
+    }
+    let i = 0
+    while i < len(slots) {
+        let slot = slots[i]
+        if slot < 0 || slot >= len(S["locals"]) {
+            return 0
+        }
+        if typeof(S["locals"][slot]) != "number" {
+            return 0
+        }
+        i = i + 1
+    }
+    i = 0
+    while i < len(slots) {
+        let slot = slots[i]
+        S["locals"][slot] = S["locals"][slot] + steps[i]
+        i = i + 1
+    }
+    S["ip"] = ip
+    vJitBackEdgeS(S, ip)
+    return 1
+}
+
+/// Armed fall-through body: one or more `load_local i; const k; add;
+/// store_local i` groups, then `jump` back to this header. One step
+/// replaces the whole body. The back-edge is counted here because the
+/// jump opcode itself does not run. Returns 1 when the body ran; 0 leaves
+/// the caller to interpret from ip+4.
+fn vJitOsrIncBodyS(S, ops, pool, ip) {
+    let cursor = ip + 4
+    let slots = []
+    let steps = []
+    while cursor + 3 < len(ops) {
+        let loadOp = ops[cursor]
+        let constOp = ops[cursor + 1]
+        let addOp = ops[cursor + 2]
+        let storeOp = ops[cursor + 3]
+        if loadOp["op"] != "load_local" || constOp["op"] != "const" || addOp["op"] != "add" || storeOp["op"] != "store_local" {
+            break
+        }
+        if loadOp["arg"] != storeOp["arg"] {
+            return 0
+        }
+        let ci = constOp["arg"]
+        if ci < 0 || ci >= len(pool) {
+            return 0
+        }
+        let step = pool[ci]
+        if typeof(step) != "number" {
+            return 0
+        }
+        slots = push(slots, loadOp["arg"])
+        steps = push(steps, step)
+        cursor = cursor + 4
+    }
+    if len(slots) == 0 || cursor >= len(ops) {
+        return 0
+    }
+    let jumpOp = ops[cursor]
+    if jumpOp["op"] != "jump" || cursor + 1 + jumpOp["arg"] != ip {
+        return 0
+    }
+    let i = 0
+    while i < len(slots) {
+        let slot = slots[i]
+        if slot < 0 || slot >= len(S["locals"]) {
+            return 0
+        }
+        if typeof(S["locals"][slot]) != "number" {
+            return 0
+        }
+        i = i + 1
+    }
+    i = 0
+    while i < len(slots) {
+        let slot = slots[i]
+        S["locals"][slot] = S["locals"][slot] + steps[i]
+        i = i + 1
+    }
+    S["ip"] = ip
+    vJitBackEdgeS(S, ip)
+    let be = S["jitOsrIncExecs"]
+    if be == undefined {
+        be = 0
+    }
+    S["jitOsrIncExecs"] = be + 1
+    return 1
+}
+
 /// OSR step: an armed loop header of shape [operand, operand, cmp,
 /// jump_if_*] executes its branch decision through the fused cmp template —
 /// operand values are baked as the const,const immediates of a kind-2 chain
@@ -654,7 +862,11 @@ pub fn vJitOsrStepS(S, ops, pool) {
     if r == 1 {
         S["ip"] = ip + 4 + ops[ip + 3]["arg"]
     } else {
-        S["ip"] = ip + 4
+        if vJitOsrAccBodyS(S, ops, pool, ip) == 0 {
+            if vJitOsrIncBodyS(S, ops, pool, ip) == 0 {
+                S["ip"] = ip + 4
+            }
+        }
     }
     let e = S["jitOsrExecs"]
     if e == undefined {

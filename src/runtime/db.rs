@@ -132,3 +132,9 @@ pub fn db_globals(env: &mut Environment) {
     env.set("sql".to_string(), Value::NativeFunction(sql_native));
     env.set("db_open".to_string(), Value::NativeFunction(db_open_native));
 }
+
+impl DbConnection {
+    pub(crate) fn same_handle(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.engine, &other.engine)
+    }
+}

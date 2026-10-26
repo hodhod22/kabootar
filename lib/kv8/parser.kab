@@ -226,7 +226,7 @@ fn parsePostfix() {
     }
     if k8pNode == null {
         k8pTok = k8pTokAt("peek")
-        if k8pTok.type == TOKEN_IDENT {
+        if k8pTok.type == K8_TOKEN_IDENT {
             let identSym = ("" + k8pTok.value)
             k8pTokAt("bump")
             k8pNode = { "kind": K_IDENT, "sym": identSym }
@@ -237,11 +237,11 @@ fn parsePostfix() {
         if k8pTok.type == "(" {
             let saved = k8pPos
             k8pTokAt("bump")
-            if k8pTokAt("peek").type == TOKEN_IDENT {
+            if k8pTokAt("peek").type == K8_TOKEN_IDENT {
                 k8pParams = []
                 while true {
                     k8pTok = k8pTokAt("peek")
-                    if k8pTok.type != TOKEN_IDENT {
+                    if k8pTok.type != K8_TOKEN_IDENT {
                         throw "Expected parameter name"
                     }
                     k8pTok = k8pTokAt("bump")
@@ -317,7 +317,7 @@ fn parsePostfix() {
             while k8pTokAt("peek").type != "}" && k8pTokAt("peek").type != TOKEN_EOF {
                 k8pTok = k8pTokAt("peek")
                 let key = ""
-                if k8pTok.type == TOKEN_IDENT {
+                if k8pTok.type == K8_TOKEN_IDENT {
                     key = "" + k8pTok.value
                     k8pTokAt("bump")
                 } else {
@@ -408,11 +408,11 @@ fn parsePostfix() {
                 k8pTokAt("bump")
                 k8pTok = k8pTokAt("peek")
                 let memName = null
-                if k8pTok.type == TOKEN_IDENT {
+                if k8pTok.type == K8_TOKEN_IDENT {
                     memName = k8pTok.value
                 } else {
                     // IdentifierName: keywords allowed after `.` (Symbol.for, obj.default, …)
-                    if object_has_own(KEYWORDS, k8pTok.type) {
+                    if object_has_own(K8_KEYWORDS, k8pTok.type) {
                         memName = k8pTok.type
                     }
                 }
@@ -427,10 +427,10 @@ fn parsePostfix() {
                     k8pTokAt("bump")
                     k8pTok = k8pTokAt("peek")
                     let memName2 = null
-                    if k8pTok.type == TOKEN_IDENT {
+                    if k8pTok.type == K8_TOKEN_IDENT {
                         memName2 = k8pTok.value
                     } else {
-                        if object_has_own(KEYWORDS, k8pTok.type) {
+                        if object_has_own(K8_KEYWORDS, k8pTok.type) {
                             memName2 = k8pTok.type
                         }
                     }
@@ -558,7 +558,7 @@ fn parseStmt() {
     if k8pTok.type == "let" || k8pTok.type == "const" {
         k8pTokAt("bump")
         k8pTok = k8pTokAt("peek")
-        if k8pTok.type != TOKEN_IDENT {
+        if k8pTok.type != K8_TOKEN_IDENT {
             throw "Expected binding name"
         }
         let bindSym = ("" + k8pTok.value)
@@ -573,7 +573,7 @@ fn parseStmt() {
     if k8pTok.type == "var" {
         k8pTokAt("bump")
         k8pTok = k8pTokAt("peek")
-        if k8pTok.type != TOKEN_IDENT {
+        if k8pTok.type != K8_TOKEN_IDENT {
             throw "Expected var name"
         }
         let bindSym = ("" + k8pTok.value)
@@ -602,7 +602,7 @@ fn parseStmt() {
     if k8pTok.type == "function" {
         k8pTokAt("bump")
         k8pTok = k8pTokAt("peek")
-        if k8pTok.type != TOKEN_IDENT {
+        if k8pTok.type != K8_TOKEN_IDENT {
             throw "Expected function name"
         }
         k8pName = ("" + k8pTok.value)
@@ -615,7 +615,7 @@ fn parseStmt() {
         if k8pTokAt("peek").type != ")" {
             while true {
                 k8pTok = k8pTokAt("peek")
-                if k8pTok.type != TOKEN_IDENT {
+                if k8pTok.type != K8_TOKEN_IDENT {
                     throw "Expected parameter"
                 }
                 k8pParams = push(k8pParams, k8pTok.value)
@@ -662,7 +662,7 @@ fn parseStmt() {
         }
         k8pTokAt("bump")
         k8pTok = k8pTokAt("peek")
-        if k8pTok.type != TOKEN_IDENT {
+        if k8pTok.type != K8_TOKEN_IDENT {
             throw "Expected function name"
         }
         k8pName = ("" + k8pTok.value)
@@ -675,7 +675,7 @@ fn parseStmt() {
         if k8pTokAt("peek").type != ")" {
             while true {
                 k8pTok = k8pTokAt("peek")
-                if k8pTok.type != TOKEN_IDENT {
+                if k8pTok.type != K8_TOKEN_IDENT {
                     throw "Expected parameter"
                 }
                 k8pParams = push(k8pParams, k8pTok.value)
@@ -718,7 +718,7 @@ fn parseStmt() {
     if k8pTok.type == "class" {
         k8pTokAt("bump")
         k8pTok = k8pTokAt("peek")
-        if k8pTok.type != TOKEN_IDENT {
+        if k8pTok.type != K8_TOKEN_IDENT {
             throw "Expected class name"
         }
         k8pName = ("" + k8pTok.value)
@@ -727,7 +727,7 @@ fn parseStmt() {
         if k8pTokAt("peek").type == "extends" {
             k8pTokAt("bump")
             k8pTok = k8pTokAt("peek")
-            if k8pTok.type != TOKEN_IDENT {
+            if k8pTok.type != K8_TOKEN_IDENT {
                 throw "Expected superclass name"
             }
             classExt = ("" + k8pTok.value)
@@ -751,7 +751,7 @@ fn parseStmt() {
                 methAsync = true
             }
             k8pTok = k8pTokAt("peek")
-            if k8pTok.type != TOKEN_IDENT {
+            if k8pTok.type != K8_TOKEN_IDENT {
                 throw "Expected method name"
             }
             let methName = ("" + k8pTok.value)
@@ -764,7 +764,7 @@ fn parseStmt() {
             if k8pTokAt("peek").type != ")" {
                 while true {
                     k8pTok = k8pTokAt("peek")
-                    if k8pTok.type != TOKEN_IDENT {
+                    if k8pTok.type != K8_TOKEN_IDENT {
                         throw "Expected parameter"
                     }
                     k8pParams = push(k8pParams, k8pTok.value)
@@ -990,7 +990,7 @@ fn parseStmt() {
         if k8pTok.type == "let" || k8pTok.type == "var" || k8pTok.type == "const" {
             k8pTokAt("bump")
             k8pTok = k8pTokAt("peek")
-            if k8pTok.type == TOKEN_IDENT {
+            if k8pTok.type == K8_TOKEN_IDENT {
                 k8pForInSym = ("" + k8pTok.value)
                 k8pTokAt("bump")
                 if k8pTokAt("peek").type == "in" || k8pTokAt("peek").type == "of" {
@@ -1031,7 +1031,7 @@ fn parseStmt() {
             }
             k8pPos = forInPos
         } else {
-            if k8pTok.type == TOKEN_IDENT {
+            if k8pTok.type == K8_TOKEN_IDENT {
                 k8pForInSym = ("" + k8pTok.value)
                 k8pTokAt("bump")
                 if k8pTokAt("peek").type == "in" || k8pTokAt("peek").type == "of" {
@@ -1154,7 +1154,7 @@ fn parseStmt() {
             if k8pTokAt("peek").type == "(" {
                 k8pTokAt("bump")
                 k8pTok = k8pTokAt("peek")
-                if k8pTok.type != TOKEN_IDENT {
+                if k8pTok.type != K8_TOKEN_IDENT {
                     throw "Expected catch binding"
                 }
                 k8pCatchParam = ("" + k8pTok.value)
@@ -1247,7 +1247,7 @@ fn parseStmt() {
         return { "kind": K_BLOCK, "body": bareBody }
     }
     k8pTok = k8pTokAt("peek")
-    if k8pTok.type == TOKEN_IDENT {
+    if k8pTok.type == K8_TOKEN_IDENT {
         let assignSym = ("" + k8pTok.value)
         k8pTokAt("bump")
         k8pTok = k8pTokAt("peek")

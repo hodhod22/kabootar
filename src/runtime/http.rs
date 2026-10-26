@@ -468,3 +468,9 @@ mod tests {
         assert_eq!(req.path, "/hello");
     }
 }
+
+impl HttpRouter {
+    pub(crate) fn same_handle(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+    }
+}

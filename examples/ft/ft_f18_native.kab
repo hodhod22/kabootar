@@ -1,0 +1,89 @@
+// F18 timed on the native image, not the Kab interpreter.
+// compileIr still sits outside the image, so nollAotReady stays false.
+// The clock wraps only os_native_exec. Gates stay 100 ms / 60 fps / 50 ms.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_link"
+import "kab/app_ci"
+import "kab/app_ci_fps"
+import "kab/app_ci_nd"
+
+fn elapsed(t0) {
+    let d = date_now_ms() - t0
+    if typeof(d) != "number" || d < 0 {
+        return 0
+    }
+    return d
+}
+
+fn nativeOnce(src, heapQ) {
+    println("F18 compile")
+    let mods = [{ "name": "app", "bc": compileIr(src) }]
+    println("F18 lower")
+    let bc = aotLinkModules(mods)
+    let lo = aotFnLowerModuleTv1(bc, heapQ)
+    if lo["ok"] == false {
+        return { "ok": false, "reason": lo["reason"], "ms": 0, "nr": 0, "mr": 0 }
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return { "ok": false, "reason": "empty code", "ms": 0, "nr": 0, "mr": 0 }
+    }
+    let d = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    let bytes = (lo["nglobals"] + 2 + heapQ) * 8
+    os_native_exec(r["code"], 0, d, bytes)
+    let t0 = date_now_ms()
+    let nr = os_native_exec(r["code"], 0, d, bytes)
+    let ms = elapsed(t0)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], heapQ)
+    if mr != nr {
+        return { "ok": false, "reason": "parity " + nr + " vs " + mr, "ms": ms, "nr": nr, "mr": mr }
+    }
+    return { "ok": true, "reason": "", "ms": ms, "nr": nr, "mr": mr }
+}
+
+let httpSrc = "fn httpApp() {\n    let row = { \"status\": 200, \"body\": \"ok\" }\n    return (\"\" + row[\"status\"] + \" \" + row[\"body\"]) == \"200 ok\"\n}\nreturn httpApp()\n"
+let fpsSrc = "fn fpsApp() {\n    let frames = 0\n    let x = 0\n    while frames < 60 {\n        x = x + 1\n        frames = frames + 1\n    }\n    return x\n}\nreturn fpsApp()\n"
+let ndSrc = "fn ndApp() {\n    let a = [1, 2, 3, 4, 5, 6, 7, 8]\n    let b = [8, 7, 6, 5, 4, 3, 2, 1]\n    let s = 0\n    let i = 0\n    while i < len(a) {\n        s = s + a[i] * b[i]\n        i = i + 1\n    }\n    return s\n}\nreturn ndApp()\n"
+
+let http = nativeOnce(httpSrc, 8192)
+if http["ok"] == false {
+    println("F18 http reject " + http["reason"])
+    return 1
+}
+if http["nr"] != 27 {
+    println("F18 http value " + http["nr"])
+    return 5
+}
+let fps = nativeOnce(fpsSrc, 4096)
+if fps["ok"] == false {
+    println("F18 fps reject " + fps["reason"])
+    return 2
+}
+if fps["nr"] != 120 {
+    println("F18 fps value " + fps["nr"])
+    return 6
+}
+let nd = nativeOnce(ndSrc, 8192)
+if nd["ok"] == false {
+    println("F18 nd reject " + nd["reason"])
+    return 3
+}
+if nd["nr"] != 240 {
+    println("F18 nd value " + nd["nr"])
+    return 7
+}
+
+let frameMs = fps["ms"]
+let gotFps = 60000
+if frameMs > 0 {
+    gotFps = 60000 / frameMs
+}
+println("F18 native httpMs=" + http["ms"] + " httpOk=" + appCiHttpOk(http["ms"]) + " frameMs=" + frameMs + " fps=" + gotFps + " fpsOk=" + appCiFpsOk(gotFps) + " ndMs=" + nd["ms"] + " ndOk=" + appCiNdOk(nd["ms"]))
+if appCiHttpOk(http["ms"]) == false || appCiFpsOk(gotFps) == false || appCiNdOk(nd["ms"]) == false {
+    return 4
+}
+return 42
