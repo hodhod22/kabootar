@@ -403,6 +403,9 @@ struct EnvironmentInner {
     /// Fresh stamp on every binding write, so callers can detect changes.
     version: Cell<u64>,
     log: RefCell<WriteLog>,
+    /// Sorted binding names, valid while the scope holds that many bindings
+    /// (bindings are only ever added, never removed).
+    keys_snap: RefCell<Option<Rc<[String]>>>,
 }
 
 /// Recent binding writes of a large scope: every write stamped after `floor`
@@ -417,6 +420,21 @@ const WRITE_LOG_MIN_SCOPE: usize = 64;
 const WRITE_LOG_CAP: usize = 1024;
 
 impl EnvironmentInner {
+    fn keys_snapshot(&self) -> Rc<[String]> {
+        let bindings = self.bindings.borrow();
+        let mut snap = self.keys_snap.borrow_mut();
+        if let Some(k) = snap.as_ref() {
+            if k.len() == bindings.len() {
+                return Rc::clone(k);
+            }
+        }
+        let mut keys: Vec<String> = bindings.keys().cloned().collect();
+        keys.sort_unstable();
+        let keys: Rc<[String]> = keys.into();
+        *snap = Some(Rc::clone(&keys));
+        keys
+    }
+
     fn note_write(&self, name: &str, scope_len: usize) {
         let stamp = next_env_stamp();
         self.version.set(stamp);
@@ -439,7 +457,18 @@ impl EnvironmentInner {
 pub struct ScopeStamp {
     id: u64,
     version: u64,
-    keys: Option<Vec<String>>,
+    keys: Option<Rc<[String]>>,
+}
+
+/// How a scope chain differs from an earlier `ScopeStamp` list of it.
+pub enum StampDelta {
+    /// No scope was written since.
+    Same,
+    /// Only the innermost scope changed (or was replaced by a frame with the
+    /// same names); any changed name is among these.
+    Inner(Rc<[String]>),
+    /// Anything else.
+    Other,
 }
 
 thread_local! {
@@ -472,6 +501,7 @@ impl Clone for Environment {
                 private_access_class: RefCell::new(self.inner.private_access_class.borrow().clone()),
                 id: next_env_stamp(),
                 log: RefCell::new(WriteLog::default()),
+                keys_snap: RefCell::new(None),
                 version: Cell::new(next_env_stamp()),
             }),
         }
@@ -505,6 +535,7 @@ impl Environment {
                 private_access_class: RefCell::new(self.inner.private_access_class.borrow().clone()),
                 id: next_env_stamp(),
                 log: RefCell::new(WriteLog::default()),
+                keys_snap: RefCell::new(None),
                 version: Cell::new(next_env_stamp()),
             }),
         }
@@ -530,6 +561,7 @@ impl Clone for EnvironmentInner {
             private_access_class: RefCell::new(self.private_access_class.borrow().clone()),
             id: next_env_stamp(),
             log: RefCell::new(WriteLog::default()),
+                keys_snap: RefCell::new(None),
             version: Cell::new(next_env_stamp()),
         }
     }
@@ -559,6 +591,7 @@ impl Environment {
                 private_access_class: RefCell::new(None),
                 id: next_env_stamp(),
                 log: RefCell::new(WriteLog::default()),
+                keys_snap: RefCell::new(None),
                 version: Cell::new(next_env_stamp()),
             }),
         }
@@ -585,6 +618,7 @@ impl Environment {
                 private_access_class: RefCell::new(None),
                 id: next_env_stamp(),
                 log: RefCell::new(WriteLog::default()),
+                keys_snap: RefCell::new(None),
                 version: Cell::new(next_env_stamp()),
             }),
         }
@@ -604,6 +638,7 @@ impl Environment {
                 private_access_class: RefCell::new(parent.inner.private_access_class.borrow().clone()),
                 id: next_env_stamp(),
                 log: RefCell::new(WriteLog::default()),
+                keys_snap: RefCell::new(None),
                 version: Cell::new(next_env_stamp()),
             }),
         }
@@ -624,6 +659,7 @@ impl Environment {
                 private_access_class: RefCell::new(parent.inner.private_access_class.borrow().clone()),
                 id: next_env_stamp(),
                 log: RefCell::new(WriteLog::default()),
+                keys_snap: RefCell::new(None),
                 version: Cell::new(next_env_stamp()),
             }),
         }
@@ -1090,12 +1126,11 @@ impl Environment {
         let mut out = Vec::new();
         let mut current = Some(self.inner.as_ref());
         while let Some(node) = current {
-            let bindings = node.bindings.borrow();
+            let small = node.bindings.borrow().len() <= WRITE_LOG_MIN_SCOPE;
             out.push(ScopeStamp {
                 id: node.id,
                 version: node.version.get(),
-                keys: (bindings.len() <= WRITE_LOG_MIN_SCOPE)
-                    .then(|| bindings.keys().cloned().collect()),
+                keys: small.then(|| node.keys_snapshot()),
             });
             current = node.parent.as_ref().map(Rc::as_ref);
         }
@@ -1152,6 +1187,51 @@ impl Environment {
             current = node.parent.as_ref().map(Rc::as_ref);
         }
         i == old.len()
+    }
+
+    /// Cheap classification of what changed since `old` was taken; see `StampDelta`.
+    pub fn stamp_delta(&self, old: &[ScopeStamp]) -> StampDelta {
+        let mut current = Some(self.inner.as_ref());
+        let mut i = 0;
+        let mut inner = None;
+        while let Some(node) = current {
+            let Some(prev) = old.get(i) else {
+                return StampDelta::Other;
+            };
+            let unchanged = prev.id == node.id && prev.version == node.version.get();
+            if !unchanged {
+                if i > 0 || node.bindings.borrow().len() > WRITE_LOG_MIN_SCOPE {
+                    return StampDelta::Other;
+                }
+                let keys = node.keys_snapshot();
+                if prev.id != node.id {
+                    match &prev.keys {
+                        Some(pk) if Rc::ptr_eq(pk, &keys) || **pk == *keys => {}
+                        _ => return StampDelta::Other,
+                    }
+                }
+                inner = Some(keys);
+            }
+            i += 1;
+            current = node.parent.as_ref().map(Rc::as_ref);
+        }
+        if i != old.len() {
+            return StampDelta::Other;
+        }
+        match inner {
+            Some(keys) => StampDelta::Inner(keys),
+            None => StampDelta::Same,
+        }
+    }
+
+    /// First binding of the innermost scope accepted by `f`.
+    pub fn find_own_binding(&self, mut f: impl FnMut(&Value) -> bool) -> Option<(String, Value)> {
+        self.inner
+            .bindings
+            .borrow()
+            .iter()
+            .find(|(_, v)| f(v))
+            .map(|(k, v)| (k.clone(), v.clone()))
     }
 
     /// Visit each visible binding (inner scopes shadow outer ones), innermost

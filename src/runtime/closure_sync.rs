@@ -1,7 +1,7 @@
 //! Sync captured bindings between closure snapshots and a live root environment.
 
 use crate::bytecode::BytecodeFnDef;
-use crate::value::{BytecodeFunction, Environment, ScopeStamp, Value};
+use crate::value::{BytecodeFunction, Environment, ScopeStamp, StampDelta, Value};
 use std::rc::Rc;
 
 pub fn sync_closure_writes(closure: &Environment, call_env: &Environment, root: &mut Environment) {
@@ -38,27 +38,121 @@ pub fn sync_closure_writes_filtered(
     }
 }
 
+/// Stamps of two scope chains after a sync, plus per-side innermost names
+/// already filtered by the sync's predicate (valid while the predicate's
+/// inputs are unchanged).
+pub struct SyncStamps {
+    a: Vec<ScopeStamp>,
+    b: Vec<ScopeStamp>,
+    filtered: [Option<(Rc<[String]>, Vec<String>)>; 2],
+}
+
+type SyncCache<K> = std::cell::RefCell<std::collections::HashMap<K, SyncStamps>>;
+
+fn push_unique(out: &mut Vec<String>, name: &str) {
+    if !out.iter().any(|n| n == name) {
+        out.push(name.to_string());
+    }
+}
+
+/// Names of `a`/`b` accepted by `keep` that may have changed since `prev`.
+/// `None` when that cannot be bounded (callers then rescan everything).
+/// `keep_ctx_side` names the chain `keep` reads; any change there drops the
+/// cached filters.
+fn names_changed_since(
+    prev: &mut SyncStamps,
+    a: &Environment,
+    b: &Environment,
+    keep_ctx_side: Option<usize>,
+    keep: impl Fn(&str) -> bool,
+) -> Option<Vec<String>> {
+    let deltas = [a.stamp_delta(&prev.a), b.stamp_delta(&prev.b)];
+    if deltas.iter().any(|d| matches!(d, StampDelta::Other)) {
+        prev.filtered = [None, None];
+        let mut seen = std::collections::HashSet::new();
+        let mut names = Vec::new();
+        let ok = a.names_written_since(&prev.a, &mut seen, &mut names)
+            && b.names_written_since(&prev.b, &mut seen, &mut names);
+        return ok.then(|| names.into_iter().filter(|n| keep(n)).collect());
+    }
+    if let Some(side) = keep_ctx_side {
+        if !matches!(deltas[side], StampDelta::Same) {
+            prev.filtered = [None, None];
+        }
+    }
+    let mut out = Vec::new();
+    for (side, delta) in deltas.iter().enumerate() {
+        let StampDelta::Inner(keys) = delta else {
+            continue;
+        };
+        let hit = matches!(&prev.filtered[side], Some((k, _)) if Rc::ptr_eq(k, keys) || **k == **keys);
+        if !hit {
+            let names = keys.iter().filter(|n| keep(n)).cloned().collect();
+            prev.filtered[side] = Some((Rc::clone(keys), names));
+        }
+        if let Some((_, names)) = &prev.filtered[side] {
+            for n in names {
+                push_unique(&mut out, n);
+            }
+        }
+    }
+    Some(out)
+}
+
+fn take_stamps<K: std::hash::Hash + Eq>(
+    cache: &'static std::thread::LocalKey<SyncCache<K>>,
+    key: &K,
+) -> Option<SyncStamps> {
+    cache.with(|m| m.borrow_mut().remove(key))
+}
+
+fn store_stamps<K: std::hash::Hash + Eq>(
+    cache: &'static std::thread::LocalKey<SyncCache<K>>,
+    key: K,
+    prev: Option<SyncStamps>,
+    a: &Environment,
+    b: &Environment,
+) {
+    let filtered = prev.map(|p| p.filtered).unwrap_or([None, None]);
+    let stamps = SyncStamps {
+        a: a.scope_stamps(),
+        b: b.scope_stamps(),
+        filtered,
+    };
+    cache.with(|m| {
+        let mut m = m.borrow_mut();
+        if m.len() >= 4096 {
+            m.clear();
+        }
+        m.insert(key, stamps);
+    });
+}
+
+type GlobalSyncKey = (usize, Vec<u64>, Vec<u64>);
+
 thread_local! {
-    /// Scope stamps of (closure, root) right after the closure's last pull.
+    /// Stamps of (closure, root) right after the closure's last pull.
     /// A pull is idempotent, so only names written since then can change.
-    static PULL_STAMPS: std::cell::RefCell<
-        std::collections::HashMap<(u64, Vec<u64>), (Vec<ScopeStamp>, Vec<ScopeStamp>)>,
-    > = std::cell::RefCell::new(std::collections::HashMap::new());
+    static PULL_STAMPS: SyncCache<(u64, Vec<u64>)> = std::cell::RefCell::new(std::collections::HashMap::new());
+    /// Stamps of (closure, root) right after `pull_bytecode_globals`.
+    static PULL_GLOBAL_STAMPS: SyncCache<GlobalSyncKey> = std::cell::RefCell::new(std::collections::HashMap::new());
+    /// Stamps of (call env, root) right after `sync_bytecode_globals_to_root`.
+    static PUSH_GLOBAL_STAMPS: SyncCache<GlobalSyncKey> = std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+fn parent_scope_ids(env: &Environment) -> Vec<u64> {
+    let mut ids = env.scope_ids();
+    ids.remove(0);
+    ids
 }
 
 pub fn pull_root_into_closure(closure: &mut Environment, root: &Environment) {
     // Callers' frames are fresh per call; key on the scopes they hang off.
-    let mut root_ids = root.scope_ids();
-    root_ids.remove(0);
-    let key = (closure.scope_id(), root_ids);
-    let changed = PULL_STAMPS.with(|m| {
-        let m = m.borrow();
-        let (pc, pr) = m.get(&key)?;
-        let mut seen = std::collections::HashSet::new();
-        let mut names = Vec::new();
-        (closure.names_written_since(pc, &mut seen, &mut names)
-            && root.names_written_since(pr, &mut seen, &mut names))
-        .then_some(names)
+    let key = (closure.scope_id(), parent_scope_ids(root));
+    let mut prev = take_stamps(&PULL_STAMPS, &key);
+    let changed = prev.as_mut().and_then(|p| {
+        let c = &*closure;
+        names_changed_since(p, c, root, Some(0), |n| c.get(n).is_some())
     });
     let mut updates: Vec<(String, Value)> = Vec::new();
     let mut check = |name: &str, cur: &Value| {
@@ -87,14 +181,7 @@ pub fn pull_root_into_closure(closure: &mut Environment, root: &Environment) {
     for (name, v) in updates {
         let _ = closure.assign(&name, v);
     }
-    let stamps = (closure.scope_stamps(), root.scope_stamps());
-    PULL_STAMPS.with(|m| {
-        let mut m = m.borrow_mut();
-        if m.len() >= 4096 {
-            m.clear();
-        }
-        m.insert(key, stamps);
-    });
+    store_stamps(&PULL_STAMPS, key, prev, closure, root);
 }
 
 /// Re-assigning an identical value is a no-op, so the pull can skip it.
@@ -172,9 +259,13 @@ pub fn writeback_object_args(
         // Prefer the binding that still holds the exact passed map: a bare
         // oid match can alias a distinct same-oid object (e.g. a CoW snapshot
         // clone that kept `__kab_oid`) and merge stale fields into it.
-        let mut exact: Option<(String, Value)> = None;
+        // The caller's own frame usually holds it and shadows outer scopes.
+        let mut exact = env.find_own_binding(|v| matches!(v, Value::Object(m) if Rc::ptr_eq(m, arg_map)));
         let mut oid_fallback: Option<(String, Value)> = None;
         env.visit_visible_bindings(|name, live| {
+            if exact.is_some() {
+                return false;
+            }
             let Value::Object(live_map) = live else {
                 return true;
             };
@@ -257,18 +348,64 @@ pub fn apply_object_arg_writebacks_env(env: &mut Environment, wbs: &[(usize, Val
     }
 }
 
+fn pull_bytecode_global(f: &mut BytecodeFunction, root: &Environment, name: &str) {
+    if let Some(v) = root.get(name) {
+        if let Some(cur) = f.closure.get(name) {
+            if same_binding_value(&cur, &v) {
+                return;
+            }
+            let _ = f.closure.assign(name, v);
+        } else {
+            f.closure.set(name.to_string(), v);
+        }
+    }
+}
+
 pub fn pull_bytecode_globals(f: &mut BytecodeFunction, root: &Environment) {
-    for name in &f.def.globals {
-        if let Some(v) = root.get(name) {
-            if let Some(cur) = f.closure.get(name) {
-                if same_binding_value(&cur, &v) {
-                    continue;
-                }
-                let _ = f.closure.assign(name, v);
-            } else {
-                f.closure.set(name.clone(), v);
+    if f.def.globals.is_empty() {
+        return;
+    }
+    let key = (
+        Rc::as_ptr(&f.def) as usize,
+        f.closure.scope_ids(),
+        parent_scope_ids(root),
+    );
+    let mut prev = take_stamps(&PULL_GLOBAL_STAMPS, &key);
+    let def = f.def.clone();
+    let changed = prev.as_mut().and_then(|p| {
+        names_changed_since(p, &f.closure, root, None, |n| def.globals.iter().any(|g| g == n))
+    });
+    match changed {
+        Some(names) => {
+            for name in &names {
+                pull_bytecode_global(f, root, name);
             }
         }
+        None => {
+            for name in &def.globals {
+                pull_bytecode_global(f, root, name);
+            }
+        }
+    }
+    store_stamps(&PULL_GLOBAL_STAMPS, key, prev, &f.closure, root);
+}
+
+fn push_bytecode_global(
+    f: &BytecodeFunction,
+    call_env: &Environment,
+    root: &mut Environment,
+    name: &str,
+) {
+    let Some(v) = call_env.get(name).or_else(|| f.closure.get(name)) else {
+        return;
+    };
+    if let Some(cur) = root.get(name) {
+        if same_binding_value(&cur, &v) {
+            return;
+        }
+        let _ = root.assign(name, v);
+    } else {
+        root.set(name.to_string(), v);
     }
 }
 
@@ -277,19 +414,33 @@ pub fn sync_bytecode_globals_to_root(
     call_env: &Environment,
     root: &mut Environment,
 ) {
-    for name in &f.def.globals {
-        let Some(v) = call_env.get(name).or_else(|| f.closure.get(name)) else {
-            continue;
-        };
-        if let Some(cur) = root.get(name) {
-            if same_binding_value(&cur, &v) {
-                continue;
+    if f.def.globals.is_empty() {
+        return;
+    }
+    // `call_env` is a fresh frame over `f.closure`; its parents carry identity.
+    let key = (
+        Rc::as_ptr(&f.def) as usize,
+        parent_scope_ids(call_env),
+        parent_scope_ids(root),
+    );
+    let mut prev = take_stamps(&PUSH_GLOBAL_STAMPS, &key);
+    let globals = &f.def.globals;
+    let changed = prev.as_mut().and_then(|p| {
+        names_changed_since(p, call_env, root, None, |n| globals.iter().any(|g| g == n))
+    });
+    match changed {
+        Some(names) => {
+            for name in &names {
+                push_bytecode_global(f, call_env, root, name);
             }
-            let _ = root.assign(name, v);
-        } else {
-            root.set(name.clone(), v);
+        }
+        None => {
+            for name in globals {
+                push_bytecode_global(f, call_env, root, name);
+            }
         }
     }
+    store_stamps(&PUSH_GLOBAL_STAMPS, key, prev, call_env, root);
 }
 
 pub fn call_with_closure_sync(
