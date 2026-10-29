@@ -470,6 +470,12 @@ pub fn vPublishInstS(S, updated) {
     if updated == null || updated == undefined {
         return updated
     }
+    // index_set returns the array. Stamping vmI/vmC on it indexes with a
+    // string key and throws "Array index must be a number" inside methods
+    // (thisStack is live). Only real objects are instances.
+    if typeof(updated) != "object" {
+        return updated
+    }
     if vInstId(updated) == undefined {
         if len(S["thisStack"]) > 0 {
             let cur = S["thisStack"][len(S["thisStack"]) - 1]

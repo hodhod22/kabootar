@@ -1,0 +1,8 @@
+// Compiler-image entry. Linked with aotLinkModulesCall so the image
+// result is this function, not the merged module mains (those return
+// undefined). The criterion is len(compile("return 20 + 1")).
+import "self_host/compile"
+
+pub fn imageCompileLen() {
+    return len(compile("return 20 + 1"))
+}

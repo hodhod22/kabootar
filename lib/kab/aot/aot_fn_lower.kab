@@ -3888,6 +3888,521 @@ fn aotObjArrPopSeq(bump, limit, s) {
     return sq
 }
 
+/// Shrink obj[key] in place. hasLen 0: object_array_clear(obj, key)
+/// sets the array header's lo16 to 0 and pushes tagged 0. hasLen 1:
+/// object_array_truncate(obj, key, n) requires a non-negative SMI n
+/// not past the current length, writes that length into the same
+/// header, and pushes tagged n. The cell identity is kept (host
+/// vec.clear/truncate). A missing field, a non-array, or a bad length
+/// traps. Temps s..s+11.
+fn aotObjArrShrinkSeq(hasLen, s) {
+    let sq = []
+    if hasLen == 1 {
+        sq = push(sq, ["store", s])
+        sq = push(sq, ["store", s + 1])
+        sq = push(sq, ["store", s + 2])
+        sq = push(sq, ["load", s])
+        sq = push(sq, ["is_smi"])
+        sq = push(sq, ["jz", "@trap"])
+        sq = push(sq, ["load", s])
+        sq = push(sq, ["untag"])
+        sq = push(sq, ["store", s])
+        sq = push(sq, ["load", s])
+        sq = push(sq, ["const", 0])
+        sq = push(sq, ["lt"])
+        sq = push(sq, ["jnz", "@trap"])
+    } else {
+        sq = push(sq, ["store", s + 1])
+        sq = push(sq, ["store", s + 2])
+        sq = push(sq, ["const", 0])
+        sq = push(sq, ["store", s])
+    }
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s + 2], 10), "o"))
+    sq = aotSeqCat(sq, [["jz", "@trap"]])
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s + 1], 4), "k"))
+    sq = aotSeqCat(sq, [["jz", "@trap"]])
+    sq = aotSeqCat(sq, aotSeqTag(aotKidSeq(["load", s + 1], s + 6, s + 7, s + 8), "h"))
+    sq = aotSeqCat(sq, aotSeqTag(aotOgetSlotSeq(["load", s + 6], s + 2, s + 9, s + 5), "q"))
+    sq = aotSeqCat(sq, [["jz", "@trap"]])
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s + 5], 5), "f"))
+    sq = aotSeqCat(sq, [
+        ["jz", "@trap"],
+        ["load", s + 5],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 4],
+        ["load", s],
+        ["load", s + 4],
+        ["gt"],
+        ["jnz", "@trap"],
+        // header = (header & ~0xFFFF) | newLen. div/mul keeps bits above lo16.
+        ["load", s + 5],
+        ["load", s + 5],
+        ["hload", 0],
+        ["const", 65536],
+        ["div"],
+        ["const", 65536],
+        ["mul"],
+        ["load", s],
+        ["add"],
+        ["hstore", 0],
+        ["load", s],
+        ["tag"],
+        ["jmp", "@e"],
+        ["label", "trap"],
+        ["trap"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
+/// str_index_of(hay, needle[, from]) → tagged byte index, or -1.
+/// from defaults to 0; a non-SMI or negative from is 0 (host). An empty
+/// needle returns `from` even past the end. ASCII / byte domain, same
+/// as the other string lowerings. Temps s..s+7.
+fn aotStrFindSeq(n, s) {
+    let sq = []
+    if n == 3 {
+        sq = push(sq, ["store", s + 7])
+    }
+    sq = push(sq, ["store", s + 1])
+    sq = push(sq, ["store", s])
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s], 4), "h"))
+    sq = aotSeqCat(sq, [["jz", "@trap"]])
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s + 1], 4), "n"))
+    sq = aotSeqCat(sq, [["jz", "@trap"]])
+    if n == 3 {
+        sq = aotSeqCat(sq, [
+            ["load", s + 7],
+            ["is_smi"],
+            ["jz", "@fz"],
+            ["load", s + 7],
+            ["untag"],
+            ["store", s + 2],
+            ["load", s + 2],
+            ["const", 0],
+            ["lt"],
+            ["jz", "@fk"],
+            ["label", "fz"],
+            ["const", 0],
+            ["store", s + 2],
+            ["label", "fk"]
+        ])
+    } else {
+        sq = aotSeqCat(sq, [["const", 0], ["store", s + 2]])
+    }
+    sq = aotSeqCat(sq, [
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 3],
+        ["load", s + 1],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 4],
+        ["load", s + 4],
+        ["const", 0],
+        ["eq"],
+        ["jnz", "@empty"],
+        ["load", s + 2],
+        ["load", s + 3],
+        ["ge"],
+        ["jnz", "@miss"],
+        ["load", s + 2],
+        ["store", s + 5],
+        ["label", "sc"],
+        ["load", s + 5],
+        ["load", s + 4],
+        ["add"],
+        ["load", s + 3],
+        ["le"],
+        ["jz", "@miss"],
+        ["const", 0],
+        ["store", s + 6],
+        ["label", "mj"],
+        ["load", s + 6],
+        ["load", s + 4],
+        ["lt"],
+        ["jz", "@hit"],
+        ["load", s],
+        ["load", s + 5],
+        ["load", s + 6],
+        ["add"],
+        ["hloadb"],
+        ["load", s + 1],
+        ["load", s + 6],
+        ["hloadb"],
+        ["eq"],
+        ["jz", "@nx"],
+        ["load", s + 6],
+        ["const", 1],
+        ["add"],
+        ["store", s + 6],
+        ["jmp", "@mj"],
+        ["label", "nx"],
+        ["load", s + 5],
+        ["const", 1],
+        ["add"],
+        ["store", s + 5],
+        ["jmp", "@sc"],
+        ["label", "hit"],
+        ["load", s + 5],
+        ["tag"],
+        ["jmp", "@e"],
+        ["label", "empty"],
+        ["load", s + 2],
+        ["tag"],
+        ["jmp", "@e"],
+        ["label", "miss"],
+        ["tconst", -1],
+        ["jmp", "@e"],
+        ["label", "trap"],
+        ["trap"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
+/// Tag-4 cell of `cnt` raw bytes (kid 0). No labels.
+fn aotStrAllocSeq(cnt, dst, bump, limit) {
+    return [
+        ["load", cnt],
+        ["const", 7],
+        ["add"],
+        ["const", 8],
+        ["div"],
+        ["const", 1],
+        ["add"],
+        ["halloc", bump, limit],
+        ["store", dst],
+        ["load", dst],
+        ["const", 262144],
+        ["load", cnt],
+        ["add"],
+        ["hstore", 0]
+    ]
+}
+
+/// replace_all(hay, from, to). Non-overlapping, byte domain. An empty
+/// `from` inserts `to` at every boundary, including both ends (host
+/// str::replace). Temps s..s+11.
+fn aotReplaceAllSeq(bump, limit, s) {
+    let sq = [
+        ["store", s],
+        ["store", s + 1],
+        ["store", s + 2]
+    ]
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s + 2], 4), "h"))
+    sq = aotSeqCat(sq, [["jz", "@trap"]])
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s + 1], 4), "f"))
+    sq = aotSeqCat(sq, [["jz", "@trap"]])
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s], 4), "t"))
+    sq = aotSeqCat(sq, [
+        ["jz", "@trap"],
+        ["load", s + 2],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 3],
+        ["load", s + 1],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 4],
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 5],
+        ["load", s + 4],
+        ["const", 0],
+        ["eq"],
+        ["jnz", "@el"],
+        ["const", 0],
+        ["store", s + 8],
+        ["const", 0],
+        ["store", s + 11],
+        ["label", "c1"],
+        ["load", s + 8],
+        ["load", s + 4],
+        ["add"],
+        ["load", s + 3],
+        ["le"],
+        ["jz", "@c1d"],
+        ["const", 0],
+        ["store", s + 10],
+        ["label", "c1m"],
+        ["load", s + 10],
+        ["load", s + 4],
+        ["lt"],
+        ["jz", "@c1h"],
+        ["load", s + 2],
+        ["load", s + 8],
+        ["load", s + 10],
+        ["add"],
+        ["hloadb"],
+        ["load", s + 1],
+        ["load", s + 10],
+        ["hloadb"],
+        ["eq"],
+        ["jz", "@c1n"],
+        ["load", s + 10],
+        ["const", 1],
+        ["add"],
+        ["store", s + 10],
+        ["jmp", "@c1m"],
+        ["label", "c1h"],
+        ["load", s + 11],
+        ["const", 1],
+        ["add"],
+        ["store", s + 11],
+        ["load", s + 8],
+        ["load", s + 4],
+        ["add"],
+        ["store", s + 8],
+        ["jmp", "@c1"],
+        ["label", "c1n"],
+        ["load", s + 8],
+        ["const", 1],
+        ["add"],
+        ["store", s + 8],
+        ["jmp", "@c1"],
+        ["label", "c1d"],
+        ["load", s + 5],
+        ["load", s + 4],
+        ["sub"],
+        ["load", s + 11],
+        ["mul"],
+        ["load", s + 3],
+        ["add"],
+        ["store", s + 6],
+        ["jmp", "@alc"],
+        ["label", "el"],
+        ["load", s + 5],
+        ["const", 1],
+        ["add"],
+        ["load", s + 3],
+        ["mul"],
+        ["load", s + 5],
+        ["add"],
+        ["store", s + 6],
+        ["label", "alc"]
+    ])
+    sq = aotSeqCat(sq, aotStrAllocSeq(s + 6, s + 7, bump, limit))
+    sq = aotSeqCat(sq, [
+        ["const", 0],
+        ["store", s + 8],
+        ["const", 0],
+        ["store", s + 9],
+        ["load", s + 4],
+        ["const", 0],
+        ["eq"],
+        ["jnz", "@ew"],
+        ["label", "w1"],
+        ["load", s + 8],
+        ["load", s + 3],
+        ["lt"],
+        ["jz", "@wd"],
+        ["load", s + 8],
+        ["load", s + 4],
+        ["add"],
+        ["load", s + 3],
+        ["le"],
+        ["jz", "@w1b"],
+        ["const", 0],
+        ["store", s + 10],
+        ["label", "w1m"],
+        ["load", s + 10],
+        ["load", s + 4],
+        ["lt"],
+        ["jz", "@w1h"],
+        ["load", s + 2],
+        ["load", s + 8],
+        ["load", s + 10],
+        ["add"],
+        ["hloadb"],
+        ["load", s + 1],
+        ["load", s + 10],
+        ["hloadb"],
+        ["eq"],
+        ["jz", "@w1b"],
+        ["load", s + 10],
+        ["const", 1],
+        ["add"],
+        ["store", s + 10],
+        ["jmp", "@w1m"],
+        ["label", "w1h"],
+        ["const", 0],
+        ["store", s + 10],
+        ["label", "w1t"],
+        ["load", s + 10],
+        ["load", s + 5],
+        ["lt"],
+        ["jz", "@w1td"],
+        ["load", s + 7],
+        ["load", s + 9],
+        ["load", s],
+        ["load", s + 10],
+        ["hloadb"],
+        ["hstoreb"],
+        ["load", s + 9],
+        ["const", 1],
+        ["add"],
+        ["store", s + 9],
+        ["load", s + 10],
+        ["const", 1],
+        ["add"],
+        ["store", s + 10],
+        ["jmp", "@w1t"],
+        ["label", "w1td"],
+        ["load", s + 8],
+        ["load", s + 4],
+        ["add"],
+        ["store", s + 8],
+        ["jmp", "@w1"],
+        ["label", "w1b"],
+        ["load", s + 7],
+        ["load", s + 9],
+        ["load", s + 2],
+        ["load", s + 8],
+        ["hloadb"],
+        ["hstoreb"],
+        ["load", s + 9],
+        ["const", 1],
+        ["add"],
+        ["store", s + 9],
+        ["load", s + 8],
+        ["const", 1],
+        ["add"],
+        ["store", s + 8],
+        ["jmp", "@w1"],
+        ["label", "ew"],
+        ["label", "ewl"],
+        ["const", 0],
+        ["store", s + 10],
+        ["label", "ewt"],
+        ["load", s + 10],
+        ["load", s + 5],
+        ["lt"],
+        ["jz", "@ewtd"],
+        ["load", s + 7],
+        ["load", s + 9],
+        ["load", s],
+        ["load", s + 10],
+        ["hloadb"],
+        ["hstoreb"],
+        ["load", s + 9],
+        ["const", 1],
+        ["add"],
+        ["store", s + 9],
+        ["load", s + 10],
+        ["const", 1],
+        ["add"],
+        ["store", s + 10],
+        ["jmp", "@ewt"],
+        ["label", "ewtd"],
+        ["load", s + 8],
+        ["load", s + 3],
+        ["lt"],
+        ["jz", "@wd"],
+        ["load", s + 7],
+        ["load", s + 9],
+        ["load", s + 2],
+        ["load", s + 8],
+        ["hloadb"],
+        ["hstoreb"],
+        ["load", s + 9],
+        ["const", 1],
+        ["add"],
+        ["store", s + 9],
+        ["load", s + 8],
+        ["const", 1],
+        ["add"],
+        ["store", s + 8],
+        ["jmp", "@ewl"],
+        ["label", "wd"],
+        ["load", s + 7],
+        ["jmp", "@e"],
+        ["label", "trap"],
+        ["trap"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
+/// comptime_fold(source). The host folder calls the Rust evaluator.
+/// The image has no evaluator: a source with no "comptime" substring is
+/// returned unchanged; any occurrence traps so a real comptime block
+/// cannot compile to the wrong program. Temps s..s+3.
+fn aotComptimeFoldSeq(s) {
+    let lit = "comptime"
+    let sq = [["store", s]]
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s], 4), "t"))
+    sq = aotSeqCat(sq, [
+        ["jz", "@trap"],
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 1],
+        ["const", 0],
+        ["store", s + 2],
+        ["label", "cs"],
+        ["load", s + 2],
+        ["const", len(lit)],
+        ["add"],
+        ["load", s + 1],
+        ["le"],
+        ["jz", "@keep"]
+    ])
+    let j = 0
+    while j < len(lit) {
+        sq = push(sq, ["load", s])
+        sq = push(sq, ["load", s + 2])
+        sq = push(sq, ["const", j])
+        sq = push(sq, ["add"])
+        sq = push(sq, ["hloadb"])
+        sq = push(sq, ["const", char_code_at(lit, j) % 256])
+        sq = push(sq, ["eq"])
+        sq = push(sq, ["jz", "@nx"])
+        j = j + 1
+    }
+    sq = aotSeqCat(sq, [
+        ["jmp", "@trap"],
+        ["label", "nx"],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["jmp", "@cs"],
+        ["label", "keep"],
+        ["load", s],
+        ["jmp", "@e"],
+        ["label", "trap"],
+        ["trap"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
+/// is_float(v): true only for a tag-1 float cell. SMI and every other
+/// tag are false (host Value::Float, not integral numbers).
+fn aotIsFloatSeq(s) {
+    let sq = [
+        ["store", s],
+        ["load", s],
+        ["is_smi"],
+        ["jnz", "@no"]
+    ]
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s], 1), "t"))
+    sq = aotSeqCat(sq, [
+        ["jnz", "@yes"],
+        ["label", "no"],
+        ["tfalse"],
+        ["jmp", "@e"],
+        ["label", "yes"],
+        ["ttrue"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
 /// Builtin-call lowering table for `load_global <name>; call n` with no
 /// module-fn target: the global never materialises — args sit on the
 /// operand stack and each arm consumes them + pushes one tagged result
@@ -4182,6 +4697,84 @@ fn aotBuiltinSeq(name, n, bump, limit, s, bc) {
         }
         return null
     }
+    if name == "object_array_clear" {
+        if n == 2 {
+            return aotObjArrShrinkSeq(0, s)
+        }
+        return null
+    }
+    if name == "object_array_truncate" {
+        if n == 3 {
+            return aotObjArrShrinkSeq(1, s)
+        }
+        return null
+    }
+    if name == "str_index_of" {
+        if n == 2 || n == 3 {
+            return aotStrFindSeq(n, s)
+        }
+        return null
+    }
+    if name == "str_includes" {
+        if n == 2 {
+            // Tag the find seq first: it ends at label `e`, and the bool
+            // conversion below also uses `e`.
+            let sq = aotSeqTag(aotStrFindSeq(2, s), "fd")
+            sq = aotSeqCat(sq, [
+                ["tconst", -1],
+                ["eq"],
+                ["const", 0],
+                ["eq"]
+            ])
+            sq = aotSeqCat(sq, aotRaw2BoolSeq())
+            return sq
+        }
+        return null
+    }
+    if name == "replace_all" {
+        if n == 3 {
+            return aotReplaceAllSeq(bump, limit, s)
+        }
+        return null
+    }
+    if name == "comptime_fold" {
+        if n == 1 {
+            return aotComptimeFoldSeq(s)
+        }
+        return null
+    }
+    if name == "is_float" {
+        if n == 1 {
+            return aotIsFloatSeq(s)
+        }
+        return null
+    }
+    if name == "env_get" {
+        // The image has no process environment. Every key is undefined,
+        // which is also what the host returns for an unset variable.
+        if n == 1 {
+            return [["store", s], ["tundef"]]
+        }
+        return null
+    }
+    if name == "date_now_ms" {
+        // No clock in the native ABI (the RX blob's only syscall is the
+        // exe stub's exit, and this host is Windows). compile() calls
+        // date_now_ms on every run and stores the deltas in gMs*; they
+        // are not part of the returned bytecode. A trap would abort
+        // before that result exists, so the lowering pushes tagged 0.
+        if n == 0 {
+            return [["tconst", 0]]
+        }
+        return null
+    }
+    if name == "println" || name == "parse_float" || name == "json_stringify" {
+        // println: no stdout in the native ABI. parse_float: no f64
+        // parser (float literals are the only caller). json_stringify:
+        // only the parser's throw path. All three trap instead of
+        // inventing a result.
+        return [["trap"]]
+    }
     if name == "instanceof" {
         // instanceof(obj, "ClassName") — vInstanceofS parity: obj must
         // be a tag-10 record with a vmC member; the class name string's
@@ -4418,6 +5011,205 @@ fn aotCallCheckSeq(regs, ip, s) {
 /// (for make_arrow_fn resolution), the callv candidate index list, the
 /// fn-global → wrapper-index map, and the +1 local shift arrow bodies
 /// need (their lowered local 0 holds the closure cell).
+/// `in`: stack is [needle, hay]. Array (tag 5) scans elements with `eq`.
+/// String hay requires a string needle and searches bytes (`str_includes`,
+/// empty needle is true). Other types trap — the VM would throw.
+/// yield*: stack top is the iterable. An array yields its first element
+/// (ret). An empty array pushes tagged undefined and continues.
+fn aotYieldStarSeq(s) {
+    return [
+        ["store", s],
+        ["load", s],
+        ["is_smi"],
+        ["jnz", "@bad"],
+        ["load", s],
+        ["htag"],
+        ["tconst", 5],
+        ["eq"],
+        ["jz", "@bad"],
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["const", 0],
+        ["eq"],
+        ["jnz", "@empty"],
+        ["load", s],
+        ["tconst", 0],
+        ["aget"],
+        ["ret"],
+        ["label", "empty"],
+        ["tundef"],
+        ["jmp", "@end"],
+        ["label", "bad"],
+        ["trap"],
+        ["label", "end"]
+    ]
+}
+
+fn aotInSeq(s) {
+    return [
+        ["store", s],
+        ["store", s + 1],
+        ["load", s],
+        ["is_smi"],
+        ["jnz", "@bad"],
+        ["load", s],
+        ["const", 8],
+        ["mod"],
+        ["const", 1],
+        ["eq"],
+        ["jz", "@bad"],
+        ["load", s],
+        ["htag"],
+        ["tconst", 5],
+        ["eq"],
+        ["jnz", "@arr"],
+        ["load", s],
+        ["htag"],
+        ["tconst", 4],
+        ["eq"],
+        ["jnz", "@str"],
+        ["load", s],
+        ["htag"],
+        ["tconst", 10],
+        ["eq"],
+        ["jnz", "@obj"],
+        ["jmp", "@bad"],
+        ["label", "arr"],
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 3],
+        ["const", 0],
+        ["store", s + 2],
+        ["label", "al"],
+        ["load", s + 2],
+        ["load", s + 3],
+        ["lt"],
+        ["jz", "@no"],
+        ["load", s],
+        ["load", s + 2],
+        ["tag"],
+        ["aget"],
+        ["load", s + 1],
+        ["eq"],
+        ["jnz", "@yes"],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["jmp", "@al"],
+        ["label", "str"],
+        ["load", s + 1],
+        ["is_smi"],
+        ["jnz", "@bad"],
+        ["load", s + 1],
+        ["htag"],
+        ["tconst", 4],
+        ["eq"],
+        ["jz", "@bad"],
+        ["load", s],
+        ["hload", 0],
+        ["const", 65536],
+        ["mod"],
+        ["store", s + 3],
+        ["load", s + 1],
+        ["hload", 0],
+        ["const", 65536],
+        ["mod"],
+        ["store", s + 4],
+        ["load", s + 4],
+        ["const", 0],
+        ["eq"],
+        ["jnz", "@yes"],
+        ["const", 0],
+        ["store", s + 2],
+        ["label", "sl"],
+        ["load", s + 2],
+        ["load", s + 4],
+        ["add"],
+        ["load", s + 3],
+        ["le"],
+        ["jz", "@no"],
+        ["const", 0],
+        ["store", s + 5],
+        ["label", "sj"],
+        ["load", s + 5],
+        ["load", s + 4],
+        ["lt"],
+        ["jz", "@yes"],
+        ["load", s],
+        ["load", s + 2],
+        ["load", s + 5],
+        ["add"],
+        ["hloadb"],
+        ["load", s + 1],
+        ["load", s + 5],
+        ["hloadb"],
+        ["eq"],
+        ["jz", "@snxt"],
+        ["load", s + 5],
+        ["const", 1],
+        ["add"],
+        ["store", s + 5],
+        ["jmp", "@sj"],
+        ["label", "snxt"],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["jmp", "@sl"],
+        ["label", "obj"],
+        ["load", s + 1],
+        ["htag"],
+        ["tconst", 4],
+        ["eq"],
+        ["jz", "@bad"],
+        ["load", s + 1],
+        ["hload", 0],
+        ["const", 4294967296],
+        ["div"],
+        ["tag"],
+        ["store", s + 6],
+        ["load", s],
+        ["hload", 8],
+        ["store", s + 3],
+        ["load", s + 3],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 5],
+        ["const", 0],
+        ["store", s + 4],
+        ["label", "ol"],
+        ["load", s + 4],
+        ["load", s + 5],
+        ["lt"],
+        ["jz", "@no"],
+        ["load", s + 3],
+        ["load", s + 4],
+        ["const", 1],
+        ["add"],
+        ["hloadx"],
+        ["load", s + 6],
+        ["eq"],
+        ["jnz", "@yes"],
+        ["load", s + 4],
+        ["const", 2],
+        ["add"],
+        ["store", s + 4],
+        ["jmp", "@ol"],
+        ["label", "yes"],
+        ["ttrue"],
+        ["jmp", "@end"],
+        ["label", "no"],
+        ["tfalse"],
+        ["jmp", "@end"],
+        ["label", "bad"],
+        ["trap"],
+        ["label", "end"]
+    ]
+}
+
 fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
     let out = []
     let ipMap = []
@@ -5536,6 +6328,25 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
             if tsq["catch"] >= 0 {
                 fixups = push(fixups, [tn + tsq["jpos"], tsq["catch"]])
             }
+        } else if tv1 && name == "in" {
+            out = aotLowerAsm(out, aotSeqTag(aotInSeq(scratch), "in" + i))
+        } else if tv1 && name == "await" {
+            // await_all of a value that is not a pending task is that value.
+            // The image has no microtask queue, so a pending task still traps
+            // only when the program actually calls the host scheduler. A
+            // settled value stays on the stack.
+        } else if tv1 && name == "yield" {
+            // One suspension: the yielded value is the function result.
+            // A later resume would need a saved ip in the image; self-host
+            // emit of yield* does not use this opcode for that.
+            out = push(out, ["ret"])
+        } else if tv1 && name == "yield_star" {
+            // Host opcode. Self-host emit already expands yield* into
+            // iterator_step + yield before this lowerer runs. When the
+            // opcode is still present, delegate an array: the first
+            // element is the suspension value. An empty array pushes
+            // undefined, matching a finished iterator's completion.
+            out = aotLowerAsm(out, aotSeqTag(aotYieldStarSeq(scratch), "ys" + i))
         } else if name == "return" {
             out = push(out, ["ret"])
         } else if name == "pop" {
@@ -5592,10 +6403,11 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
     if tv1 {
         // sc/sc1 numeric temps + record temps (obj/slots/i/n/val/tmp/
         // right/2m/cursor/exc) + builtin lowering (obj_array_push nests
-        // kid-hash + slot-scan + push-copy — deepest at s+12) + new_
-        // instance arg temps (s+8..s+21) + calln/callv spill slots at
-        // s+24.. (up to 15 extras); lowered sequences are self-contained
-        // per op, so one shared scratch block suffices.
+        // kid-hash + slot-scan + push-copy — deepest at s+12;
+        // replace_all uses s+0..s+11) + new_ instance arg temps
+        // (s+8..s+21) + calln/callv spill slots at s+24.. (up to 15
+        // extras); lowered sequences are self-contained per op, so one
+        // shared scratch block suffices.
         xtra = 40
     }
     let bcf = bc["functions"]

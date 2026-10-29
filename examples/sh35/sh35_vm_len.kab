@@ -1,0 +1,4 @@
+// Kab-VM reference for the compiler image. Same source the image compiles.
+import "self_host/compile"
+
+return len(compile("return 20 + 1"))

@@ -1,0 +1,60 @@
+// Lower the compiler image: compile + its import DAG + imageCompileLen.
+// Heap bound is baked here. 16 Mi qwords = 128 MiB. The exec mapping
+// must cover r12+(nglobals+2+heapQ)*8. Cache only; emit is stepped.
+import "kab/aot/aot_link"
+import "kab/aot/aot_fn_lower"
+
+fn modBc(name) {
+    let r = bc_module_ir(name + ".kab")
+    if r["ok"] == false {
+        r = bc_module_ir("lib/" + name + ".kab")
+    }
+    if r["ok"] == false {
+        println("MISS " + name + ": " + r["reason"])
+        return null
+    }
+    return r["bc"]
+}
+
+fn dagVisit(name, seen, out) {
+    if seen[name] == 1 { return out }
+    seen[name] = 1
+    let bc = modBc(name)
+    if bc == null { return out }
+    let i = 0
+    while i < len(bc["imports"]) {
+        out = dagVisit(bc["imports"][i], seen, out)
+        i = i + 1
+    }
+    println("loaded " + name + " fns=" + len(bc["functions"]))
+    out = push(out, { "name": name, "bc": bc })
+    return out
+}
+
+let heapQ = 16777216
+let cachePath = "/host/examples/sh35/_lower_cache.json"
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+if os_exists(cachePath) {
+    println("lower cache already present")
+    return 0
+}
+let t0 = date_now_ms()
+let mods = dagVisit("self_host/sh35_image_app", {}, [])
+println("dag mods=" + len(mods) + " ms=" + (date_now_ms() - t0))
+t0 = date_now_ms()
+let bc = aotLinkModulesCall(mods, "self_host/sh35_image_app", "imageCompileLen")
+println("linked nfns=" + len(bc["functions"]) + " ng=" + len(bc["globals"]) + " ms=" + (date_now_ms() - t0))
+t0 = date_now_ms()
+let lr = aotFnLowerModuleTv1(bc, heapQ)
+println("lower ok=" + json_stringify(lr["ok"]) + " nfns=" + len(lr["fns"]) + " ms=" + (date_now_ms() - t0))
+if lr["ok"] == false {
+    println("reason: " + json_stringify(lr["reason"]))
+    return 1
+}
+os_write(cachePath, json_stringify({
+    "nglobals": lr["nglobals"],
+    "heapQ": heapQ,
+    "fns": lr["fns"]
+}))
+println("cache written nfns=" + len(lr["fns"]) + " ng=" + lr["nglobals"])
+return 0

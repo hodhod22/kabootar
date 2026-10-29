@@ -1,0 +1,61 @@
+// F18 measurement, run by `kabootar test` (not cargo test).
+// The three apps must compute the right values. The speed gates are
+// reported and are false on the Kab VM.
+import "kab/app_ci"
+import "kab/app_ci_fps"
+import "kab/app_ci_nd"
+import "kabtest/core"
+
+fn elapsed(t0) {
+    let d = date_now_ms() - t0
+    if typeof(d) != "number" || d < 0 {
+        return 0
+    }
+    return d
+}
+
+fn httpApp() {
+    let row = { "status": 200, "body": "ok" }
+    return "" + row["status"] + " " + row["body"]
+}
+
+fn fpsApp() {
+    let frames = 0
+    let x = 0
+    while frames < 60 {
+        x = x + 1
+        frames = frames + 1
+    }
+    return x
+}
+
+fn ndApp() {
+    let a = [1, 2, 3, 4, 5, 6, 7, 8]
+    let b = [8, 7, 6, 5, 4, 3, 2, 1]
+    let s = 0
+    let i = 0
+    while i < len(a) {
+        s = s + a[i] * b[i]
+        i = i + 1
+    }
+    return s
+}
+
+let t0 = date_now_ms()
+let httpBody = httpApp()
+let httpMs = elapsed(t0)
+t0 = date_now_ms()
+let x = fpsApp()
+let frameMs = elapsed(t0)
+let fps = 60000
+if frameMs > 0 {
+    fps = 60000 / frameMs
+}
+t0 = date_now_ms()
+let dot = ndApp()
+let ndMs = elapsed(t0)
+println("F18 httpMs=" + httpMs + " httpOk=" + appCiHttpOk(httpMs) + " frameMs=" + frameMs + " fps=" + fps + " fpsOk=" + appCiFpsOk(fps) + " ndMs=" + ndMs + " ndOk=" + appCiNdOk(ndMs))
+ktAssertEq(httpBody, "200 ok", "http body")
+ktAssertEq(x, 60, "sixty ticks")
+ktAssertEq(dot, 120, "dot product")
+return true

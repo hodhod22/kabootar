@@ -1,0 +1,93 @@
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+
+let LO = parse_int(env_get("SH35_LO"))
+let HI = parse_int(env_get("SH35_HI"))
+
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let j = json_parse(os_read("/host/examples/sh35/_lower_cache.json"))
+let fns = j["fns"]
+let nf = len(fns)
+if HI > nf { HI = nf }
+if LO < 0 { LO = 0 }
+println("sA loaded nf=" + nf + " lo=" + LO + " hi=" + HI)
+
+let fa = []
+let i0 = 0
+while i0 < nf {
+    fa = push(fa, fns[i0]["arity"])
+    i0 = i0 + 1
+}
+
+let R12 = {
+    "gload": 1, "gstore": 1, "acc_add_g": 1, "hbase": 1, "hlimit": 1,
+    "halloc": 1, "mkclo": 1, "fmk": 1, "fadd": 1, "fsub": 1, "fmul": 1,
+    "fdiv": 1, "fcast": 1, "fmod": 1, "smk": 1, "gcollect": 1, "hcalloc": 1
+}
+
+let i = LO
+while i < HI {
+    let outp = "/host/examples/sh35/_stageA_" + i + ".json"
+    if os_exists(outp) {
+        i = i + 1
+    } else {
+        let f = fns[i]
+        let okf = aotFnOk(f, fa)
+        let ops = f["ops"]
+        let nl = f["locals"]
+        let opslen = 0
+        let r12 = 0
+        let gc = 0
+        let badcall = -1
+        let k = 0
+        while k < len(ops) {
+            let op = ops[k]
+            let n = op[0]
+            opslen = opslen + aotFnOpLen(op, nl, fa)
+            if R12[n] == 1 { r12 = 1 }
+            if n == "gcollect" { gc = 1 }
+            if n == "hcalloc" { gc = 1 }
+            let want = -1
+            if n == "call0" { want = 0 }
+            if n == "call" { want = 1 }
+            if n == "call2" { want = 2 }
+            if n == "call3" { want = 3 }
+            if n == "call4" { want = 4 }
+            if want >= 0 {
+                let t = op[1]
+                if t < 0 { badcall = k }
+                if t >= nf { badcall = k }
+                if t >= 0 && t < nf {
+                    let ctar = fns[t]["arity"]
+                    if ctar > want && ctar > 4 { badcall = k }
+                }
+            }
+            if n == "calln" {
+                let t2 = op[1]
+                if t2 < 0 { badcall = k }
+                if t2 >= nf { badcall = k }
+                if t2 >= 0 && t2 < nf {
+                    if fns[t2]["arity"] > op[2] { badcall = k }
+                }
+            }
+            if n == "callv" {
+                let cs = op[2]
+                let ci = 0
+                while ci < len(cs) {
+                    if cs[ci] < 0 { badcall = k }
+                    if cs[ci] >= nf { badcall = k }
+                    ci = ci + 1
+                }
+            }
+            k = k + 1
+        }
+        os_write(outp, json_stringify({
+            "ok": okf, "opslen": opslen, "r12": r12, "gc": gc,
+            "badcall": badcall, "name": f["name"], "nl": nl
+        }))
+        println("sA " + i + " done ops=" + len(ops) + " name=" + f["name"])
+        i = i + 1
+    }
+}
+println("sA range done")
+return 0

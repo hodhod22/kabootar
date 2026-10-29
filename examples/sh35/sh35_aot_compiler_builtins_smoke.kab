@@ -1,0 +1,56 @@
+// The builtins compile() hits, lowered through aotBuiltinSeq and run
+// as native code. nollAotReady stays false: this is not the compiler
+// image. Tagged result is 32767<<1 = 65534 when every check holds.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+let src = "let o = { xs: [1, 2, 3] }\n"
+src = src + "let tr = object_array_truncate(o, \"xs\", 2)\n"
+src = src + "let acc = 0\n"
+src = src + "if tr == 2 { if len(o.xs) == 2 { acc = acc + 1 } }\n"
+src = src + "object_array_clear(o, \"xs\")\n"
+src = src + "object_array_push(o, \"xs\", 7)\n"
+src = src + "if o.xs[0] == 7 { acc = acc + 2 }\n"
+src = src + "if str_index_of(\"abcab\", \"ab\", 1) == 3 { acc = acc + 4 }\n"
+src = src + "if str_includes(\"zz\", \"\") { acc = acc + 8 }\n"
+src = src + "if str_includes(\"abc\", \"b\") { acc = acc + 16 }\n"
+src = src + "if str_includes(\"abc\", \"z\") == false { acc = acc + 32 }\n"
+src = src + "if replace_all(\"a-b-a\", \"-\", \"\") == \"aba\" { acc = acc + 64 }\n"
+src = src + "if replace_all(\"ab\", \"\", \"-\") == \"-a-b-\" { acc = acc + 128 }\n"
+src = src + "if comptime_fold(\"return 1\") == \"return 1\" { acc = acc + 256 }\n"
+src = src + "if env_get(\"NO_SUCH\") == undefined { acc = acc + 512 }\n"
+src = src + "if date_now_ms() == 0 { acc = acc + 1024 }\n"
+src = src + "if is_float(1) == false { acc = acc + 2048 }\n"
+src = src + "if is_float(1.5) { acc = acc + 4096 }\n"
+src = src + "if str_index_of(\"ab\", \"\", 5) == 5 { acc = acc + 8192 }\n"
+src = src + "if str_index_of(\"ab\", \"z\") == -1 { acc = acc + 16384 }\n"
+src = src + "return acc\n"
+
+let bc = compileIr(src)
+let lo = aotFnLowerModuleTv1(bc, 4096)
+if lo["ok"] == false {
+    println("REJECT " + lo["reason"])
+    return -1
+}
+let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+if len(r["code"]) == 0 {
+    println("EMIT empty")
+    return -2
+}
+let d = []
+while len(d) < lo["nglobals"] + 2 {
+    d = push(d, 0)
+}
+let nr = os_native_exec(r["code"], 0, d, (lo["nglobals"] + 2 + 8192) * 8)
+let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 8192)
+println("native=" + nr + " mirror=" + mr)
+if mr != nr {
+    return -3
+}
+if nr != 65534 {
+    return -4
+}
+return 65534

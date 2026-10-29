@@ -365,8 +365,20 @@ heap cell: [tag8 | flags8 | len_or_hdr16 | payload…]
   `is_undefined`, `is_bool`, `is_number`, `is_string`, `is_array`,
   `is_object`, `is_function`, `is_nan` — the last via `feq`
   self-compare, NaN≠NaN), `object_has_own`/`has_key` (record kid-scan +
-  array bounds), and `object_array_push`/`object_array_pop`
-  (read → copy-op → writeback into the record's slots cell). NaN
+  array bounds), `object_array_push`/`object_array_pop`
+  (read → copy-op → writeback into the record's slots cell),
+  `object_array_clear`/`object_array_truncate` (in-place header lo16,
+  same cell — host `clear`/`truncate`), `str_index_of` (byte find,
+  empty needle returns `from`, miss is tagged -1), `str_includes`,
+  `replace_all` (non-overlapping; empty `from` inserts `to` at every
+  boundary), `comptime_fold` (identity when the source has no
+  `comptime` substring, otherwise trap — the image has no Rust
+  evaluator), `is_float` (tag-1 cell only), and `env_get` (always
+  undefined; the image has no environment). `date_now_ms` pushes
+  tagged 0: the native ABI has no clock, and `compile()` calls it on
+  every run only to fill `gMs*`, which is not part of the bytecode
+  text. `println`, `parse_float` and `json_stringify` lower to an
+  honest `trap` (no stdout, no f64 parser, no JSON encoder). NaN
   results (`char_code_at` OOB, `parse_int` no-digits) are built as
   `fmk 0.0; fmk 0.0; fdiv` — real IEEE NaN native, Kab `0.0/0.0` in the
   mirror. Known divergences: `object_array_push/pop` only update
@@ -374,9 +386,12 @@ heap cell: [tag8 | flags8 | len_or_hdr16 | payload…]
   captured before the call won't observe the append (cell layout has
   no capacity field); string ops are ASCII-domain (byte idx == char
   idx); `from_char_code` traps for codes > 127. Uncovered names —
-  `println`, `os_*`, `map`/`filter`, `join`, `keys` (kid→name
+  `os_*`, `map`/`filter`, `join`, `keys` (kid→name
   reconstruction needs the intern table) — fall through to
-  `gload`+`callv` and trap honestly on the uninitialised slot. First-
+  `gload`+`callv` and trap honestly on the uninitialised slot. These
+  lowerings do not flip `nollAotReady`: the compiler image still has
+  to return a `compile` result whose length matches the Kab VM, and
+  that run is not recorded here. First-
   class builtin values (`let f = len; f(x)`) hit the same trap — no
   builtin materialises into a callable cell yet.
 - **Class support** (`aot-tv1`): instances are tag-10 record shells

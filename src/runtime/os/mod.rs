@@ -907,16 +907,54 @@ fn os_spawn_native(args: &[Value], env: &mut Environment) -> Result<Value, Strin
 /// SH28: run a byte array as REAL machine code on the host CPU — the AOT
 /// image's x64 text executes natively (anonymous RX mapping + direct call),
 /// unlike os_mm_call which interprets template bytes in the simulated MM.
+fn os_native_exec_code(vals: &std::rc::Rc<Vec<Value>>) -> Result<Vec<u8>, String> {
+    use std::cell::RefCell;
+    struct Hit {
+        ptr: usize,
+        len: usize,
+        bytes: Vec<u8>,
+    }
+    thread_local! {
+        static HIT: RefCell<Option<Hit>> = const { RefCell::new(None) };
+    }
+    let ptr = std::rc::Rc::as_ptr(vals) as usize;
+    let len = vals.len();
+    let cached = HIT.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .filter(|h| h.ptr == ptr && h.len == len)
+            .map(|h| h.bytes.clone())
+    });
+    if let Some(bytes) = cached {
+        return Ok(bytes);
+    }
+    let bytes = vals
+        .iter()
+        .map(|v| match v {
+            Value::Number(n) => Ok(*n as u8),
+            _ => Err("os_native_exec expects byte array".to_string()),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    HIT.with(|slot| {
+        *slot.borrow_mut() = Some(Hit {
+            ptr,
+            len,
+            bytes: bytes.clone(),
+        });
+    });
+    Ok(bytes)
+}
+
 fn os_native_exec_native(args: &[Value], _env: &mut Environment) -> Result<Value, String> {
+    // Array of 0..255 numbers, or a host path to a raw code blob. A
+    // 12 MiB image as Kab Number values is one Value per byte; Value is
+    // a fat enum so that array is a multi-gigabyte allocation.
     let data: Vec<u8> = match args.first() {
-        Some(Value::Array(vals)) => vals
-            .iter()
-            .map(|v| match v {
-                Value::Number(n) => Ok(*n as u8),
-                _ => Err("os_native_exec expects byte array".to_string()),
-            })
-            .collect::<Result<Vec<_>, _>>()?,
-        _ => return Err("os_native_exec expects byte array".to_string()),
+        Some(Value::Array(vals)) => os_native_exec_code(vals)?,
+        Some(Value::String(path)) => std::fs::read(path.as_str()).map_err(|e| {
+            format!("os_native_exec: read {path}: {e}")
+        })?,
+        _ => return Err("os_native_exec expects byte array or code-file path".to_string()),
     };
     // Optional second arg: a real i64 handed to the entry across the host
     // ABI (rcx on win64, rdi on SysV). Arg-taking images must emit the

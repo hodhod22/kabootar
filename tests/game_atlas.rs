@@ -18,7 +18,7 @@ fn fixture_png_bytes() -> Vec<u8> {
 }
 
 fn bytes_to_kab_array(bytes: &[u8]) -> Value {
-    Value::Array(bytes.iter().map(|b| Value::Number(*b as i64)).collect())
+    Value::from_array(bytes.iter().map(|b| Value::Number(*b as i64)).collect())
 }
 
 #[test]

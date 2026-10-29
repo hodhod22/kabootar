@@ -1,0 +1,18 @@
+// Concat stepped emit via a raw blob (not a Kab Number array — 12 MiB
+// of fat Values is a multi-gigabyte allocation) and run imageCompileLen.
+import "kab/aot/aot_native"
+
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let bj = json_parse(os_read("/host/examples/sh35/_stageB.json"))
+let ng = 845
+let heapQ = 16777216
+let codePath = "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter/examples/sh35/_code.bin"
+println("sD nf2=" + bj["nf2"] + " total=" + bj["total"] + " ng=" + ng + " heapQ=" + heapQ)
+
+let d = []
+while len(d) < ng * 8 { d = push(d, 0) }
+let mapLen = (ng + 2 + heapQ) * 8
+let t0 = date_now_ms()
+let nr = os_native_exec(codePath, 0, d, mapLen)
+println("native=" + nr + " untag=" + (nr / 2) + " ms=" + (date_now_ms() - t0))
+return 0

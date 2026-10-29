@@ -48,7 +48,7 @@ fn sprite_batch_draws_on_gpu_when_available() {
     let bytes = std::fs::read(&path).expect("px.png");
     env.set(
         "png_bytes".into(),
-        Value::Array(bytes.iter().map(|b| Value::Number(*b as i64)).collect()),
+        Value::from_array(bytes.iter().map(|b| Value::Number(*b as i64)).collect()),
     );
     let v = eval_source(
         r#"

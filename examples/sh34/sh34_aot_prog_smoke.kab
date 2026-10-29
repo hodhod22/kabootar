@@ -1,0 +1,37 @@
+// A small program through the native image. compileIr still runs in
+// Kab, not inside the image, so nollAotReady stays false. The image
+// must return the same tagged 42 (21<<1) as the mirror for `return 20 + 1`.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_link"
+
+let mods = [{ "name": "app", "bc": compileIr("return 20 + 1") }]
+let bc = aotLinkModules(mods)
+let lo = aotFnLowerModuleTv1(bc, 512)
+if lo["ok"] == false {
+    println("REJECT " + lo["reason"])
+    return -1
+}
+let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+if len(r["code"]) == 0 {
+    println("EMIT empty code")
+    return -2
+}
+let d = []
+while len(d) < lo["nglobals"] + 2 + 2048 {
+    d = push(d, 0)
+}
+let nr = os_native_exec(r["code"], 0, d)
+let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+if mr != nr {
+    println("PARITY " + nr + " vs " + mr)
+    return -3
+}
+if nr != 42 {
+    println("GOT " + nr + " want 42")
+    return -4
+}
+return 42

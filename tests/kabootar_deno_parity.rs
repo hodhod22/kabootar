@@ -535,7 +535,11 @@ fn deno_kv_atomic_batch() {
         panic!("expected atomic result object");
     };
     assert!(matches!(map.get("ok"), Some(Value::Bool(true))));
-    let Value::Array(results) = map.get("results").cloned().unwrap_or(Value::Array(vec![])) else {
+    let Value::Array(results) = map
+        .get("results")
+        .cloned()
+        .unwrap_or_else(|| Value::from_array(vec![]))
+    else {
         panic!("expected results array");
     };
     assert!(matches!(results.first(), Some(Value::Object(obj))

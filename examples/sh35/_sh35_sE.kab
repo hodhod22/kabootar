@@ -1,0 +1,64 @@
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_gc"
+
+let LO = parse_int(env_get("SH35_LO"))
+let HI = parse_int(env_get("SH35_HI"))
+let CHUNK = 2000
+
+os_syscall("mount", "/host", "C:/after-2026-06-03/new-kabootar-reserv/nova-interpreter")
+let j = json_parse(os_read("/host/examples/sh35/_lower_cache.json"))
+let fns = j["fns"]
+let bj = json_parse(os_read("/host/examples/sh35/_stageB.json"))
+let nf = len(fns)
+let nf2 = bj["nf2"]
+let needR12 = bj["needR12"]
+let gcIdx = bj["gcIdx"]
+let pros = bj["pros"]
+let fnOffs = bj["fnOffs"]
+if HI > nf2 { HI = nf2 }
+if LO < 0 { LO = 0 }
+println("sE loaded nf=" + nf + " nf2=" + nf2 + " lo=" + LO + " hi=" + HI)
+
+if nf2 > nf {
+    fns = push(fns, aotGcSynthFn())
+}
+
+let fa = []
+let i0 = 0
+while i0 < nf2 {
+    fa = push(fa, fns[i0]["arity"])
+    i0 = i0 + 1
+}
+
+let i = LO
+while i < HI {
+    let outp = "/host/examples/sh35/_stageE_" + i + ".json"
+    if os_exists(outp) {
+        i = i + 1
+    } else {
+        let f = fns[i]
+        let nl = f["locals"]
+        let nops = len(f["ops"])
+        let base = fnOffs[i] + pros[i]
+        let offs = aotFnOpOffsets(f["ops"], base, nl, fa)
+        let code = []
+        let c0 = 0
+        while c0 < nops {
+            let c1 = c0 + CHUNK
+            if c1 > nops { c1 = nops }
+            let b = []
+            if c0 == 0 {
+                b = aotFnPro(b, nl, f["arity"], i == 0, "win64", needR12)
+            }
+            b = aotFnEmitOps(b, f["ops"], offs, fnOffs, nl, gcIdx, fa, c0, c1, offs[c0] - len(b))
+            code = concat(code, b)
+            c0 = c1
+        }
+        os_write(outp, json_stringify({ "bytes": code }))
+        println("sE " + i + " done bytes=" + len(code))
+        i = i + 1
+    }
+}
+println("sE range done")
+return 0

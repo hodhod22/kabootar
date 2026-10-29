@@ -1,0 +1,45 @@
+// SH33: named entry after module init. Library mains return undefined,
+// so aotLinkModulesCall runs every main, drops those results, then
+// calls dep::answer and uses that as the image result.
+// 21 → tagged 42. Native rax must equal the mirror.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_link"
+
+fn mkMod(name, src) {
+    return { "name": name, "bc": compileIr(src) }
+}
+
+let mods = [
+    mkMod("dep", "pub let base = 20\npub fn answer() { return base + 1 }"),
+    mkMod("app", "import \"dep\"\nreturn 0")
+]
+let bc = aotLinkModulesCall(mods, "dep", "answer")
+let lo = aotFnLowerModuleTv1(bc, 512)
+if lo["ok"] == false {
+    println("REJECT " + lo["reason"])
+    return -1
+}
+let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+if len(r["code"]) == 0 {
+    println("EMIT empty code")
+    return -2
+}
+let d = []
+while len(d) < lo["nglobals"] + 2 + 2048 {
+    d = push(d, 0)
+}
+let nr = os_native_exec(r["code"], 0, d)
+let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 2048)
+if mr != nr {
+    println("PARITY " + nr + " vs " + mr)
+    return -3
+}
+if nr != 42 {
+    println("GOT " + nr + " want 42")
+    return -4
+}
+return 42
