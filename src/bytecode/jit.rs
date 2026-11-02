@@ -502,11 +502,14 @@ mod host {
     /// keep them typed. String consts stay: the string-char path never
     /// wraps results as Number.
     fn i64_const_domain(func: &BytecodeFnDef) -> bool {
-        !func.code.iter().any(|op| {
+        // `while` leaves its `null` value on the stack and the statement pops it
+        // (`Const(null), Pop`); that dead push never reaches an i64 slot.
+        !func.code.iter().enumerate().any(|(ip, op)| {
             matches!(op, Opcode::Const(i) if !matches!(
                 func.constants.get(*i as usize),
                 Some(Constant::Number(_)) | Some(Constant::Float(_)) | Some(Constant::String(_))
-            ))
+            ) && !(matches!(func.constants.get(*i as usize), Some(Constant::Null))
+                && matches!(func.code.get(ip + 1), Some(Opcode::Pop))))
         })
     }
 

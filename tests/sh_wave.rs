@@ -22287,12 +22287,15 @@ fn sh6_eval_file_cached_mmap_ok() {
     }
     let fp = source_fingerprint(&path_s, src);
     if let Ok(cwd) = std::env::current_dir() {
-        let ca = cwd
-            .join(".kabootar")
-            .join("cache")
-            .join("ca")
-            .join(format!("v{COMPILER_IMAGE_VERSION}_{fp}.kbcb"));
-        let _ = std::fs::remove_file(ca);
+        let ca_dir = cwd.join(".kabootar").join("cache").join("ca");
+        let (pre, suf) = (format!("v{COMPILER_IMAGE_VERSION}_"), format!("_{fp}.kbcb"));
+        for ent in std::fs::read_dir(&ca_dir).into_iter().flatten().flatten() {
+            let name = ent.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with(&pre) && name.ends_with(&suf) {
+                let _ = std::fs::remove_file(ent.path());
+            }
+        }
     }
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(formatted, "3");
@@ -58574,7 +58577,7 @@ fn f22_tlab_prom_smoke_in_kab() {
 #[test]
 fn f20_jit_spec_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let j = std::fs::read_to_string(root.join("lib/kab/jit_spec.kab")).expect("jit_spec.kab");
+    let j = std::fs::read_to_string(root.join("lib/kab/jit/jit_spec.kab")).expect("jit_spec.kab");
     assert!(
         j.contains("pub fn jitSpecOk") && j.contains("\"i64\""),
         "F20 Kab jitSpecOk"
@@ -58597,7 +58600,7 @@ fn f20_jit_spec_smoke_in_kab() {
 #[test]
 fn f20_jit_spec_f64_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let j = std::fs::read_to_string(root.join("lib/kab/jit_spec_f64.kab")).expect("jit_spec_f64.kab");
+    let j = std::fs::read_to_string(root.join("lib/kab/jit/jit_spec_f64.kab")).expect("jit_spec_f64.kab");
     assert!(
         j.contains("pub fn jitSpecF64Ok") && j.contains("\"f64\""),
         "F20 Kab jitSpecF64Ok"
@@ -58623,7 +58626,7 @@ fn f20_jit_spec_f64_smoke_in_kab() {
 #[test]
 fn f20_jit_spec_deopt_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/jit_spec_deopt.kab")).expect("jit_spec_deopt.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/jit/jit_spec_deopt.kab")).expect("jit_spec_deopt.kab");
     assert!(
         d.contains("pub fn jitSpecDeoptOk"),
         "F20 Kab jitSpecDeoptOk"
@@ -58649,7 +58652,7 @@ fn f20_jit_spec_deopt_smoke_in_kab() {
 #[test]
 fn f24_jit_tco_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/jit_tco.kab")).expect("jit_tco.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/jit/jit_tco.kab")).expect("jit_tco.kab");
     assert!(
         t.contains("pub fn jitTcoOk"),
         "F24 Kab jitTcoOk"
@@ -58672,7 +58675,7 @@ fn f24_jit_tco_smoke_in_kab() {
 #[test]
 fn f24_jit_tco_self_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let t = std::fs::read_to_string(root.join("lib/kab/jit_tco_self.kab")).expect("jit_tco_self.kab");
+    let t = std::fs::read_to_string(root.join("lib/kab/jit/jit_tco_self.kab")).expect("jit_tco_self.kab");
     assert!(
         t.contains("pub fn jitTcoSelfOk"),
         "F24 Kab jitTcoSelfOk"
@@ -58695,7 +58698,7 @@ fn f24_jit_tco_self_smoke_in_kab() {
 #[test]
 fn f21_aot_lazy_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/aot_lazy.kab")).expect("aot_lazy.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/aot/aot_lazy.kab")).expect("aot_lazy.kab");
     assert!(
         a.contains("pub fn aotLazyOk") && a.contains("100"),
         "F21 Kab aotLazyOk"
@@ -58718,7 +58721,7 @@ fn f21_aot_lazy_smoke_in_kab() {
 #[test]
 fn f21_aot_lazy_jit_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let j = std::fs::read_to_string(root.join("lib/kab/aot_lazy_jit.kab")).expect("aot_lazy_jit.kab");
+    let j = std::fs::read_to_string(root.join("lib/kab/aot/aot_lazy_jit.kab")).expect("aot_lazy_jit.kab");
     assert!(
         j.contains("pub fn aotLazyJitOk") && j.contains("\"jit\""),
         "F21 Kab aotLazyJitOk"
@@ -58744,7 +58747,7 @@ fn f21_aot_lazy_jit_smoke_in_kab() {
 #[test]
 fn f14_io_put_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let p = std::fs::read_to_string(root.join("lib/kab/io_put.kab")).expect("io_put.kab");
+    let p = std::fs::read_to_string(root.join("lib/kab/io/io_put.kab")).expect("io_put.kab");
     assert!(
         p.contains("pub fn ioPut") && p.contains("os_write"),
         "F14 Kab ioPut"
@@ -58755,7 +58758,7 @@ fn f14_io_put_in_kab() {
 #[test]
 fn f14_io_get_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let g = std::fs::read_to_string(root.join("lib/kab/io_get.kab")).expect("io_get.kab");
+    let g = std::fs::read_to_string(root.join("lib/kab/io/io_get.kab")).expect("io_get.kab");
     assert!(
         g.contains("pub fn ioGet") && g.contains("os_read"),
         "F14 Kab ioGet"
@@ -58766,7 +58769,7 @@ fn f14_io_get_in_kab() {
 #[test]
 fn f14_io_mkdir_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let m = std::fs::read_to_string(root.join("lib/kab/io_mkdir.kab")).expect("io_mkdir.kab");
+    let m = std::fs::read_to_string(root.join("lib/kab/io/io_mkdir.kab")).expect("io_mkdir.kab");
     assert!(
         m.contains("pub fn ioMkdir") && m.contains("os_mkdir"),
         "F14 Kab ioMkdir"
@@ -58777,7 +58780,7 @@ fn f14_io_mkdir_in_kab() {
 #[test]
 fn f14_io_has_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/io_has.kab")).expect("io_has.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/io/io_has.kab")).expect("io_has.kab");
     assert!(
         h.contains("pub fn ioHas") && h.contains("os_exists"),
         "F14 Kab ioHas"
@@ -58788,7 +58791,7 @@ fn f14_io_has_in_kab() {
 #[test]
 fn f14_io_del_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let d = std::fs::read_to_string(root.join("lib/kab/io_del.kab")).expect("io_del.kab");
+    let d = std::fs::read_to_string(root.join("lib/kab/io/io_del.kab")).expect("io_del.kab");
     assert!(
         d.contains("pub fn ioDel") && d.contains("os_delete"),
         "F14 Kab ioDel"
@@ -58799,7 +58802,7 @@ fn f14_io_del_in_kab() {
 #[test]
 fn f14_io_list_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let l = std::fs::read_to_string(root.join("lib/kab/io_list.kab")).expect("io_list.kab");
+    let l = std::fs::read_to_string(root.join("lib/kab/io/io_list.kab")).expect("io_list.kab");
     assert!(
         l.contains("pub fn ioList") && l.contains("os_list"),
         "F14 Kab ioList"
@@ -58810,7 +58813,7 @@ fn f14_io_list_in_kab() {
 #[test]
 fn f14_io_stat_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let s = std::fs::read_to_string(root.join("lib/kab/io_stat.kab")).expect("io_stat.kab");
+    let s = std::fs::read_to_string(root.join("lib/kab/io/io_stat.kab")).expect("io_stat.kab");
     assert!(
         s.contains("pub fn ioStat") && s.contains("os_stat"),
         "F14 Kab ioStat"
@@ -58821,7 +58824,7 @@ fn f14_io_stat_in_kab() {
 #[test]
 fn f14_io_async_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/io_async.kab")).expect("io_async.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/io/io_async.kab")).expect("io_async.kab");
     assert!(
         a.contains("pub fn ioWriteAsync") && a.contains("os_write_async"),
         "F14 Kab ioWriteAsync"
@@ -58832,7 +58835,7 @@ fn f14_io_async_in_kab() {
 #[test]
 fn f14_io_aread_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let r = std::fs::read_to_string(root.join("lib/kab/io_aread.kab")).expect("io_aread.kab");
+    let r = std::fs::read_to_string(root.join("lib/kab/io/io_aread.kab")).expect("io_aread.kab");
     assert!(
         r.contains("pub fn ioReadAsync") && r.contains("os_read_async"),
         "F14 Kab ioReadAsync"
@@ -58843,7 +58846,7 @@ fn f14_io_aread_in_kab() {
 #[test]
 fn f14_io_await_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let a = std::fs::read_to_string(root.join("lib/kab/io_await.kab")).expect("io_await.kab");
+    let a = std::fs::read_to_string(root.join("lib/kab/io/io_await.kab")).expect("io_await.kab");
     assert!(
         a.contains("pub fn ioAwaitAll") && a.contains("await_all"),
         "F14 Kab ioAwaitAll"
@@ -66782,7 +66785,7 @@ fn sh24_http_ct_in_kab() {
 #[test]
 fn sh24_http_host_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let h = std::fs::read_to_string(root.join("lib/kab/http_host.kab")).expect("http_host.kab");
+    let h = std::fs::read_to_string(root.join("lib/kab/http/http_host.kab")).expect("http_host.kab");
     assert!(
         h.contains("pub fn httpHostDeleteOk") && h.contains("return true"),
         "SH24 Kab httpHostDeleteOk delete gate (flipped after production evidence)"
@@ -85759,11 +85762,15 @@ fn sh8_tiny_parse_via_compiler_image() {
 /// SH8: tiny self-host compile. SH14: second compile in the same thread (session + toolchain reuse).
 #[test]
 fn sh8_tiny_self_host_compile() {
-    use kabootar_lib::bytecode::{jit_reset_for_tests, jit_stats};
+    use kabootar_lib::bytecode::{jit_reset_for_tests, jit_set_call_threshold_for_tests, jit_stats};
     use kabootar_lib::compile::compile_source_self_host;
     std::env::set_var("KABOOTAR_VM", "host");
     ensure_compiler_image();
     jit_reset_for_tests();
+    // Two compiles call accCount 2× and serCount 4× — below the default call
+    // threshold (8). Without this the gate only passed when a parallel sh9_* test
+    // had lowered the process-global threshold first.
+    jit_set_call_threshold_for_tests(1);
     let (first_ms, warm_ms, program) = sh8_spawn("sh8-compile", || {
         let t0 = Instant::now();
         let p = compile_source_self_host("return 1\n").expect("self-host tiny");
@@ -86111,11 +86118,19 @@ fn sh15_ca_kbcb_mmap_hit_skips_text() {
     let prog = compile_source(src).expect("compile");
     write_compile_marker_at(&tmp, path_s, &prog).expect("cache");
     let fp = source_fingerprint(path_s, src);
-    let ca = tmp
-        .join(".kabootar")
-        .join("cache")
-        .join("ca")
-        .join(format!("v{COMPILER_IMAGE_VERSION}_{fp}.kbcb"));
+    // CA name is `v{VER}_{toolchain}_{fp}.kbcb` (toolchain fp since SH27).
+    let ca_dir = tmp.join(".kabootar").join("cache").join("ca");
+    let (pre, suf) = (format!("v{COMPILER_IMAGE_VERSION}_"), format!("_{fp}.kbcb"));
+    let ca = std::fs::read_dir(&ca_dir)
+        .ok()
+        .and_then(|rd| {
+            rd.filter_map(|e| e.ok().map(|e| e.path())).find(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.starts_with(&pre) && n.ends_with(&suf))
+            })
+        })
+        .unwrap_or_else(|| ca_dir.join(format!("{pre}*{suf}")));
     assert!(ca.is_file(), "CA kbcb {}", ca.display());
     for ent in std::fs::read_dir(tmp.join(".kabootar").join("cache")).expect("cache dir") {
         let ent = ent.expect("ent");
