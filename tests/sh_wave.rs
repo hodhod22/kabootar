@@ -438,8 +438,8 @@ return add(xs[0], len(obj))
 fn sh4_kbcb_v2_faster_than_text() {
     use kabootar_lib::bytecode::{deserialize, deserialize_kbcb, serialize_kbcb};
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("self_host/seed/emit_impl.kab.kbc");
-    let text = std::fs::read_to_string(&path).expect("emit_impl seed");
+        .join("self_host/seed/dag/emit_expr_body.kab.kbc");
+    let text = std::fs::read_to_string(&path).expect("emit_expr_body seed");
     let module = deserialize(&text).expect("text kbc");
     let bin = serialize_kbcb(&module);
     let n = 40;
@@ -453,7 +453,7 @@ fn sh4_kbcb_v2_faster_than_text() {
         let _ = deserialize_kbcb(&bin).expect("v2");
     }
     let v2_ms = t0.elapsed().as_secs_f64() * 1000.0;
-    eprintln!("SH4 emit_impl deserialize x{n} text={text_ms:.2}ms v2={v2_ms:.2}ms");
+    eprintln!("SH4 emit_expr_body deserialize x{n} text={text_ms:.2}ms v2={v2_ms:.2}ms");
     assert!(
         v2_ms < text_ms,
         "kbcb v2 should deserialize faster than text .kbc ({v2_ms:.2} vs {text_ms:.2})"
