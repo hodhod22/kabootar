@@ -581,11 +581,15 @@ fn sh6_vm_policy_in_kab() {
     .expect("parser_exec.kab");
     // tryEmit*/index/var leaf fns live in lexer_scan.kab after the SH5 split.
     let emit = format!(
-        "{}{}",
+        "{}{}{}",
         std::fs::read_to_string(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/emit_expr_body.kab"),
         )
         .expect("emit_expr_body.kab"),
+        std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/emit_expr_leaf.kab"),
+        )
+        .expect("emit_expr_leaf.kab"),
         std::fs::read_to_string(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/lexer_scan.kab"),
         )
