@@ -1050,19 +1050,18 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
     if g["idx"] != given["idx"] {
         g = given
     }
-    if g["done"] == 1 {
-        let dv = null
-        if len(ordered) > 0 {
-            dv = ordered[0]
+    if g["done"] == 1 || g["done"] == true {
+        // Finished through return(): the throw reason comes back once more
+        // (locked by the *_send_return_method_*throw* SH6 cases). A body
+        // that ran to its own return stays done.
+        if g["closing"] == 1 {
+            let dv = null
+            if len(ordered) > 0 {
+                dv = ordered[0]
+            }
+            return { "value": dv, "done": false }
         }
-        return { "value": dv, "done": false }
-    }
-    if g["done"] == true {
-        let dv2 = null
-        if len(ordered) > 0 {
-            dv2 = ordered[0]
-        }
-        return { "value": dv2, "done": false }
+        return { "value": null, "done": true }
     }
     if g["pendK"] != undefined {
         let pv = g["pendV"]
