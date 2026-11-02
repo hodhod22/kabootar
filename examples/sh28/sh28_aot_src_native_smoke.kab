@@ -197,8 +197,10 @@ if aotFnLowerModule(compileIr("return 1.5"))["ok"] {
 if aotFnLowerModule(compileIr("return [1, 2][0]"))["ok"] {
     return 28
 }
-// Arity > 4: the private convention covers rcx/rdx/r8/r9 only → rejects.
-if aotFnLowerModule(compileIr("fn t(a, b, c, d, e) { return a } return t(1, 2, 3, 4, 5)"))["ok"] {
+// Arity > 4: aotFnLowerModule accepts it, but the non-tv1 x64 emitter
+// covers rcx/rdx/r8/r9 only → the pipeline must still refuse (stack args
+// are the tv1 path, SH30). An image here would be a silent miscompile.
+if srcNativeExec("_aot_src_ar5.kabi", compileIr("fn t(a, b, c, d, e) { return a } return t(1, 2, 3, 4, 5)"))["ok"] {
     return 29
 }
 // Fn value as data: `fib` as a value (not a call target) → rejects.

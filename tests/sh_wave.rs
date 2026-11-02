@@ -57509,11 +57509,11 @@ fn f10_aot_jg_in_kab() {
 fn f10_aot_jg_smokes_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     for name in [
-        "f10_aot_jg_round_smoke.kab",
-        "f10_aot_load_jg_reject_smoke.kab",
-        "f10_aot_verify_jg_round_smoke.kab",
-        "f10_aot_verify_jg_reject_smoke.kab",
-        "f10_aot_verify_jg_arm64_smoke.kab",
+        "f10/other/f10_aot_jg_round_smoke.kab",
+        "f10/load/f10_aot_load_jg_reject_smoke.kab",
+        "f10/verify/f10_aot_verify_jg_round_smoke.kab",
+        "f10/verify/f10_aot_verify_jg_reject_smoke.kab",
+        "f10/verify/f10_aot_verify_jg_arm64_smoke.kab",
     ] {
         let s = std::fs::read_to_string(root.join("examples").join(name)).expect(name);
         assert!(s.contains("aot") && !s.is_empty(), "F10 Kab {name}");
@@ -85585,7 +85585,7 @@ fn sh2_parser_emit_exec_are_per_call_session() {
     assert!(parser.contains("pMakeSession()"), "alloc sess on first call");
     assert!(parser.contains("pResetSession(sess)"), "SH13 in-place reset");
     assert!(parser.contains("fn tramp(sess)"), "tramp takes sess");
-    assert!(emit.contains("fn tramp(E)"), "emit tramp takes E");
+    assert!(emit.contains("fn eTrampFn(E)"), "emit tramp takes E");
 }
 
 /// SH12: lexer hot path caches src locals; tokenize reuses session, in-place token push.
