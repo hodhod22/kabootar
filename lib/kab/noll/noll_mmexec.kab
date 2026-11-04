@@ -1,7 +1,8 @@
 // SH28: mmap+exec of the image is not the OS process — policy "mmap-exec-process" is false.
 // `nollAotProcess` is true (kab/aot/aot_proc runs the image under an
 // os_spawn'd pid with its own os_mm_* VA space) — but mmap+exec inside a
-// process is still not the process itself. This flag stays false by design.
+// process is still not the process itself. This flag stays false by design;
+// nollImageIsProcess (the static exe itself) is true.
 // import "kab/noll/noll_mmexec"
 // Do not grow noll_imgproc.kab or noll_mmap.kab. Do not delete src/. nollAotReady stays false.
 

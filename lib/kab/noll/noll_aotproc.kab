@@ -8,8 +8,9 @@
 // (sh28_aot_native_exec_smoke). The exec-image verb also takes a real i64
 // argument across the host ABI (win64/sysv variants emitted honestly —
 // abi:mismatch refused), so runtime input now crosses process argv AND the
-// ABI boundary into image code. nollImageIsProcess and nollMmapExecProcess
-// stay false — the image/mmap are still not processes themselves.
+// ABI boundary into image code. nollImageIsProcess is now true too (the
+// Kab-emitted static ELF/PE is exec'd by the OS directly —
+// sh28_imgproc_production_probe); nollMmapExecProcess stays false.
 // Do not grow noll_proc.kab or noll_aot.kab. Do not delete src/. nollAotReady stays false.
 
 pub fn nollAotProcess() {

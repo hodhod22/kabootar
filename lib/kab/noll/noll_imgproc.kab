@@ -1,10 +1,25 @@
-// SH28: bootstrap image is not the OS process — policy "image-is-process" is false.
-// `nollAotProcess` is true (kab/aot/aot_proc execs the image under an
-// os_spawn'd pid) — but that is exec *in* a process; the image itself is
-// still data, not a process. This flag stays false by design.
+// SH28: bootstrap image IS the OS process — policy "image-is-process" is true.
 // import "kab/noll/noll_imgproc"
-// Do not grow noll_aotproc.kab or noll_image.kab. Do not delete src/. nollAotReady stays false.
+// Evidence: kab/aot/aot_exe wraps the Kab-emitted whole-fn x64 image in a
+// static ELF64 (PE32+ on Windows) with no interpreter and no imports; the OS
+// loader execs that file directly — no `kabootar exec-image`, no Rust loader,
+// no os_mm_* guest slot. The process exit code is the image's rax.
+// Production probe sh28_imgproc_production_probe: 8 consecutive consistent
+// rounds (emit → structural verify → write → exec → exit==42) on
+// `kabootar run` (nollImgProcReadyStreakOk). nollMmapExecProcess,
+// nollProcessIsKab and nollAotReady stay false — the image covers the AOT
+// subset, not the full compiler+VM surface.
+// Do not grow noll_aotproc.kab or noll_image.kab. Do not delete src/.
 
 pub fn nollImageIsProcess() {
-    return false
+    return true
+}
+
+/// Flip criterion: consecutive fully-consistent image-as-process rounds.
+/// 8 = same convention as httpReadyStreakOk/gcHostReadyStreakOk.
+pub fn nollImgProcReadyStreakOk(streak) {
+    if typeof(streak) != "number" {
+        return false
+    }
+    return streak >= 8
 }

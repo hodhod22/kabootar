@@ -80982,9 +80982,41 @@ fn sh28_noll_imgproc_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_imgproc.kab")).expect("noll_imgproc.kab");
     assert!(
-        i.contains("pub fn nollImageIsProcess") && i.contains("return false"),
-        "SH28 Kab nollImageIsProcess"
+        i.contains("pub fn nollImageIsProcess")
+            && i.contains("return true")
+            && i.contains("nollImgProcReadyStreakOk"),
+        "SH28 Kab nollImageIsProcess flipped after production evidence"
     );
+}
+
+/// SH28 production evidence for nollImageIsProcess: the Kab-emitted static
+/// executable (ELF64/PE32+) is exec'd by the OS as its own process, 8
+/// consecutive consistent rounds (emit → verify → write → exec → exit==42)
+/// on `kabootar run` (nollImgProcReadyStreakOk).
+#[test]
+fn sh28_imgproc_production_probe_exec() {
+    let path = format!(
+        "{}/examples/sh28/sh28_imgproc_production_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-imgproc-production-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile sh28 imgproc production probe");
+            let value =
+                eval_program(&program, &mut env).expect("run sh28 imgproc production probe");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Bool(true)),
+                "sh28 imgproc production probe returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// SH28 deepen: image-is-process dual-bind to bootstrap image, aot-process, AOT false, and host delete gate.

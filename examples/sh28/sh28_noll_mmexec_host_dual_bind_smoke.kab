@@ -13,7 +13,7 @@ if nollAotReady() {
 if nollMmapStub() != false {
     return false
 }
-if nollImageIsProcess() != false {
+if nollImageIsProcess() != true {
     return false
 }
 if nollMmapExecProcess() != false {
