@@ -994,8 +994,11 @@ pub fn vGcSweepSliceN() {
 /// Clear weak_ fields on `obj` whose target id is dead — not marked this
 /// cycle and below the post-mark watermark (a fresh publish is not weak-
 /// cleared). Shared by lazy-sweep slices; mutates the shared object in
-/// place like the eager sweep did.
-pub fn vGcWeakClearObjS(obj, seen, minNew) {
+/// place like the eager sweep did. `minorOld` is the gcOldId watermark
+/// during a minor (undefined for a major): a minor neither marks old vmI
+/// insts nor sweeps oid objects, so it decides no weak target outside its
+/// young partition — those wait for the next major.
+pub fn vGcWeakClearObjS(obj, seen, minNew, minorOld) {
     if vGcPlainObjS(obj) == false {
         return obj
     }
@@ -1010,13 +1013,16 @@ pub fn vGcWeakClearObjS(obj, seen, minNew) {
                 let wvmI = vObjGet(wv, "vmI")
                 if wvmI != undefined {
                     // vmI target: fresh publishes sit above the post-mark
-                    // watermark; below it a non-seen target is dead.
-                    if wvmI < minNew && seen[wk] != true {
+                    // watermark; below it a non-seen target is dead. A
+                    // minor never marks old ids — an old target stays.
+                    let outside = typeof(minorOld) == "number" && wvmI < minorOld
+                    if outside == false && wvmI < minNew && seen[wk] != true {
                         obj[k] = undefined
                     }
-                } else if seen[wk] != true {
+                } else if typeof(minorOld) != "number" && seen[wk] != true {
                     // oid target: the oid value is not a vmI watermark —
-                    // generation compares never apply, the mark set decides.
+                    // generation compares never apply, the mark set decides
+                    // (majors only — a minor never tombstones oid objects).
                     obj[k] = undefined
                 }
             }
@@ -1084,6 +1090,10 @@ pub fn vGcSweepSliceS(S, budget) {
     if typeof(oldId) != "number" {
         oldId = 1
     }
+    let weakOld = undefined
+    if minor {
+        weakOld = oldId
+    }
     let n = 0
     while at < len(keys) && n < budget {
         let k = keys[at]
@@ -1094,7 +1104,7 @@ pub fn vGcSweepSliceS(S, budget) {
             // generation compares and freelist reuse only apply to vmI ids.
             let vmI = vObjGet(obj, "vmI")
             if vmI != undefined && vmI >= mn {
-                vGcWeakClearObjS(obj, seen, mn)
+                vGcWeakClearObjS(obj, seen, mn, weakOld)
             } else if minor && (vmI == undefined || vmI < oldId) {
                 // old-space slot — a minor collect leaves it alone. An
                 // oid-keyed object (vmI==undefined) has no generation and
@@ -1111,7 +1121,7 @@ pub fn vGcSweepSliceS(S, budget) {
                 }
             } else if seen[vInstKeyS(obj)] == true {
                 live = live + 1
-                vGcWeakClearObjS(obj, seen, mn)
+                vGcWeakClearObjS(obj, seen, mn, weakOld)
             } else {
                 heap[k] = undefined
                 if vmI != undefined {

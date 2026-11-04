@@ -4,10 +4,13 @@ import "kab/gc/gc_host"
 
 // SH18: host-delete evidence run — the flip criterion gcHostReadyStreakOk(8)
 // (two full major-cadence rotations) must be reachable on a real workload,
-// not just two hand-driven cycles. This smoke churns the inst heap: each
-// round publishes dead garbage plus a permanently-retained keep, then runs
-// a complete collect. 8 consecutive internally-consistent cycles satisfy
-// the criterion — the gate itself still stays false (see below).
+// not just two hand-driven cycles. This smoke churns the inst heap under the
+// VM's own minor/major cadence (gcCollects + vGcMajorOk, exactly as the
+// op-boundary collect in vm_run_ops_loop): each round publishes dead garbage,
+// a permanently-retained keep stored through the write barrier, and weak
+// edges to a dead vmI inst and a dead oid object, then runs a complete
+// collect. The streak must grow by one per consistent cycle; 8 cycles span
+// the cadence majors (c=1, c=5), survival-paced majors and minors.
 let S = vMakeSession()
 
 // Persistent root reachable via S["stack"] across all cycles.
@@ -18,25 +21,49 @@ let kept = []
 root["kept"] = kept
 S["stack"] = [root]
 
+let majors = 0
+let clearedNow = 0
+let minors = 0
 let round = 0
 while round < 8 {
     // Workload churn: 2 dead insts per cycle — the streak criterion counts
     // consistent cycles, not heap size; the Kab-VM interpreter makes big
     // heaps slow and the evidence is identical either way.
     let i = 0
+    let dead = undefined
     while i < 2 {
         let g = { "vmC": 0 }
         g["vmI"] = vGcTakeInstIdS(S)
         vHeapPut(S, g)
+        dead = g
         i = i + 1
     }
-    // One permanently-retained keep per round — real retained growth.
+    let gone = { "tag": round }
+    vHeapPut(S, gone)
+    // One permanently-retained keep per round — real retained growth, stored
+    // into the (old after the first major) root through the write barrier.
     let keep = { "vmC": 0, "tag": round }
     keep["vmI"] = vGcTakeInstIdS(S)
+    keep["weak_d"] = dead
+    keep["weak_g"] = gone
     vHeapPut(S, keep)
     kept = push(kept, keep)
+    root["kept"] = kept
+    vGcLogWriteS(S, root, kept)
 
-    vGcCollectBeginS(S, false)
+    let c = S["gcCollects"]
+    if typeof(c) != "number" {
+        c = 0
+    }
+    c = c + 1
+    S["gcCollects"] = c
+    let major = vGcMajorOk(S, c)
+    if major {
+        majors = majors + 1
+    } else {
+        minors = minors + 1
+    }
+    vGcCollectBeginS(S, major == false)
     while S["gcMarkActive"] == true {
         vGcMarkSliceS(S, 64)
     }
@@ -44,10 +71,37 @@ while round < 8 {
     if S["gcHostReady"] != true {
         return round + 1
     }
+    // Streak accumulates exactly one per consistent cycle.
+    if S["gcHostReadyStreak"] != round + 1 {
+        return 20 + round
+    }
+    // The keep survived its first cycle (young, reached via the rem-set on
+    // minors). Weak-clear agrees with the sweep: the dead vmI weak target
+    // clears in this cycle iff it was tombstoned. A garbage inst that reused
+    // a freed id below gcOldId is old-space — a minor neither sweeps it nor
+    // clears weak edges to it; the closing major decides it.
+    if S["insts"][vInstKeyS(keep)] == undefined {
+        return 30 + round
+    }
+    let deadGone = S["insts"][vInstKeyS(dead)] == undefined
+    if deadGone != (keep["weak_d"] == undefined) {
+        return 40 + round
+    }
+    if deadGone {
+        clearedNow = clearedNow + 1
+    }
     round = round + 1
 }
 
-// Evidence: two full rotations of consistent cycles were actually reached.
+// Evidence: two full rotations of consistent cycles were actually reached,
+// spanning both generations. The cadence is the VM's own: majors at c=1/c=5
+// plus any survival-paced major (gcMajorDue after a high-survival minor).
+if majors < 2 || minors < 2 || majors + minors != 8 {
+    return 89
+}
+if clearedNow < 1 {
+    return 88
+}
 if S["gcHostReadyStreak"] < 8 {
     return 90
 }
@@ -61,6 +115,39 @@ if len(kept) != 8 {
 let k0 = kept[0]
 if k0["tag"] != 0 {
     return 93
+}
+let ki = 0
+while ki < len(kept) {
+    if S["insts"][vInstKeyS(kept[ki])] == undefined {
+        return 50 + ki
+    }
+    ki = ki + 1
+}
+// A closing major (the VM's next cadence slot is c=9) decides the targets
+// minors leave alone (oid objects, old-slot reuse): every keep's weak_g and
+// weak_d is cleared; the streak keeps growing.
+S["gcCollects"] = S["gcCollects"] + 1
+if vGcMajorOk(S, S["gcCollects"]) != true {
+    return 95
+}
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+vGcSweepDeadS(S)
+if S["gcHostReady"] != true || S["gcHostReadyStreak"] != 9 {
+    return 96
+}
+ki = 0
+while ki < len(kept) {
+    let kk = kept[ki]
+    if kk["weak_g"] != undefined || kk["weak_d"] != undefined {
+        return 60 + ki
+    }
+    if S["insts"][vInstKeyS(kk)] == undefined {
+        return 70 + ki
+    }
+    ki = ki + 1
 }
 // Gate flipped: sh18_gc_production_probe proved the streak under a real
 // workload on the production session (30 consecutive consistent cycles via
