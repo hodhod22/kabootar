@@ -76,7 +76,7 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp, xs) {
     let locals = []
     let i = 0
     while i < f["locals"] {
-        locals = push(locals, 0)
+        locals.push(0)
         i = i + 1
     }
     if f["arity"] >= 1 {
@@ -836,7 +836,7 @@ pub fn aotFnMirrorG(fns, arg, ng) {
     let gl = []
     let i = 0
     while i < ng {
-        gl = push(gl, 0)
+        gl.push(0)
         i = i + 1
     }
     return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, [], [])["v"]
@@ -848,13 +848,13 @@ pub fn aotFnMirrorH(fns, arg, ng, hq) {
     let gl = []
     let i = 0
     while i < ng {
-        gl = push(gl, 0)
+        gl.push(0)
         i = i + 1
     }
     let hp = []
     let j = 0
     while j < hq {
-        hp = push(hp, 0)
+        hp.push(0)
         j = j + 1
     }
     return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, hp, [])["v"]
@@ -867,13 +867,13 @@ pub fn aotFnMirrorHS(fns, arg, ng, hq) {
     let gl = []
     let i = 0
     while i < ng {
-        gl = push(gl, 0)
+        gl.push(0)
         i = i + 1
     }
     let hp = []
     let j = 0
     while j < hq {
-        hp = push(hp, 0)
+        hp.push(0)
         j = j + 1
     }
     return aotFnRunG(fns, 0, arg, 0, 0, 0, gl, hp, [])

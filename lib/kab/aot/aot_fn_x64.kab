@@ -205,26 +205,26 @@ fn aotCallPadN(fa, t, want) {
 // Positions: 1=rcx 2=rdx 3=r8 4=r9 (49 prefix for r8/r9).
 fn aotX64PadArg(b, p) {
     if p == 1 {
-        b = push(b, 72)
-        b = push(b, 199)
-        b = push(b, 193)
+        b.push(72)
+        b.push(199)
+        b.push(193)
     } else if p == 2 {
-        b = push(b, 72)
-        b = push(b, 199)
-        b = push(b, 194)
+        b.push(72)
+        b.push(199)
+        b.push(194)
     } else if p == 3 {
-        b = push(b, 73)
-        b = push(b, 199)
-        b = push(b, 192)
+        b.push(73)
+        b.push(199)
+        b.push(192)
     } else {
-        b = push(b, 73)
-        b = push(b, 199)
-        b = push(b, 193)
+        b.push(73)
+        b.push(199)
+        b.push(193)
     }
-    b = push(b, 11)
-    b = push(b, 0)
-    b = push(b, 0)
-    b = push(b, 0)
+    b.push(11)
+    b.push(0)
+    b.push(0)
+    b.push(0)
     return b
 }
 
@@ -774,24 +774,24 @@ pub fn aotFnProLen(nlocals, arity, isEntry, abi, needR12) {
 pub fn aotFnPro(b, nlocals, arity, isEntry, abi, needR12) {
     // 41 54 push r12 — first, so it sits ABOVE saved rbp at [rbp+8] and
     // leave+pop r12 restores it. 55 push rbp; 48 89 E5 mov rbp,rsp.
-    b = push(b, 65)
-    b = push(b, 84)
-    b = push(b, 85)
-    b = push(b, 72)
-    b = push(b, 137)
-    b = push(b, 229)
+    b.push(65)
+    b.push(84)
+    b.push(85)
+    b.push(72)
+    b.push(137)
+    b.push(229)
     if nlocals > 0 {
         if nlocals * 8 <= 127 {
             // 48 83 EC ib = sub rsp,imm8.
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 236)
-            b = push(b, nlocals * 8)
+            b.push(72)
+            b.push(131)
+            b.push(236)
+            b.push(nlocals * 8)
         } else {
             // 48 81 EC imm32 = sub rsp,imm32.
-            b = push(b, 72)
-            b = push(b, 129)
-            b = push(b, 236)
+            b.push(72)
+            b.push(129)
+            b.push(236)
             b = x64PushImm32(b, nlocals * 8)
         }
     }
@@ -802,27 +802,27 @@ pub fn aotFnPro(b, nlocals, arity, isEntry, abi, needR12) {
     if isEntry && abi == "sysv" {
         if arity >= 1 {
             // 48 89 F9 = mov rcx,rdi.
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 249)
+            b.push(72)
+            b.push(137)
+            b.push(249)
         }
         if arity >= 2 {
             // 48 89 F2 = mov rdx,rsi.
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 242)
+            b.push(72)
+            b.push(137)
+            b.push(242)
         }
     }
     // Globals base: when the module touches data globals the entry loads
     // the data-page pointer (host arg2) into callee-saved r12 — win64 rdx
     // (49 89 D4 mov r12,rdx), sysv rsi (49 89 F4 mov r12,rsi).
     if isEntry && needR12 {
-        b = push(b, 73)
-        b = push(b, 137)
+        b.push(73)
+        b.push(137)
         if abi == "win64" {
-            b = push(b, 212)
+            b.push(212)
         } else {
-            b = push(b, 244)
+            b.push(244)
         }
     }
     // Spill private arg regs into local slots: rcx→local0 (48 89 4D ..),
@@ -864,13 +864,13 @@ fn aotX64LocalLen(i) {
 /// mov rax, [rbp + off] — positive-disp load (stack args above the
 /// saved rbp); 48 8B 45 ib / 48 8B 85 d32.
 fn aotX64LdPos(b, off) {
-    b = push(b, 72)
-    b = push(b, 139)
+    b.push(72)
+    b.push(139)
     if off <= 127 {
-        b = push(b, 69)
-        b = push(b, off)
+        b.push(69)
+        b.push(off)
     } else {
-        b = push(b, 133)
+        b.push(133)
         b = x64PushSImm32(b, off)
     }
     return b
@@ -888,14 +888,14 @@ fn aotX64LdPosLen(off) {
 /// disp8; we recompute for disp32 by adding 0x40).
 fn aotFnStoreReg(b, i, modrm8) {
     let off = 8 * (i + 1)
-    b = push(b, 72)
-    b = push(b, 137)
+    b.push(72)
+    b.push(137)
     if off <= 128 {
-        b = push(b, modrm8)
+        b.push(modrm8)
         let d = 256 - off
-        b = push(b, d)
+        b.push(d)
     } else {
-        b = push(b, modrm8 + 64)
+        b.push(modrm8 + 64)
         b = x64PushSImm32(b, 0 - off)
     }
     return b
@@ -906,14 +906,14 @@ fn aotFnStoreReg(b, i, modrm8) {
 /// register — r8 → base 0x45, r9 → base 0x4D.
 fn aotFnStoreRegH(b, i, modrm8) {
     let off = 8 * (i + 1)
-    b = push(b, 76)
-    b = push(b, 137)
+    b.push(76)
+    b.push(137)
     if off <= 128 {
-        b = push(b, modrm8)
+        b.push(modrm8)
         let d = 256 - off
-        b = push(b, d)
+        b.push(d)
     } else {
-        b = push(b, modrm8 + 64)
+        b.push(modrm8 + 64)
         b = x64PushSImm32(b, 0 - off)
     }
     return b
@@ -922,39 +922,39 @@ fn aotFnStoreRegH(b, i, modrm8) {
 /// mov rax, [rbp - 8*(i+1)] then push rax — load local i.
 fn aotFnLoadLocal(b, i) {
     let off = 8 * (i + 1)
-    b = push(b, 72)
-    b = push(b, 139)
+    b.push(72)
+    b.push(139)
     if off <= 128 {
         // 48 8B 45 d8 = mov rax,[rbp+disp8].
-        b = push(b, 69)
-        b = push(b, 256 - off)
+        b.push(69)
+        b.push(256 - off)
     } else {
         // 48 8B 85 disp32.
-        b = push(b, 133)
+        b.push(133)
         b = x64PushSImm32(b, 0 - off)
     }
-    b = push(b, 80)
+    b.push(80)
     return b
 }
 
 /// pop rax; mov [rbp - 8*(i+1)], rax — store local i.
 fn aotFnStoreLocal(b, i) {
-    b = push(b, 88)
+    b.push(88)
     return aotFnStoreReg(b, i, 69)
 }
 
 /// mov <reg>, [r12+off] — reg rax(0)/rcx(1)/rdx(2); disp8 when
 /// off+8 <= 128 (same convention as gload). Length helper below.
 fn aotX64R12Ld(b, off, reg) {
-    b = push(b, 73)
-    b = push(b, 139)
+    b.push(73)
+    b.push(139)
     if off + 8 <= 128 {
-        b = push(b, 68 + reg * 8)
-        b = push(b, 36)
-        b = push(b, off)
+        b.push(68 + reg * 8)
+        b.push(36)
+        b.push(off)
     } else {
-        b = push(b, 132 + reg * 8)
-        b = push(b, 36)
+        b.push(132 + reg * 8)
+        b.push(36)
         b = x64PushSImm32(b, off)
     }
     return b
@@ -969,15 +969,15 @@ fn aotX64R12LdLen(off) {
 
 /// mov [r12+off], <reg> — same modrm pattern as aotX64R12Ld.
 fn aotX64R12St(b, off, reg) {
-    b = push(b, 73)
-    b = push(b, 137)
+    b.push(73)
+    b.push(137)
     if off + 8 <= 128 {
-        b = push(b, 68 + reg * 8)
-        b = push(b, 36)
-        b = push(b, off)
+        b.push(68 + reg * 8)
+        b.push(36)
+        b.push(off)
     } else {
-        b = push(b, 132 + reg * 8)
-        b = push(b, 36)
+        b.push(132 + reg * 8)
+        b.push(36)
         b = x64PushSImm32(b, off)
     }
     return b
@@ -993,13 +993,13 @@ fn aotX64R12StLen(off) {
 /// mov rax, [rbp-8*(i+1)] — local slot load without the push.
 fn aotX64RbpLd(b, i) {
     let off = 8 * (i + 1)
-    b = push(b, 72)
-    b = push(b, 139)
+    b.push(72)
+    b.push(139)
     if off <= 128 {
-        b = push(b, 69)
-        b = push(b, 256 - off)
+        b.push(69)
+        b.push(256 - off)
     } else {
-        b = push(b, 133)
+        b.push(133)
         b = x64PushSImm32(b, 0 - off)
     }
     return b
@@ -1019,7 +1019,7 @@ fn aotX64GcSpill(b, nl, rb, nsp, dir) {
     let j = 0
     if dir == 0 {
         while j < nsp {
-            b = push(b, 88)
+            b.push(88)
             b = aotX64R12St(b, (rb + nl + j) * 8, 0)
             j = j + 1
         }
@@ -1040,7 +1040,7 @@ fn aotX64GcSpill(b, nl, rb, nsp, dir) {
         while j2 > 0 {
             j2 = j2 - 1
             b = aotX64R12Ld(b, (rb + nl + j2) * 8, 0)
-            b = push(b, 80)
+            b.push(80)
         }
     }
     return b
@@ -1074,62 +1074,62 @@ fn aotX64GcCall(b, bump, lo, rc, gcIdx, fnOffs, bOff) {
     let bumpOff = 8 * bump
     b = aotX64R12Ld(b, bumpOff, 1)
     // 4C 29 E1 sub rcx,r12; 48 C1 E9 03 shr rcx,3 — addr → qword idx.
-    b = push(b, 76)
-    b = push(b, 41)
-    b = push(b, 225)
-    b = push(b, 72)
-    b = push(b, 193)
-    b = push(b, 233)
-    b = push(b, 3)
+    b.push(76)
+    b.push(41)
+    b.push(225)
+    b.push(72)
+    b.push(193)
+    b.push(233)
+    b.push(3)
     // BA i32 mov edx,lo; 41 B8 i32 mov r8d,rc.
-    b = push(b, 186)
+    b.push(186)
     b = x64PushImm32(b, lo)
-    b = push(b, 65)
-    b = push(b, 184)
+    b.push(65)
+    b.push(184)
     b = x64PushImm32(b, rc)
     // 4D 89 E1 mov r9,r12 — dbase.
-    b = push(b, 77)
-    b = push(b, 137)
-    b = push(b, 225)
+    b.push(77)
+    b.push(137)
+    b.push(225)
     // E8 rel32 — len(b) is the absolute offset of the rel32 field.
-    b = push(b, 232)
+    b.push(232)
     b = x64PushSImm32(b, fnOffs[gcIdx] - (len(b) + bOff + 4))
     // 48 C1 E0 03 shl rax,3; 4C 01 E0 add rax,r12 — idx → addr.
-    b = push(b, 72)
-    b = push(b, 193)
-    b = push(b, 224)
-    b = push(b, 3)
-    b = push(b, 76)
-    b = push(b, 1)
-    b = push(b, 224)
+    b.push(72)
+    b.push(193)
+    b.push(224)
+    b.push(3)
+    b.push(76)
+    b.push(1)
+    b.push(224)
     b = aotX64R12St(b, bumpOff, 0)
     return b
 }
 
 /// Binary op helpers: pop rcx (rhs), pop rax (lhs), combine, push rax.
 fn aotFnBinop(b, kind) {
-    b = push(b, 89)
-    b = push(b, 88)
+    b.push(89)
+    b.push(88)
     if kind == "add" {
         // 48 01 C8 = add rax,rcx.
-        b = push(b, 72)
-        b = push(b, 1)
-        b = push(b, 200)
+        b.push(72)
+        b.push(1)
+        b.push(200)
     }
     if kind == "sub" {
         // 48 29 C8 = sub rax,rcx.
-        b = push(b, 72)
-        b = push(b, 41)
-        b = push(b, 200)
+        b.push(72)
+        b.push(41)
+        b.push(200)
     }
     if kind == "mul" {
         // 48 0F AF C1 = imul rax,rcx.
-        b = push(b, 72)
-        b = push(b, 15)
-        b = push(b, 175)
-        b = push(b, 193)
+        b.push(72)
+        b.push(15)
+        b.push(175)
+        b.push(193)
     }
-    b = push(b, 80)
+    b.push(80)
     return b
 }
 
@@ -1160,20 +1160,20 @@ fn aotFnSetcc(name) {
 /// push rax — pushes 1/0. cmp rax,rcx computes lhs-rhs so signed setcc
 /// reads lhs vs rhs directly.
 fn aotFnCmp(b, name) {
-    b = push(b, 89)
-    b = push(b, 88)
+    b.push(89)
+    b.push(88)
     // 48 39 C8 = cmp rax,rcx.
-    b = push(b, 72)
-    b = push(b, 57)
-    b = push(b, 200)
+    b.push(72)
+    b.push(57)
+    b.push(200)
     // 0F <setcc> C0; 0F B6 C0 movzx.
-    b = push(b, 15)
-    b = push(b, aotFnSetcc(name))
-    b = push(b, 192)
-    b = push(b, 15)
-    b = push(b, 182)
-    b = push(b, 192)
-    b = push(b, 80)
+    b.push(15)
+    b.push(aotFnSetcc(name))
+    b.push(192)
+    b.push(15)
+    b.push(182)
+    b.push(192)
+    b.push(80)
     return b
 }
 
@@ -1237,26 +1237,26 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
         let ek = AOT_EMIT_CODE[name]
         if ek == 1 {
             // 48 C7 C0 imm32 = mov rax, sext imm32 (honest i64 sign); push.
-            b = push(b, 72)
-            b = push(b, 199)
-            b = push(b, 192)
+            b.push(72)
+            b.push(199)
+            b.push(192)
             b = x64PushSImm32(b, op[1])
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 2 {
             b = aotFnLoadLocal(b, op[1])
         } else if ek == 3 {
             b = aotFnStoreLocal(b, op[1])
         } else if ek == 4 {
             // 58 pop rax; 48 01 45 d8 add [rbp+disp], rax — local += rhs.
-            b = push(b, 88)
+            b.push(88)
             let aoff = 8 * (op[1] + 1)
-            b = push(b, 72)
-            b = push(b, 1)
+            b.push(72)
+            b.push(1)
             if aoff <= 128 {
-                b = push(b, 69)
-                b = push(b, 256 - aoff)
+                b.push(69)
+                b.push(256 - aoff)
             } else {
-                b = push(b, 133)
+                b.push(133)
                 b = x64PushSImm32(b, 0 - aoff)
             }
         } else if ek == 5 {
@@ -1268,122 +1268,122 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // domain has no error channel — a hard stop is honest, a
             // silent wrong answer is not. 48 99 cqo; 48 F7 F9 idiv rcx
             // → rax=quot, rdx=rem.
-            b = push(b, 89)
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 133)
-            b = push(b, 201)
-            b = push(b, 117)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 72)
-            b = push(b, 153)
-            b = push(b, 72)
-            b = push(b, 247)
-            b = push(b, 249)
+            b.push(89)
+            b.push(88)
+            b.push(72)
+            b.push(133)
+            b.push(201)
+            b.push(117)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(72)
+            b.push(153)
+            b.push(72)
+            b.push(247)
+            b.push(249)
             if name == "mod" {
                 // 48 89 D0 = mov rax,rdx — take the remainder.
-                b = push(b, 72)
-                b = push(b, 137)
-                b = push(b, 208)
+                b.push(72)
+                b.push(137)
+                b.push(208)
             }
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 7 {
             // 58 pop rax; 48 F7 D8 neg rax; 50 push rax.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 247)
-            b = push(b, 216)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(247)
+            b.push(216)
+            b.push(80)
         } else if ek == 8 {
             // 58 pop rax; 48 F7 D0 not rax; 50 push rax.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 247)
-            b = push(b, 208)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(247)
+            b.push(208)
+            b.push(80)
         } else if ek == 9 {
             // 58 pop rax; 48 85 C0 test rax,rax; 0F 94 C0 setz al;
             // 0F B6 C0 movzx eax,al; 50 push rax — pushes 1 when the
             // popped value is 0, else 0 (i64 truthiness).
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 133)
-            b = push(b, 192)
-            b = push(b, 15)
-            b = push(b, 148)
-            b = push(b, 192)
-            b = push(b, 15)
-            b = push(b, 182)
-            b = push(b, 192)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(133)
+            b.push(192)
+            b.push(15)
+            b.push(148)
+            b.push(192)
+            b.push(15)
+            b.push(182)
+            b.push(192)
+            b.push(80)
         } else if ek == 10 {
             // 58 pop rax; 49 01 44 24 d8 / 49 01 84 24 d32 —
             // add [r12+off], rax — globals[g] += rhs.
             let aoff = 8 * op[1]
-            b = push(b, 88)
-            b = push(b, 73)
-            b = push(b, 1)
+            b.push(88)
+            b.push(73)
+            b.push(1)
             if aoff + 8 <= 128 {
-                b = push(b, 68)
-                b = push(b, 36)
-                b = push(b, aoff)
+                b.push(68)
+                b.push(36)
+                b.push(aoff)
             } else {
-                b = push(b, 132)
-                b = push(b, 36)
+                b.push(132)
+                b.push(36)
                 b = x64PushSImm32(b, aoff)
             }
         } else if ek == 11 {
             // 49 8B 44 24 d8 (disp8) / 49 8B 84 24 d32 — mov rax,[r12+off];
             // 50 push rax. r12 = the image data page (globals base).
             let goff = 8 * op[1]
-            b = push(b, 73)
-            b = push(b, 139)
+            b.push(73)
+            b.push(139)
             if goff + 8 <= 128 {
-                b = push(b, 68)
-                b = push(b, 36)
-                b = push(b, goff)
+                b.push(68)
+                b.push(36)
+                b.push(goff)
             } else {
-                b = push(b, 132)
-                b = push(b, 36)
+                b.push(132)
+                b.push(36)
                 b = x64PushSImm32(b, goff)
             }
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 12 {
             // 58 pop rax; 49 89 44 24 d8 / 49 89 84 24 d32 —
             // mov [r12+off], rax.
             let goff2 = 8 * op[1]
-            b = push(b, 88)
-            b = push(b, 73)
-            b = push(b, 137)
+            b.push(88)
+            b.push(73)
+            b.push(137)
             if goff2 + 8 <= 128 {
-                b = push(b, 68)
-                b = push(b, 36)
-                b = push(b, goff2)
+                b.push(68)
+                b.push(36)
+                b.push(goff2)
             } else {
-                b = push(b, 132)
-                b = push(b, 36)
+                b.push(132)
+                b.push(36)
                 b = x64PushSImm32(b, goff2)
             }
         } else if ek == 13 {
             b = aotFnCmp(b, name)
         } else if ek == 14 {
             // E9 rel32 — target is op index op[1]; rel = dst - next insn.
-            b = push(b, 233)
+            b.push(233)
             let next = offs[i] + 5
             b = x64PushSImm32(b, offs[op[1]] - next)
         } else if ek == 15 {
             // 58 pop rax; 48 85 C0 test rax,rax; 0F 84/85 rel32.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 133)
-            b = push(b, 192)
-            b = push(b, 15)
+            b.push(88)
+            b.push(72)
+            b.push(133)
+            b.push(192)
+            b.push(15)
             if name == "jz" {
-                b = push(b, 132)
+                b.push(132)
             } else {
-                b = push(b, 133)
+                b.push(133)
             }
             let next2 = offs[i] + 10
             b = x64PushSImm32(b, offs[op[1]] - next2)
@@ -1391,32 +1391,32 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // 59 pop rcx (arg lands in the private arg1 reg directly);
             // missing-arg pads (mov rX,11) for callee arity > 1;
             // E8 rel32; 50 push rax.
-            b = push(b, 89)
+            b.push(89)
             let cp1 = aotCallPadN(fa, op[1], 1)
             let cpa1 = 0
             while cpa1 < cp1 {
                 b = aotX64PadArg(b, cpa1 + 2)
                 cpa1 = cpa1 + 1
             }
-            b = push(b, 232)
+            b.push(232)
             let next3 = offs[i] + 6 + 7 * cp1
             b = x64PushSImm32(b, fnOffs[op[1]] - next3)
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 17 {
             // 5A pop rdx (arg2) + 59 pop rcx (arg1) — both land in the
             // private arg regs; missing-arg pads; E8 rel32; 50 push rax.
-            b = push(b, 90)
-            b = push(b, 89)
+            b.push(90)
+            b.push(89)
             let cp2 = aotCallPadN(fa, op[1], 2)
             let cpa2 = 0
             while cpa2 < cp2 {
                 b = aotX64PadArg(b, cpa2 + 3)
                 cpa2 = cpa2 + 1
             }
-            b = push(b, 232)
+            b.push(232)
             let next4 = offs[i] + 7 + 7 * cp2
             b = x64PushSImm32(b, fnOffs[op[1]] - next4)
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 18 {
             // E8 rel32; 50 push rax — no args to move, but a callee
             // with declared arity > 0 still gets undefined pads.
@@ -1426,40 +1426,40 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
                 b = aotX64PadArg(b, cpa0 + 1)
                 cpa0 = cpa0 + 1
             }
-            b = push(b, 232)
+            b.push(232)
             let next5 = offs[i] + 5 + 7 * cp0
             b = x64PushSImm32(b, fnOffs[op[1]] - next5)
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 19 {
             // 41 58 pop r8 (arg3); 5A pop rdx; 59 pop rcx; missing-arg
             // pad for a 4-param callee; E8 rel32; 50 push rax.
-            b = push(b, 65)
-            b = push(b, 88)
-            b = push(b, 90)
-            b = push(b, 89)
+            b.push(65)
+            b.push(88)
+            b.push(90)
+            b.push(89)
             let cp3 = aotCallPadN(fa, op[1], 3)
             if cp3 > 0 {
                 b = aotX64PadArg(b, 4)
             }
-            b = push(b, 232)
+            b.push(232)
             // rel32 base = insn AFTER the call: pops + pads + 5B call.
             let next6 = offs[i] + 9 + 7 * cp3
             b = x64PushSImm32(b, fnOffs[op[1]] - next6)
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 20 {
             // 41 59 pop r9; 41 58 pop r8; 5A pop rdx; 59 pop rcx;
             // E8 rel32; 50 push rax.
-            b = push(b, 65)
-            b = push(b, 89)
-            b = push(b, 65)
-            b = push(b, 88)
-            b = push(b, 90)
-            b = push(b, 89)
-            b = push(b, 232)
+            b.push(65)
+            b.push(89)
+            b.push(65)
+            b.push(88)
+            b.push(90)
+            b.push(89)
+            b.push(232)
             // rel32 base = the insn AFTER the call: 6B pops + 5B call = +11.
             let next7 = offs[i] + 11
             b = x64PushSImm32(b, fnOffs[op[1]] - next7)
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 21 {
             // ["calln", fi, n, scr] — n >= 5 args: a5..a_n pop into
             // scratch locals (top-down: scr+0 gets a_n), a4..a1 pop into
@@ -1469,22 +1469,22 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             let cs3 = op[3]
             let ck3 = 0
             while ck3 < cn3 - 4 {
-                b = push(b, 88)
+                b.push(88)
                 b = aotFnStoreReg(b, cs3 + ck3, 69)
                 ck3 = ck3 + 1
             }
-            b = push(b, 65)
-            b = push(b, 89)
-            b = push(b, 65)
-            b = push(b, 88)
-            b = push(b, 90)
-            b = push(b, 89)
+            b.push(65)
+            b.push(89)
+            b.push(65)
+            b.push(88)
+            b.push(90)
+            b.push(89)
             ck3 = 0
             while ck3 < cn3 - 4 {
                 b = aotFnLoadLocal(b, cs3 + ck3)
                 ck3 = ck3 + 1
             }
-            b = push(b, 232)
+            b.push(232)
             let cncl = 4
             if 8 * (cn3 - 4) > 127 {
                 cncl = 7
@@ -1496,91 +1496,91 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // Caller-owned stack args: 48 83 C4 ib when the total fits
             // imm8, else 48 81 C4 imm32 (n = 20 → 128 bytes).
             if 8 * (cn3 - 4) <= 127 {
-                b = push(b, 72)
-                b = push(b, 131)
-                b = push(b, 196)
-                b = push(b, 8 * (cn3 - 4))
+                b.push(72)
+                b.push(131)
+                b.push(196)
+                b.push(8 * (cn3 - 4))
             } else {
-                b = push(b, 72)
-                b = push(b, 129)
-                b = push(b, 196)
+                b.push(72)
+                b.push(129)
+                b.push(196)
                 b = x64PushSImm32(b, 8 * (cn3 - 4))
             }
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 22 {
             // 58 pop rax — discard the top of the value stack.
-            b = push(b, 88)
+            b.push(88)
         } else if ek == 23 {
             // 48 8B 04 24 mov rax,[rsp]; 50 push rax — copy the top.
-            b = push(b, 72)
-            b = push(b, 139)
-            b = push(b, 4)
-            b = push(b, 36)
-            b = push(b, 80)
+            b.push(72)
+            b.push(139)
+            b.push(4)
+            b.push(36)
+            b.push(80)
         } else if ek == 24 {
             // 58 pop rax; 5A pop rdx; 50 push rax; 52 push rdx —
             // [a,b] → [b,a] (rax=b lands under rdx=a).
-            b = push(b, 88)
-            b = push(b, 90)
-            b = push(b, 80)
-            b = push(b, 82)
+            b.push(88)
+            b.push(90)
+            b.push(80)
+            b.push(82)
         }
         // --- aot-tv1: tagged value ops (docs/AOT-VALUES.md layout) ---
         else if ek == 25 {
             // 58 pop rax; 48 D1 E0 shl rax,1; 50 push — raw → SMI.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 224)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(209)
+            b.push(224)
+            b.push(80)
         } else if ek == 26 {
             // 58 pop rax; 48 D1 F8 sar rax,1; 50 push — SMI → raw.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 248)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(209)
+            b.push(248)
+            b.push(80)
         } else if ek == 27 {
             // 58 pop rax; A8 01 test al,1; 0F 94 C0 setz al;
             // 0F B6 C0 movzx eax,al; 50 push — RAW 1 when bit0==0.
-            b = push(b, 88)
-            b = push(b, 168)
-            b = push(b, 1)
-            b = push(b, 15)
-            b = push(b, 148)
-            b = push(b, 192)
-            b = push(b, 15)
-            b = push(b, 182)
-            b = push(b, 192)
-            b = push(b, 80)
+            b.push(88)
+            b.push(168)
+            b.push(1)
+            b.push(15)
+            b.push(148)
+            b.push(192)
+            b.push(15)
+            b.push(182)
+            b.push(192)
+            b.push(80)
         } else if ek == 28 {
             // 58 pop rax; A8 01 test al,1; 0F 84/85 rel32 — type
             // dispatch: jsmi jumps when bit0==0 (SMI), jnsmi when set.
-            b = push(b, 88)
-            b = push(b, 168)
-            b = push(b, 1)
-            b = push(b, 15)
+            b.push(88)
+            b.push(168)
+            b.push(1)
+            b.push(15)
             if name == "jsmi" {
-                b = push(b, 132)
+                b.push(132)
             } else {
-                b = push(b, 133)
+                b.push(133)
             }
             let nextT = offs[i] + 9
             b = x64PushSImm32(b, offs[op[1]] - nextT)
         } else if ek == 29 {
             // 48 C7 C0 imm32 = mov rax, sext(v<<1); push — tag folded.
-            b = push(b, 72)
-            b = push(b, 199)
-            b = push(b, 192)
+            b.push(72)
+            b.push(199)
+            b.push(192)
             b = x64PushSImm32(b, op[1] * 2)
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 30 {
             // 48 B8 imm64 movabs rax,(v<<1); push — tagged const beyond
             // the sext-imm32 window. x64PushU64 normalizes negative bytes.
-            b = push(b, 72)
-            b = push(b, 184)
+            b.push(72)
+            b.push(184)
             b = x64PushU64(b, op[1] * 2)
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 31 {
             // mov rax, imm32((subtag<<3)|3); push — tagged immediate.
             let sub = 0
@@ -1593,77 +1593,77 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             if name == "ttrue" {
                 sub = 3
             }
-            b = push(b, 72)
-            b = push(b, 199)
-            b = push(b, 192)
+            b.push(72)
+            b.push(199)
+            b.push(192)
             b = x64PushSImm32(b, sub * 8 + 3)
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 32 {
             // (a<<1)±(b<<1) = (a±b)<<1 — the raw op IS the tagged op.
-            b = push(b, 89)
-            b = push(b, 88)
-            b = push(b, 72)
+            b.push(89)
+            b.push(88)
+            b.push(72)
             if name == "tadd" {
-                b = push(b, 1)
+                b.push(1)
             } else {
-                b = push(b, 41)
+                b.push(41)
             }
-            b = push(b, 200)
-            b = push(b, 80)
+            b.push(200)
+            b.push(80)
         } else if ek == 33 {
             // -(a<<1) = (-a)<<1 — identical to raw neg.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 247)
-            b = push(b, 216)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(247)
+            b.push(216)
+            b.push(80)
         } else if ek == 34 {
             // 59 pop rcx; 48 D1 F9 sar rcx,1 (untag rhs); 58 pop rax;
             // 48 0F AF C1 imul rax,rcx; 50 push → (a<<1)*b = (a*b)<<1.
-            b = push(b, 89)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 249)
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 15)
-            b = push(b, 175)
-            b = push(b, 193)
-            b = push(b, 80)
+            b.push(89)
+            b.push(72)
+            b.push(209)
+            b.push(249)
+            b.push(88)
+            b.push(72)
+            b.push(15)
+            b.push(175)
+            b.push(193)
+            b.push(80)
         } else if ek == 35 {
             // 59 pop rcx; 48 D1 F9 sar rcx,1; 58 pop rax; 48 D1 F8
             // sar rax,1 — untag both; then the same zero-check+idiv as
             // the raw div; 48 D1 E0 shl rax,1 — retag the result.
-            b = push(b, 89)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 249)
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 248)
-            b = push(b, 72)
-            b = push(b, 133)
-            b = push(b, 201)
-            b = push(b, 117)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 72)
-            b = push(b, 153)
-            b = push(b, 72)
-            b = push(b, 247)
-            b = push(b, 249)
+            b.push(89)
+            b.push(72)
+            b.push(209)
+            b.push(249)
+            b.push(88)
+            b.push(72)
+            b.push(209)
+            b.push(248)
+            b.push(72)
+            b.push(133)
+            b.push(201)
+            b.push(117)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(72)
+            b.push(153)
+            b.push(72)
+            b.push(247)
+            b.push(249)
             if name == "tmod" {
                 // 48 89 D0 = mov rax,rdx — the remainder.
-                b = push(b, 72)
-                b = push(b, 137)
-                b = push(b, 208)
+                b.push(72)
+                b.push(137)
+                b.push(208)
             }
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 224)
-            b = push(b, 80)
+            b.push(72)
+            b.push(209)
+            b.push(224)
+            b.push(80)
         } else if ek == 36 {
             // JS i32 semantics on tagged SMIs: detag both (sar 1),
             // 32-bit <op> eax,ebx truncates operands to their low 32
@@ -1672,80 +1672,80 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // order irrelevant. 5B pop rbx; 58 pop rax; 48 D1 FB sar
             // rbx,1; 48 D1 F8 sar rax,1; <op>; 48 63 C0 movsxd rax,eax;
             // 48 D1 E0 shl rax,1; 50 push.
-            b = push(b, 91)
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 251)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 248)
+            b.push(91)
+            b.push(88)
+            b.push(72)
+            b.push(209)
+            b.push(251)
+            b.push(72)
+            b.push(209)
+            b.push(248)
             if name == "tband" {
-                b = push(b, 33)
+                b.push(33)
             }
             if name == "tbor" {
-                b = push(b, 9)
+                b.push(9)
             }
             if name == "tbxor" {
-                b = push(b, 49)
+                b.push(49)
             }
-            b = push(b, 216)
-            b = push(b, 72)
-            b = push(b, 99)
-            b = push(b, 192)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 224)
-            b = push(b, 80)
+            b.push(216)
+            b.push(72)
+            b.push(99)
+            b.push(192)
+            b.push(72)
+            b.push(209)
+            b.push(224)
+            b.push(80)
         } else if ek == 37 {
             // 58 pop rax; 48 D1 F8 sar rax,1; F7 D0 not eax (i32);
             // 48 63 C0 movsxd rax,eax; 48 D1 E0 shl rax,1; 50 push.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 248)
-            b = push(b, 247)
-            b = push(b, 208)
-            b = push(b, 72)
-            b = push(b, 99)
-            b = push(b, 192)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 224)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(209)
+            b.push(248)
+            b.push(247)
+            b.push(208)
+            b.push(72)
+            b.push(99)
+            b.push(192)
+            b.push(72)
+            b.push(209)
+            b.push(224)
+            b.push(80)
         } else if ek == 38 {
             // 59 pop rcx (count); 48 D1 F9 sar rcx,1; 58 pop rax;
             // 48 D1 F8 sar rax,1; 83 E1 1F and ecx,31 (JS &0x1f);
             // D3 E0/D3 F8/D3 E8 shl/sar/shr eax,cl (i32 op);
             // 48 63 C0 movsxd rax,eax; 48 D1 E0 shl rax,1; 50 push.
-            b = push(b, 89)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 249)
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 248)
-            b = push(b, 131)
-            b = push(b, 225)
-            b = push(b, 31)
-            b = push(b, 211)
+            b.push(89)
+            b.push(72)
+            b.push(209)
+            b.push(249)
+            b.push(88)
+            b.push(72)
+            b.push(209)
+            b.push(248)
+            b.push(131)
+            b.push(225)
+            b.push(31)
+            b.push(211)
             if name == "tshl" {
-                b = push(b, 224)
+                b.push(224)
             }
             if name == "tshr" {
-                b = push(b, 248)
+                b.push(248)
             }
             if name == "tushr" {
-                b = push(b, 232)
+                b.push(232)
             }
-            b = push(b, 72)
-            b = push(b, 99)
-            b = push(b, 192)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 224)
-            b = push(b, 80)
+            b.push(72)
+            b.push(99)
+            b.push(192)
+            b.push(72)
+            b.push(209)
+            b.push(224)
+            b.push(80)
         } else if ek == 39 {
             // Tagged SMI pow: 59 pop rcx (exp); 58 pop rax (base);
             // 48 D1 F9 sar rcx,1; 48 D1 F8 sar rax,1 — detag;
@@ -1758,57 +1758,57 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // 48 FF C9 dec rcx; EB EE jmp -18 → loop;
             // done: 48 D1 E0 shl rax,1; 71 02 jno +2; 0F 0B ud2 —
             // result past SMI range traps; 50 push.
-            b = push(b, 89)
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 249)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 248)
-            b = push(b, 72)
-            b = push(b, 133)
-            b = push(b, 201)
-            b = push(b, 121)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 194)
-            b = push(b, 184)
-            b = push(b, 1)
-            b = push(b, 0)
-            b = push(b, 0)
-            b = push(b, 0)
+            b.push(89)
+            b.push(88)
+            b.push(72)
+            b.push(209)
+            b.push(249)
+            b.push(72)
+            b.push(209)
+            b.push(248)
+            b.push(72)
+            b.push(133)
+            b.push(201)
+            b.push(121)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(72)
+            b.push(137)
+            b.push(194)
+            b.push(184)
+            b.push(1)
+            b.push(0)
+            b.push(0)
+            b.push(0)
             // loop head (18-byte body back to here):
-            b = push(b, 72)
-            b = push(b, 133)
-            b = push(b, 201)
-            b = push(b, 116)
-            b = push(b, 13)
-            b = push(b, 72)
-            b = push(b, 15)
-            b = push(b, 175)
-            b = push(b, 194)
-            b = push(b, 113)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 72)
-            b = push(b, 255)
-            b = push(b, 201)
-            b = push(b, 235)
-            b = push(b, 238)
+            b.push(72)
+            b.push(133)
+            b.push(201)
+            b.push(116)
+            b.push(13)
+            b.push(72)
+            b.push(15)
+            b.push(175)
+            b.push(194)
+            b.push(113)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(72)
+            b.push(255)
+            b.push(201)
+            b.push(235)
+            b.push(238)
             // done: retag + OF guard + push.
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 224)
-            b = push(b, 113)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 80)
+            b.push(72)
+            b.push(209)
+            b.push(224)
+            b.push(113)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(80)
         }
         // --- aot-tv1: Kab-owned heap (bump allocator on the data page) ---
         else if ek == 40 {
@@ -1818,18 +1818,18 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // 50 push — hbase: the heap-start address (one past the
             // globals); hlimit: the heap bound address at qword n.
             let hoff = 8 * op[1]
-            b = push(b, 73)
-            b = push(b, 141)
+            b.push(73)
+            b.push(141)
             if hoff + 8 <= 128 {
-                b = push(b, 68)
-                b = push(b, 36)
-                b = push(b, hoff)
+                b.push(68)
+                b.push(36)
+                b.push(hoff)
             } else {
-                b = push(b, 132)
-                b = push(b, 36)
+                b.push(132)
+                b.push(36)
                 b = x64PushSImm32(b, hoff)
             }
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 41 {
             // ["halloc", bump, limit] — bound-checked bump-alloc of nw
             // qwords: pop rax (nw); shl rax,3; rcx = [r12+bump] (old top);
@@ -1838,239 +1838,239 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // [r12+bump] = rcx; rdx = (rcx - rax) | 1 = tagged ptr; push.
             let aoff = 8 * op[1]
             let loff = 8 * op[2]
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 193)
-            b = push(b, 224)
-            b = push(b, 3)
-            b = push(b, 73)
-            b = push(b, 139)
+            b.push(88)
+            b.push(72)
+            b.push(193)
+            b.push(224)
+            b.push(3)
+            b.push(73)
+            b.push(139)
             if aoff + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, aoff)
+                b.push(76)
+                b.push(36)
+                b.push(aoff)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, aoff)
             }
-            b = push(b, 72)
-            b = push(b, 1)
-            b = push(b, 193)
+            b.push(72)
+            b.push(1)
+            b.push(193)
             // 49 3B 4C 24 d8 / 49 3B 8C 24 d32 = cmp rcx,[r12+limit];
             // 76 02 jbe +2; 0F 0B ud2.
-            b = push(b, 73)
-            b = push(b, 59)
+            b.push(73)
+            b.push(59)
             if loff + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, loff)
+                b.push(76)
+                b.push(36)
+                b.push(loff)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, loff)
             }
-            b = push(b, 118)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 73)
-            b = push(b, 137)
+            b.push(118)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(73)
+            b.push(137)
             if aoff + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, aoff)
+                b.push(76)
+                b.push(36)
+                b.push(aoff)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, aoff)
             }
             // 48 89 CA mov rdx,rcx; 48 29 C2 sub rdx,rax;
             // 48 83 CA 01 or rdx,1; 52 push rdx.
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 202)
-            b = push(b, 72)
-            b = push(b, 41)
-            b = push(b, 194)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 202)
-            b = push(b, 1)
-            b = push(b, 82)
+            b.push(72)
+            b.push(137)
+            b.push(202)
+            b.push(72)
+            b.push(41)
+            b.push(194)
+            b.push(72)
+            b.push(131)
+            b.push(202)
+            b.push(1)
+            b.push(82)
         } else if ek == 42 {
             // 58 pop rax (tagged ptr); 48 83 E0 FE and rax,-2 (strip tag);
             // mov rax,[rax+off]; push. off = byte offset inside the cell.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 224)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 139)
+            b.push(88)
+            b.push(72)
+            b.push(131)
+            b.push(224)
+            b.push(254)
+            b.push(72)
+            b.push(139)
             if op[1] <= 127 {
-                b = push(b, 64)
-                b = push(b, op[1])
+                b.push(64)
+                b.push(op[1])
             } else {
-                b = push(b, 128)
+                b.push(128)
                 b = x64PushSImm32(b, op[1])
             }
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 43 {
             // 58 pop rax (val); 5A pop rdx (tagged ptr); 48 83 E2 FE
             // and rdx,-2; mov [rdx+off], rax.
-            b = push(b, 88)
-            b = push(b, 90)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 226)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 137)
+            b.push(88)
+            b.push(90)
+            b.push(72)
+            b.push(131)
+            b.push(226)
+            b.push(254)
+            b.push(72)
+            b.push(137)
             if op[1] <= 127 {
-                b = push(b, 66)
-                b = push(b, op[1])
+                b.push(66)
+                b.push(op[1])
             } else {
-                b = push(b, 130)
+                b.push(130)
                 b = x64PushSImm32(b, op[1])
             }
         } else if ek == 44 {
             // Runtime-indexed load: stack [ptr, idx] → 58 pop rax (idx);
             // 48 C1 E0 03 shl rax,3; 5A pop rdx (ptr); 48 83 E2 FE
             // and rdx,-2; 48 8B 04 02 mov rax,[rdx+rax]; 50 push.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 193)
-            b = push(b, 224)
-            b = push(b, 3)
-            b = push(b, 90)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 226)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 139)
-            b = push(b, 4)
-            b = push(b, 2)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(193)
+            b.push(224)
+            b.push(3)
+            b.push(90)
+            b.push(72)
+            b.push(131)
+            b.push(226)
+            b.push(254)
+            b.push(72)
+            b.push(139)
+            b.push(4)
+            b.push(2)
+            b.push(80)
         } else if ek == 45 {
             // Runtime-indexed store: stack [ptr, idx, val] →
             // 58 pop rax (val); 59 pop rcx (idx); 48 C1 E1 03 shl rcx,3;
             // 5A pop rdx (ptr); 48 83 E2 FE and rdx,-2;
             // 48 89 04 0A mov [rdx+rcx], rax.
-            b = push(b, 88)
-            b = push(b, 89)
-            b = push(b, 72)
-            b = push(b, 193)
-            b = push(b, 225)
-            b = push(b, 3)
-            b = push(b, 90)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 226)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 4)
-            b = push(b, 10)
+            b.push(88)
+            b.push(89)
+            b.push(72)
+            b.push(193)
+            b.push(225)
+            b.push(3)
+            b.push(90)
+            b.push(72)
+            b.push(131)
+            b.push(226)
+            b.push(254)
+            b.push(72)
+            b.push(137)
+            b.push(4)
+            b.push(10)
         } else if ek == 46 {
             // [ptr] → tagged cell length: pop rax; and rax,-2;
             // mov rax,[rax] (header qword); and eax,0xFFFF (len field);
             // shl rax,1 (SMI-tag it); push. = 17B.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 224)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 139)
-            b = push(b, 0)
-            b = push(b, 37)
-            b = push(b, 255)
-            b = push(b, 255)
-            b = push(b, 0)
-            b = push(b, 0)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 224)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(131)
+            b.push(224)
+            b.push(254)
+            b.push(72)
+            b.push(139)
+            b.push(0)
+            b.push(37)
+            b.push(255)
+            b.push(255)
+            b.push(0)
+            b.push(0)
+            b.push(72)
+            b.push(209)
+            b.push(224)
+            b.push(80)
         } else if ek == 47 {
             // [ptr] → tagged tag byte: pop rax; and rax,-2; mov rax,[rax];
             // shr rax,16; and eax,0xFF; shl rax,1; push. = 21B.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 224)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 139)
-            b = push(b, 0)
-            b = push(b, 72)
-            b = push(b, 193)
-            b = push(b, 232)
-            b = push(b, 16)
-            b = push(b, 37)
-            b = push(b, 255)
-            b = push(b, 0)
-            b = push(b, 0)
-            b = push(b, 0)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 224)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(131)
+            b.push(224)
+            b.push(254)
+            b.push(72)
+            b.push(139)
+            b.push(0)
+            b.push(72)
+            b.push(193)
+            b.push(232)
+            b.push(16)
+            b.push(37)
+            b.push(255)
+            b.push(0)
+            b.push(0)
+            b.push(0)
+            b.push(72)
+            b.push(209)
+            b.push(224)
+            b.push(80)
         } else if ek == 48 {
             // Byte-granular load (string payloads): stack [ptr, bidx] →
             // 58 pop rax (bidx); 5A pop rdx (ptr); 48 83 E2 FE and rdx,-2;
             // 0F B6 44 02 08 movzx eax, byte [rdx+rax+8]; 50 push. = 12B.
-            b = push(b, 88)
-            b = push(b, 90)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 226)
-            b = push(b, 254)
-            b = push(b, 15)
-            b = push(b, 182)
-            b = push(b, 68)
-            b = push(b, 2)
-            b = push(b, 8)
-            b = push(b, 80)
+            b.push(88)
+            b.push(90)
+            b.push(72)
+            b.push(131)
+            b.push(226)
+            b.push(254)
+            b.push(15)
+            b.push(182)
+            b.push(68)
+            b.push(2)
+            b.push(8)
+            b.push(80)
         } else if ek == 49 {
             // Byte-granular store: stack [ptr, bidx, val] →
             // 58 pop rax (val); 59 pop rcx (bidx); 5A pop rdx (ptr);
             // 48 83 E2 FE and rdx,-2; 88 44 0A 08 mov [rdx+rcx+8], al. = 11B.
-            b = push(b, 88)
-            b = push(b, 89)
-            b = push(b, 90)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 226)
-            b = push(b, 254)
-            b = push(b, 136)
-            b = push(b, 68)
-            b = push(b, 10)
-            b = push(b, 8)
+            b.push(88)
+            b.push(89)
+            b.push(90)
+            b.push(72)
+            b.push(131)
+            b.push(226)
+            b.push(254)
+            b.push(136)
+            b.push(68)
+            b.push(10)
+            b.push(8)
         } else if ek == 50 {
             // Array element load — tagged index, header skipped:
             // stack [ptr, tidx] → 58 pop rax (tidx); 48 C1 E0 02
             // shl rax,2 (v<<1<<2 = v*8); 5A pop rdx (ptr);
             // 48 83 E2 FE and rdx,-2; 48 8B 44 02 08
             // mov rax,[rdx+rax+8]; 50 push. = 16B.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 193)
-            b = push(b, 224)
-            b = push(b, 2)
-            b = push(b, 90)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 226)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 139)
-            b = push(b, 68)
-            b = push(b, 2)
-            b = push(b, 8)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(193)
+            b.push(224)
+            b.push(2)
+            b.push(90)
+            b.push(72)
+            b.push(131)
+            b.push(226)
+            b.push(254)
+            b.push(72)
+            b.push(139)
+            b.push(68)
+            b.push(2)
+            b.push(8)
+            b.push(80)
         } else if ek == 51 {
             // Array element store — stack [ptr, tidx, val] →
             // 58 pop rax (val); 59 pop rcx (tidx); 48 C1 E1 02 shl rcx,2;
@@ -2081,35 +2081,35 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // 52 push rdx; 50 push rax (val) — matches the VM's
             // index_set which pushes [container, val] so
             // `pop; store_local` writes the container back. = 22B.
-            b = push(b, 88)
-            b = push(b, 89)
-            b = push(b, 72)
-            b = push(b, 193)
-            b = push(b, 225)
-            b = push(b, 2)
-            b = push(b, 90)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 226)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 68)
-            b = push(b, 10)
-            b = push(b, 8)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 202)
-            b = push(b, 1)
-            b = push(b, 82)
-            b = push(b, 80)
+            b.push(88)
+            b.push(89)
+            b.push(72)
+            b.push(193)
+            b.push(225)
+            b.push(2)
+            b.push(90)
+            b.push(72)
+            b.push(131)
+            b.push(226)
+            b.push(254)
+            b.push(72)
+            b.push(137)
+            b.push(68)
+            b.push(10)
+            b.push(8)
+            b.push(72)
+            b.push(131)
+            b.push(202)
+            b.push(1)
+            b.push(82)
+            b.push(80)
         } else if ek == 52 {
             // 48 B8 imm64 mov rax,imm64; 50 push — full-width constant
             // (f64 bits, large headers).
-            b = push(b, 72)
-            b = push(b, 184)
+            b.push(72)
+            b.push(184)
             b = x64PushU64(b, op[1])
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 53 {
             // Float cell from raw f64 bits: ["fmk", bump, limit, bits,
             // fval] — bound-checked bump-alloc of 2 qwords (ud2 over the
@@ -2118,95 +2118,95 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // Kab float — Kab cannot reinterpret f64 bits.)
             let foff = 8 * op[1]
             let floff = 8 * op[2]
-            b = push(b, 73)
-            b = push(b, 139)
+            b.push(73)
+            b.push(139)
             if foff + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, foff)
+                b.push(76)
+                b.push(36)
+                b.push(foff)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, foff)
             }
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 193)
-            b = push(b, 16)
+            b.push(72)
+            b.push(131)
+            b.push(193)
+            b.push(16)
             // 49 3B 4C 24 d8 cmp rcx,[r12+limit]; 76 02 jbe +2; 0F 0B ud2.
-            b = push(b, 73)
-            b = push(b, 59)
+            b.push(73)
+            b.push(59)
             if floff + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, floff)
+                b.push(76)
+                b.push(36)
+                b.push(floff)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, floff)
             }
-            b = push(b, 118)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 73)
-            b = push(b, 137)
+            b.push(118)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(73)
+            b.push(137)
             if foff + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, foff)
+                b.push(76)
+                b.push(36)
+                b.push(foff)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, foff)
             }
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 202)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 234)
-            b = push(b, 16)
-            b = push(b, 72)
-            b = push(b, 199)
-            b = push(b, 2)
+            b.push(72)
+            b.push(137)
+            b.push(202)
+            b.push(72)
+            b.push(131)
+            b.push(234)
+            b.push(16)
+            b.push(72)
+            b.push(199)
+            b.push(2)
             b = x64PushSImm32(b, 65537)
             // Payload bits come from op[4] (the Kab float) via
             // aotF64Halves — op[3] cannot carry bit63 in a Kab number.
-            b = push(b, 72)
-            b = push(b, 184)
+            b.push(72)
+            b.push(184)
             let fhl = aotF64Halves(op[4])
             b = x64PushSImm32(b, fhl[0])
             b = x64PushSImm32(b, fhl[1])
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 66)
-            b = push(b, 8)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 202)
-            b = push(b, 1)
-            b = push(b, 82)
+            b.push(72)
+            b.push(137)
+            b.push(66)
+            b.push(8)
+            b.push(72)
+            b.push(131)
+            b.push(202)
+            b.push(1)
+            b.push(82)
         } else if ek == 54 {
             // ["hkid"] — [strptr] → tagged kid (hdr >> 32, then <<1).
             // The str cell header carries the interned member-key id in
             // bits 32+; payload bytes are irrelevant for lookup.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 224)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 139)
-            b = push(b, 0)
-            b = push(b, 72)
-            b = push(b, 193)
-            b = push(b, 232)
-            b = push(b, 32)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 224)
-            b = push(b, 80)
+            b.push(88)
+            b.push(72)
+            b.push(131)
+            b.push(224)
+            b.push(254)
+            b.push(72)
+            b.push(139)
+            b.push(0)
+            b.push(72)
+            b.push(193)
+            b.push(232)
+            b.push(32)
+            b.push(72)
+            b.push(209)
+            b.push(224)
+            b.push(80)
         } else if ek == 55 {
             // ["smk", bump, limit, text, kid] — bound-checked bump-alloc
             // of 1+ceil(len/8) qwords: hdr = kid<<32 | 4<<16 | len, then
@@ -2219,193 +2219,193 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             let sol = 8 * op[2]
             // mov rcx,[r12+bump]; add rcx, sqw*8; cmp rcx,[r12+limit];
             // jbe +2; ud2; mov [r12+bump],rcx; mov rdx,rcx; sub rdx,sqw*8.
-            b = push(b, 73)
-            b = push(b, 139)
+            b.push(73)
+            b.push(139)
             if sof + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, sof)
+                b.push(76)
+                b.push(36)
+                b.push(sof)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, sof)
             }
             if sqw * 8 <= 127 {
-                b = push(b, 72)
-                b = push(b, 131)
-                b = push(b, 193)
-                b = push(b, sqw * 8)
+                b.push(72)
+                b.push(131)
+                b.push(193)
+                b.push(sqw * 8)
             } else {
-                b = push(b, 72)
-                b = push(b, 129)
-                b = push(b, 193)
+                b.push(72)
+                b.push(129)
+                b.push(193)
                 b = x64PushSImm32(b, sqw * 8)
             }
-            b = push(b, 73)
-            b = push(b, 59)
+            b.push(73)
+            b.push(59)
             if sol + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, sol)
+                b.push(76)
+                b.push(36)
+                b.push(sol)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, sol)
             }
-            b = push(b, 118)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 73)
-            b = push(b, 137)
+            b.push(118)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(73)
+            b.push(137)
             if sof + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, sof)
+                b.push(76)
+                b.push(36)
+                b.push(sof)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, sof)
             }
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 202)
+            b.push(72)
+            b.push(137)
+            b.push(202)
             if sqw * 8 <= 127 {
-                b = push(b, 72)
-                b = push(b, 131)
-                b = push(b, 234)
-                b = push(b, sqw * 8)
+                b.push(72)
+                b.push(131)
+                b.push(234)
+                b.push(sqw * 8)
             } else {
-                b = push(b, 72)
-                b = push(b, 129)
-                b = push(b, 234)
+                b.push(72)
+                b.push(129)
+                b.push(234)
                 b = x64PushSImm32(b, sqw * 8)
             }
             // hdr qword: kid*2^32 + 4<<16 + len — a raw integer payload,
             // emitted via x64PushU64 (aotF64Halves would emit the f64
             // encoding of the number, not the number itself).
             let shdr = op[4] * 4294967296 + 262144 + sl
-            b = push(b, 72)
-            b = push(b, 184)
+            b.push(72)
+            b.push(184)
             b = x64PushU64(b, shdr)
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 2)
+            b.push(72)
+            b.push(137)
+            b.push(2)
             // payload bytes — C6 42 disp8 imm8 per char (exact; packed
             // qwords would exceed f64 precision in Kab for bytes 6-7).
             let sj = 0
             while sj < sl {
                 let sdo = 8 + sj
-                b = push(b, 198)
+                b.push(198)
                 if sdo <= 127 {
-                    b = push(b, 66)
-                    b = push(b, sdo)
+                    b.push(66)
+                    b.push(sdo)
                 } else {
-                    b = push(b, 130)
+                    b.push(130)
                     b = x64PushSImm32(b, sdo)
                 }
-                b = push(b, char_code_at(s, sj) % 256)
+                b.push(char_code_at(s, sj) % 256)
                 sj = sj + 1
             }
             // zero-pad the tail bytes of the last payload qword.
             let zp = sqw * 8 - 8
             while sl < zp {
                 let zdo = 8 + sl
-                b = push(b, 198)
+                b.push(198)
                 if zdo <= 127 {
-                    b = push(b, 66)
-                    b = push(b, zdo)
+                    b.push(66)
+                    b.push(zdo)
                 } else {
-                    b = push(b, 130)
+                    b.push(130)
                     b = x64PushSImm32(b, zdo)
                 }
-                b = push(b, 0)
+                b.push(0)
                 sl = sl + 1
             }
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 202)
-            b = push(b, 1)
-            b = push(b, 82)
+            b.push(72)
+            b.push(131)
+            b.push(202)
+            b.push(1)
+            b.push(82)
         } else if ek == 56 {
             // ["fcast", bump, limit] — pop a tagged SMI, push a Float
             // cell holding cvtsi2sd(v>>1). Bound-checked bump-alloc of
             // 2 qwords, header 65537 (same tail as fmk).
             let cfo = 8 * op[1]
             let cfl = 8 * op[2]
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 209)
-            b = push(b, 248)
-            b = push(b, 242)
-            b = push(b, 72)
-            b = push(b, 15)
-            b = push(b, 42)
-            b = push(b, 192)
-            b = push(b, 73)
-            b = push(b, 139)
+            b.push(88)
+            b.push(72)
+            b.push(209)
+            b.push(248)
+            b.push(242)
+            b.push(72)
+            b.push(15)
+            b.push(42)
+            b.push(192)
+            b.push(73)
+            b.push(139)
             if cfo + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, cfo)
+                b.push(76)
+                b.push(36)
+                b.push(cfo)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, cfo)
             }
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 193)
-            b = push(b, 16)
-            b = push(b, 73)
-            b = push(b, 59)
+            b.push(72)
+            b.push(131)
+            b.push(193)
+            b.push(16)
+            b.push(73)
+            b.push(59)
             if cfl + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, cfl)
+                b.push(76)
+                b.push(36)
+                b.push(cfl)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, cfl)
             }
-            b = push(b, 118)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 73)
-            b = push(b, 137)
+            b.push(118)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(73)
+            b.push(137)
             if cfo + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, cfo)
+                b.push(76)
+                b.push(36)
+                b.push(cfo)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, cfo)
             }
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 202)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 234)
-            b = push(b, 16)
-            b = push(b, 72)
-            b = push(b, 199)
-            b = push(b, 2)
+            b.push(72)
+            b.push(137)
+            b.push(202)
+            b.push(72)
+            b.push(131)
+            b.push(234)
+            b.push(16)
+            b.push(72)
+            b.push(199)
+            b.push(2)
             b = x64PushSImm32(b, 65537)
             // movq [rdx+8], xmm0.
-            b = push(b, 102)
-            b = push(b, 72)
-            b = push(b, 15)
-            b = push(b, 126)
-            b = push(b, 66)
-            b = push(b, 8)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 202)
-            b = push(b, 1)
-            b = push(b, 82)
+            b.push(102)
+            b.push(72)
+            b.push(15)
+            b.push(126)
+            b.push(66)
+            b.push(8)
+            b.push(72)
+            b.push(131)
+            b.push(202)
+            b.push(1)
+            b.push(82)
         } else if ek == 57 {
             // ["f<op>", bump, limit] — [lptr, rptr] → new float cell with
             // (l OP r): untag both, movsd xmm0,[rcx+8]; OPsd xmm0,[rdx+8];
@@ -2413,253 +2413,253 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // 65537; movsd [rdx+8],xmm0; push ptr.
             let boff = 8 * op[1]
             let blim = 8 * op[2]
-            b = push(b, 90)
-            b = push(b, 89)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 226)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 225)
-            b = push(b, 254)
-            b = push(b, 242)
-            b = push(b, 15)
-            b = push(b, 16)
-            b = push(b, 65)
-            b = push(b, 8)
-            b = push(b, 242)
-            b = push(b, 15)
+            b.push(90)
+            b.push(89)
+            b.push(72)
+            b.push(131)
+            b.push(226)
+            b.push(254)
+            b.push(72)
+            b.push(131)
+            b.push(225)
+            b.push(254)
+            b.push(242)
+            b.push(15)
+            b.push(16)
+            b.push(65)
+            b.push(8)
+            b.push(242)
+            b.push(15)
             if name == "fadd" {
-                b = push(b, 88)
+                b.push(88)
             }
             if name == "fsub" {
-                b = push(b, 92)
+                b.push(92)
             }
             if name == "fmul" {
-                b = push(b, 89)
+                b.push(89)
             }
             if name == "fdiv" {
-                b = push(b, 94)
+                b.push(94)
             }
-            b = push(b, 66)
-            b = push(b, 8)
-            b = push(b, 73)
-            b = push(b, 139)
+            b.push(66)
+            b.push(8)
+            b.push(73)
+            b.push(139)
             if boff + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, boff)
+                b.push(76)
+                b.push(36)
+                b.push(boff)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, boff)
             }
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 193)
-            b = push(b, 16)
-            b = push(b, 73)
-            b = push(b, 59)
+            b.push(72)
+            b.push(131)
+            b.push(193)
+            b.push(16)
+            b.push(73)
+            b.push(59)
             if blim + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, blim)
+                b.push(76)
+                b.push(36)
+                b.push(blim)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, blim)
             }
-            b = push(b, 118)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 73)
-            b = push(b, 137)
+            b.push(118)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(73)
+            b.push(137)
             if boff + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, boff)
+                b.push(76)
+                b.push(36)
+                b.push(boff)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, boff)
             }
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 202)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 234)
-            b = push(b, 16)
-            b = push(b, 72)
-            b = push(b, 199)
-            b = push(b, 2)
+            b.push(72)
+            b.push(137)
+            b.push(202)
+            b.push(72)
+            b.push(131)
+            b.push(234)
+            b.push(16)
+            b.push(72)
+            b.push(199)
+            b.push(2)
             b = x64PushSImm32(b, 65537)
-            b = push(b, 242)
-            b = push(b, 15)
-            b = push(b, 17)
-            b = push(b, 66)
-            b = push(b, 8)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 202)
-            b = push(b, 1)
-            b = push(b, 82)
+            b.push(242)
+            b.push(15)
+            b.push(17)
+            b.push(66)
+            b.push(8)
+            b.push(72)
+            b.push(131)
+            b.push(202)
+            b.push(1)
+            b.push(82)
         } else if ek == 58 {
             // ["fmod", bump, limit] — [lptr,rptr] → new float cell with
             // l - trunc(l/r)*r (Kab % / fmod truncating semantics) via
             // divsd + roundsd imm 0x0B (truncate|suppress) + mulsd + subsd.
             let mof = 8 * op[1]
             let mol = 8 * op[2]
-            b = push(b, 90)
-            b = push(b, 89)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 226)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 225)
-            b = push(b, 254)
+            b.push(90)
+            b.push(89)
+            b.push(72)
+            b.push(131)
+            b.push(226)
+            b.push(254)
+            b.push(72)
+            b.push(131)
+            b.push(225)
+            b.push(254)
             // movsd xmm0,[rcx+8]; movsd xmm2,[rdx+8]
-            b = push(b, 242)
-            b = push(b, 15)
-            b = push(b, 16)
-            b = push(b, 65)
-            b = push(b, 8)
-            b = push(b, 242)
-            b = push(b, 15)
-            b = push(b, 16)
-            b = push(b, 82)
-            b = push(b, 8)
+            b.push(242)
+            b.push(15)
+            b.push(16)
+            b.push(65)
+            b.push(8)
+            b.push(242)
+            b.push(15)
+            b.push(16)
+            b.push(82)
+            b.push(8)
             // xmm1 = xmm0/xmm2 → trunc → *xmm2; xmm0 -= xmm1.
-            b = push(b, 242)
-            b = push(b, 15)
-            b = push(b, 16)
-            b = push(b, 200)
-            b = push(b, 242)
-            b = push(b, 15)
-            b = push(b, 94)
-            b = push(b, 202)
-            b = push(b, 102)
-            b = push(b, 15)
-            b = push(b, 58)
-            b = push(b, 11)
-            b = push(b, 201)
-            b = push(b, 11)
-            b = push(b, 242)
-            b = push(b, 15)
-            b = push(b, 89)
-            b = push(b, 202)
-            b = push(b, 242)
-            b = push(b, 15)
-            b = push(b, 92)
-            b = push(b, 193)
+            b.push(242)
+            b.push(15)
+            b.push(16)
+            b.push(200)
+            b.push(242)
+            b.push(15)
+            b.push(94)
+            b.push(202)
+            b.push(102)
+            b.push(15)
+            b.push(58)
+            b.push(11)
+            b.push(201)
+            b.push(11)
+            b.push(242)
+            b.push(15)
+            b.push(89)
+            b.push(202)
+            b.push(242)
+            b.push(15)
+            b.push(92)
+            b.push(193)
             // bound-checked bump-alloc + store (same tail as fadd).
-            b = push(b, 73)
-            b = push(b, 139)
+            b.push(73)
+            b.push(139)
             if mof + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, mof)
+                b.push(76)
+                b.push(36)
+                b.push(mof)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, mof)
             }
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 193)
-            b = push(b, 16)
-            b = push(b, 73)
-            b = push(b, 59)
+            b.push(72)
+            b.push(131)
+            b.push(193)
+            b.push(16)
+            b.push(73)
+            b.push(59)
             if mol + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, mol)
+                b.push(76)
+                b.push(36)
+                b.push(mol)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, mol)
             }
-            b = push(b, 118)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 73)
-            b = push(b, 137)
+            b.push(118)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(73)
+            b.push(137)
             if mof + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, mof)
+                b.push(76)
+                b.push(36)
+                b.push(mof)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, mof)
             }
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 202)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 234)
-            b = push(b, 16)
-            b = push(b, 72)
-            b = push(b, 199)
-            b = push(b, 2)
+            b.push(72)
+            b.push(137)
+            b.push(202)
+            b.push(72)
+            b.push(131)
+            b.push(234)
+            b.push(16)
+            b.push(72)
+            b.push(199)
+            b.push(2)
             b = x64PushSImm32(b, 65537)
-            b = push(b, 242)
-            b = push(b, 15)
-            b = push(b, 17)
-            b = push(b, 66)
-            b = push(b, 8)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 202)
-            b = push(b, 1)
-            b = push(b, 82)
+            b.push(242)
+            b.push(15)
+            b.push(17)
+            b.push(66)
+            b.push(8)
+            b.push(72)
+            b.push(131)
+            b.push(202)
+            b.push(1)
+            b.push(82)
         } else if ek == 59 {
             // [lptr, rptr] → raw 0/1 compare on the f64 payloads.
             // ucomisd sets CF/ZF/PF; unordered (NaN) sets all three.
             // eq/le/lt/fne reject or accept unordered via a jp branch;
             // gt/ge are naturally false on unordered.
-            b = push(b, 90)
-            b = push(b, 89)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 226)
-            b = push(b, 254)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 225)
-            b = push(b, 254)
-            b = push(b, 242)
-            b = push(b, 15)
-            b = push(b, 16)
-            b = push(b, 65)
-            b = push(b, 8)
-            b = push(b, 49)
-            b = push(b, 192)
-            b = push(b, 102)
-            b = push(b, 15)
-            b = push(b, 46)
-            b = push(b, 66)
-            b = push(b, 8)
+            b.push(90)
+            b.push(89)
+            b.push(72)
+            b.push(131)
+            b.push(226)
+            b.push(254)
+            b.push(72)
+            b.push(131)
+            b.push(225)
+            b.push(254)
+            b.push(242)
+            b.push(15)
+            b.push(16)
+            b.push(65)
+            b.push(8)
+            b.push(49)
+            b.push(192)
+            b.push(102)
+            b.push(15)
+            b.push(46)
+            b.push(66)
+            b.push(8)
             if name == "fne" {
                 // jp +5 → mov eax,1; setne al; jmp +5; mov eax,1; push
-                b = push(b, 122)
-                b = push(b, 5)
-                b = push(b, 15)
-                b = push(b, 149)
-                b = push(b, 192)
-                b = push(b, 235)
-                b = push(b, 5)
-                b = push(b, 184)
-                b = push(b, 1)
-                b = push(b, 0)
-                b = push(b, 0)
-                b = push(b, 0)
+                b.push(122)
+                b.push(5)
+                b.push(15)
+                b.push(149)
+                b.push(192)
+                b.push(235)
+                b.push(5)
+                b.push(184)
+                b.push(1)
+                b.push(0)
+                b.push(0)
+                b.push(0)
             } else {
                 let cc = 148
                 if name == "flt" {
@@ -2675,19 +2675,19 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
                     cc = 147
                 }
                 if name == "fgt" || name == "fge" {
-                    b = push(b, 15)
-                    b = push(b, cc)
-                    b = push(b, 192)
+                    b.push(15)
+                    b.push(cc)
+                    b.push(192)
                 } else {
                     // unordered → 0: jp +3 over the setcc
-                    b = push(b, 122)
-                    b = push(b, 3)
-                    b = push(b, 15)
-                    b = push(b, cc)
-                    b = push(b, 192)
+                    b.push(122)
+                    b.push(3)
+                    b.push(15)
+                    b.push(cc)
+                    b.push(192)
                 }
             }
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 60 {
             // ["mkclo", bump, limit, fnidx, ncap] — closure cell
             // [hdr=tag6<<16|(1+ncap) | fnidx(raw) | cap0..capN]: bound-
@@ -2696,97 +2696,97 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             let cbump = 8 * op[1]
             let clim = 8 * op[2]
             let csz = 8 * (2 + op[4])
-            b = push(b, 73)
-            b = push(b, 139)
+            b.push(73)
+            b.push(139)
             if cbump + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, cbump)
+                b.push(76)
+                b.push(36)
+                b.push(cbump)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, cbump)
             }
-            b = push(b, 72)
+            b.push(72)
             if csz <= 127 {
-                b = push(b, 131)
-                b = push(b, 193)
-                b = push(b, csz)
+                b.push(131)
+                b.push(193)
+                b.push(csz)
             } else {
-                b = push(b, 129)
-                b = push(b, 193)
+                b.push(129)
+                b.push(193)
                 b = x64PushSImm32(b, csz)
             }
-            b = push(b, 73)
-            b = push(b, 59)
+            b.push(73)
+            b.push(59)
             if clim + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, clim)
+                b.push(76)
+                b.push(36)
+                b.push(clim)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, clim)
             }
-            b = push(b, 118)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
-            b = push(b, 73)
-            b = push(b, 137)
+            b.push(118)
+            b.push(2)
+            b.push(15)
+            b.push(11)
+            b.push(73)
+            b.push(137)
             if cbump + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, cbump)
+                b.push(76)
+                b.push(36)
+                b.push(cbump)
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, cbump)
             }
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 202)
-            b = push(b, 72)
+            b.push(72)
+            b.push(137)
+            b.push(202)
+            b.push(72)
             if csz <= 127 {
-                b = push(b, 131)
-                b = push(b, 234)
-                b = push(b, csz)
+                b.push(131)
+                b.push(234)
+                b.push(csz)
             } else {
-                b = push(b, 129)
-                b = push(b, 234)
+                b.push(129)
+                b.push(234)
                 b = x64PushSImm32(b, csz)
             }
             // 48 C7 02 i32 = mov [rdx], hdr; 48 C7 42 08 i32 = [rdx+8], fi.
-            b = push(b, 72)
-            b = push(b, 199)
-            b = push(b, 2)
+            b.push(72)
+            b.push(199)
+            b.push(2)
             b = x64PushSImm32(b, 6 * 65536 + 1 + op[4])
-            b = push(b, 72)
-            b = push(b, 199)
-            b = push(b, 66)
-            b = push(b, 8)
+            b.push(72)
+            b.push(199)
+            b.push(66)
+            b.push(8)
             b = x64PushSImm32(b, op[3])
             let ci = op[4]
             while ci > 0 {
                 ci = ci - 1
-                b = push(b, 88)
+                b.push(88)
                 let coff = 16 + 8 * ci
-                b = push(b, 72)
+                b.push(72)
                 if coff < 128 {
-                    b = push(b, 137)
-                    b = push(b, 66)
-                    b = push(b, coff)
+                    b.push(137)
+                    b.push(66)
+                    b.push(coff)
                 } else {
-                    b = push(b, 137)
-                    b = push(b, 130)
+                    b.push(137)
+                    b.push(130)
                     b = x64PushSImm32(b, coff)
                 }
             }
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 202)
-            b = push(b, 1)
-            b = push(b, 82)
+            b.push(72)
+            b.push(131)
+            b.push(202)
+            b.push(1)
+            b.push(82)
         } else if ek == 61 {
             // ["callv", nargs, [fi…]] — callee cell sits on TOP of the
             // stack (compileIr evaluates args first, callee last): pop
@@ -2794,7 +2794,7 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // fnidx = [cell+8] raw; cmp/jne chain to a direct call per
             // candidate; ud2 on SMI callee or unknown index.
             let vna = op[1]
-            b = push(b, 89)
+            b.push(89)
             if vna > 3 {
                 // Args a4..a_n spill to scratch locals (op[3] base):
                 // pop top-down (scr+0 = a_n), pop regs a3..a1, then push
@@ -2803,15 +2803,15 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
                 let vs3 = op[3]
                 let vk3 = 0
                 while vk3 < vna - 3 {
-                    b = push(b, 88)
+                    b.push(88)
                     b = aotFnStoreReg(b, vs3 + vk3, 69)
                     vk3 = vk3 + 1
                 }
-                b = push(b, 65)
-                b = push(b, 89)
-                b = push(b, 65)
-                b = push(b, 88)
-                b = push(b, 90)
+                b.push(65)
+                b.push(89)
+                b.push(65)
+                b.push(88)
+                b.push(90)
                 vk3 = 0
                 while vk3 < vna - 3 {
                     b = aotFnLoadLocal(b, vs3 + vk3)
@@ -2822,44 +2822,44 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
                 // Cumulative register pops: a3→r9, a2→r8, a1→rdx (the
                 // na>3 spill block already popped all three itself).
                 if vna >= 3 {
-                    b = push(b, 65)
-                    b = push(b, 89)
+                    b.push(65)
+                    b.push(89)
                 }
                 if vna >= 2 {
-                    b = push(b, 65)
-                    b = push(b, 88)
+                    b.push(65)
+                    b.push(88)
                 }
                 if vna >= 1 {
-                    b = push(b, 90)
+                    b.push(90)
                 }
             }
             // F6 C1 01 test cl,1; 75 02 jnz +2; 0F 0B ud2 — SMI callee
             // traps honestly instead of dereferencing a small int.
-            b = push(b, 246)
-            b = push(b, 193)
-            b = push(b, 1)
-            b = push(b, 117)
-            b = push(b, 2)
-            b = push(b, 15)
-            b = push(b, 11)
+            b.push(246)
+            b.push(193)
+            b.push(1)
+            b.push(117)
+            b.push(2)
+            b.push(15)
+            b.push(11)
             // 48 89 C8 mov rax,rcx — the cell stays TAGGED in rcx so the
             // callee sees a proper heap value as its arg0/`this`; the
             // untagged copy in rax only serves the fnidx load. fnidx goes
             // to r10 — NOT rsi: rsi is callee-saved on win64 and the host
             // caller relies on it surviving the call (clobbering it
             // corrupts the Rust frame → stack overflow).
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 200)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 224)
-            b = push(b, 254)
+            b.push(72)
+            b.push(137)
+            b.push(200)
+            b.push(72)
+            b.push(131)
+            b.push(224)
+            b.push(254)
             // 4C 8B 50 08 = mov r10,[rax+8].
-            b = push(b, 76)
-            b = push(b, 139)
-            b = push(b, 80)
-            b = push(b, 8)
+            b.push(76)
+            b.push(139)
+            b.push(80)
+            b.push(8)
             // csz = bytes emitted so far inside this op.
             let csz = 0
             if vna > 3 {
@@ -2906,56 +2906,56 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
                 let cand = vfi[vj]
                 if cand > 127 {
                     // 49 81 FA id cmp r10,imm32.
-                    b = push(b, 73)
-                    b = push(b, 129)
-                    b = push(b, 250)
+                    b.push(73)
+                    b.push(129)
+                    b.push(250)
                     b = x64PushSImm32(b, cand)
                     voff = voff + 7
                 } else {
                     // 49 83 FA ib cmp r10,imm8.
-                    b = push(b, 73)
-                    b = push(b, 131)
-                    b = push(b, 250)
-                    b = push(b, cand)
+                    b.push(73)
+                    b.push(131)
+                    b.push(250)
+                    b.push(cand)
                     voff = voff + 4
                 }
                 // 75 0A jne +10; E8 rel32; E9 rel32 → done (skips the
                 // rest + the trailing ud2).
-                b = push(b, 117)
-                b = push(b, 10)
-                b = push(b, 232)
+                b.push(117)
+                b.push(10)
+                b.push(232)
                 voff = voff + 2
                 let callEnd = offs[i] + voff + 5
                 b = x64PushSImm32(b, fnOffs[cand] - callEnd)
                 voff = voff + 5
-                b = push(b, 233)
+                b.push(233)
                 let doneOff = offs[i] + csz + ctot + 2
                 b = x64PushSImm32(b, doneOff - (offs[i] + voff + 5))
                 voff = voff + 5
                 vj = vj + 1
             }
-            b = push(b, 15)
-            b = push(b, 11)
+            b.push(15)
+            b.push(11)
             if vna > 3 {
                 // add rsp — pop the caller-owned stack args (a4..a_n)
                 // after the callee returns: 48 83 C4 ib while the total
                 // fits imm8, else 48 81 C4 imm32 (na = 19 → 128 bytes).
                 if 8 * (vna - 3) <= 127 {
-                    b = push(b, 72)
-                    b = push(b, 131)
-                    b = push(b, 196)
-                    b = push(b, 8 * (vna - 3))
+                    b.push(72)
+                    b.push(131)
+                    b.push(196)
+                    b.push(8 * (vna - 3))
                 } else {
-                    b = push(b, 72)
-                    b = push(b, 129)
-                    b = push(b, 196)
+                    b.push(72)
+                    b.push(129)
+                    b.push(196)
                     b = x64PushSImm32(b, 8 * (vna - 3))
                 }
             }
-            b = push(b, 80)
+            b.push(80)
         } else if ek == 62 {
-            b = push(b, 15)
-            b = push(b, 11)
+            b.push(15)
+            b.push(11)
         } else if ek == 63 {
             // ["gcollect", bump, lo, rb, nspill] — the root protocol:
             // spill the top nspill stack values and all nl locals into
@@ -2976,29 +2976,29 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             let scr = (rb2 + nl + nsp2) * 8
             // pop rax (nw); shl rax,3; rcx = [bump]; rcx += rax;
             // cmp rcx,[limit]; 0F 86 rel32 jbe → ALLOC.
-            b = push(b, 88)
-            b = push(b, 72)
-            b = push(b, 193)
-            b = push(b, 224)
-            b = push(b, 3)
+            b.push(88)
+            b.push(72)
+            b.push(193)
+            b.push(224)
+            b.push(3)
             b = aotX64R12Ld(b, 8 * op[1], 1)
-            b = push(b, 72)
-            b = push(b, 1)
-            b = push(b, 193)
+            b.push(72)
+            b.push(1)
+            b.push(193)
             // 49 3B 4C 24 d8 / 49 3B 8C 24 d32 = cmp rcx,[r12+limit].
-            b = push(b, 73)
-            b = push(b, 59)
+            b.push(73)
+            b.push(59)
             if 8 * op[2] + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, 8 * op[2])
+                b.push(76)
+                b.push(36)
+                b.push(8 * op[2])
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, 8 * op[2])
             }
-            b = push(b, 15)
-            b = push(b, 134)
+            b.push(15)
+            b.push(134)
             let hcc = len(b)
             b = x64PushSImm32(b, 0)
             // slow path — stash nw bytes above the root area, collect.
@@ -3010,26 +3010,26 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             // 0F 86 rel32 jbe → ALLOC; else ud2.
             b = aotX64R12Ld(b, scr, 0)
             b = aotX64R12Ld(b, 8 * op[1], 1)
-            b = push(b, 72)
-            b = push(b, 1)
-            b = push(b, 193)
-            b = push(b, 73)
-            b = push(b, 59)
+            b.push(72)
+            b.push(1)
+            b.push(193)
+            b.push(73)
+            b.push(59)
             if 8 * op[2] + 8 <= 128 {
-                b = push(b, 76)
-                b = push(b, 36)
-                b = push(b, 8 * op[2])
+                b.push(76)
+                b.push(36)
+                b.push(8 * op[2])
             } else {
-                b = push(b, 140)
-                b = push(b, 36)
+                b.push(140)
+                b.push(36)
                 b = x64PushSImm32(b, 8 * op[2])
             }
-            b = push(b, 15)
-            b = push(b, 134)
+            b.push(15)
+            b.push(134)
             let hcc2 = len(b)
             b = x64PushSImm32(b, 0)
-            b = push(b, 15)
-            b = push(b, 11)
+            b.push(15)
+            b.push(11)
             // ALLOC — patch both jbe rel32s to land here: mov [bump],rcx
             // (store the winning candidate); rdx = rcx - rax | 1; push.
             let alc = len(b)
@@ -3044,25 +3044,25 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             b[hcc2 + 2] = (rel2 / 65536) % 256
             b[hcc2 + 3] = (rel2 / 16777216) % 256
             b = aotX64R12St(b, 8 * op[1], 1)
-            b = push(b, 72)
-            b = push(b, 137)
-            b = push(b, 202)
-            b = push(b, 72)
-            b = push(b, 41)
-            b = push(b, 194)
-            b = push(b, 72)
-            b = push(b, 131)
-            b = push(b, 202)
-            b = push(b, 1)
-            b = push(b, 82)
+            b.push(72)
+            b.push(137)
+            b.push(202)
+            b.push(72)
+            b.push(41)
+            b.push(194)
+            b.push(72)
+            b.push(131)
+            b.push(202)
+            b.push(1)
+            b.push(82)
         } else if ek == 65 {
             // 58 pop rax; C9 leave; 41 5C pop r12; C3 ret — r12 was
             // pushed first in the prologue so it sits above saved rbp.
-            b = push(b, 88)
-            b = push(b, 201)
-            b = push(b, 65)
-            b = push(b, 92)
-            b = push(b, 195)
+            b.push(88)
+            b.push(201)
+            b.push(65)
+            b.push(92)
+            b.push(195)
         }
         // Length audit: emitted bytes for this op must equal the declared
         // aotFnOpLen — a drift here shifts every later op so jump rel32s

@@ -1038,15 +1038,14 @@ pub fn eval_expr(expr: &Expr, env: &mut Environment) -> Result<Value, String> {
                         }
                     };
                     if let Expr::Variable(var_name) = obj_expr.as_ref() {
-                        let mut arr_val = env
-                            .get(var_name)
-                            .ok_or_else(|| format!("Undefined variable: {}", var_name))?;
-                        let Value::Array(ref mut items) = arr_val else {
-                            return Err("push() requires an array".into());
-                        };
-                        Rc::make_mut(items).push(pushed);
-                        let len = items.len() as i64;
-                        env.assign(var_name, arr_val)?;
+                        match env.get(var_name) {
+                            Some(Value::Array(_)) => {}
+                            Some(_) => return Err("push() requires an array".into()),
+                            None => {
+                                return Err(format!("Undefined variable: {}", var_name));
+                            }
+                        }
+                        let len = env.array_push_inplace(var_name, pushed)?;
                         return Ok(Value::Number(len));
                     }
                     let mut arr_val = eval_expr(obj_expr, env)?;

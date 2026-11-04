@@ -144,9 +144,10 @@ fn g2_array_member_push_on_expression() {
     let out = eval(
         r#"
         let a = [1];
+        let alias = a;
         let n1 = a.push(2);
         let n2 = ([10]).push(20);
-        a[1] == 2 && n1 == 2 && n2 == 2
+        a[1] == 2 && n1 == 2 && n2 == 2 && len(alias) == 1
         "#,
     );
     assert!(matches!(out, Value::Bool(true)));
