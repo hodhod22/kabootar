@@ -142,6 +142,8 @@ pub fn tls13HsAppReady(port) {
     s["cIv"] = tls13HkdfExpandLabel(cAp, "iv", tls13EmptyObj(), 12)
     s["sKey"] = tls13HkdfExpandLabel(sAp, "key", tls13EmptyObj(), 16)
     s["sIv"] = tls13HkdfExpandLabel(sAp, "iv", tls13EmptyObj(), 12)
+    s["cAp"] = cAp
+    s["sAp"] = sAp
     return s
 }
 

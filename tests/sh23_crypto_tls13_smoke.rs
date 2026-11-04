@@ -1078,3 +1078,17 @@ fn sh23_crypto_tls13_host_delete_policy() {
     // Make sure it's not accidentally hardcoded to true
     assert!(!crypto_host_file.contains("return true"), "delete gate should not be hardcoded true");
 }
+
+#[test]
+fn sh23_crypto_tls13_keyupd_in_kab() {
+    let s = std::fs::read_to_string("lib/kab/crypto/crypto_tls13_keyupd.kab")
+        .expect("crypto_tls13_keyupd.kab should exist");
+    assert!(s.contains("pub fn tls13KeyUpdateMsg"), "should build KeyUpdate");
+    assert!(s.contains("pub fn tls13ParseKeyUpdate"), "should parse KeyUpdate strictly");
+    assert!(s.contains("\"traffic upd\""), "should derive next traffic secret");
+    assert!(s.contains("pub fn tls13KeyUpdEvalOk"), "should have keyupd eval");
+    let smoke = std::fs::read_to_string("examples/sh23/sh23_crypto_tls13_keyupd_eval_smoke.kab")
+        .expect("keyupd smoke should exist");
+    assert!(smoke.contains("import \"kab/crypto/crypto_tls13_keyupd\""), "should import keyupd");
+    assert!(smoke.contains("28189"), "should use Kab loopback port 28189");
+}

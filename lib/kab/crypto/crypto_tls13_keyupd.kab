@@ -1,0 +1,157 @@
+// SH23: TLS 1.3 post-handshake KeyUpdate (RFC 8446 §4.6.3/§7.2) on the raw
+// TCP loopback. Do not grow crypto_tls13_app.kab. Host rustls remains skuld.
+// import "kab/crypto/crypto_tls13_keyupd"
+
+import "kab/crypto/crypto_tls13_app"
+import "kab/crypto/crypto_tls13_gcm"
+import "kab/crypto/crypto_tls13_hs"
+import "kab/crypto/crypto_tls13_hkdf"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_tls_prf"
+import "kab/crypto/crypto_http_get"
+
+/// KeyUpdate handshake message (type 24): request_update 0 = not requested,
+/// 1 = requested.
+pub fn tls13KeyUpdateMsg(req) {
+    let b = {}
+    b["0"] = req & 255
+    b["n"] = 1
+    return tlsHsWrap(24, b)
+}
+
+/// Strict KeyUpdate parse: exactly type 24, length 1, request_update in {0,1}.
+/// Returns the request value or false.
+pub fn tls13ParseKeyUpdate(hs) {
+    if hs == false {
+        return false
+    }
+    if hs["n"] != 5 {
+        return false
+    }
+    if (hs["0"] & 255) != 24 || (hs["1"] & 255) != 0 || (hs["2"] & 255) != 0 || (hs["3"] & 255) != 1 {
+        return false
+    }
+    let v = hs["4"] & 255
+    if v > 1 {
+        return false
+    }
+    return v
+}
+
+/// application_traffic_secret_N+1 = HKDF-Expand-Label(secret_N, "traffic upd", "", 32).
+pub fn tls13NextTrafficSecret(secret) {
+    return tls13HkdfExpandLabel(secret, "traffic upd", tls13EmptyObj(), 32)
+}
+
+/// Record key/iv for a traffic secret generation.
+pub fn tls13TrafficKeys(secret) {
+    let k = {}
+    k["secret"] = secret
+    k["key"] = tls13HkdfExpandLabel(secret, "key", tls13EmptyObj(), 16)
+    k["iv"] = tls13HkdfExpandLabel(secret, "iv", tls13EmptyObj(), 12)
+    return k
+}
+
+/// Offline legs: message encode/parse, rejects, and a "traffic upd" KAT
+/// (independent HKDF-Expand-Label computed outside Kab for secret=01×32).
+pub fn tls13KeyUpdParseOk() {
+    if tlsObjHex(tls13KeyUpdateMsg(1)) != "1800000101" {
+        return false
+    }
+    if tls13ParseKeyUpdate(tls13KeyUpdateMsg(0)) != 0 {
+        return false
+    }
+    if tls13ParseKeyUpdate(tls13KeyUpdateMsg(1)) != 1 {
+        return false
+    }
+    if tls13ParseKeyUpdate(tls13KeyUpdateMsg(2)) != false {
+        return false
+    }
+    if tls13ParseKeyUpdate(tlsHexToObj("180000020100")) != false {
+        return false
+    }
+    if tls13ParseKeyUpdate(tlsHexToObj("1400000101")) != false {
+        return false
+    }
+    let s = tlsHexToObj("0101010101010101010101010101010101010101010101010101010101010101")
+    if tlsObjHex(tls13NextTrafficSecret(s)) != "22cff25ff3df5a42c557732456754d4f80372ad4d6071f71f4e24d001f66b073" {
+        return false
+    }
+    return true
+}
+
+fn tls13KeyUpdFail(s) {
+    tls13HsLiveClose(s)
+    return false
+}
+
+/// Live leg: handshake → GET under generation 0 → client KeyUpdate
+/// (update_requested) → server KeyUpdate (update_not_requested) → both
+/// directions rotate → 200 + second GET under generation 1 (sequence
+/// numbers reset) → a generation-1 record must NOT decrypt with the
+/// generation-0 key.
+pub fn tls13KeyUpdLiveOk(port) {
+    let s = tls13HsAppReady(port)
+    if s == false {
+        return false
+    }
+    let c0 = tls13TrafficKeys(s["cAp"])
+    let s0 = tls13TrafficKeys(s["sAp"])
+    if tlsObjHex(c0["key"]) != tlsObjHex(s["cKey"]) || tlsObjHex(s0["iv"]) != tlsObjHex(s["sIv"]) {
+        return tls13KeyUpdFail(s)
+    }
+    let req = httpBuildGet("127.0.0.1", "/v?q=1")
+    tls13WriteAppGcm(s["client"], c0["key"], c0["iv"], 0, req)
+    let gotReq = tls13ReadAppGcm(s["server"], c0["key"], c0["iv"], 0)
+    if gotReq == false || tlsObjHex(gotReq) != tlsObjHex(req) {
+        return tls13KeyUpdFail(s)
+    }
+    // Client → server KeyUpdate(update_requested) under client gen 0, seq 1.
+    tls13WriteHsGcm(s["client"], c0["key"], c0["iv"], 1, tls13KeyUpdateMsg(1))
+    let ku = tls13ParseKeyUpdate(tls13ReadHsGcm(s["server"], c0["key"], c0["iv"], 1))
+    if ku != 1 {
+        return tls13KeyUpdFail(s)
+    }
+    let c1 = tls13TrafficKeys(tls13NextTrafficSecret(c0["secret"]))
+    // Server answers update_not_requested under server gen 0, seq 0.
+    tls13WriteHsGcm(s["server"], s0["key"], s0["iv"], 0, tls13KeyUpdateMsg(0))
+    let ku2 = tls13ParseKeyUpdate(tls13ReadHsGcm(s["client"], s0["key"], s0["iv"], 0))
+    if ku2 != 0 {
+        return tls13KeyUpdFail(s)
+    }
+    let s1 = tls13TrafficKeys(tls13NextTrafficSecret(s0["secret"]))
+    if tlsObjHex(c1["key"]) == tlsObjHex(c0["key"]) || tlsObjHex(s1["key"]) == tlsObjHex(s0["key"]) {
+        return tls13KeyUpdFail(s)
+    }
+    if tlsObjHex(c1["secret"]) == tlsObjHex(s1["secret"]) {
+        return tls13KeyUpdFail(s)
+    }
+    let resp = tls13Http200Ok()
+    tls13WriteAppGcm(s["server"], s1["key"], s1["iv"], 0, resp)
+    let gotResp = tls13ReadAppGcm(s["client"], s1["key"], s1["iv"], 0)
+    if gotResp == false || tlsObjHex(gotResp) != tlsObjHex(resp) {
+        return tls13KeyUpdFail(s)
+    }
+    tls13WriteAppGcm(s["client"], c1["key"], c1["iv"], 0, req)
+    let gotReq2 = tls13ReadAppGcm(s["server"], c1["key"], c1["iv"], 0)
+    if gotReq2 == false || tlsObjHex(gotReq2) != tlsObjHex(req) {
+        return tls13KeyUpdFail(s)
+    }
+    // Stale generation: a gen-1 record must fail AEAD under the gen-0 key.
+    tls13WriteAppGcm(s["client"], c1["key"], c1["iv"], 1, req)
+    if tls13ReadAppGcm(s["server"], c0["key"], c0["iv"], 2) != false {
+        return tls13KeyUpdFail(s)
+    }
+    tls13HsLiveClose(s)
+    return true
+}
+
+pub fn tls13KeyUpdEvalOk(port) {
+    if tls13HkdfEvalOk() != true {
+        return false
+    }
+    if tls13KeyUpdParseOk() != true {
+        return false
+    }
+    return tls13KeyUpdLiveOk(port)
+}
