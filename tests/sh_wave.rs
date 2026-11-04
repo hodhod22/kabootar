@@ -61057,9 +61057,12 @@ fn sh18_gc_vm_oid_weak_exec_smoke() {
 }
 
 /// SH18 deepen: streak evidence on a real workload — the smoke churns the
-/// inst heap for 8 consecutive internally-consistent collect cycles
-/// (gcHostReadyStreak >= 8, the gcHostReadyStreakOk flip criterion) while a
-/// permanently-retained keep survives every sweep. The gate flipped after
+/// inst heap for 8 consecutive internally-consistent collect cycles under the
+/// VM's own minor/major cadence (gcCollects + vGcMajorOk: >= 2 majors + minors,
+/// streak +1 per cycle, gcHostReadyStreakOk flip criterion) while
+/// permanently-retained keeps (stored through the write barrier) survive
+/// every sweep; dead vmI weak targets clear per cycle, dead oid weak targets
+/// at the closing major. The gate flipped after
 /// sh18_gc_production_probe proved the streak on the production session
 /// under natural nursery charges (30 consecutive consistent cycles).
 #[test]
@@ -61076,7 +61079,39 @@ fn sh18_gc_streak_workload_exec_smoke() {
             let mut env = create_global_env();
             let program = compile_file_cached(&path).expect("compile gc streak workload smoke");
             let value = eval_program(&program, &mut env).expect("run gc streak workload smoke");
-            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Bool(true)),
+                "gc streak workload smoke failed at step {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: minor-collect weak-clear follows the minor's partition — a
+/// young holder's weak_ to a live old inst, or to a live oid object reached
+/// only through an untraced old inst, survives the minor (neither is marked
+/// nor swept by it); a dead young target still clears; the next major
+/// decides the old/oid targets.
+#[test]
+fn sh18_gc_vm_minor_weak_old_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18/sh18_gc_vm_minor_weak_old_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-vm-minor-weak-old".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile gc vm minor weak old smoke");
+            let value = eval_program(&program, &mut env).expect("run gc vm minor weak old smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Bool(true)),
+                "minor weak old smoke failed at step {value:?}"
+            );
         })
         .expect("spawn")
         .join()

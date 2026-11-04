@@ -8,6 +8,8 @@ Fullstack-programmeringsspråk — tidigare kallat Nova.
 
 **Slutmål:** hela produkten är `.kab` — kompilator, VM, JIT, GC, CLI, stdlib, OS, browser. Rust i `src/` är **skuld** som ska **ersättas och raderas** ([SH28](docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust)). Ny `.rs`-feature är regression. En användare ska bygga och köra Kabootar **utan rustc**.
 
+**Status (SH5/SH18):** compile-DAG:n är **8** filer, alla under 64 KiB-taket och self-host-attemptable. Kab-VM-GC:n (generationell, inkrementell, lazy sweep) har minor-korrekt weak-clear och streak-evidens under VM:ns egen minor/major-kadens (`sh18_gc_streak_workload_smoke`); `gcHostDeleteOk` = true. Se [ROADMAP Just nu](docs/ROADMAP.md#just-nu).
+
 **[📖 Dokumentation](docs/README.md)** · **[Roadmap — noll Rust](docs/ROADMAP.md#kabootar-på-egna-fötter--noll-rust)**
 
 ```bash

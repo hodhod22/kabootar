@@ -1,0 +1,98 @@
+import "self_host/vm_run_session"
+import "self_host/vm_s_stack"
+
+// SH18: a minor collect only decides liveness for its young partition —
+// it never marks old vmI insts (generation skip) and never tombstones
+// oid-keyed objects. Weak-clear must follow the same partition: a young
+// holder's weak_ field to a live old inst, or to a live oid object reached
+// only through an untraced old inst, must survive the minor; a dead young
+// target still clears. The next major decides the old/oid targets.
+let S = vMakeSession()
+let root = { "vmC": 0 }
+root["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, root)
+let oldT = { "vmC": 0, "tag": "old" }
+oldT["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, oldT)
+let oidT = { "tag": "oid" }
+if vInstId(oidT) == undefined {
+    return 1
+}
+vHeapPut(S, oidT)
+root["t"] = oldT
+oldT["o"] = oidT
+S["stack"] = [root]
+
+// Major: promotes root/oldT/oidT (gcOldId moves to the bump frontier).
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+vGcSweepDeadS(S)
+if S["gcHostReady"] != true {
+    return 2
+}
+
+// Young holder reached from the old root via the write barrier.
+let yh = { "vmC": 0 }
+yh["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, yh)
+let yd = { "vmC": 0, "tag": "dead" }
+yd["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, yd)
+yh["weak_t"] = oldT
+yh["weak_o"] = oidT
+yh["weak_d"] = yd
+root["y"] = yh
+vGcLogWriteS(S, root, yh)
+
+vGcCollectBeginS(S, true)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+vGcSweepDeadS(S)
+if S["gcHostReady"] != true {
+    return 3
+}
+if S["insts"][vInstKeyS(yh)] == undefined {
+    return 4
+}
+// Dead young target: tombstoned and its weak field cleared.
+if S["insts"][vInstKeyS(yd)] != undefined {
+    return 5
+}
+if yh["weak_d"] != undefined {
+    return 6
+}
+// Live old inst — outside the minor's partition, must not clear.
+if yh["weak_t"] == undefined {
+    return 7
+}
+// Live oid object reached only via the untraced old inst — must not clear.
+if yh["weak_o"] == undefined {
+    return 8
+}
+
+// Drop the strong edges; the next major decides old + oid targets.
+root["t"] = undefined
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+vGcSweepDeadS(S)
+if S["gcHostReady"] != true {
+    return 9
+}
+if yh["weak_t"] != undefined {
+    return 10
+}
+if yh["weak_o"] != undefined {
+    return 11
+}
+if S["insts"][vInstKeyS(oldT)] != undefined {
+    return 12
+}
+if S["insts"][vInstKeyS(oidT)] != undefined {
+    return 13
+}
+return true
