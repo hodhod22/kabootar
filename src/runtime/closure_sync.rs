@@ -59,6 +59,11 @@ pub fn merge_object_fields(from: &Value, into: &mut Value) {
     let Value::Object(dst) = into else {
         return;
     };
+    // Akutundantag (SH18): self-merge is a no-op; object_make_mut on the map
+    // being iterated would rehash mid-iteration (UAF).
+    if std::rc::Rc::ptr_eq(src, dst) {
+        return;
+    }
     let dst = Value::object_make_mut(dst);
     for (k, v) in src.iter() {
         if !k.starts_with("__kab_") {
