@@ -1092,3 +1092,17 @@ fn sh23_crypto_tls13_keyupd_in_kab() {
     assert!(smoke.contains("import \"kab/crypto/crypto_tls13_keyupd\""), "should import keyupd");
     assert!(smoke.contains("28189"), "should use Kab loopback port 28189");
 }
+
+#[test]
+fn sh23_crypto_tls13_ks_in_kab() {
+    let s = std::fs::read_to_string("lib/kab/crypto/crypto_tls13_ks.kab")
+        .expect("crypto_tls13_ks.kab should exist");
+    assert!(s.contains("pub fn tls13KeySchedule"), "should derive early/handshake/master");
+    assert!(s.contains("\"c hs traffic\"") && s.contains("\"s ap traffic\""), "traffic secrets");
+    assert!(s.contains("pub fn tls13FinishedVd"), "Finished verify_data");
+    assert!(s.contains("pub fn tls13OpenRecord"), "AEAD record open");
+    assert!(s.contains("pub fn tls13KsRfc8448EvalOk"), "RFC 8448 KAT");
+    let smoke = std::fs::read_to_string("examples/sh23/sh23_crypto_tls13_ks_eval_smoke.kab")
+        .expect("key schedule smoke should exist");
+    assert!(smoke.contains("import \"kab/crypto/crypto_tls13_ks\""), "should import ks");
+}
