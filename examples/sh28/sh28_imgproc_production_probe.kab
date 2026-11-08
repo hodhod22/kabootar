@@ -1,0 +1,129 @@
+// SH28 production probe: image-is-process on the production `kabootar run`
+// path. The Kab compiler lowers + emits a whole-fn x64 image once; each
+// round wraps it in a fresh static executable (ELF64 on Linux, PE32+ on
+// Windows), verifies the container structurally (payload byte-identical to
+// the emitted code), writes it to a real host file, and lets the OS exec it
+// as its own process — exit code must equal the image's rax (42). A round
+// counts only when every verdict agrees. 8 consistent rounds =
+// nollImgProcReadyStreakOk flip criterion.
+//
+// Bytes→disk travels as hex through run_command (the sandboxed VFS is
+// virtual); the exe CONTENT is 100% Kab-emitted and the process that runs
+// is the image itself — no kabootar exec-image, no Rust loader.
+
+import "self_host/compile"
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_exe"
+import "kab/noll/noll_imgproc"
+
+fn probeBuild(src) {
+    let lo = aotFnLowerModule(compileIr(src))
+    if lo["ok"] == false {
+        return false
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return false
+    }
+    let data = []
+    let i = 0
+    while i < lo["nglobals"] * 8 {
+        data = push(data, 0)
+        i = i + 1
+    }
+    return { "code": r["code"], "data": data }
+}
+
+fn probeWrite(bytes, path, fmt) {
+    if fmt == "elf" {
+        let r = run_command("python3", ["-c", "import sys;open(sys.argv[1],'wb').write(bytes.fromhex(sys.argv[2]))", path, aotHexEncode(bytes)])
+        return r["success"]
+    }
+    let cmd = "$h='" + aotHexEncode(bytes) + "'; $b=New-Object byte[]($h.Length/2); for($i=0;$i -lt $b.Length;$i++){$b[$i]=[Convert]::ToByte($h.Substring($i*2,2),16)}; [IO.File]::WriteAllBytes('" + path + "',$b)"
+    let r = run_command("powershell", ["-NoProfile", "-Command", cmd])
+    return r["success"]
+}
+
+fn probeStructOk(exe, code, fmt) {
+    if fmt == "elf" {
+        if exe[0] != 127 || exe[1] != 69 || exe[2] != 76 || exe[3] != 70 {
+            return false
+        }
+        // static ET_EXEC, x86-64, two PT_LOAD (text R+X, data R+W).
+        if exe[16] != 2 || exe[18] != 62 || exe[56] != 2 {
+            return false
+        }
+        let j = 0
+        while j < len(code) {
+            if exe[203 + j] != code[j] {
+                return false
+            }
+            j = j + 1
+        }
+        return true
+    }
+    if exe[0] != 77 || exe[1] != 90 || exe[128] != 80 || exe[129] != 69 {
+        return false
+    }
+    let k = 0
+    while k < len(code) {
+        if exe[512 + 26 + k] != code[k] {
+            return false
+        }
+        k = k + 1
+    }
+    return true
+}
+
+fn probeRoundOk(b, fmt, round) {
+    let exe = aotExeEmit(b["code"], b["data"], fmt)
+    if len(exe) == 0 {
+        return false
+    }
+    if probeStructOk(exe, b["code"], fmt) == false {
+        return false
+    }
+    let path = cwd() + "/_sh28_imgproc_probe_" + round + ".elf"
+    if fmt == "pe" {
+        path = cwd() + "\\_sh28_imgproc_probe_" + round + ".exe"
+    }
+    if probeWrite(exe, path, fmt) == false {
+        return false
+    }
+    if fmt == "elf" {
+        run_command("chmod", ["+x", path])
+    }
+    let r = run_command(path, [])
+    if fmt == "elf" {
+        run_command("rm", ["-f", path])
+    } else {
+        run_command("powershell", ["-NoProfile", "-Command", "Remove-Item '" + path + "' -Force -ErrorAction SilentlyContinue"])
+    }
+    return r["code"] == 42
+}
+
+let b = probeBuild("let g = 5 fn bump(x) { g = g + x return g } return bump(37)")
+if b == false {
+    return 1
+}
+let fmt = aotExeHostFmt()
+let streak = 0
+let round = 0
+while round < 8 {
+    if probeRoundOk(b, fmt, round) == true {
+        streak = streak + 1
+    } else {
+        streak = 0
+    }
+    round = round + 1
+}
+if nollImgProcReadyStreakOk(streak) != true {
+    return 10 + streak
+}
+if nollImageIsProcess() != true {
+    return 30
+}
+return true

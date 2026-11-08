@@ -14,10 +14,10 @@ if nollAotReady() {
 if nollBootstrapImage() != "kabootar.kbc" {
     return false
 }
-if nollAotProcess() != false {
+if nollAotProcess() != true {
     return false
 }
-if nollImageIsProcess() != false {
+if nollImageIsProcess() != true {
     return false
 }
 return nollHostDeleteOk() == false

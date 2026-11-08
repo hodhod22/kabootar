@@ -13,7 +13,7 @@ if nollAotReady() {
 if nollStubFrozen() != false {
     return false
 }
-if nollMmapExecProcess() != false {
+if nollMmapExecProcess() != true {
     return false
 }
 if nollStubIsProcess() != false {

@@ -13,10 +13,10 @@ if nollAotReady() {
 if nollMmapStub() != false {
     return false
 }
-if nollImageIsProcess() != false {
+if nollImageIsProcess() != true {
     return false
 }
-if nollMmapExecProcess() != false {
+if nollMmapExecProcess() != true {
     return false
 }
 return nollHostDeleteOk() == false
