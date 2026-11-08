@@ -81040,9 +81040,43 @@ fn sh28_noll_mmexec_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_mmexec.kab")).expect("noll_mmexec.kab");
     assert!(
-        i.contains("pub fn nollMmapExecProcess") && i.contains("return false"),
-        "SH28 Kab nollMmapExecProcess"
+        i.contains("pub fn nollMmapExecProcess")
+            && i.contains("return true")
+            && i.contains("nollMmapExecReadyStreakOk"),
+        "SH28 Kab nollMmapExecProcess flipped after production evidence"
     );
+}
+
+/// SH28 production evidence for nollMmapExecProcess: while the Kab-emitted
+/// static ELF64 runs, its live /proc/<pid>/maps shows the kernel's execve
+/// mmap of the Kab image (text 0x400000 r-xp + data 0x401000 rw-p) as the
+/// only file-backed mappings, exit==42 — 8 consecutive consistent rounds on
+/// `kabootar run` (nollMmapExecReadyStreakOk).
+#[cfg(target_os = "linux")]
+#[test]
+fn sh28_mmexec_production_probe_exec() {
+    let path = format!(
+        "{}/examples/sh28/sh28_mmexec_production_probe.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh28-mmexec-production-probe".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program =
+                compile_file_cached(&path).expect("compile sh28 mmexec production probe");
+            let value =
+                eval_program(&program, &mut env).expect("run sh28 mmexec production probe");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Bool(true)),
+                "sh28 mmexec production probe returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
 }
 
 /// SH28 deepen: mmap-exec-process dual-bind to mmap-stub, image-is-process, AOT false, and host delete gate.

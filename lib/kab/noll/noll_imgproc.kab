@@ -6,8 +6,8 @@
 // no os_mm_* guest slot. The process exit code is the image's rax.
 // Production probe sh28_imgproc_production_probe: 8 consecutive consistent
 // rounds (emit → structural verify → write → exec → exit==42) on
-// `kabootar run` (nollImgProcReadyStreakOk). nollMmapExecProcess,
-// nollProcessIsKab and nollAotReady stay false — the image covers the AOT
+// `kabootar run` (nollImgProcReadyStreakOk). nollMmapExecProcess is true
+// (sh28_mmexec_production_probe); nollProcessIsKab and nollAotReady stay false — the image covers the AOT
 // subset, not the full compiler+VM surface.
 // Do not grow noll_aotproc.kab or noll_image.kab. Do not delete src/.
 

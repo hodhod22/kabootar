@@ -1,11 +1,25 @@
-// SH28: mmap+exec of the image is not the OS process — policy "mmap-exec-process" is false.
-// `nollAotProcess` is true (kab/aot/aot_proc runs the image under an
-// os_spawn'd pid with its own os_mm_* VA space) — but mmap+exec inside a
-// process is still not the process itself. This flag stays false by design;
-// nollImageIsProcess (the static exe itself) is true.
+// SH28: mmap+exec of the image IS the OS process — policy "mmap-exec-process" is true.
 // import "kab/noll/noll_mmexec"
-// Do not grow noll_imgproc.kab or noll_mmap.kab. Do not delete src/. nollAotReady stays false.
+// Evidence: kab/aot/aot_exe emits a static ELF64 (ET_EXEC, two page-congruent
+// PT_LOAD, no PT_INTERP); execve's kernel mmap of those segments is the whole
+// user image of the process. Production probe sh28_mmexec_production_probe
+// reads the LIVE process's /proc/<pid>/maps while the Kab image runs: text
+// 0x400000 r-xp + data 0x401000 rw-p backed by the Kab-emitted file, no other
+// file-backed mapping (no ld.so/libc/kabootar), exit == rax (42) — 8
+// consecutive consistent rounds on `kabootar run` (nollMmapExecReadyStreakOk).
+// Scope: the AOT subset image — nollProcessIsKab and nollAotReady stay false
+// (the full compiler+VM surface is not yet a Kab-emitted image).
+// Do not grow noll_imgproc.kab or noll_mmap.kab. Do not delete src/.
 
 pub fn nollMmapExecProcess() {
-    return false
+    return true
+}
+
+/// Flip criterion: consecutive fully-consistent live-maps rounds.
+/// 8 = same convention as nollImgProcReadyStreakOk/httpReadyStreakOk.
+pub fn nollMmapExecReadyStreakOk(streak) {
+    if typeof(streak) != "number" {
+        return false
+    }
+    return streak >= 8
 }

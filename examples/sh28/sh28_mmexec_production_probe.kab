@@ -1,0 +1,163 @@
+// SH28 production probe: mmap+exec of the Kab image IS the OS process, on
+// the production `kabootar run` path. The Kab compiler lowers + emits a
+// long-running whole-fn x64 image once; each round wraps it in a fresh
+// static ELF64 (aot_exe: ET_EXEC, exactly two PT_LOAD, no PT_INTERP, page-
+// congruent offsets), writes it to a real host file and execs it. While the
+// image runs, the probe reads the live process's /proc/<pid>/maps: the
+// kernel's execve mmap of the Kab image must be the whole user image —
+// text at 0x400000 r-xp and data at 0x401000 rw-p, both backed by the exe
+// file, and no other file-backed mapping (no ld.so, no libc, no kabootar).
+// Exit code must equal the image's rax (42). A round counts only when every
+// verdict agrees; 8 consistent rounds = nollMmapExecReadyStreakOk.
+//
+// Bytes→disk travel as hex through run_command (the sandboxed VFS is
+// virtual); the exe CONTENT is 100% Kab-emitted and no Rust loader, no
+// exec-image and no os_mm_* guest slot are involved. ELF/Linux only —
+// /proc/<pid>/maps is the evidence surface.
+
+import "self_host/compile"
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_exe"
+import "kab/noll/noll_mmexec"
+
+fn mmxBuild(src) {
+    let lo = aotFnLowerModule(compileIr(src))
+    if lo["ok"] == false {
+        return false
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return false
+    }
+    let data = []
+    let i = 0
+    while i < lo["nglobals"] * 8 {
+        data = push(data, 0)
+        i = i + 1
+    }
+    return { "code": r["code"], "data": data }
+}
+
+fn mmxU32(b, at) {
+    return b[at] + b[at + 1] * 256 + b[at + 2] * 65536 + b[at + 3] * 16777216
+}
+
+/// Static ET_EXEC x86-64 with exactly two PT_LOAD (no PT_INTERP/PT_DYNAMIC),
+/// each p_offset ≡ p_vaddr (mod 4096) so the kernel can mmap it directly.
+fn mmxStructOk(exe) {
+    if exe[0] != 127 || exe[1] != 69 || exe[2] != 76 || exe[3] != 70 {
+        return false
+    }
+    if exe[16] != 2 || exe[18] != 62 || exe[56] != 2 {
+        return false
+    }
+    let k = 0
+    while k < 2 {
+        let ph = 64 + k * 56
+        if mmxU32(exe, ph) != 1 {
+            return false
+        }
+        if mmxU32(exe, ph + 8) % 4096 != mmxU32(exe, ph + 16) % 4096 {
+            return false
+        }
+        k = k + 1
+    }
+    return mmxU32(exe, 68) == 5 && mmxU32(exe, 124) == 6
+}
+
+fn mmxWrite(bytes, path) {
+    let r = run_command("python3", ["-c", "import sys;open(sys.argv[1],'wb').write(bytes.fromhex(sys.argv[2]))", path, aotHexEncode(bytes)])
+    return r["success"]
+}
+
+fn mmxTokens(line) {
+    let out = []
+    let parts = split(line, " ")
+    let i = 0
+    while i < len(parts) {
+        if parts[i] != "" {
+            out = push(out, parts[i])
+        }
+        i = i + 1
+    }
+    return out
+}
+
+/// Verdict over the live maps + exit line. Returns true only if the Kab
+/// image's text+data mappings are present and nothing else is file-backed.
+fn mmxMapsOk(out, path) {
+    let lines = split(trim(out), "\n")
+    if len(lines) < 3 {
+        return false
+    }
+    if lines[len(lines) - 1] != "rc=42" {
+        return false
+    }
+    let text = false
+    let data = false
+    let i = 0
+    while i < len(lines) - 1 {
+        let t = mmxTokens(lines[i])
+        if len(t) >= 6 {
+            let name = t[5]
+            if name == path {
+                if starts_with(t[0], "00400000-") && t[1] == "r-xp" {
+                    text = true
+                }
+                if starts_with(t[0], "00401000-") && t[1] == "rw-p" {
+                    data = true
+                }
+            } else {
+                if starts_with(name, "[") == false {
+                    return false
+                }
+            }
+        }
+        i = i + 1
+    }
+    return text && data
+}
+
+fn mmxRoundOk(b, round) {
+    let exe = aotExeEmit(b["code"], b["data"], "elf")
+    if len(exe) == 0 || mmxStructOk(exe) == false {
+        return false
+    }
+    let path = cwd() + "/_sh28_mmexec_run_" + round + ".elf"
+    if mmxWrite(exe, path) == false {
+        return false
+    }
+    run_command("chmod", ["+x", path])
+    let sh = "\"$1\" & p=$!; n=0; while [ \"$(readlink /proc/$p/exe 2>/dev/null)\" != \"$1\" ] && [ $n -lt 100000 ]; do n=$((n+1)); done; cat /proc/$p/maps; wait $p; echo rc=$?"
+    let r = run_command("sh", ["-c", sh, "sh", path])
+    run_command("rm", ["-f", path])
+    return mmxMapsOk(r["stdout"], path)
+}
+
+if aotExeHostFmt() != "elf" {
+    return 2
+}
+let b = mmxBuild("fn spin(n) { let i = 0 while i < n { i = i + 1 } return 42 } return spin(300000000)")
+if b == false {
+    return 1
+}
+let streak = 0
+let round = 0
+while round < 8 {
+    if mmxRoundOk(b, round) == true {
+        streak = streak + 1
+    } else {
+        streak = 0
+    }
+    round = round + 1
+}
+if nollMmapExecReadyStreakOk(streak) != true {
+    return 10 + streak
+}
+if nollMmapExecProcess() != true {
+    return 30
+}
+return true
