@@ -338,6 +338,7 @@ pub fn vSyncGenRecvS(g) {
                 rg["closeRet"] = g["closeRet"]
                 rg["pendK"] = g["pendK"]
                 rg["pendV"] = g["pendV"]
+                rg["ysCustom"] = g["ysCustom"]
             }
         }
     }
@@ -356,6 +357,7 @@ pub fn vSyncGenRecvS(g) {
                 rr["closeRet"] = g["closeRet"]
                 rr["pendK"] = g["pendK"]
                 rr["pendV"] = g["pendV"]
+                rr["ysCustom"] = g["ysCustom"]
             }
         }
     }
@@ -374,6 +376,7 @@ pub fn vSyncGenRecvS(g) {
                 tr["closeRet"] = g["closeRet"]
                 tr["pendK"] = g["pendK"]
                 tr["pendV"] = g["pendV"]
+                tr["ysCustom"] = g["ysCustom"]
             }
         }
     }
@@ -816,6 +819,9 @@ pub fn vNoteYsDelS(S, it) {
     if cg != undefined {
         if cg != null {
             cg["ysdel"] = it
+            if it != null && it != undefined && vObjGet(it, "vmGen") != 1 && vObjGet(it, "vmGen") != true {
+                cg["ysCustom"] = 1
+            }
             let gn = cg["next"]
             if gn != undefined {
                 gn["vmR"] = cg
@@ -1050,19 +1056,18 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
     if g["idx"] != given["idx"] {
         g = given
     }
-    if g["done"] == 1 {
-        let dv = null
-        if len(ordered) > 0 {
-            dv = ordered[0]
+    if g["done"] == 1 || g["done"] == true {
+        // Completed: a generator that delegated to a custom (non-fn*) iterator
+        // echoes the throw value (that iterator's throw contract); a pure fn*
+        // chain stays { value: null, done: true }.
+        if g["ysCustom"] == 1 {
+            let dv = null
+            if len(ordered) > 0 {
+                dv = ordered[0]
+            }
+            return { "value": dv, "done": false }
         }
-        return { "value": dv, "done": false }
-    }
-    if g["done"] == true {
-        let dv2 = null
-        if len(ordered) > 0 {
-            dv2 = ordered[0]
-        }
-        return { "value": dv2, "done": false }
+        return { "value": null, "done": true }
     }
     if g["pendK"] != undefined {
         let pv = g["pendV"]
