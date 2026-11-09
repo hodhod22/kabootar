@@ -25465,6 +25465,13 @@ fn sh17_jit_bits_exec_smoke() {
         .expect("join");
 }
 
+/// AOT source-path smokes test emission (native rax == mirror), not the Kab VM:
+/// pin the host bytecode VM so `--exact` runs don't depend on another test
+/// having leaked `KABOOTAR_VM=host` (default Kab VM: ~0.2 s per push → hours).
+fn aot_src_host_vm() {
+    std::env::set_var("KABOOTAR_VM", "host");
+}
+
 /// SH28: guest x64 executor — real fetch-decode-execute of emitted bytes
 /// (mov/add/cmp/jcc/call/ret/frame/local + fault kinds), no os_mm_call
 /// template matching. Still in-process guest execution.
@@ -25568,6 +25575,7 @@ fn sh28_aot_native_exec_smoke() {
 /// fn-values, non-i32 consts, dynamic Value ops, arity > 4).
 #[test]
 fn sh28_aot_src_native_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh28/sh28_aot_src_native_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -25717,6 +25725,7 @@ fn sh28_aot_dyn_smoke() {
 /// consts are rejected honestly.
 #[test]
 fn sh28_aot_tv1_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh28/sh28_aot_tv1_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -25862,6 +25871,7 @@ fn sh28_aot_num_smoke() {
 /// run natively; native rax == mirror == host answer.
 #[test]
 fn sh28_aot_num_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh28/sh28_aot_num_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -25891,6 +25901,7 @@ fn sh28_aot_num_src_smoke() {
 /// arrays.
 #[test]
 fn sh28_aot_rec_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh28/sh28_aot_rec_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -25920,6 +25931,7 @@ fn sh28_aot_rec_src_smoke() {
 /// Native rax == Kab mirror on the same op arrays.
 #[test]
 fn sh28_aot_str_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh28/sh28_aot_str_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -25949,6 +25961,7 @@ fn sh28_aot_str_src_smoke() {
 /// match machinery emits. Native rax == Kab mirror on the same ops.
 #[test]
 fn sh28_aot_opt_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh28/sh28_aot_opt_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -25981,6 +25994,7 @@ fn sh28_aot_opt_src_smoke() {
 /// Native rax == Kab mirror on the same ops.
 #[test]
 fn sh28_aot_match_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh28/sh28_aot_match_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -26013,6 +26027,7 @@ fn sh28_aot_match_src_smoke() {
 /// Kab mirror on the same ops.
 #[test]
 fn sh28_aot_arr_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh28/sh28_aot_arr_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -26048,6 +26063,7 @@ fn sh28_aot_arr_src_smoke() {
 /// implicit `return undefined`. Native rax == Kab mirror on same ops.
 #[test]
 fn sh28_aot_try_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh28/sh28_aot_try_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -26080,6 +26096,7 @@ fn sh28_aot_try_src_smoke() {
 /// fall through to gload+callv → honest trap. Native rax == mirror.
 #[test]
 fn sh28_aot_builtin_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh28/sh28_aot_builtin_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -26114,6 +26131,7 @@ fn sh28_aot_builtin_src_smoke() {
 /// Native rax == Kab mirror on same ops.
 #[test]
 fn sh29_aot_class_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh29/sh29_aot_class_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -26144,6 +26162,7 @@ fn sh29_aot_class_src_smoke() {
 /// four-arg register bound. Native rax == Kab mirror on same ops.
 #[test]
 fn sh30_aot_calln_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh30/sh30_aot_calln_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -26174,6 +26193,7 @@ fn sh30_aot_calln_src_smoke() {
 /// no f→i32 op exists. Native rax == Kab mirror on same ops.
 #[test]
 fn sh31_aot_bitops_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh31/sh31_aot_bitops_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -26204,6 +26224,7 @@ fn sh31_aot_bitops_src_smoke() {
 /// Native rax == Kab mirror on same ops.
 #[test]
 fn sh32_aot_pow_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh32/sh32_aot_pow_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
@@ -26237,6 +26258,7 @@ fn sh32_aot_pow_src_smoke() {
 /// Native rax == Kab mirror == tagged expect on every case.
 #[test]
 fn sh33_aot_link_src_smoke() {
+    aot_src_host_vm();
     let path = format!(
         "{}/examples/sh33/sh33_aot_link_src_smoke.kab",
         env!("CARGO_MANIFEST_DIR")
