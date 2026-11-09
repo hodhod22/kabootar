@@ -365,7 +365,7 @@ pub fn jacAdd(P, Q, n) {
     x3 = p16SubMod(x3, p16AddMod(v, v, n), n)
     let y3 = p16MulMod(r, p16SubMod(v, x3, n), n)
     y3 = p16SubMod(y3, p16MulMod(s1, hhh, n), n)
-    let z3 = p16MulMod(p16SubMod(p16AddMod(z1, z2, n), p16AddMod(z1z1, z2z2, n), n), h, n)
+    let z3 = p16MulMod(p16MulMod(z1, z2, n), h, n)
     let o = {}
     o["x"] = x3
     o["y"] = y3
