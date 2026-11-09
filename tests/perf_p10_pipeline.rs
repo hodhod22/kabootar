@@ -136,7 +136,8 @@ fn p10_seed_kbc_load_vs_kbcb() {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("self_host")
         .join("seed")
-        .join("emit_impl.kab.kbc");
+        .join("dag")
+        .join("emit_expr_body.kab.kbc");
     let text = std::fs::read_to_string(&path).expect("read seed");
     let t0 = Instant::now();
     let module = deserialize(&text).expect("deserialize seed");
@@ -146,7 +147,7 @@ fn p10_seed_kbc_load_vs_kbcb() {
     let loaded = deserialize_kbcb(&bin).expect("kbcb seed");
     let bin_ms = ms(t0);
     eprintln!(
-        "P10 seed emit_impl.kab.kbc: text_bytes={} kbcb_bytes={} deser_text_ms={text_ms:.1} deser_kbcb_ms={bin_ms:.1} ops={}",
+        "P10 seed emit_expr_body.kab.kbc: text_bytes={} kbcb_bytes={} deser_text_ms={text_ms:.1} deser_kbcb_ms={bin_ms:.1} ops={}",
         text.len(),
         bin.len(),
         loaded.main_code.len()
