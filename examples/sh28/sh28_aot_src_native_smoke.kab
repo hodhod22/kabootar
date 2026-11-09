@@ -197,8 +197,12 @@ if aotFnLowerModule(compileIr("return 1.5"))["ok"] {
 if aotFnLowerModule(compileIr("return [1, 2][0]"))["ok"] {
     return 28
 }
-// Arity > 4: the private convention covers rcx/rdx/r8/r9 only → rejects.
-if aotFnLowerModule(compileIr("fn t(a, b, c, d, e) { return a } return t(1, 2, 3, 4, 5)"))["ok"] {
+// Arity > 4: the lowerer now accepts it (tv1 spills args 5+ to the stack,
+// AOT-VALUES), but the aot-i64v1 emitter here covers rcx/rdx/r8/r9 only —
+// it must refuse honestly, never run with a wrong answer.
+let c5Bc = compileIr("fn t(a, b, c, d, e) { return a * 10000 + b * 1000 + c * 100 + d * 10 + e } return t(1, 2, 3, 4, 5)")
+let c5R = srcNativeExec("_aot_src_c5.kabi", c5Bc)
+if c5R["ok"] == true && c5R["rax"] != 12345 {
     return 29
 }
 // Fn value as data: `fib` as a value (not a call target) → rejects.
