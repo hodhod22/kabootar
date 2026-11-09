@@ -852,6 +852,93 @@ pub fn aotFnPro(b, nlocals, arity, isEntry, abi, needR12) {
     return b
 }
 
+/// Re-entrant entry: when fns[0] is ALSO an intra-image call target its
+/// host-ABI normalization (sysv rdi/rsi → rcx/rdx, r12 = data page) must
+/// run only once — a recursive call through the plain entry would redo
+/// `mov rcx,rdi` and see the HOST's arg again (infinite recursion). Layout:
+/// [sysv moves] 41 54 push r12 [mov r12,…] EB 02 jmp over the internal
+/// push r12 → then the ordinary non-entry prologue. Internal calls land at
+/// aotFnReEntryOff (that non-entry prologue), so r12 is pushed once either way.
+pub fn aotFnReEntryOff(arity, abi, needR12) {
+    let n = 2 + 2
+    if abi == "sysv" {
+        if arity >= 1 {
+            n = n + 3
+        }
+        if arity >= 2 {
+            n = n + 3
+        }
+    }
+    if needR12 {
+        n = n + 3
+    }
+    return n
+}
+
+pub fn aotFnProReLen(nlocals, arity, abi, needR12) {
+    return aotFnReEntryOff(arity, abi, needR12) + aotFnProLen(nlocals, arity, false, abi, needR12)
+}
+
+pub fn aotFnProRe(b, nlocals, arity, abi, needR12) {
+    if abi == "sysv" {
+        if arity >= 1 {
+            b.push(72)
+            b.push(137)
+            b.push(249)
+        }
+        if arity >= 2 {
+            b.push(72)
+            b.push(137)
+            b.push(242)
+        }
+    }
+    b.push(65)
+    b.push(84)
+    if needR12 {
+        b.push(73)
+        b.push(137)
+        if abi == "win64" {
+            b.push(212)
+        } else {
+            b.push(244)
+        }
+    }
+    // EB 02 = jmp +2 over the internal entry's push r12.
+    b.push(235)
+    b.push(2)
+    return aotFnPro(b, nlocals, arity, false, abi, needR12)
+}
+
+/// Any direct call / callv candidate that targets fns[0].
+fn aotFnsCallEntry(fns) {
+    let i = 0
+    while i < len(fns) {
+        let ops = fns[i]["ops"]
+        let j = 0
+        while j < len(ops) {
+            let n = ops[j][0]
+            if n == "call0" || n == "call" || n == "call2" || n == "call3" || n == "call4" || n == "calln" {
+                if ops[j][1] == 0 {
+                    return true
+                }
+            }
+            if n == "callv" {
+                let cs = ops[j][2]
+                let k = 0
+                while k < len(cs) {
+                    if cs[k] == 0 {
+                        return true
+                    }
+                    k = k + 1
+                }
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return false
+}
+
 /// Byte length of one `mov r?,[rbp-8*(i+1)]` / `mov [rbp-…],r?` local
 /// access — disp8 (4B) when 8*(i+1)<=128 else disp32 (7B).
 fn aotX64LocalLen(i) {
@@ -3323,6 +3410,7 @@ pub fn aotX64EmitFns(fns, abi) {
         fa = push(fa, fns[fai]["arity"])
         fai = fai + 1
     }
+    let reEnt = aotFnsCallEntry(fns)
     // Pass 1a: per-fn op offsets + fn start offsets.
     let fnOffs = []
     let allOffs = []
@@ -3336,6 +3424,9 @@ pub fn aotX64EmitFns(fns, abi) {
         }
         let isEntry = fi == 0
         let pro = aotFnProLen(f["locals"], f["arity"], isEntry, abi, needR12)
+        if isEntry && reEnt {
+            pro = aotFnProReLen(f["locals"], f["arity"], abi, needR12)
+        }
         cur = cur + pro
         let offs = aotFnOpOffsets(f["ops"], cur, f["locals"], fa)
         if len(offs) == 0 {
@@ -3413,13 +3504,29 @@ pub fn aotX64EmitFns(fns, abi) {
         }
         fi2 = fi2 + 1
     }
+    // Call targets: fns[0] re-entered internally lands past its host-ABI
+    // normalization (aotFnReEntryOff); fnOffs itself stays the image entry.
+    let callOffs = fnOffs
+    if reEnt {
+        callOffs = []
+        let co = 0
+        while co < len(fnOffs) {
+            callOffs = push(callOffs, fnOffs[co])
+            co = co + 1
+        }
+        callOffs[0] = fnOffs[0] + aotFnReEntryOff(fns[0]["arity"], abi, needR12)
+    }
     // Pass 2: emit.
     let b = []
     let fi3 = 0
     while fi3 < len(fns) {
         let f = fns[fi3]
-        b = aotFnPro(b, f["locals"], f["arity"], fi3 == 0, abi, needR12)
-        b = aotFnEmitOps(b, f["ops"], allOffs[fi3], fnOffs, f["locals"], gcIdx, fa, 0, len(f["ops"]), 0)
+        if fi3 == 0 && reEnt {
+            b = aotFnProRe(b, f["locals"], f["arity"], abi, needR12)
+        } else {
+            b = aotFnPro(b, f["locals"], f["arity"], fi3 == 0, abi, needR12)
+        }
+        b = aotFnEmitOps(b, f["ops"], allOffs[fi3], callOffs, f["locals"], gcIdx, fa, 0, len(f["ops"]), 0)
         fi3 = fi3 + 1
     }
     return { "code": b, "fnOffs": fnOffs, "total": cur }
