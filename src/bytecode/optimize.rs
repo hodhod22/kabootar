@@ -341,7 +341,10 @@ fn peephole(code: &mut Vec<Opcode>, constants: &[Constant], regions: &mut [Gener
                                 _ => {}
                             }
                         }
-                        Some(Opcode::Pop) if !targeted(i, j) => {
+                        // A jump onto the Const enters the pair at its start (net
+                        // zero; compact retargets past it) — only a jump onto the Pop
+                        // carries a stack delta.
+                        Some(Opcode::Pop) if !jump_targets.contains(&j) => {
                             live[i] = None;
                             live[j] = None;
                             stats.peepholes += 2;

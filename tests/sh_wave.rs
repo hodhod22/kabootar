@@ -85817,11 +85817,17 @@ fn sh8_tiny_parse_via_compiler_image() {
 /// SH8: tiny self-host compile. SH14: second compile in the same thread (session + toolchain reuse).
 #[test]
 fn sh8_tiny_self_host_compile() {
-    use kabootar_lib::bytecode::{jit_reset_for_tests, jit_stats};
+    use kabootar_lib::bytecode::{
+        jit_reset_for_tests, jit_set_call_threshold_for_tests, jit_stats,
+    };
     use kabootar_lib::compile::compile_source_self_host;
     std::env::set_var("KABOOTAR_VM", "host");
     ensure_compiler_image();
     jit_reset_for_tests();
+    // Two compiles call accCount 2× / serCount 4× — below the default
+    // threshold (8); pin it like the sh9 tests instead of relying on one of
+    // them leaking threshold=1 in a parallel run.
+    jit_set_call_threshold_for_tests(1);
     let (first_ms, warm_ms, program) = sh8_spawn("sh8-compile", || {
         let t0 = Instant::now();
         let p = compile_source_self_host("return 1\n").expect("self-host tiny");
