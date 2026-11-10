@@ -25470,6 +25470,20 @@ fn sh17_jit_bits_exec_smoke() {
 /// having leaked `KABOOTAR_VM=host` (default Kab VM: ~0.2 s per push → hours).
 fn aot_src_host_vm() {
     std::env::set_var("KABOOTAR_VM", "host");
+    // The host VM self-host-compiles imports, and these two AOT libs exceed
+    // `maxBytes`; on the Kab VM they rust-compile as nested loads and land in
+    // `.kabootar/cache`. Warm that cache the same way so the smokes don't
+    // depend on a Kab-VM test having run first under the current toolchain.
+    use kabootar_lib::compile::{compile_file, read_bytecode_cache, write_compile_marker};
+    for p in ["lib/kab/aot/aot_fn_x64.kab", "lib/kab/aot/aot_fn_lower.kab"] {
+        let mtime = std::fs::metadata(p)
+            .and_then(|m| m.modified())
+            .expect("aot lib mtime");
+        if read_bytecode_cache(p, mtime).ok().flatten().is_none() {
+            let program = compile_file(p).expect("compile oversize aot lib");
+            write_compile_marker(p, &program).expect("write aot lib cache");
+        }
+    }
 }
 
 /// SH28: guest x64 executor — real fetch-decode-execute of emitted bytes
