@@ -1925,6 +1925,34 @@ fn sh23_crypto_tls13_peer_get_eval_smoke() {
         .expect("join");
 }
 
+/// SH23: Kab TLS 1.3 live handshake vs rustls TLS 1.3 peer :28460 — ephemeral
+/// X25519 key share + client random from `crypto_random` per connection, public
+/// key derived in Kab, full key schedule + client Finished + application-data GET.
+/// Two connections must both complete and carry distinct key shares/randoms.
+#[test]
+fn sh23_crypto_tls13_live_eval_smoke() {
+    spawn_tls13_peer_multi(28460, false, true);
+    std::thread::sleep(Duration::from_millis(80));
+    let path = format!(
+        "{}/examples/sh23/sh23_crypto_tls13_live_eval_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh23-crypto-tls13-live".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile TLS 1.3 live handshake");
+            let value = eval_program(&program, &mut env).expect("run TLS 1.3 live handshake");
+            eprintln!("sh23 TLS 1.3 live handshake value = {value:?}");
+            assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// SH23: wrapper httpFetch GET over Kab TLS 1.3 vs rustls peer :28296 (not rustls-host fetch).
 #[test]
 fn sh23_crypto_http_fetch_tls13_peer_eval_smoke() {

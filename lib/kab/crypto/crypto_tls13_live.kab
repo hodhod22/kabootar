@@ -1,0 +1,103 @@
+// SH23: Kab TLS 1.3 live handshake with an ephemeral X25519 key share.
+// Fresh client secret + client random per connection (crypto_random), public
+// key derived in Kab (x25519(secret, 9)), full key schedule + client Finished
+// + application-data GET against a rustls TLS 1.3 peer. Host rustls remains skuld.
+// import "kab/crypto/crypto_tls13_live"
+
+import "kab/crypto/crypto_tls13_peer_fin"
+import "kab/crypto/crypto_tls13_peer_get"
+import "kab/crypto/crypto_x25519_eval"
+import "kab/crypto/crypto_tls_hs"
+import "kab/crypto/crypto_http_get"
+import "kab/crypto/crypto_http_resp"
+import "kab/http/http_util"
+
+pub fn tls13LiveRandObj(n) {
+    let r = crypto_random(n)
+    if len(r) != n {
+        return false
+    }
+    let o = {}
+    let i = 0
+    while i < n {
+        o["" + i] = r[i] & 255
+        i = i + 1
+    }
+    o["n"] = n
+    return o
+}
+
+pub fn tls13LiveKeyShare() {
+    let sec = tls13LiveRandObj(32)
+    if sec == false {
+        return false
+    }
+    let base = tlsHexToObj("0900000000000000000000000000000000000000000000000000000000000000")
+    let ks = {}
+    ks["sec"] = sec
+    ks["pub"] = x25519(sec, base)
+    return ks
+}
+
+pub fn tls13LiveHsOpen(port) {
+    let ks = tls13LiveKeyShare()
+    if ks == false {
+        return false
+    }
+    let random = tls13LiveRandObj(32)
+    if random == false {
+        return false
+    }
+    let s = tls13PeerHsClientOpenKeys(port, ks["sec"], ks["pub"], random)
+    if s == false {
+        return false
+    }
+    s["clientPubHex"] = tlsObjHex(ks["pub"])
+    s["clientRandomHex"] = tlsObjHex(random)
+    return s
+}
+
+pub fn tls13LiveGet(port, path) {
+    let s = tls13LiveHsOpen(port)
+    if s == false {
+        return false
+    }
+    let resp = tls13PeerAppAfterHs(s, httpBuildGet("127.0.0.1", path))
+    if resp == false {
+        return false
+    }
+    let o = {}
+    o["status"] = httpStatusCode(resp)
+    o["body"] = httpBytesToStr(httpRespBody(resp))
+    o["clientPubHex"] = s["clientPubHex"]
+    o["clientRandomHex"] = s["clientRandomHex"]
+    return o
+}
+
+pub fn tls13LiveEvalOk(port) {
+    let alicePub = "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a"
+    let a = tls13LiveGet(port, "/v?q=1")
+    if a == false {
+        return false
+    }
+    if a["status"] != 200 || a["body"] != "OK" {
+        return false
+    }
+    if a["clientPubHex"] == alicePub {
+        return false
+    }
+    let b = tls13LiveGet(port, "/v?q=2")
+    if b == false {
+        return false
+    }
+    if b["status"] != 200 || b["body"] != "OK" {
+        return false
+    }
+    if b["clientPubHex"] == a["clientPubHex"] {
+        return false
+    }
+    if b["clientRandomHex"] == a["clientRandomHex"] {
+        return false
+    }
+    return true
+}
