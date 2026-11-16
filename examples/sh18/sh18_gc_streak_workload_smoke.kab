@@ -7,7 +7,8 @@ import "kab/gc/gc_host"
 // not just two hand-driven cycles. This smoke churns the inst heap: each
 // round publishes dead garbage plus a permanently-retained keep, then runs
 // a complete collect. 8 consecutive internally-consistent cycles satisfy
-// the criterion — the gate itself still stays false (see below).
+// the criterion (the minor/major cadence variant is
+// sh18_gc_streak_cadence_smoke).
 let S = vMakeSession()
 
 // Persistent root reachable via S["stack"] across all cycles.

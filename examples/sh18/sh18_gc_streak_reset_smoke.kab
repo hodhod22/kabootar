@@ -1,0 +1,85 @@
+import "self_host/vm_run_session"
+import "self_host/vm_s_stack"
+import "kab/gc/gc_host"
+
+// SH18 deepen: the host-ready streak counts CONSECUTIVE consistent cycles.
+// One inconsistent settle (marked != live) must drop it to 0 — otherwise a
+// broken cycle hides inside the gcHostReadyStreakOk(8) evidence.
+let S = vMakeSession()
+let root = { "vmC": 0 }
+root["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, root)
+S["stack"] = [root]
+
+let round = 0
+while round < 2 {
+    let g = { "vmC": 0 }
+    g["vmI"] = vGcTakeInstIdS(S)
+    vHeapPut(S, g)
+    vGcCollectBeginS(S, false)
+    while S["gcMarkActive"] == true {
+        vGcMarkSliceS(S, 64)
+    }
+    vGcSweepDeadS(S)
+    if S["gcHostReady"] != true {
+        return 1
+    }
+    round = round + 1
+}
+if S["gcHostReadyStreak"] != 2 {
+    return 2
+}
+
+// Inconsistent cycle: the marked count disagrees with the swept live count.
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+S["gcMarkedN"] = S["gcMarkedN"] + 1
+vGcSweepDeadS(S)
+if S["gcHostReady"] != false {
+    return 3
+}
+if S["gcHostReadyStreak"] != 0 {
+    return 4
+}
+if gcHostReadyStreakOk(S["gcHostReadyStreak"]) != false {
+    return 5
+}
+
+// Recovery starts a new streak from 1.
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+vGcSweepDeadS(S)
+if S["gcHostReady"] != true {
+    return 6
+}
+if S["gcHostReadyStreak"] != 1 {
+    return 7
+}
+
+// Pure criteria: per-cycle consistency and the streak threshold.
+if gcHostReadyOk(1, 2, 2, 0, 0) != true {
+    return 10
+}
+if gcHostReadyOk(1, 2, 3, 0, 0) != false {
+    return 11
+}
+if gcHostReadyOk(1, 2, 2, 1, 0) != false {
+    return 12
+}
+if gcHostReadyOk(3, 2, 2, 0, 0) != false {
+    return 13
+}
+if gcHostReadyStreakOk(undefined) != false {
+    return 14
+}
+if gcHostReadyStreakOk("8") != false {
+    return 15
+}
+if gcHostReadyStreakOk(9) != true {
+    return 16
+}
+return true

@@ -643,13 +643,8 @@ fn sh6_vm_policy_in_kab() {
     );
     let stmt = {
         let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-        let mut s = std::fs::read_to_string(base.join("self_host/parser_stmt.kab"))
-            .expect("parser_stmt.kab");
-        s.push_str(
-            &std::fs::read_to_string(base.join("self_host/parser_stmt_class.kab"))
-                .expect("parser_stmt_class.kab"),
-        );
-        s
+        std::fs::read_to_string(base.join("self_host/parser_stmt.kab"))
+            .expect("parser_stmt.kab (merged parser_stmt_class)")
     };
     let stmt_emit = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("self_host/emit_stmt_body.kab"),
@@ -60922,7 +60917,7 @@ fn sh18_gc_vm_minor_exec_smoke() {
 fn sh28_dag_self_host_attemptable() {
     use kabootar_lib::compile::{self_host_is_attemptable, walk_compile_dag};
     let dag = walk_compile_dag().expect("walk dag");
-    assert_eq!(dag.len(), 8, "SH5 plateau is 8 files after emit_expr_leaf split");
+    assert_eq!(dag.len(), 7, "SH5 reverse-densify: 7 files after parser_stmt_class -> parser_stmt");
     for rel in &dag {
         assert!(
             self_host_is_attemptable(rel),
@@ -61077,6 +61072,111 @@ fn sh18_gc_streak_workload_exec_smoke() {
             let program = compile_file_cached(&path).expect("compile gc streak workload smoke");
             let value = eval_program(&program, &mut env).expect("run gc streak workload smoke");
             assert!(matches!(value, kabootar_lib::value::Value::Bool(true)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: major weak-clear decides against the mark set — live vmI/oid
+/// targets keep their weak_ edges, dead ones clear + tombstone, a post-mark
+/// fresh publish is not cleared.
+#[test]
+fn sh18_gc_vm_weak_live_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18/sh18_gc_vm_weak_live_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-vm-weak-live".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile sh18_gc_vm_weak_live_smoke");
+            let value = eval_program(&program, &mut env).expect("run sh18_gc_vm_weak_live_smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Bool(true)),
+                "sh18_gc_vm_weak_live_smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: a minor only decides young vmI weak targets — old vmI and oid
+/// targets held by untraced old insts keep their weak_ edges; young dead clear.
+#[test]
+fn sh18_gc_vm_weak_minor_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18/sh18_gc_vm_weak_minor_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-vm-weak-minor".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile sh18_gc_vm_weak_minor_smoke");
+            let value = eval_program(&program, &mut env).expect("run sh18_gc_vm_weak_minor_smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Bool(true)),
+                "sh18_gc_vm_weak_minor_smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: one inconsistent settle resets gcHostReadyStreak to 0; recovery
+/// restarts at 1; gcHostReadyOk/gcHostReadyStreakOk boundary checks.
+#[test]
+fn sh18_gc_streak_reset_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18/sh18_gc_streak_reset_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-streak-reset".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile sh18_gc_streak_reset_smoke");
+            let value = eval_program(&program, &mut env).expect("run sh18_gc_streak_reset_smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Bool(true)),
+                "sh18_gc_streak_reset_smoke returned {value:?}"
+            );
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH18 deepen: gcHostReadyStreakOk(8) reached under the production minor/major
+/// cadence (vGcMajorOk) — keeps survive every sweep, garbage gone after a major.
+#[test]
+fn sh18_gc_streak_cadence_exec_smoke() {
+    let path = format!(
+        "{}/examples/sh18/sh18_gc_streak_cadence_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh18-gc-streak-cadence".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile sh18_gc_streak_cadence_smoke");
+            let value = eval_program(&program, &mut env).expect("run sh18_gc_streak_cadence_smoke");
+            assert!(
+                matches!(value, kabootar_lib::value::Value::Bool(true)),
+                "sh18_gc_streak_cadence_smoke returned {value:?}"
+            );
         })
         .expect("spawn")
         .join()

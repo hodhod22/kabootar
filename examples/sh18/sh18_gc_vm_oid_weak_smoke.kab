@@ -67,8 +67,8 @@ if S["gcHostReady"] != true {
 if S["gcHostReadyStreak"] < 2 {
     return false
 }
-// The delete gate itself stays false until the streak is proven across
-// real workloads — this smoke only proves the evidence accumulates.
+// The delete gate is flipped (sh18_gc_production_probe); this smoke only
+// proves the evidence accumulates.
 if gcHostDeleteOk() != true {
     return false
 }
@@ -86,7 +86,7 @@ if gcHostReadyStreakOk(8) != true {
 if gcHostReadyStreakOk(7) != false {
     return false
 }
-// Gate unchanged — streak evidence is not the flip.
+// Gate unchanged by this smoke — streak evidence alone is not the flip.
 if gcHostDeleteOk() != true {
     return false
 }
