@@ -691,7 +691,11 @@ fn bytecode_host_call_native(args: &[Value], env: &mut Environment) -> Result<Va
     // Run module fns against their own module scope: the Kab VM's host env holds the
     // compiler DAG, whose globals (e.g. `lxScan`, `KEYWORDS`) must not leak into guest modules.
     if let Value::BytecodeFn(f) = &callee {
-        let mut own = f.closure.share_bindings();
+        // Keep the caller's scheduler (TLS trust, timers) and app router.
+        let mut own = Environment::child_from_with_scheduler(&f.closure, env);
+        if let Some(r) = env.get("http_router") {
+            own.set("http_router".to_string(), r);
+        }
         return crate::bytecode::call_value(callee, call_args, &[], &[], &[], &[], &mut own);
     }
     crate::bytecode::call_value(callee, call_args, &[], &[], &[], &[], env)
