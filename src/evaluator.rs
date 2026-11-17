@@ -688,6 +688,12 @@ fn bytecode_host_call_native(args: &[Value], env: &mut Environment) -> Result<Va
         Some(_) => return Err("bytecode_host_call args must be an array".into()),
         None => Vec::new(),
     };
+    // Run module fns against their own module scope: the Kab VM's host env holds the
+    // compiler DAG, whose globals (e.g. `lxScan`, `KEYWORDS`) must not leak into guest modules.
+    if let Value::BytecodeFn(f) = &callee {
+        let mut own = f.closure.share_bindings();
+        return crate::bytecode::call_value(callee, call_args, &[], &[], &[], &[], &mut own);
+    }
     crate::bytecode::call_value(callee, call_args, &[], &[], &[], &[], env)
 }
 
@@ -697,10 +703,20 @@ fn bytecode_host_import_native(args: &[Value], env: &mut Environment) -> Result<
         Some(Value::String(s)) => s.as_str(),
         _ => return Err("bytecode_host_import(name) expects a string".into()),
     };
-    let exported = modules::import_module_exported(name, env)?;
+    // Import into a scratch scope so guest exports never overwrite the VM host env's
+    // compiler bindings; names the host env lacks (e.g. registered natives) still flow in.
+    let mut scratch = create_module_env();
+    let exported = modules::import_module_exported(name, &mut scratch)?;
+    for ln in scratch.local_names() {
+        if env.get(&ln).is_none() {
+            if let Some(v) = scratch.get(&ln) {
+                env.set(ln, v);
+            }
+        }
+    }
     let mut pairs = Vec::new();
     for en in exported {
-        if let Some(v) = env.get(&en) {
+        if let Some(v) = scratch.get(&en) {
             pairs.push(Value::from_array(vec![Value::String(en), v]));
         }
     }
