@@ -1,0 +1,86 @@
+import "self_host/vm_run_session"
+import "self_host/vm_s_stack"
+import "kab/gc/gc_host"
+
+// SH18 deepen: streak evidence under the production minor/major cadence.
+// sh18_gc_streak_workload_smoke drives 8 majors; here each collect picks
+// minor/major exactly like the ops loop (vGcMajorOk(S, c) — every 4th plus
+// survival pacing), so gcHostReadyStreakOk(8) is reached across BOTH
+// generations. Keeps live on S["stack"] and must keep their heap slots
+// through every minor and major sweep; garbage (incl. old-space ids reused
+// from the freelist, which minors leave alone) is gone after a final major.
+let S = vMakeSession()
+let root = { "vmC": 0 }
+root["vmI"] = vGcTakeInstIdS(S)
+vHeapPut(S, root)
+S["stack"] = [root]
+let kept = []
+let c = 0
+let majors = 0
+let minors = 0
+
+let round = 0
+while round < 8 {
+    let i = 0
+    while i < 2 {
+        let g = { "vmC": 0 }
+        g["vmI"] = vGcTakeInstIdS(S)
+        vHeapPut(S, g)
+        i = i + 1
+    }
+    let keep = { "vmC": 0, "tag": round }
+    keep["vmI"] = vGcTakeInstIdS(S)
+    vHeapPut(S, keep)
+    S["stack"] = push(S["stack"], keep)
+    kept = push(kept, keep)
+
+    c = c + 1
+    vGcCollectBeginS(S, vGcMajorOk(S, c) == false)
+    if S["gcMinor"] == true {
+        minors = minors + 1
+    } else {
+        majors = majors + 1
+    }
+    while S["gcMarkActive"] == true {
+        vGcMarkSliceS(S, 64)
+    }
+    vGcSweepDeadS(S)
+    if S["gcHostReady"] != true {
+        return 10 + round
+    }
+    let j = 0
+    while j < len(kept) {
+        if S["insts"][vInstKeyS(kept[j])] == undefined {
+            return 30 + round
+        }
+        j = j + 1
+    }
+    round = round + 1
+}
+
+if S["gcHostReadyStreak"] < 8 {
+    return 50
+}
+if gcHostReadyStreakOk(S["gcHostReadyStreak"]) != true {
+    return 51
+}
+if majors < 2 {
+    return 52
+}
+if minors < 2 {
+    return 53
+}
+if majors + minors != 8 {
+    return 54
+}
+
+// Final STW major: only root + the 8 keeps remain on the heap.
+vGcRootsAuditS(S)
+let hk = object_keys(S["insts"])
+if len(hk) != 9 {
+    return 55
+}
+if S["gcHostReadyStreak"] < 9 {
+    return 56
+}
+return true

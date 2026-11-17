@@ -1,0 +1,105 @@
+import "self_host/vm_run_session"
+import "self_host/vm_s_stack"
+
+// SH18 deepen: a minor collect only decides young vmI targets. An old vmI
+// target and an oid target held only by an old inst are never shaded by a
+// minor (old holders are not scanned), so their absence from the mark set
+// is not death — weak-clear must keep those edges. A young weak-only
+// target is decided by the minor and cleared.
+let S = vMakeSession()
+let R = { "vmC": 0 }
+R["vmI"] = vGcTakeInstIdS(S)
+let T = { "vmC": 0 }
+T["vmI"] = vGcTakeInstIdS(S)
+let O = {}
+if vInstId(O) == undefined {
+    return 1
+}
+R["t"] = T
+R["o"] = O
+vHeapPut(S, R)
+vHeapPut(S, T)
+vHeapPut(S, O)
+S["stack"] = [R]
+
+// Major: everything reachable is promoted (gcOldId = bump frontier).
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+vGcSweepDeadS(S)
+if S["insts"][vInstKeyS(T)] == undefined {
+    return 2
+}
+let oldId = S["gcOldId"]
+if typeof(oldId) != "number" || T["vmI"] >= oldId {
+    return 3
+}
+
+let Y = { "vmC": 0 }
+Y["vmI"] = vGcTakeInstIdS(S)
+if Y["vmI"] < oldId {
+    return 4
+}
+let D = { "vmC": 0 }
+D["vmI"] = vGcTakeInstIdS(S)
+Y["weak_t"] = T
+Y["weak_o"] = O
+Y["weak_d"] = D
+vHeapPut(S, Y)
+vHeapPut(S, D)
+S["stack"] = [R, Y]
+let yk = vInstKeyS(Y)
+
+vGcCollectBeginS(S, true)
+if S["gcMinor"] != true {
+    return 5
+}
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+vGcSweepDeadS(S)
+let hy = S["insts"][yk]
+if typeof(hy) != "object" || hy == null {
+    return 6
+}
+if hy["weak_t"] == undefined {
+    return 10
+}
+if hy["weak_o"] == undefined {
+    return 11
+}
+if hy["weak_d"] != undefined {
+    return 12
+}
+if S["insts"][vInstKeyS(D)] != undefined {
+    return 13
+}
+if S["insts"][vInstKeyS(T)] == undefined {
+    return 14
+}
+if S["insts"][vInstKeyS(O)] == undefined {
+    return 15
+}
+if S["gcHostReady"] != true {
+    return 16
+}
+
+// Major: the mark set now decides everything — T and O are still held by
+// R, so the edges stay.
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+vGcSweepDeadS(S)
+let hy2 = S["insts"][yk]
+if hy2["weak_t"] == undefined {
+    return 20
+}
+if hy2["weak_o"] == undefined {
+    return 21
+}
+if S["gcHostReady"] != true {
+    return 22
+}
+return true

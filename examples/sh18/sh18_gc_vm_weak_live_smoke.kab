@@ -1,0 +1,92 @@
+import "self_host/vm_run_session"
+import "self_host/vm_s_stack"
+
+// SH18 deepen: weak-clear decides against the mark set on a major — live
+// targets (vmI and oid, both also strongly held) keep their weak_ edges,
+// dead targets (vmI and oid, weak-only) are cleared and tombstoned, and a
+// fresh publish after mark finish (id >= gcSweepMinNew) is not cleared.
+let S = vMakeSession()
+let holder = { "vmC": 0 }
+holder["vmI"] = vGcTakeInstIdS(S)
+let oidLive = {}
+if vInstId(oidLive) == undefined {
+    return 1
+}
+holder["o"] = oidLive
+holder["weak_o"] = oidLive
+let vLive = { "vmC": 0 }
+vLive["vmI"] = vGcTakeInstIdS(S)
+holder["v"] = vLive
+holder["weak_v"] = vLive
+let vDead = { "vmC": 0 }
+vDead["vmI"] = vGcTakeInstIdS(S)
+holder["weak_d"] = vDead
+let oidDead = {}
+if vInstId(oidDead) == undefined {
+    return 2
+}
+holder["weak_h"] = oidDead
+vHeapPut(S, holder)
+vHeapPut(S, oidLive)
+vHeapPut(S, vLive)
+vHeapPut(S, vDead)
+vHeapPut(S, oidDead)
+S["stack"] = [holder]
+let hk = vInstKeyS(holder)
+
+vGcCollectBeginS(S, false)
+while S["gcMarkActive"] == true {
+    vGcMarkSliceS(S, 64)
+}
+if S["gcSweepActive"] != true {
+    return 3
+}
+// Fresh publish between mark finish and sweep: above the watermark and
+// outside the mark set — must not be weak-cleared.
+let vFresh = { "vmC": 0 }
+vFresh["vmI"] = vGcTakeInstIdS(S)
+if vFresh["vmI"] < S["gcSweepMinNew"] {
+    return 4
+}
+vHeapPut(S, vFresh)
+S["insts"][hk]["weak_f"] = vFresh
+vGcSweepDeadS(S)
+
+let hh = S["insts"][hk]
+if typeof(hh) != "object" || hh == null {
+    return 5
+}
+if hh["weak_o"] == undefined {
+    return 10
+}
+if hh["weak_v"] == undefined {
+    return 11
+}
+if hh["weak_d"] != undefined {
+    return 12
+}
+if hh["weak_h"] != undefined {
+    return 13
+}
+if hh["weak_f"] == undefined {
+    return 14
+}
+if S["insts"][vInstKeyS(vDead)] != undefined {
+    return 15
+}
+if S["insts"][vInstKeyS(oidDead)] != undefined {
+    return 16
+}
+if S["insts"][vInstKeyS(oidLive)] == undefined {
+    return 17
+}
+if S["insts"][vInstKeyS(vLive)] == undefined {
+    return 18
+}
+if S["insts"][vInstKeyS(vFresh)] == undefined {
+    return 19
+}
+if S["gcHostReady"] != true {
+    return 20
+}
+return true
