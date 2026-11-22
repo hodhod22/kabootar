@@ -1051,18 +1051,10 @@ pub fn vThrowGeneratorS(S, g, ordered, pool, globals, functions) {
         g = given
     }
     if g["done"] == 1 {
-        let dv = null
-        if len(ordered) > 0 {
-            dv = ordered[0]
-        }
-        return { "value": dv, "done": false }
+        return { "value": null, "done": true }
     }
     if g["done"] == true {
-        let dv2 = null
-        if len(ordered) > 0 {
-            dv2 = ordered[0]
-        }
-        return { "value": dv2, "done": false }
+        return { "value": null, "done": true }
     }
     if g["pendK"] != undefined {
         let pv = g["pendV"]

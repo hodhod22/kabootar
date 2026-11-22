@@ -44,6 +44,7 @@ Default CLI: `kabootar compile` → self-host först. App-`.kab` har **ingen** R
 || Shared obj-mutation | ✅ fixad: `let U = T; U[k]=v` syns via `T` (in-place merge i call-writeback `merge_object_fields`); gate `sh18_shared_obj_mut_exec_smoke` |
 || Self-merge UAF (akutundantag) | ✅ fixad: `merge_object_fields` returnerar tidigt vid `Rc::ptr_eq(src, dst)` — self-merge itererade `src` medan samma map muterades → heap-korruption (`memory allocation of ~1e14 bytes failed`); gate `sh16_app_no_rust_fallback` |
 || Gäst-modul-scope i Kab-VM (akutundantag) | ✅ fixad: `bytecode_host_import` importerar i scratch-scope och `bytecode_host_call` kör `BytecodeFn` mot sin modul-scope — kompilatorns globaler (`lxScan`, `KEYWORDS`) läcker inte längre in i gästmoduler; gate `kv8_lib` |
+|| Throw på avslutad generator | ✅ fixad: `vThrowGeneratorS` returnerar `{ value: null, done: true }` (som `next`/`return`), inte `{ value: x, done: false }`; gater `sh6_self_host_generator_throw_catch_yield_star_nested_send_return_finally_throw_{done,null}_ok` |
 
 Tunga `_*probe*` / `_bisect*` är **inte** produkt. Regenerera image: `KABOOTAR_SH1_WARM=1 cargo test --test sh_wave sh1_warm -- --ignored`.
 

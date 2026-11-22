@@ -8916,7 +8916,7 @@ fn sh6_self_host_generator_nested_try_yield_star_custom_throw_done_false_continu
         Some(p) => std::env::set_var("KABOOTAR_VM", p),
         None => std::env::remove_var("KABOOTAR_VM"),
     }
-    assert_eq!(formatted, "1473985");
+    assert_eq!(formatted, "1473981");
 }
 
 /// SH6: `g.throw` after completion of `Symbol.iterator` send + `return()` `{ done: false }` chain yields the throw value.
@@ -9156,7 +9156,7 @@ fn sh6_self_host_generator_nested_try_yield_star_custom_throw_done_false_continu
         Some(p) => std::env::set_var("KABOOTAR_VM", p),
         None => std::env::remove_var("KABOOTAR_VM"),
     }
-    assert_eq!(formatted, "1473982");
+    assert_eq!(formatted, "1473981");
 }
 
 /// SH6: `g.throw` after extra `.next()` after `g.throw` after completion of `Symbol.iterator` send + `return()` `{ done: false }` chain.
@@ -9276,7 +9276,7 @@ fn sh6_self_host_generator_nested_try_yield_star_custom_throw_done_false_continu
         Some(p) => std::env::set_var("KABOOTAR_VM", p),
         None => std::env::remove_var("KABOOTAR_VM"),
     }
-    assert_eq!(formatted, "1473982");
+    assert_eq!(formatted, "1473981");
 }
 
 /// SH6: `g.throw` after extra `.next()` after `g.return` after completion of `Symbol.iterator` send + `return()` `{ done: false }` chain.
@@ -9516,7 +9516,7 @@ fn sh6_self_host_generator_nested_try_yield_star_custom_throw_done_false_continu
         Some(p) => std::env::set_var("KABOOTAR_VM", p),
         None => std::env::remove_var("KABOOTAR_VM"),
     }
-    assert_eq!(formatted, "1473982");
+    assert_eq!(formatted, "1473981");
 }
 
 /// SH6: `g.throw` after extra `.next()` after `g.next(v)` send after completion of `Symbol.iterator` send + `return()` `{ done: false }` chain.
@@ -9636,7 +9636,7 @@ fn sh6_self_host_generator_nested_try_yield_star_custom_throw_done_false_continu
         Some(p) => std::env::set_var("KABOOTAR_VM", p),
         None => std::env::remove_var("KABOOTAR_VM"),
     }
-    assert_eq!(formatted, "1473982");
+    assert_eq!(formatted, "1473981");
 }
 
 /// SH6: `g.throw` immediately after `g.next(v)` send after completion of `Symbol.iterator` send + `return()` `{ done: false }` chain.
