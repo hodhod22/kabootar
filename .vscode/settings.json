@@ -3,7 +3,7 @@
     "*.kab": "kabootar",
     "*.kabootar": "kabootar"
   },
-  "workbench.iconTheme": "kabootar-file-icons",
+  "workbench.iconTheme": "material-icon-theme",
   "rust-analyzer.runnables.extraTestBinaryArgs": ["--test-threads=1"],
   "rust-analyzer.cargo.extraEnv": {
     "RUST_BACKTRACE": "1"

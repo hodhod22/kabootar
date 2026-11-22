@@ -502,11 +502,18 @@ mod host {
     /// keep them typed. String consts stay: the string-char path never
     /// wraps results as Number.
     fn i64_const_domain(func: &BytecodeFnDef) -> bool {
-        !func.code.iter().any(|op| {
-            matches!(op, Opcode::Const(i) if !matches!(
-                func.constants.get(*i as usize),
+        !func.code.iter().enumerate().any(|(i, op)| {
+            if !matches!(op, Opcode::Const(ci) if !matches!(
+                func.constants.get(*ci as usize),
                 Some(Constant::Number(_)) | Some(Constant::Float(_)) | Some(Constant::String(_))
-            ))
+            )) {
+                return false;
+            }
+            // `const null; pop` (statement-result slot, e.g. after `while`) is
+            // discarded before it can reach a local or a comparison — the
+            // rust emitter produces it for rust-healed seeds, so rejecting it
+            // would make every such seed JIT-ineligible.
+            !matches!(func.code.get(i + 1), Some(Opcode::Pop))
         })
     }
 

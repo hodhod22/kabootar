@@ -22,8 +22,8 @@ pub use crate::bytecode::{can_compile, compile_source, try_compile, CompiledProg
 pub use dag::{
     collect_self_host_inventory, compile_dirty_dag_seeds, compile_dirty_product_tree,
     compiler_image_path, dag_max_import_depth, is_compile_dag_path, is_self_host_vm_path,
-    missing_compiler_dag_seeds, rust_compile_write_seed, self_host_compile_write_seed,
-    walk_compile_dag,
+    missing_compiler_dag_seeds, repack_compiler_dag_image, rust_compile_write_seed,
+    self_host_compile_write_seed, walk_compile_dag,
     write_compiler_dag_seeds, write_compiler_facade_seeds, DirtyCompileStats,
     SelfHostInventory, IMAGE_VERSION as COMPILER_IMAGE_VERSION,
 };
@@ -590,7 +590,7 @@ pub fn compile_file_prefer_cached(
 fn compile_file_prefer_cached_src(
     path: &str,
     prefer: CompilePrefer,
-    source: Option<&str>,
+    _source: Option<&str>,
 ) -> Result<(CompiledProgram, &'static str), String> {
     let mtime = fs::metadata(path)
         .ok()
@@ -637,7 +637,11 @@ fn compile_file_prefer_cached_src(
         }
     }
     // H6e/SH1: committed seed `.kbc` (historical leaves + compiler DAG image).
-    if let Some(bc) = dag::read_matching_seed_src(path, source)? {
+    // Fingerprint the raw file (same bytes `write_seed_dag_file` hashed), not the
+    // eval source: `strip_version_directive` rejoins lines without a trailing \n,
+    // so hashing it made seeds unmatchable and self_host imports always fell back
+    // to a rust compile (seen as SH9 host-JIT misses on the emitted `const;pop`).
+    if let Some(bc) = dag::read_matching_seed(path)? {
         let program = CompiledProgram {
             stmts: Vec::new(),
             bytecode: Some(bc.clone()),
@@ -758,7 +762,10 @@ pub fn load_program_for_file(path: &str, source: &str) -> Result<CompiledProgram
     } else {
         CompilePrefer::from_args_and_env(&[])
     };
-    let (program, _) = compile_file_prefer_cached_src(path, prefer, Some(source))?;
+    let (program, label) = compile_file_prefer_cached_src(path, prefer, Some(source))?;
+    if std::env::var("KABOOTAR_DEBUG_LOAD").is_ok() {
+        eprintln!("KAB-LOAD {path} via {label}");
+    }
     Ok(program)
 }
 

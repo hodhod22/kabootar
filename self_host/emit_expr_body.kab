@@ -1,5 +1,4 @@
 import "self_host/lexer_scan"
-import "self_host/emit_expr_leaf"
 // SH6: yield* forwards g.next(v) via it.next(send).
 
 pub fn dropCallCallee(E) {

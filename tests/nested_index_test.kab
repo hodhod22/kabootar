@@ -2,7 +2,7 @@
 // The self-host emitter shared E["eBxL"] across the recursive index compile,
 // so `locals[op[1]]` was emitted as `op[op[1]]`. These legs run INLINE —
 // this file is itself compiled by the self-host compiler, so a regression
-// in emit_expr_leaf shows up as wrong values here.
+// in lexer_scan (emit_expr_leaf merged back, SH5 merge 8) shows up as wrong values here.
 
 import "kabtest/core"
 

@@ -482,8 +482,15 @@ pub fn read_matching_seed_src(
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or("");
+    let dbg = std::env::var("KABOOTAR_DEBUG_LOAD").is_ok();
     for key in [format!("{base_name}.kbc"), base_name.to_string()] {
         if let Some(entry) = compiler_image_mod(&key) {
+            if dbg {
+                eprintln!(
+                    "KAB-SEED {path} image-key={key} entry_fp={} expected={expected}",
+                    entry.fingerprint
+                );
+            }
             if entry.fingerprint == expected {
                 return Ok(Some(entry.module));
             }
@@ -494,6 +501,13 @@ pub fn read_matching_seed_src(
             Ok(t) => t,
             Err(_) => continue,
         };
+        let seed_fp = text
+            .lines()
+            .find(|l| l.starts_with("fingerprint="))
+            .map(|l| l.trim_start_matches("fingerprint=").to_string());
+        if dbg {
+            eprintln!("KAB-SEED {path} file={} fp={seed_fp:?} expected={expected}", seed.display());
+        }
         if let Some(bc) = seed_text_if_fingerprint(&text, &expected)? {
             return Ok(Some(bc));
         }
@@ -628,6 +642,15 @@ pub fn write_compiler_dag_seeds() -> Result<usize, String> {
     }
     write_image_from_dag_dir()?;
     Ok(n)
+}
+
+/// SH28: repack `seed/compiler.kbcb` from whatever `.kbc` files currently sit
+/// in `seed/dag/` — without recompiling them. Needed after
+/// `self_host_compile_write_seed` (Kab-emitted seeds): `compile_dirty_dag_seeds`
+/// only repacks when it rust-compiled something itself, so Kab-written seeds
+/// would otherwise never reach the packed image the seed reader resolves first.
+pub fn repack_compiler_dag_image() -> Result<(), String> {
+    write_image_from_dag_dir()
 }
 
 pub fn facade_kab_names() -> &'static [&'static str] {
