@@ -56,20 +56,20 @@ pub fn exec_bytes_data(bytes: &[u8], arg: i64, data: &[u8]) -> Result<i64, Strin
 #[cfg(not(target_arch = "wasm32"))]
 fn cached_exec_ptr(bytes: &[u8]) -> Result<*const u8, String> {
     use std::cell::RefCell;
-    struct Page {
-        bytes: Vec<u8>,
-        code: memmap2::Mmap,
-    }
+    use std::collections::HashMap;
+    const MAX_PAGES: usize = 256;
     thread_local! {
-        static PAGE: RefCell<Option<Page>> = const { RefCell::new(None) };
+        static PAGES: RefCell<HashMap<Vec<u8>, memmap2::Mmap>> =
+            RefCell::new(HashMap::new());
     }
-    PAGE.with(|slot| {
-        let hit = slot
-            .borrow()
-            .as_ref()
-            .map(|p| p.bytes.as_slice() == bytes)
-            .unwrap_or(false);
-        if !hit {
+    PAGES.with(|pages| {
+        let mut pages = pages.borrow_mut();
+        if !pages.contains_key(bytes) {
+            if pages.len() >= MAX_PAGES {
+                // Drop every RX mapping — pointers are only borrowed for
+                // the duration of one exec call, so a full reset is safe.
+                pages.clear();
+            }
             let mut code_mm = memmap2::MmapOptions::new()
                 .len(bytes.len().max(1))
                 .map_anon()
@@ -78,12 +78,9 @@ fn cached_exec_ptr(bytes: &[u8]) -> Result<*const u8, String> {
             let code = code_mm
                 .make_exec()
                 .map_err(|e: io::Error| format!("native_exec: make_exec: {e}"))?;
-            *slot.borrow_mut() = Some(Page {
-                bytes: bytes.to_vec(),
-                code,
-            });
+            pages.insert(bytes.to_vec(), code);
         }
-        Ok(slot.borrow().as_ref().unwrap().code.as_ptr())
+        Ok(pages.get(bytes).unwrap().as_ptr())
     })
 }
 

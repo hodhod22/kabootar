@@ -12,7 +12,7 @@ if nollAotReady() {
 if nollCraneliftGone() != false {
     return false
 }
-if nollJitIsKab() != false {
+if nollJitIsKab() != true {
     return false
 }
 return nollHostDeleteOk() == false

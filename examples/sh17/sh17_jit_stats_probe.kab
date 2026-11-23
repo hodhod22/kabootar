@@ -1,0 +1,39 @@
+// SH17 probe (manual, not a CI gate): dynamic JIT coverage measurement on a
+// real self-host compile. compileIr runs the actual Kab compiler (lexer +
+// parser + emitter) inside this VM session — its hot loops and call sites
+// exercise every fused path. Prints vJitSessionStats + miss-shape histogram.
+
+import "self_host/vm_run_exec_core"
+import "kab/vm"
+import "self_host/compile"
+
+vJitSessionReset()
+vJitSessionMissTrace(true)
+
+// The VFS roots paths at this script's dir; mount the repo root to read
+// real shard sources (path traversal outside mounts is denied).
+os_mount("/repo", env_get("KAB_PROBE_ROOT"))
+let path = "/repo/self_host/emit_stmt_body.kab"
+let src = os_read(path)
+println("probe source " + path + " bytes=" + len(src))
+
+let ir = compileIr(src)
+println("probe compile done ir_ops=" + len(ir["ops"]))
+
+let st = vJitSessionStats()
+println("JIT armed=" + st["armed"])
+println("JIT osrExecs=" + st["osrExecs"])
+println("JIT osrMisses=" + st["osrMisses"])
+println("JIT countLoops=" + st["countLoops"])
+println("JIT compiled=" + st["compiled"])
+println("JIT execs=" + st["execs"])
+
+let shapes = vJitSessionMissShapes()
+let ks = object_keys(shapes)
+let i = 0
+while i < len(ks) {
+    println("MISS " + ks[i] + " => " + shapes[ks[i]])
+    i = i + 1
+}
+
+return 42

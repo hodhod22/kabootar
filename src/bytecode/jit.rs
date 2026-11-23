@@ -1,4 +1,10 @@
-//! P13 — Cranelift JIT for typed i64 bytecode (host only).
+//! P13 — JIT for typed i64 bytecode (host only).
+//!
+//! The compiler is Kab: hot fns lower through `lib/kab/jit/jit_x64_emit.kab`
+//! (`jitX64Emit`) to real x86-64 produced by `lib/kab/aot/aot_fn_x64.kab`,
+//! and run on `runtime::native_exec` executable pages. The retired Cranelift
+//! `compile_fn` this file used to carry is gone — `JIT_KAB_EXECS` counts the
+//! executions that went through Kab-emitted code.
 
 use super::types::{BytecodeFnDef, Constant, Opcode};
 use crate::value::Value;
@@ -7,8 +13,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 static JIT_HITS: AtomicU64 = AtomicU64::new(0);
 static JIT_COMPILED: AtomicU64 = AtomicU64::new(0);
 static JIT_FAILS: AtomicU64 = AtomicU64::new(0);
+static JIT_KAB_EXECS: AtomicU64 = AtomicU64::new(0);
 
-/// P13b: Cranelift after this many calls of a given bytecode fn (same as Kv8 loop threshold).
+/// P13b: JIT after this many calls of a given bytecode fn (same as Kv8 loop threshold).
 pub const JIT_CALL_THRESHOLD_DEFAULT: u64 = 8;
 static JIT_CALL_THRESHOLD: AtomicU64 = AtomicU64::new(JIT_CALL_THRESHOLD_DEFAULT);
 
@@ -28,10 +35,17 @@ pub fn jit_stats() -> (u64, u64, u64) {
     )
 }
 
+/// Executions that ran Kab-emitted native code — the `nollJitIsKab`
+/// evidence counter.
+pub fn jit_kab_execs() -> u64 {
+    JIT_KAB_EXECS.load(Ordering::Relaxed)
+}
+
 pub fn jit_reset_for_tests() {
     JIT_HITS.store(0, Ordering::Relaxed);
     JIT_COMPILED.store(0, Ordering::Relaxed);
     JIT_FAILS.store(0, Ordering::Relaxed);
+    JIT_KAB_EXECS.store(0, Ordering::Relaxed);
     JIT_CALL_THRESHOLD.store(JIT_CALL_THRESHOLD_DEFAULT, Ordering::Relaxed);
     #[cfg(not(target_arch = "wasm32"))]
     host::reset_call_counts();
@@ -52,7 +66,7 @@ pub fn try_run_jit(
     }
 }
 
-/// Standalone add-loop used by `native_add_loop` (compiled once).
+/// Standalone add-loop used by `native_add_loop` (emitted once via Kab).
 pub fn jit_add_loop(n: i64) -> Option<i64> {
     #[cfg(target_arch = "wasm32")]
     {
@@ -140,58 +154,69 @@ fn index_array_local(func: &BytecodeFnDef) -> Option<u16> {
 
 #[cfg(not(target_arch = "wasm32"))]
 mod host {
-    use super::{BytecodeFnDef, Constant, Opcode, JIT_COMPILED, JIT_FAILS, JIT_HITS};
-    use crate::value::Value as KabVal;
-    use cranelift::codegen;
-    use cranelift::prelude::*;
-    use cranelift_jit::{JITBuilder, JITModule};
-    use cranelift_module::{Linkage, Module};
-    use std::cell::RefCell;
+    use super::{BytecodeFnDef, Constant, Opcode, JIT_COMPILED, JIT_FAILS, JIT_HITS, JIT_KAB_EXECS};
+    use crate::value::{Environment, Value as KabVal};
+    use std::cell::{Cell, RefCell};
     use std::collections::{HashMap, HashSet};
     use std::hash::{Hash, Hasher};
+    use std::rc::Rc;
     use std::sync::atomic::Ordering;
 
     struct State {
-        module: JITModule,
-        ctx: codegen::Context,
-        builder_ctx: FunctionBuilderContext,
-        cache: HashMap<u64, *const u8>,
+        /// fingerprint -> emitted x64 bytes (native_exec maps them RX).
+        cache: HashMap<u64, Rc<Vec<u8>>>,
+        /// fingerprints the Kab emitter honestly rejected — deterministic,
+        /// so retrying per call would be pure waste.
+        rejects: HashSet<u64>,
         str_char_kernels: HashSet<u64>,
         call_counts: HashMap<u64, u64>,
-        add_loop: Option<unsafe extern "C" fn(i64) -> i64>,
+        add_loop: Option<Rc<Vec<u8>>>,
+        /// (jitX64Emit fn value, module env it was imported into).
+        emit: Option<(KabVal, Environment)>,
+        emit_broken: bool,
     }
 
     thread_local! {
         static STATE: RefCell<Option<State>> = const { RefCell::new(None) };
+        /// Reentrancy guard: the emit call runs the bytecode VM, which can
+        /// itself reach try_run for the emitter's own hot fns — a nested
+        /// emit must fall back to the interpreter, not recurse.
+        static EMIT_ACTIVE: Cell<bool> = const { Cell::new(false) };
+    }
+
+    fn emit_active() -> bool {
+        EMIT_ACTIVE.with(|c| c.get())
+    }
+
+    struct EmitGuard;
+    impl Drop for EmitGuard {
+        fn drop(&mut self) {
+            EMIT_ACTIVE.with(|c| c.set(false));
+        }
+    }
+
+    fn emit_begin() -> Option<EmitGuard> {
+        if emit_active() {
+            return None;
+        }
+        EMIT_ACTIVE.with(|c| c.set(true));
+        Some(EmitGuard)
     }
 
     fn with_state<T>(f: impl FnOnce(&mut State) -> T) -> Option<T> {
         STATE.with(|slot| {
             if slot.borrow().is_none() {
-                *slot.borrow_mut() = Some(make_state()?);
+                *slot.borrow_mut() = Some(State {
+                    cache: HashMap::new(),
+                    rejects: HashSet::new(),
+                    str_char_kernels: HashSet::new(),
+                    call_counts: HashMap::new(),
+                    add_loop: None,
+                    emit: None,
+                    emit_broken: false,
+                });
             }
             Some(f(slot.borrow_mut().as_mut().unwrap()))
-        })
-    }
-
-    fn make_state() -> Option<State> {
-        let mut flag_builder = settings::builder();
-        flag_builder.set("use_colocated_libcalls", "false").ok()?;
-        flag_builder.set("is_pic", "false").ok()?;
-        let isa_builder = cranelift_native::builder().ok()?;
-        let isa = isa_builder
-            .finish(settings::Flags::new(flag_builder))
-            .ok()?;
-        let builder = JITBuilder::with_isa(isa, cranelift_module::default_libcall_names());
-        let module = JITModule::new(builder);
-        Some(State {
-            module,
-            ctx: codegen::Context::new(),
-            builder_ctx: FunctionBuilderContext::new(),
-            cache: HashMap::new(),
-            str_char_kernels: HashSet::new(),
-            call_counts: HashMap::new(),
-            add_loop: None,
         })
     }
 
@@ -212,83 +237,261 @@ mod host {
         *n >= super::JIT_CALL_THRESHOLD.load(Ordering::Relaxed)
     }
 
-    pub fn add_loop(n: i64) -> Option<i64> {
-        let f = with_state(|st| {
-            if let Some(f) = st.add_loop {
-                return Some(f);
+    /// Lazily import `kab/jit/jit_x64_emit` and hand back its `jitX64Emit`
+    /// export with the env it was imported into. Runs OUTSIDE the STATE
+    /// borrow — module import itself runs bytecode and reenters try_run.
+    fn emit_handle() -> Option<(KabVal, Environment)> {
+        if emit_active() {
+            return None;
+        }
+        let (broken, cached) = with_state(|st| (st.emit_broken, st.emit.clone()))?;
+        if broken {
+            return None;
+        }
+        if let Some(h) = cached {
+            return Some(h);
+        }
+        let _g = emit_begin()?;
+        let mut env = crate::evaluator::create_module_env();
+        let imported = crate::modules::import_module_exported("kab/jit/jit_x64_emit", &mut env);
+        let f = if imported.is_ok() {
+            env.get("jitX64Emit")
+        } else {
+            None
+        };
+        match f {
+            Some(v) => {
+                let h = (v, env);
+                with_state(|st| {
+                    if st.emit.is_none() {
+                        st.emit = Some(h.clone());
+                    }
+                    st.emit.clone()
+                })?
             }
-            match compile_add_loop(&mut st.module, &mut st.ctx, &mut st.builder_ctx) {
-                Ok(f) => {
-                    st.add_loop = Some(f);
-                    JIT_COMPILED.fetch_add(1, Ordering::Relaxed);
-                    Some(f)
-                }
-                Err(_) => {
-                    JIT_FAILS.fetch_add(1, Ordering::Relaxed);
-                    None
-                }
+            None => {
+                with_state(|st| {
+                    st.emit_broken = true;
+                });
+                None
             }
-        })??;
-        JIT_HITS.fetch_add(1, Ordering::Relaxed);
-        Some(unsafe { f(n) })
+        }
     }
 
-    fn compile_add_loop(
-        module: &mut JITModule,
-        ctx: &mut codegen::Context,
-        builder_ctx: &mut FunctionBuilderContext,
-    ) -> Result<unsafe extern "C" fn(i64) -> i64, String> {
-        ctx.clear();
-        ctx.func.signature = module.make_signature();
-        ctx.func.signature.params.push(AbiParam::new(types::I64));
-        ctx.func.signature.returns.push(AbiParam::new(types::I64));
-        let mut b = FunctionBuilder::new(&mut ctx.func, builder_ctx);
-        let entry = b.create_block();
-        b.append_block_params_for_function_params(entry);
-        b.switch_to_block(entry);
-        b.seal_block(entry);
-        let n = b.block_params(entry)[0];
-        let s = Variable::new(0);
-        let i = Variable::new(1);
-        b.declare_var(s, types::I64);
-        b.declare_var(i, types::I64);
-        let z = b.ins().iconst(types::I64, 0);
-        let one = b.ins().iconst(types::I64, 1);
-        b.def_var(s, z);
-        b.def_var(i, z);
-        let hdr = b.create_block();
-        let body = b.create_block();
-        let done = b.create_block();
-        b.ins().jump(hdr, &[]);
-        b.switch_to_block(hdr);
-        let iv = b.use_var(i);
-        let cmp = b.ins().icmp(IntCC::SignedLessThan, iv, n);
-        b.ins().brif(cmp, body, &[], done, &[]);
-        b.switch_to_block(body);
-        let sv = b.use_var(s);
-        let s2 = b.ins().iadd(sv, one);
-        b.def_var(s, s2);
-        let iv = b.use_var(i);
-        let i2 = b.ins().iadd(iv, one);
-        b.def_var(i, i2);
-        b.ins().jump(hdr, &[]);
-        b.switch_to_block(done);
-        let sv = b.use_var(s);
-        b.ins().return_(&[sv]);
-        b.seal_block(hdr);
-        b.seal_block(body);
-        b.seal_block(done);
-        b.finalize();
-        let id = module
-            .declare_function("p13_add_loop", Linkage::Export, &ctx.func.signature)
-            .map_err(|e| e.to_string())?;
-        module
-            .define_function(id, ctx)
-            .map_err(|e| e.to_string())?;
-        module.clear_context(ctx);
-        module.finalize_definitions().map_err(|e| e.to_string())?;
-        let ptr = module.get_finalized_function(id);
-        Ok(unsafe { std::mem::transmute(ptr) })
+    fn rec_str_array(xs: &[String]) -> KabVal {
+        KabVal::from_array(
+            xs.iter()
+                .map(|s| KabVal::String(s.clone()))
+                .collect(),
+        )
+    }
+
+    /// BytecodeFnDef -> the compileIr-shaped record `jitX64Emit` consumes.
+    /// None when an op sits outside the emitter's domain.
+    fn fn_record(func: &BytecodeFnDef, kind: &str, arr_slot: Option<u16>) -> Option<KabVal> {
+        let mut ops = Vec::with_capacity(func.code.len());
+        for op in &func.code {
+            let (name, arg): (&'static str, i64) = match op {
+                Opcode::Const(i) => ("const", *i as i64),
+                Opcode::LoadLocal(i) => ("load_local", *i as i64),
+                Opcode::StoreLocal(i) => ("store_local", *i as i64),
+                Opcode::AccAddLocal(i) => ("acc_add_local", *i as i64),
+                Opcode::LenLocal(i) => ("len_local", *i as i64),
+                Opcode::IndexGetLocal(i) => ("index_get_local", *i as i64),
+                Opcode::Pop => ("pop", 0),
+                Opcode::Dup => ("dup", 0),
+                Opcode::Add => ("add", 0),
+                Opcode::Sub => ("sub", 0),
+                Opcode::Mul => ("mul", 0),
+                Opcode::Div => ("div", 0),
+                Opcode::Mod => ("mod", 0),
+                Opcode::Neg => ("neg", 0),
+                Opcode::Not => ("not", 0),
+                Opcode::BitNot => ("bit_not", 0),
+                Opcode::Eq => ("eq", 0),
+                Opcode::Ne => ("ne", 0),
+                Opcode::Lt => ("lt", 0),
+                Opcode::Le => ("le", 0),
+                Opcode::Gt => ("gt", 0),
+                Opcode::Ge => ("ge", 0),
+                Opcode::Jump(o) => ("jump", *o as i64),
+                Opcode::JumpIfFalse(o) => ("jump_if_false", *o as i64),
+                Opcode::Return => ("return", 0),
+                Opcode::Halt => ("halt", 0),
+                _ => return None,
+            };
+            let mut m = std::collections::HashMap::new();
+            m.insert("op".to_string(), KabVal::String(name.to_string()));
+            m.insert("arg".to_string(), KabVal::Number(arg));
+            ops.push(KabVal::from_object(m));
+        }
+        // i64 view of the pool: Float truncates and Null/Undefined map to 0
+        // (const_i64 parity — i64_const_domain already proved referenced
+        // nulls only feed `const;pop` discard slots); String passes through
+        // so a referenced string const makes the Kab side reject instead of
+        // silently emitting Cranelift's 0.
+        let consts: Vec<KabVal> = func
+            .constants
+            .iter()
+            .map(|c| match c {
+                Constant::Number(n) => KabVal::Number(*n),
+                Constant::Float(f) => KabVal::Number(*f as i64),
+                Constant::Bool(b) => KabVal::Number(*b as i64),
+                Constant::String(s) => KabVal::String(s.clone()),
+                _ => KabVal::Number(0),
+            })
+            .collect();
+        let mut m = std::collections::HashMap::new();
+        m.insert("ops".to_string(), KabVal::from_array(ops));
+        m.insert("constants".to_string(), KabVal::from_array(consts));
+        m.insert("locals".to_string(), rec_str_array(&func.locals));
+        m.insert("params".to_string(), rec_str_array(&func.params));
+        m.insert("kind".to_string(), KabVal::String(kind.to_string()));
+        if let Some(s) = arr_slot {
+            m.insert("arrSlot".to_string(), KabVal::Number(s as i64));
+        }
+        Some(KabVal::from_object(m))
+    }
+
+    /// Extract the emitted byte array out of a `jitX64Emit` result record.
+    fn emit_code(out: KabVal) -> Option<Vec<u8>> {
+        let KabVal::Object(m) = out else {
+            return None;
+        };
+        if !matches!(m.get("ok"), Some(KabVal::Bool(true))) {
+            return None;
+        }
+        let Some(KabVal::Array(items)) = m.get("code") else {
+            return None;
+        };
+        let mut code = Vec::with_capacity(items.len());
+        for v in items.iter() {
+            match v {
+                KabVal::Number(n) if (0..=255).contains(n) => code.push(*n as u8),
+                _ => return None,
+            }
+        }
+        if code.is_empty() {
+            return None;
+        }
+        Some(code)
+    }
+
+    /// Run a prepared record through the Kab emitter; None = honest reject
+    /// (unsupported shape) or emitter unavailable → caller falls back to
+    /// the interpreter, never errors the user's fn.
+    fn kab_emit_rec(rec: KabVal) -> Option<Rc<Vec<u8>>> {
+        let (emit, mut env) = emit_handle()?;
+        let _g = emit_begin()?;
+        let out = super::super::call_value(emit, vec![rec], &[], &[], &[], &[], &mut env);
+        emit_code(out.ok()?).map(Rc::new)
+    }
+
+    fn kab_compile(func: &BytecodeFnDef, kind: &str, arr_slot: Option<u16>) -> Option<Rc<Vec<u8>>> {
+        if emit_active() {
+            return None;
+        }
+        kab_emit_rec(fn_record(func, kind, arr_slot)?)
+    }
+
+    /// Cache lookup under a short borrow, then (if cold) the emit itself
+    /// OUTSIDE the borrow — call_value reenters the VM and would panic on
+    /// the still-held RefCell otherwise. Rejects are negative-cached.
+    fn cached_or_compile(
+        func: &BytecodeFnDef,
+        key: u64,
+        kind: &str,
+        arr_slot: Option<u16>,
+    ) -> Option<Rc<Vec<u8>>> {
+        if let Some(c) = with_state(|st| st.cache.get(&key).cloned())? {
+            return Some(c);
+        }
+        if with_state(|st| st.rejects.contains(&key))? {
+            return None;
+        }
+        let code = match kab_compile(func, kind, arr_slot) {
+            Some(c) => c,
+            None => {
+                with_state(|st| {
+                    st.rejects.insert(key);
+                });
+                return None;
+            }
+        };
+        JIT_COMPILED.fetch_add(1, Ordering::Relaxed);
+        with_state(|st| st.cache.entry(key).or_insert_with(|| code.clone()).clone())
+    }
+
+    fn exec(code: &[u8], arg: i64, data: &[u8]) -> Result<i64, String> {
+        let r = crate::runtime::native_exec::exec_bytes_data(code, arg, data)?;
+        JIT_KAB_EXECS.fetch_add(1, Ordering::Relaxed);
+        Ok(r)
+    }
+
+    /// `fn al(n): s=0; i=0; while i<n { s+=1; i+=1 } return s` — the same
+    /// loop the old compile_add_loop built, as a compileIr record.
+    fn add_loop_rec() -> KabVal {
+        let op = |name: &str, arg: i64| {
+            let mut m = std::collections::HashMap::new();
+            m.insert("op".to_string(), KabVal::String(name.to_string()));
+            m.insert("arg".to_string(), KabVal::Number(arg));
+            KabVal::from_object(m)
+        };
+        let ops = KabVal::from_array(vec![
+            op("const", 0),
+            op("store_local", 1),
+            op("const", 0),
+            op("store_local", 2),
+            op("load_local", 2),
+            op("load_local", 0),
+            op("lt", 0),
+            op("jump_if_false", 7),
+            op("const", 1),
+            op("acc_add_local", 1),
+            op("load_local", 2),
+            op("const", 1),
+            op("add", 0),
+            op("store_local", 2),
+            op("jump", -11),
+            op("load_local", 1),
+            op("return", 0),
+        ]);
+        let mut m = std::collections::HashMap::new();
+        m.insert("ops".to_string(), ops);
+        m.insert(
+            "constants".to_string(),
+            KabVal::from_array(vec![KabVal::Number(0), KabVal::Number(1)]),
+        );
+        m.insert(
+            "locals".to_string(),
+            rec_str_array(&["n".into(), "s".into(), "i".into()]),
+        );
+        m.insert("params".to_string(), rec_str_array(&["n".into()]));
+        m.insert("kind".to_string(), KabVal::String("i64".into()));
+        KabVal::from_object(m)
+    }
+
+    pub fn add_loop(n: i64) -> Option<i64> {
+        let code = match with_state(|st| st.add_loop.clone())? {
+            Some(c) => c,
+            None => {
+                let c = kab_emit_rec(add_loop_rec())?;
+                let (stored, inserted) = with_state(|st| {
+                    if st.add_loop.is_none() {
+                        st.add_loop = Some(c.clone());
+                        (c.clone(), true)
+                    } else {
+                        (st.add_loop.clone().unwrap_or(c.clone()), false)
+                    }
+                })?;
+                if inserted {
+                    JIT_COMPILED.fetch_add(1, Ordering::Relaxed);
+                }
+                stored
+            }
+        };
+        JIT_HITS.fetch_add(1, Ordering::Relaxed);
+        exec(&code, n, &[]).ok()
     }
 
     pub fn try_run(
@@ -316,40 +519,22 @@ mod host {
             return None;
         }
         let key = fingerprint(func);
-        let argc = func.params.len();
         let ready = with_state(|st| hot_enough(st, key))?;
         if !ready {
             return None;
         }
-        let ptr = match with_state(|st| {
-            if let Some(p) = st.cache.get(&key).copied() {
-                return Ok(p);
-            }
-            let p = compile_fn(st, func, argc, None)?;
-            st.cache.insert(key, p);
-            JIT_COMPILED.fetch_add(1, Ordering::Relaxed);
-            Ok(p)
-        }) {
-            Some(Ok(p)) => p,
-            Some(Err(e)) => {
-                JIT_FAILS.fetch_add(1, Ordering::Relaxed);
-                return Some(Err(e));
-            }
-            None => return None,
-        };
+        let code = cached_or_compile(func, key, "i64", None)?;
         let narg = match args.first() {
             Some(KabVal::Number(n)) => *n,
             Some(KabVal::Float(f)) => *f as i64,
             _ => 0,
         };
         JIT_HITS.fetch_add(1, Ordering::Relaxed);
-        let ret = unsafe {
-            if argc == 0 {
-                let f: unsafe extern "C" fn() -> i64 = std::mem::transmute(ptr);
-                f()
-            } else {
-                let f: unsafe extern "C" fn(i64) -> i64 = std::mem::transmute(ptr);
-                f(narg)
+        let ret = match exec(&code, narg, &[]) {
+            Ok(r) => r,
+            Err(e) => {
+                JIT_FAILS.fetch_add(1, Ordering::Relaxed);
+                return Some(Err(e));
             }
         };
         Some(Ok((KabVal::Number(ret), Vec::new())))
@@ -372,7 +557,7 @@ mod host {
         }
     }
 
-    /// The array kernels only receive `(base, len)` / `(len)` — extra params
+    /// The array kernels only receive `(len, base)` / `(len)` — extra params
     /// cannot be passed through. If the body reads a second param's local slot
     /// the JIT would run with it bound to 0; bail to the boxed VM instead.
     fn extra_param_unread(func: &BytecodeFnDef) -> bool {
@@ -413,28 +598,19 @@ mod host {
                 if !extra_param_unread(func) || !returns_i64(func) || !i64_const_domain(func) {
                     return None;
                 }
-                let ptr = match with_state(|st| {
-                    if let Some(p) = st.cache.get(&key).copied() {
-                        return Ok(p);
-                    }
-                    let p = compile_fn(st, func, 2, Some((arr_li, true)))?;
-                    st.cache.insert(key, p);
-                    JIT_COMPILED.fetch_add(1, Ordering::Relaxed);
-                    Ok(p)
-                }) {
-                    Some(Ok(p)) => p,
-                    Some(Err(e)) => {
+                let code = cached_or_compile(func, key, "index", Some(arr_li))?;
+                JIT_HITS.fetch_add(1, Ordering::Relaxed);
+                // arg1 = len (ABI first arg); arg2 = i64 LE data page base.
+                let mut data = Vec::with_capacity(buf.len() * 8);
+                for v in &buf {
+                    data.extend_from_slice(&v.to_le_bytes());
+                }
+                let ret = match exec(&code, buf.len() as i64, &data) {
+                    Ok(r) => r,
+                    Err(e) => {
                         JIT_FAILS.fetch_add(1, Ordering::Relaxed);
                         return Some(Err(e));
                     }
-                    None => return None,
-                };
-                JIT_HITS.fetch_add(1, Ordering::Relaxed);
-                let base = buf.as_ptr() as i64;
-                let len = buf.len() as i64;
-                let ret = unsafe {
-                    let f: unsafe extern "C" fn(i64, i64) -> i64 = std::mem::transmute(ptr);
-                    f(base, len)
                 };
                 return Some(Ok((KabVal::Number(ret), Vec::new())));
             }
@@ -444,26 +620,14 @@ mod host {
             return None;
         }
         let len = crate::value::container_len(args.first()?).ok()?;
-        let ptr = match with_state(|st| {
-            if let Some(p) = st.cache.get(&key).copied() {
-                return Ok(p);
-            }
-            let p = compile_fn(st, func, 1, Some((arr_li, false)))?;
-            st.cache.insert(key, p);
-            JIT_COMPILED.fetch_add(1, Ordering::Relaxed);
-            Ok(p)
-        }) {
-            Some(Ok(p)) => p,
-            Some(Err(e)) => {
+        let code = cached_or_compile(func, key, "len", Some(arr_li))?;
+        JIT_HITS.fetch_add(1, Ordering::Relaxed);
+        let ret = match exec(&code, len, &[]) {
+            Ok(r) => r,
+            Err(e) => {
                 JIT_FAILS.fetch_add(1, Ordering::Relaxed);
                 return Some(Err(e));
             }
-            None => return None,
-        };
-        JIT_HITS.fetch_add(1, Ordering::Relaxed);
-        let ret = unsafe {
-            let f: unsafe extern "C" fn(i64) -> i64 = std::mem::transmute(ptr);
-            f(len)
         };
         Some(Ok((KabVal::Number(ret), Vec::new())))
     }
@@ -589,277 +753,5 @@ mod host {
             }
         }
         h.finish()
-    }
-
-    fn const_i64(c: &Constant) -> i64 {
-        match c {
-            Constant::Number(n) => *n,
-            Constant::Float(f) => *f as i64,
-            Constant::Bool(true) => 1,
-            _ => 0,
-        }
-    }
-
-    fn compile_fn(
-        st: &mut State,
-        func: &BytecodeFnDef,
-        argc: usize,
-        arr_local: Option<(u16, bool)>,
-    ) -> Result<*const u8, String> {
-        let st_module = &mut st.module;
-        let ctx = &mut st.ctx;
-        let builder_ctx = &mut st.builder_ctx;
-        ctx.clear();
-        ctx.func.signature = st_module.make_signature();
-        for _ in 0..argc {
-            ctx.func.signature.params.push(AbiParam::new(types::I64));
-        }
-        ctx.func.signature.returns.push(AbiParam::new(types::I64));
-        let mut b = FunctionBuilder::new(&mut ctx.func, builder_ctx);
-        let entry = b.create_block();
-        b.append_block_params_for_function_params(entry);
-        let n = func.code.len();
-        let mut is_target = vec![false; n + 1];
-        is_target[0] = true;
-        for (i, op) in func.code.iter().enumerate() {
-            match op {
-                Opcode::Jump(off) | Opcode::JumpIfFalse(off) => {
-                    let dest = ((i as i32) + 1 + *off) as usize;
-                    if dest <= n {
-                        is_target[dest] = true;
-                    }
-                    if i + 1 <= n {
-                        is_target[i + 1] = true;
-                    }
-                }
-                Opcode::Return | Opcode::Halt => {
-                    if i + 1 <= n {
-                        is_target[i + 1] = true;
-                    }
-                }
-                _ => {}
-            }
-        }
-        let mut blocks = vec![entry; n + 1];
-        for ip in 1..=n {
-            if is_target[ip] {
-                blocks[ip] = b.create_block();
-            }
-        }
-        let nloc = func.locals.len().max(1);
-        let with_base = arr_local.map(|(_, b)| b).unwrap_or(false);
-        let extra = if arr_local.is_some() {
-            if with_base {
-                2
-            } else {
-                1
-            }
-        } else {
-            0
-        };
-        let vars: Vec<Variable> = (0..nloc + extra).map(Variable::new).collect();
-        for v in &vars {
-            b.declare_var(*v, types::I64);
-        }
-        b.switch_to_block(entry);
-        b.seal_block(entry);
-        let z = b.ins().iconst(types::I64, 0);
-        for v in &vars {
-            b.def_var(*v, z);
-        }
-        let arr_slot = arr_local.map(|(s, _)| s);
-        let (arr_base, arr_len) = if let Some((_, true)) = arr_local {
-            (Some(vars[nloc]), Some(vars[nloc + 1]))
-        } else if arr_local.is_some() {
-            (None, Some(vars[nloc]))
-        } else {
-            (None, None)
-        };
-        if let Some((_, true)) = arr_local {
-            let p0 = b.block_params(entry)[0];
-            b.def_var(vars[nloc], p0);
-            let p1 = b.block_params(entry)[1];
-            b.def_var(vars[nloc + 1], p1);
-        } else if arr_local.is_some() {
-            let p0 = b.block_params(entry)[0];
-            b.def_var(vars[nloc], p0);
-        } else {
-            for (pi, pname) in func.params.iter().enumerate() {
-                if let Some(idx) = func.locals.iter().position(|l| l == pname) {
-                    let p = b.block_params(entry)[pi];
-                    b.def_var(vars[idx], p);
-                }
-            }
-        }
-        let mut stack: Vec<cranelift::prelude::Value> = Vec::new();
-        let mut terminated = false;
-        let oob_block = if with_base {
-            Some(b.create_block())
-        } else {
-            None
-        };
-        for ip in 0..n {
-            if ip > 0 && is_target[ip] {
-                if !terminated {
-                    b.ins().jump(blocks[ip], &[]);
-                }
-                b.switch_to_block(blocks[ip]);
-                terminated = false;
-            }
-            if terminated {
-                continue;
-            }
-            match func.code[ip] {
-                Opcode::Const(idx) => {
-                    let c = const_i64(func.constants.get(idx as usize).unwrap_or(&Constant::Null));
-                    stack.push(b.ins().iconst(types::I64, c));
-                }
-                Opcode::LoadLocal(idx) => {
-                    stack.push(b.use_var(vars[idx as usize]));
-                }
-                Opcode::StoreLocal(idx) => {
-                    let v = stack.pop().unwrap_or(z);
-                    b.def_var(vars[idx as usize], v);
-                }
-                Opcode::Pop => {
-                    let _ = stack.pop();
-                }
-                Opcode::AccAddLocal(idx) => {
-                    let rhs = stack.pop().unwrap_or(z);
-                    let lhs = b.use_var(vars[idx as usize]);
-                    let sum = b.ins().iadd(lhs, rhs);
-                    b.def_var(vars[idx as usize], sum);
-                }
-                Opcode::LenLocal(idx) => {
-                    if arr_slot != Some(idx) {
-                        return Err("jit: len_local not array param".into());
-                    }
-                    stack.push(b.use_var(arr_len.expect("arr_len")));
-                }
-                Opcode::IndexGetLocal(idx) => {
-                    if arr_slot != Some(idx) || !with_base {
-                        return Err("jit: index_get_local not array param".into());
-                    }
-                    let i = stack.pop().unwrap_or(z);
-                    let lenv = b.use_var(arr_len.expect("arr_len"));
-                    let oob = b.ins().icmp(IntCC::UnsignedGreaterThanOrEqual, i, lenv);
-                    let cont = b.create_block();
-                    b.ins().brif(
-                        oob,
-                        oob_block.expect("oob"),
-                        &[],
-                        cont,
-                        &[],
-                    );
-                    b.switch_to_block(cont);
-                    b.seal_block(cont);
-                    let base = b.use_var(arr_base.expect("arr_base"));
-                    let off = b.ins().ishl_imm(i, 3);
-                    let addr = b.ins().iadd(base, off);
-                    let val = b.ins().load(types::I64, MemFlags::new(), addr, 0);
-                    stack.push(val);
-                }
-                Opcode::Add => {
-                    let r = stack.pop().unwrap_or(z);
-                    let l = stack.pop().unwrap_or(z);
-                    stack.push(b.ins().iadd(l, r));
-                }
-                Opcode::Sub => {
-                    let r = stack.pop().unwrap_or(z);
-                    let l = stack.pop().unwrap_or(z);
-                    stack.push(b.ins().isub(l, r));
-                }
-                Opcode::Mul => {
-                    let r = stack.pop().unwrap_or(z);
-                    let l = stack.pop().unwrap_or(z);
-                    stack.push(b.ins().imul(l, r));
-                }
-                Opcode::Eq => {
-                    let r = stack.pop().unwrap_or(z);
-                    let l = stack.pop().unwrap_or(z);
-                    let c = b.ins().icmp(IntCC::Equal, l, r);
-                    stack.push(b.ins().uextend(types::I64, c));
-                }
-                Opcode::Ne => {
-                    let r = stack.pop().unwrap_or(z);
-                    let l = stack.pop().unwrap_or(z);
-                    let c = b.ins().icmp(IntCC::NotEqual, l, r);
-                    stack.push(b.ins().uextend(types::I64, c));
-                }
-                Opcode::Lt => {
-                    let r = stack.pop().unwrap_or(z);
-                    let l = stack.pop().unwrap_or(z);
-                    let c = b.ins().icmp(IntCC::SignedLessThan, l, r);
-                    stack.push(b.ins().uextend(types::I64, c));
-                }
-                Opcode::Le => {
-                    let r = stack.pop().unwrap_or(z);
-                    let l = stack.pop().unwrap_or(z);
-                    let c = b.ins().icmp(IntCC::SignedLessThanOrEqual, l, r);
-                    stack.push(b.ins().uextend(types::I64, c));
-                }
-                Opcode::Gt => {
-                    let r = stack.pop().unwrap_or(z);
-                    let l = stack.pop().unwrap_or(z);
-                    let c = b.ins().icmp(IntCC::SignedGreaterThan, l, r);
-                    stack.push(b.ins().uextend(types::I64, c));
-                }
-                Opcode::Ge => {
-                    let r = stack.pop().unwrap_or(z);
-                    let l = stack.pop().unwrap_or(z);
-                    let c = b.ins().icmp(IntCC::SignedGreaterThanOrEqual, l, r);
-                    stack.push(b.ins().uextend(types::I64, c));
-                }
-                Opcode::Jump(off) => {
-                    let dest = ((ip as i32) + 1 + off) as usize;
-                    b.ins().jump(blocks[dest.min(n)], &[]);
-                    terminated = true;
-                }
-                Opcode::JumpIfFalse(off) => {
-                    let cond = stack.pop().unwrap_or(z);
-                    let dest = ((ip as i32) + 1 + off) as usize;
-                    let is_false = b.ins().icmp_imm(IntCC::Equal, cond, 0);
-                    let next = ip + 1;
-                    b.ins()
-                        .brif(is_false, blocks[dest.min(n)], &[], blocks[next.min(n)], &[]);
-                    terminated = true;
-                }
-                Opcode::Return | Opcode::Halt => {
-                    let v = stack.pop().unwrap_or(z);
-                    b.ins().return_(&[v]);
-                    terminated = true;
-                }
-                _ => {
-                    return Err("jit: unsupported opcode".into());
-                }
-            }
-        }
-        if !terminated {
-            let v = stack.pop().unwrap_or(z);
-            b.ins().return_(&[v]);
-        }
-        if let Some(oob) = oob_block {
-            b.switch_to_block(oob);
-            b.ins().trap(TrapCode::HEAP_OUT_OF_BOUNDS);
-            b.seal_block(oob);
-        }
-        for ip in 1..=n {
-            if is_target[ip] {
-                b.seal_block(blocks[ip]);
-            }
-        }
-        b.finalize();
-        let name = format!("kjit_{}", fingerprint(func));
-        let id = st_module
-            .declare_function(&name, Linkage::Export, &ctx.func.signature)
-            .map_err(|e| e.to_string())?;
-        st_module
-            .define_function(id, ctx)
-            .map_err(|e| e.to_string())?;
-        st_module.clear_context(ctx);
-        st_module
-            .finalize_definitions()
-            .map_err(|e| e.to_string())?;
-        Ok(st_module.get_finalized_function(id))
     }
 }

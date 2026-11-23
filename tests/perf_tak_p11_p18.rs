@@ -1,4 +1,5 @@
-//! P11–P18 tak-gates (subset). Cranelift/full nursery remain deepen.
+//! P11–P18 tak-gates (subset). Product JIT emits via lib/kab/jit/jit_x64_emit.kab;
+//! full nursery remains deepen.
 
 use kabootar_lib::evaluator::{create_global_env, eval_source};
 use kabootar_lib::runtime::ptak::{native_add_loop, nursery_reset_for_tests};
@@ -46,7 +47,7 @@ fn p13a_native_add_loop() {
 }
 
 #[test]
-fn p13a_cranelift_jit_add_loop() {
+fn p13a_kab_jit_add_loop() {
     let _g = P13_JIT_TEST.lock().expect("p13 lock");
     kabootar_lib::bytecode::jit_reset_for_tests();
     kabootar_lib::bytecode::jit_set_call_threshold_for_tests(1);
@@ -71,12 +72,12 @@ fn p13a_cranelift_jit_add_loop() {
     let (hits, compiled, fails) = kabootar_lib::bytecode::jit_stats();
     assert!(
         hits + compiled > 0 || fails == 0,
-        "expected cranelift JIT path hits={hits} compiled={compiled} fails={fails}"
+        "expected Kab JIT path hits={hits} compiled={compiled} fails={fails}"
     );
     #[cfg(not(target_arch = "wasm32"))]
     assert!(
         compiled > 0 || hits > 0,
-        "Cranelift should compile or run typed add_loop, hits={hits} compiled={compiled} fails={fails}"
+        "jitX64Emit should compile or run typed add_loop, hits={hits} compiled={compiled} fails={fails}"
     );
 }
 
@@ -148,7 +149,7 @@ fn p13b_jit_after_n_calls() {
     #[cfg(not(target_arch = "wasm32"))]
     assert!(
         hits > 0 || compiled > 0,
-        "P13b: 8th call should Cranelift, hits={hits} compiled={compiled}"
+        "P13b: 8th call should jit-compile, hits={hits} compiled={compiled}"
     );
 }
 

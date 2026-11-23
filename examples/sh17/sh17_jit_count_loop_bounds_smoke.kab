@@ -1,0 +1,181 @@
+// SH17: count-loop bound generalization — vJitCountLoopS used to require a
+// `const` bound, but the DAG seed loops are dominated by `while i < len(a)`
+// (59/248) and `while i < n` (48/248) vs 4 const-bound. The closed-form trip
+// count now resolves the bound from `const`, `load_local`, or `len_local`
+// (array/string element count), with a bound-invariance guard: the bound's
+// source slot may not be an acc_add target inside the body. S["jitCountLoops"]
+// counts closed-form applications.
+//
+// Ops layout — `while i < len(a) { s = s + k; i = i + 1 }; return s`:
+//   1: load_local 1        push i
+//   2: len_local 0         push len(a)
+//   3: lt
+//   4: jump_if_false +5    -> ip 10 (exit)
+//   5: const 0             push k (pool[0])
+//   6: acc_add_local 2     s += k
+//   7: const 1             push 1 (pool[1])
+//   8: acc_add_local 1     i += 1
+//   9: jump -9             -> ip 1 (back-edge)
+//  10: load_local 2
+//  11: return
+
+import "self_host/vm_run_session"
+import "self_host/vm_run_ops_loop"
+import "self_host/vm_run_jit"
+
+fn lenBoundOps() {
+    let ops = []
+    ops = push(ops, { "op": "return" })
+    ops = push(ops, { "op": "load_local", "arg": 1 })
+    ops = push(ops, { "op": "len_local", "arg": 0 })
+    ops = push(ops, { "op": "lt" })
+    ops = push(ops, { "op": "jump_if_false", "arg": 5 })
+    ops = push(ops, { "op": "const", "arg": 0 })
+    ops = push(ops, { "op": "acc_add_local", "arg": 2 })
+    ops = push(ops, { "op": "const", "arg": 1 })
+    ops = push(ops, { "op": "acc_add_local", "arg": 1 })
+    ops = push(ops, { "op": "jump", "arg": -9 })
+    ops = push(ops, { "op": "load_local", "arg": 2 })
+    ops = push(ops, { "op": "return" })
+    return ops
+}
+
+fn localBoundOps() {
+    let ops = []
+    ops = push(ops, { "op": "return" })
+    ops = push(ops, { "op": "load_local", "arg": 0 })
+    ops = push(ops, { "op": "load_local", "arg": 1 })
+    ops = push(ops, { "op": "lt" })
+    ops = push(ops, { "op": "jump_if_false", "arg": 5 })
+    ops = push(ops, { "op": "const", "arg": 0 })
+    ops = push(ops, { "op": "acc_add_local", "arg": 2 })
+    ops = push(ops, { "op": "const", "arg": 1 })
+    ops = push(ops, { "op": "acc_add_local", "arg": 0 })
+    ops = push(ops, { "op": "jump", "arg": -9 })
+    ops = push(ops, { "op": "load_local", "arg": 2 })
+    ops = push(ops, { "op": "return" })
+    return ops
+}
+
+// while i < len(a) { i = i + 1 }; return i — inc-form body, so the count
+// loop rejects it and the ARMED header instead runs its branch decision
+// through the fused cmp template (vOsrOperandVal resolves len_local).
+fn osrLenOps() {
+    let ops = []
+    ops = push(ops, { "op": "return" })
+    ops = push(ops, { "op": "load_local", "arg": 1 })
+    ops = push(ops, { "op": "len_local", "arg": 0 })
+    ops = push(ops, { "op": "lt" })
+    ops = push(ops, { "op": "jump_if_false", "arg": 5 })
+    ops = push(ops, { "op": "load_local", "arg": 1 })
+    ops = push(ops, { "op": "const", "arg": 0 })
+    ops = push(ops, { "op": "add" })
+    ops = push(ops, { "op": "store_local", "arg": 1 })
+    ops = push(ops, { "op": "jump", "arg": -9 })
+    ops = push(ops, { "op": "load_local", "arg": 1 })
+    ops = push(ops, { "op": "return" })
+    return ops
+}
+
+// --- S1: len_local bound — `while i < len(a)` closed form on first visit.
+let S = vMakeSession()
+S["ip"] = 1
+S["locals"] = [["a", "b", "c"], 0, 0]
+runOpsS(S, lenBoundOps(), [5, 1], {}, [])
+if S["result"] != 15 {
+    return 1
+}
+// Closed form: no back-edge interpreted, no OSR counter, exactly one
+// count-loop application that consumed all 3 trips atomically.
+if S["jitCountLoops"] != 1 {
+    return 2
+}
+if S["jitLoopHits"] != undefined {
+    return 3
+}
+if S["locals"][1] != 3 {
+    return 4
+}
+
+// --- S2: load_local bound — `while i < n` with n in a local.
+let S2 = vMakeSession()
+S2["ip"] = 1
+S2["locals"] = [0, 4, 0]
+runOpsS(S2, localBoundOps(), [3, 1], {}, [])
+if S2["result"] != 12 {
+    return 5
+}
+if S2["jitCountLoops"] != 1 {
+    return 6
+}
+if S2["locals"][0] != 4 {
+    return 7
+}
+
+// --- S3: const bound still works (regression — the original domain).
+let S3 = vMakeSession()
+S3["ip"] = 1
+S3["locals"] = [0, 0]
+let constOps = []
+constOps = push(constOps, { "op": "return" })
+constOps = push(constOps, { "op": "load_local", "arg": 0 })
+constOps = push(constOps, { "op": "const", "arg": 0 })
+constOps = push(constOps, { "op": "lt" })
+constOps = push(constOps, { "op": "jump_if_false", "arg": 5 })
+constOps = push(constOps, { "op": "const", "arg": 1 })
+constOps = push(constOps, { "op": "acc_add_local", "arg": 1 })
+constOps = push(constOps, { "op": "const", "arg": 2 })
+constOps = push(constOps, { "op": "acc_add_local", "arg": 0 })
+constOps = push(constOps, { "op": "jump", "arg": -9 })
+constOps = push(constOps, { "op": "load_local", "arg": 1 })
+constOps = push(constOps, { "op": "return" })
+runOpsS(S3, constOps, [6, 2, 1], {}, [])
+if S3["result"] != 12 {
+    return 8
+}
+if S3["jitCountLoops"] != 1 {
+    return 9
+}
+
+// --- S4: string len_local bound — same closed form over a string local.
+let S4 = vMakeSession()
+S4["ip"] = 1
+S4["locals"] = ["abcd", 0, 0]
+runOpsS(S4, lenBoundOps(), [2, 1], {}, [])
+if S4["result"] != 8 {
+    return 10
+}
+if S4["jitCountLoops"] != 1 {
+    return 11
+}
+
+// --- S5: len_local OSR header — inc-body rejects count-loop; the loop arms
+// at hit 8 and vOsrOperandVal's len_local arm feeds the fused cmp template.
+let arr = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"]
+let S5 = vMakeSession()
+S5["ip"] = 1
+S5["locals"] = [arr, 1]
+runOpsS(S5, osrLenOps(), [1], {}, [])
+if S5["result"] != 12 {
+    return 12
+}
+if S5["jitLoopHits"][" 1"] != 11 {
+    return 13
+}
+if S5["jitOsrArmed"][" 1"] != true {
+    return 14
+}
+// Armed header visits i = 9,10,11,12 → 4 compiled decisions through the
+// len_local operand — proof the while i < len(a) header shape fuses.
+if S5["jitOsrExecs"] != 4 {
+    return 15
+}
+if S5["jitOsrIncExecs"] != 3 {
+    return 16
+}
+// The count-loop must NOT have consumed this loop (inc body, not acc body).
+if S5["jitCountLoops"] != undefined {
+    return 17
+}
+
+return 42

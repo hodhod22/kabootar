@@ -1,7 +1,7 @@
 //! P11a — typed frames (i64 / f64 / bool / struct) for numeric bytecode functions.
 //!
 //! Tight loops stay in dense slots instead of the boxed `Value` enum.
-//! Cranelift stays i64-only; float/bool/struct kernels use this interpreter.
+//! The Kab JIT stays i64-only; float/bool/struct kernels use this interpreter.
 
 use super::types::{BytecodeFnDef, Constant, Opcode};
 use crate::value::Value;

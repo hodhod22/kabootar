@@ -1,0 +1,234 @@
+// SH17 deepen: the host JIT's compiler is Kab — a hot typed-i64 bytecode
+// fn record (compileIr shape: ops [{op,arg}], constants already i64-mapped,
+// locals, params) lowers to REAL x86-64 via aot_fn_x64 — the Kab peer of
+// the retired Cranelift compile_fn in src/bytecode/jit.rs.
+// import "kab/jit/jit_x64_emit"
+//
+// KINDS (mirroring the Rust try_run_* classes):
+//   "i64"   — general typed-i64 fn, arity <= 1: arg1 -> the param slot.
+//   "index" — array kernel: arg1 = i64 len, arg2 = data-page base ptr;
+//             len_local arrSlot -> slot0; index_get_local arrSlot ->
+//             bounds-checked [base + idx*8] (dup/lt/ge/jnz/trap/hloadx).
+//   "len"   — len-only kernel: arg1 = len; index_get_local rejects.
+//
+// Frame layout: aot prologue spills args to locals 0..arity-1; the fn's
+// own locals live at lshift.. (index:2 len:1 i64:0); i64 kind keeps one
+// scratch slot at nl to stage arg0 across the zero-init prelude — the
+// zeroing mirrors compile_fn's def_var(0) init of every local.
+
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_native"
+
+fn jitX64Rej(reason) {
+    return { "ok": false, "reason": reason }
+}
+
+// Position of `name` in the locals array (-1 when absent).
+fn jitX64LocalSlot(locals, name) {
+    let i = 0
+    while i < len(locals) {
+        if locals[i] == name {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+// Pre-converted i64 constant (Rust applies const_i64 semantics already);
+// reject anything that isn't a number so a bad pool can't emit garbage.
+fn jitX64ConstV(consts, i) {
+    if i < 0 || i >= len(consts) {
+        return undefined
+    }
+    let c = consts[i]
+    if typeof(c) != "number" {
+        return undefined
+    }
+    return c
+}
+
+/// Lower + emit. `rec` = {ops, constants, locals, params, kind?, arrSlot?,
+/// name?}. Returns {ok, code} or {ok:false, reason}.
+pub fn jitX64Emit(rec) {
+    let ops = rec["ops"]
+    let consts = rec["constants"]
+    let locals = rec["locals"]
+    let params = rec["params"]
+    let kind = rec["kind"]
+    if kind == undefined {
+        kind = "i64"
+    }
+    let arrSlot = rec["arrSlot"]
+    if arrSlot == undefined {
+        arrSlot = -1
+    }
+    let nl = len(locals)
+    let lshift = 0
+    let arity = len(params)
+    if kind == "index" {
+        lshift = 2
+        arity = 2
+    }
+    if kind == "len" {
+        lshift = 1
+        arity = 1
+    }
+    if kind == "i64" && arity > 1 {
+        return jitX64Rej("i64 arity > 1")
+    }
+    if kind != "i64" && (arrSlot < 0 || arrSlot >= nl) {
+        return jitX64Rej("kernel without arrSlot")
+    }
+    // Param slot: name position inside locals (params are named slots).
+    let pslot = -1
+    if kind == "i64" && arity == 1 {
+        pslot = jitX64LocalSlot(locals, params[0])
+        if pslot < 0 {
+            return jitX64Rej("param not in locals")
+        }
+    }
+    let stage = nl + lshift
+    // Prelude: stage arg0 (i64 arity 1), zero every fn local (Cranelift
+    // def_var(0) parity), bind the staged arg into the param slot.
+    let out = []
+    if kind == "i64" && arity == 1 {
+        out = push(out, ["load", 0])
+        out = push(out, ["store", stage])
+    }
+    let zi = 0
+    while zi < nl {
+        out = push(out, ["const", 0])
+        out = push(out, ["store", zi + lshift])
+        zi = zi + 1
+    }
+    if kind == "i64" && arity == 1 {
+        out = push(out, ["load", stage])
+        out = push(out, ["store", pslot])
+    }
+    // Translate. index_get_local expands to ~11 aot ops, so jump targets
+    // can't be preLen-shifted op indices: srcToOut maps source index →
+    // out position, jfix collects {outPos, srcTarget} patched afterwards.
+    let srcToOut = []
+    let jfix = []
+    let trapFixes = []
+    let i = 0
+    while i < len(ops) {
+        srcToOut = push(srcToOut, len(out))
+        let name = ops[i]["op"]
+        let arg = ops[i]["arg"]
+        if arg == undefined {
+            arg = 0
+        }
+        if name == "const" {
+            let cv = jitX64ConstV(consts, arg)
+            if cv == undefined {
+                return jitX64Rej("const domain @" + i)
+            }
+            if cv >= -2147483648 && cv <= 2147483647 {
+                out = push(out, ["const", cv])
+            } else {
+                out = push(out, ["const64", cv])
+            }
+        } else if name == "load_local" {
+            out = push(out, ["load", arg + lshift])
+        } else if name == "store_local" {
+            out = push(out, ["store", arg + lshift])
+        } else if name == "acc_add_local" {
+            out = push(out, ["acc_add", arg + lshift])
+        } else if name == "len_local" {
+            if arg != arrSlot || kind == "i64" {
+                return jitX64Rej("len_local off kernel @" + i)
+            }
+            out = push(out, ["load", 0])
+        } else if name == "index_get_local" {
+            if arg != arrSlot || kind != "index" {
+                return jitX64Rej("index_get_local off kernel @" + i)
+            }
+            // idx<0 or idx>=len -> ud2 trap (Cranelift's OOB block);
+            // jnz targets are patched to the shared trap op below.
+            out = push(out, ["dup"])
+            out = push(out, ["const", 0])
+            out = push(out, ["lt"])
+            trapFixes = push(trapFixes, len(out))
+            out = push(out, ["jnz", -1])
+            out = push(out, ["dup"])
+            out = push(out, ["load", 0])
+            out = push(out, ["ge"])
+            trapFixes = push(trapFixes, len(out))
+            out = push(out, ["jnz", -1])
+            out = push(out, ["load", 1])
+            out = push(out, ["swap"])
+            out = push(out, ["hloadx"])
+        } else if name == "add" || name == "sub" || name == "mul" || name == "div" || name == "mod" {
+            out = push(out, [name])
+        } else if name == "neg" || name == "not" || name == "bit_not" {
+            out = push(out, [name])
+        } else if name == "eq" || name == "ne" || name == "lt" || name == "le" || name == "gt" || name == "ge" {
+            out = push(out, [name])
+        } else if name == "pop" {
+            out = push(out, ["pop"])
+        } else if name == "dup" {
+            out = push(out, ["dup"])
+        } else if name == "jump" || name == "jump_if_false" || name == "jump_if_true" {
+            let t = i + 1 + arg
+            if t < 0 || t >= len(ops) {
+                return jitX64Rej("jump out of range @" + i)
+            }
+            let jname = "jmp"
+            if name == "jump_if_false" {
+                jname = "jz"
+            }
+            if name == "jump_if_true" {
+                jname = "jnz"
+            }
+            jfix = push(jfix, { "p": len(out), "t": t })
+            out = push(out, [jname, -1])
+        } else if name == "return" || name == "halt" {
+            out = push(out, ["ret"])
+        } else {
+            return jitX64Rej("unsupported op " + name + " @" + i)
+        }
+        i = i + 1
+    }
+    // Shared OOB trap op — one ud2 for every index_get_local bounds check.
+    // aotFnOk requires ops[-1] == ret, so the trap sits between the body's
+    // own ret (or a jmp-over guard when the body doesn't end in ret) and a
+    // dead ret filler.
+    let lastIsRet = len(out) > 0 && out[len(out) - 1][0] == "ret"
+    if len(trapFixes) > 0 {
+        if lastIsRet == false {
+            out = push(out, ["jmp", len(out) + 2])
+        }
+        let trapAt = len(out)
+        out = push(out, ["trap"])
+        let ti = 0
+        while ti < len(trapFixes) {
+            out[trapFixes[ti]][1] = trapAt
+            ti = ti + 1
+        }
+        out = push(out, ["ret"])
+    } else if lastIsRet == false {
+        out = push(out, ["ret"])
+    }
+    // Patch real jump targets through the source→out index map.
+    let ji = 0
+    while ji < len(jfix) {
+        let jf = jfix[ji]
+        out[jf["p"]][1] = srcToOut[jf["t"]]
+        ji = ji + 1
+    }
+    let fns = [{ "name": "jitx64", "locals": stage + 1, "arity": arity, "ops": out }]
+    if kind == "i64" && arity == 0 {
+        fns[0]["locals"] = nl
+    }
+    if kind != "i64" {
+        fns[0]["locals"] = nl + lshift
+    }
+    let r = aotX64EmitFns(fns, aotNativeHostAbi())
+    let code = r["code"]
+    if code == undefined || len(code) == 0 {
+        return jitX64Rej("x64 emit failed")
+    }
+    return { "ok": true, "code": code }
+}

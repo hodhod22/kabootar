@@ -1,0 +1,165 @@
+// SH17: JIT diagnostics channel — the singleton session S exposes fused-path
+// counters via vJitSessionStats (armed OSR headers, osrExecs/osrMisses,
+// countLoops, compiled callees, fused execs) plus a trace-gated miss-shape
+// histogram. This module itself runs on S, so its hot loops/fns feed the
+// counters through the real dispatch path (runOpsS + vJitClassifyS).
+// Loops cover BOTH spaces: fn-local variants inside work(), and the global
+// variants (load_global/len_global/acc_add_global) at top level.
+
+import "self_host/vm_run_exec_core"
+import "kab/vm"
+
+vJitSessionReset()
+vJitSessionMissTrace(true)
+
+// Fusible call shapes: jitBind chains (a < 5, a * 2 + 7, 20 - j) compile hot.
+fn lt5(a) {
+    return a < 5
+}
+fn m(a) {
+    return a * 2 + 7
+}
+fn cap(j) {
+    return 20 - j
+}
+
+fn work() {
+    let a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    // Complex body → no closed form, but the len_local header arms and the
+    // fused cmp step runs; inner calls compile to jit callees.
+    let i = 0
+    let s = 0
+    while i < len(a) {
+        s = s + m(a[i])
+        if lt5(a[i]) {
+            s = s + 1
+        }
+        i = i + 1
+    }
+    // Pure acc_add body → the closed-form count loop consumes it whole.
+    let i2 = 0
+    let s2 = 0
+    while i2 < len(a) {
+        s2 = s2 + 1
+        i2 = i2 + 1
+    }
+    // Call-bound header → armed, then misses the fused form every step.
+    let k = 0
+    while k < cap(k) {
+        k = k + 1
+    }
+    return [s, s2, k]
+}
+
+let r = work()
+// 2*sum(a)+7*14 + count(a<5) = 2*105 + 98 + 4 = 312; s2 = 14; k = 10.
+if r[0] != 312 {
+    return 1
+}
+if r[1] != 14 {
+    return 2
+}
+if r[2] != 10 {
+    return 3
+}
+
+// Top-level lets are globals — the count-loop global variant:
+// load_global counter, len_global bound, acc_add_global body.
+let gArr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+let gi = 0
+let gs = 0
+while gi < len(gArr) {
+    gs = gs + 2
+    gi = gi + 1
+}
+if gs != 20 {
+    return 4
+}
+// Global bound + counter, complex body → armed header, fused cmp step.
+let gN = 12
+let gj = 0
+let gacc = 0
+while gj < gN {
+    gacc = gacc + gj
+    gj = gj + 1
+}
+if gacc != 66 {
+    return 5
+}
+
+// Compound-expression headers — `while xs[i] < n` and `while i + 1 < n`
+// don't fit the `op|op|cmp|jcc` fast form; the stack-eval walks pushes,
+// index_get and arith to the cmp;jcc pair (index_get_global / mid-expr
+// shapes came straight from the measured miss histogram).
+let xs = [3, 1, 4, 1, 5, 2, 6, 0, 7, 1, 4, 2, 8, 0, 99]
+let xi = 0
+let xhit = 0
+let xn = 9
+while xs[xi] < xn {
+    xhit = xhit + 1
+    xi = xi + 1
+}
+if xhit != 14 || xi != 14 {
+    return 15
+}
+let yi = 0
+let ysum = 0
+while yi + 1 < 13 {
+    ysum = ysum + yi
+    yi = yi + 1
+}
+if ysum != 66 {
+    return 16
+}
+
+let st = vJitSessionStats()
+// The len_local headers armed; pure-acc loops closed-formed (fn-local +
+// top-level global variants).
+if st["armed"] < 1 {
+    return 6
+}
+if st["countLoops"] < 2 {
+    return 7
+}
+// Hot fns fused: m/lt5/cap compiled to jit callees and exec'd templates.
+if st["compiled"] < 1 {
+    return 8
+}
+if st["execs"] < 1 {
+    return 9
+}
+// Fused OSR headers stepped at least once on the armed complex-body loops
+// (len_local in work(); load_global|load_global at top level).
+if st["osrExecs"] < 1 {
+    return 10
+}
+// The call-bound header armed, then missed every fused attempt.
+if st["osrMisses"] < 1 {
+    return 11
+}
+let shapes = vJitSessionMissShapes()
+let ks = object_keys(shapes)
+let sawCall = false
+let ki = 0
+while ki < len(ks) {
+    if str_index_of(ks[ki], "call") >= 0 {
+        sawCall = true
+    }
+    ki = ki + 1
+}
+if sawCall == false {
+    return 12
+}
+
+// Reset zeroes everything for the next measurement window.
+vJitSessionReset()
+let st2 = vJitSessionStats()
+if st2["armed"] != 0 || st2["osrExecs"] != 0 || st2["countLoops"] != 0 || st2["compiled"] != 0 || st2["execs"] != 0 {
+    return 13
+}
+if len(object_keys(vJitSessionMissShapes())) != 0 {
+    return 14
+}
+vJitSessionMissTrace(false)
+
+return 42

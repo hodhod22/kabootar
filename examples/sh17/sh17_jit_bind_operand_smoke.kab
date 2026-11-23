@@ -1,0 +1,296 @@
+// SH17 deepen: jitBind operand binding — every template const-slot accepts a
+// load_local call arg (params in order) OR a `const` pool immediate baked as
+// a jitBind immediate. `return a < 5`, `a + 5`, `5 - a`, `a ** 2`, `a*2+7`,
+// `a + b + 5`, `return -5` all fuse — before, only all-load_local operands
+// matched, so bound-const chains stayed cold. Exit codes identify the step.
+
+import "self_host/vm_run_jit"
+
+// ---- extraction: cmp with bound rhs --------------------------
+// `return a < 5` emits load_local 0; const 5; lt; return.
+let pool = [5, 2, 7, 10, "hi"]
+let lt5 = {
+    "ops": [
+        { "op": "load_local", "arg": 0 },
+        { "op": "const", "arg": 0 },
+        { "op": "lt", "arg": 0 },
+        { "op": "return", "arg": 0 }
+    ],
+    "params": ["a"],
+    "locals": ["a"]
+}
+let d1 = vJitOpsOfFn(lt5, pool)
+if d1 == null {
+    return 1
+}
+if d1["arity"] != 1 {
+    return 2
+}
+let b1 = vObjGet(d1, "bind")
+if b1[0] != undefined || b1[1] != 5 {
+    return 3
+}
+if len(d1["ops"]) != 5 || d1["ops"][2] != "lt" || d1["ops"][3] != "jump_if_true" {
+    return 4
+}
+// Exec through the jit callee path: the bound 5 feeds the rhs, the call arg
+// feeds slot 0 — 3 < 5 truthy, 7 < 5 falsy.
+let c1 = { "vmJit": 1, "jitId": "t1", "jitOps": d1["ops"], "jitArity": d1["arity"], "jitBind": b1 }
+let e1 = vJitExecOk({}, { "callee": c1 }, [3])
+if e1["ok"] != 1 || e1["out"] != 1 {
+    return 5
+}
+let e2 = vJitExecOk({}, { "callee": c1 }, [7])
+if e2["ok"] != 1 || e2["out"] != 0 {
+    return 6
+}
+
+// ---- extraction: arith with bound rhs ------------------------
+// `return a + 5` → fadd template, bind at slot 1.
+let add5 = {
+    "ops": [
+        { "op": "load_local", "arg": 0 },
+        { "op": "const", "arg": 0 },
+        { "op": "add", "arg": 0 },
+        { "op": "return", "arg": 0 }
+    ],
+    "params": ["a"],
+    "locals": ["a"]
+}
+let d2 = vJitOpsOfFn(add5, pool)
+if d2 == null || d2["arity"] != 1 {
+    return 7
+}
+if d2["ops"][2] != "fadd" {
+    return 8
+}
+let c2 = { "vmJit": 1, "jitId": "t2", "jitOps": d2["ops"], "jitArity": d2["arity"], "jitBind": vObjGet(d2, "bind") }
+let e3 = vJitExecOk({}, { "callee": c2 }, [3])
+if e3["ok"] != 1 || e3["out"] != 8 {
+    return 9
+}
+
+// ---- extraction: arith with bound lhs ------------------------
+// `return 5 - a` → fsub template, bind at slot 0 — the bound side matters.
+let sub5 = {
+    "ops": [
+        { "op": "const", "arg": 0 },
+        { "op": "load_local", "arg": 0 },
+        { "op": "sub", "arg": 0 },
+        { "op": "return", "arg": 0 }
+    ],
+    "params": ["a"],
+    "locals": ["a"]
+}
+let d3 = vJitOpsOfFn(sub5, pool)
+if d3 == null || d3["arity"] != 1 {
+    return 10
+}
+let c3 = { "vmJit": 1, "jitId": "t3", "jitOps": d3["ops"], "jitArity": d3["arity"], "jitBind": vObjGet(d3, "bind") }
+let e4 = vJitExecOk({}, { "callee": c3 }, [3])
+if e4["ok"] != 1 || e4["out"] != 2 {
+    return 11
+}
+
+// ---- extraction: pow + unary binds ---------------------------
+let sq = {
+    "ops": [
+        { "op": "load_local", "arg": 0 },
+        { "op": "const", "arg": 1 },
+        { "op": "pow", "arg": 0 },
+        { "op": "return", "arg": 0 }
+    ],
+    "params": ["a"],
+    "locals": ["a"]
+}
+let d4 = vJitOpsOfFn(sq, pool)
+if d4 == null || d4["arity"] != 1 || d4["ops"][2] != "pow" {
+    return 12
+}
+let c4 = { "vmJit": 1, "jitId": "t4", "jitOps": d4["ops"], "jitArity": d4["arity"], "jitBind": vObjGet(d4, "bind") }
+let e5 = vJitExecOk({}, { "callee": c4 }, [6])
+if e5["ok"] != 1 || e5["out"] != 36 {
+    return 13
+}
+// `return -5` — unary with a bound operand → arity 0.
+let neg5 = {
+    "ops": [
+        { "op": "const", "arg": 0 },
+        { "op": "neg", "arg": 0 },
+        { "op": "return", "arg": 0 }
+    ],
+    "params": [],
+    "locals": []
+}
+let d5 = vJitOpsOfFn(neg5, pool)
+if d5 == null || d5["arity"] != 0 {
+    return 14
+}
+let c5 = { "vmJit": 1, "jitId": "t5", "jitOps": d5["ops"], "jitArity": d5["arity"], "jitBind": vObjGet(d5, "bind") }
+let e6 = vJitExecOk({}, { "callee": c5 }, [])
+if e6["ok"] != 1 || e6["out"] != -5 {
+    return 15
+}
+
+// ---- extraction: arith3 with mixed binds ---------------------
+// `return a * 2 + 7` — arg slot then two bound consts.
+let m2p7 = {
+    "ops": [
+        { "op": "load_local", "arg": 0 },
+        { "op": "const", "arg": 1 },
+        { "op": "mul", "arg": 0 },
+        { "op": "const", "arg": 2 },
+        { "op": "add", "arg": 0 },
+        { "op": "return", "arg": 0 }
+    ],
+    "params": ["a"],
+    "locals": ["a"]
+}
+let d6 = vJitOpsOfFn(m2p7, pool)
+if d6 == null || d6["arity"] != 1 {
+    return 16
+}
+let c6 = { "vmJit": 1, "jitId": "t6", "jitOps": d6["ops"], "jitArity": d6["arity"], "jitBind": vObjGet(d6, "bind") }
+let e7 = vJitExecOk({}, { "callee": c6 }, [10])
+if e7["ok"] != 1 || e7["out"] != 27 {
+    return 17
+}
+// `return a + b + 5` — two arg slots plus a trailing bind.
+let ab5 = {
+    "ops": [
+        { "op": "load_local", "arg": 0 },
+        { "op": "load_local", "arg": 1 },
+        { "op": "add", "arg": 0 },
+        { "op": "const", "arg": 0 },
+        { "op": "add", "arg": 0 },
+        { "op": "return", "arg": 0 }
+    ],
+    "params": ["a", "b"],
+    "locals": ["a", "b"]
+}
+let d7 = vJitOpsOfFn(ab5, pool)
+if d7 == null || d7["arity"] != 2 {
+    return 18
+}
+let c7 = { "vmJit": 1, "jitId": "t7", "jitOps": d7["ops"], "jitArity": d7["arity"], "jitBind": vObjGet(d7, "bind") }
+let e8 = vJitExecOk({}, { "callee": c7 }, [3, 4])
+if e8["ok"] != 1 || e8["out"] != 12 {
+    return 19
+}
+
+// ---- rejects --------------------------------------------------
+// `return b - a` — first operand loads local 1: args must bind in order.
+let swapf = {
+    "ops": [
+        { "op": "load_local", "arg": 1 },
+        { "op": "load_local", "arg": 0 },
+        { "op": "sub", "arg": 0 },
+        { "op": "return", "arg": 0 }
+    ],
+    "params": ["a", "b"],
+    "locals": ["a", "b"]
+}
+if vJitOpsOfFn(swapf, pool) != null {
+    return 20
+}
+// `return a == "hi"` — a non-number const is outside the i64 bind domain.
+let seqf = {
+    "ops": [
+        { "op": "load_local", "arg": 0 },
+        { "op": "const", "arg": 4 },
+        { "op": "eq", "arg": 0 },
+        { "op": "return", "arg": 0 }
+    ],
+    "params": ["a"],
+    "locals": ["a"]
+}
+if vJitOpsOfFn(seqf, pool) != null {
+    return 21
+}
+
+// ---- end-to-end: real fns through the hot call path ----------
+// The same shapes emitted by the real compiler fuse when the site goes hot.
+fn lt5r(a) {
+    return a < 5
+}
+let i1 = 0
+let acc1 = 0
+while i1 < 12 {
+    if lt5r(3) {
+        acc1 = acc1 + 1
+    }
+    i1 = i1 + 1
+}
+if acc1 != 12 {
+    return 22
+}
+if lt5r(7) {
+    return 23
+}
+
+fn add5r(a) {
+    return a + 5
+}
+let i2 = 0
+let acc2 = 0
+while i2 < 12 {
+    acc2 = acc2 + add5r(3)
+    i2 = i2 + 1
+}
+if acc2 != 96 {
+    return 24
+}
+
+fn sub5r(a) {
+    return 5 - a
+}
+let i3 = 0
+let acc3 = 0
+while i3 < 12 {
+    acc3 = acc3 + sub5r(3)
+    i3 = i3 + 1
+}
+if acc3 != 24 {
+    return 25
+}
+
+fn sqr(a) {
+    return a ** 2
+}
+let i4 = 0
+let acc4 = 0
+while i4 < 12 {
+    acc4 = acc4 + sqr(6)
+    i4 = i4 + 1
+}
+if acc4 != 432 {
+    return 26
+}
+
+fn m2p7r(a) {
+    return a * 2 + 7
+}
+let i5 = 0
+let acc5 = 0
+while i5 < 12 {
+    acc5 = acc5 + m2p7r(10)
+    i5 = i5 + 1
+}
+if acc5 != 324 {
+    return 27
+}
+
+fn ab5r(a, b) {
+    return a + b + 5
+}
+let i6 = 0
+let acc6 = 0
+while i6 < 12 {
+    acc6 = acc6 + ab5r(3, 4)
+    i6 = i6 + 1
+}
+if acc6 != 144 {
+    return 28
+}
+
+return 42

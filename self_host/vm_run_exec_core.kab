@@ -40,6 +40,86 @@ pub fn vGcSessionCollects() {
     return c
 }
 
+/// SH17: read-only JIT diagnostics — counters the singleton session collected
+/// during module runs. `headers` = distinct loop-header ips with back-edges,
+/// `armed` = OSR-armed headers, `osrExecs`/`osrMisses` = fused vs rejected
+/// OSR steps, `countLoops` = closed-form applications, `compiled` = jit
+/// callees installed, `execs` = fused template execs via vJitExecOk.
+pub fn vJitSessionStats() {
+    let armIps = S["jitOsrArmIps"]
+    let armed = 0
+    if typeof(armIps) == "array" {
+        armed = len(armIps)
+    }
+    let hitMap = S["jitLoopHits"]
+    let headers = 0
+    if hitMap != undefined {
+        headers = len(object_keys(hitMap))
+    }
+    return {
+        "headers": headers,
+        "armed": armed,
+        "backEdges": vJitSessionNum(S["jitBackEdges"]),
+        "steps": vJitSessionNum(S["jitSteps"]),
+        "osrExecs": vJitSessionNum(S["jitOsrExecs"]),
+        "osrMisses": vJitSessionNum(S["jitOsrMisses"]),
+        "countLoops": vJitSessionNum(S["jitCountLoops"]),
+        "compiled": vJitSessionNum(S["jitCompiled"]),
+        "execs": vJitSessionNum(S["jitExecs"])
+    }
+}
+
+fn vJitSessionNum(v) {
+    if typeof(v) != "number" {
+        return 0
+    }
+    return v
+}
+
+/// SH17 diagnostics: enable/disable the armed-header miss-shape histogram
+/// (key concat on every hot miss — measurement only, not production).
+pub fn vJitSessionMissTrace(on) {
+    S["jitOsrMissTrace"] = on == true
+    return
+}
+
+/// The miss-shape histogram: {"op|op|op|op>cause": count}. Empty when the
+/// trace flag is off or no armed header has missed.
+pub fn vJitSessionMissShapes() {
+    let shapes = S["jitOsrMissShapes"]
+    if shapes == undefined {
+        return {}
+    }
+    return shapes
+}
+
+/// The op name + ip of the last header-eval rejection — which whitelist
+/// boundary a missed header hit ("" when none recorded this session).
+pub fn vJitSessionLastFail() {
+    let v = S["jitOsrMissLastFail"]
+    if v == undefined {
+        return ""
+    }
+    return v
+}
+
+/// Zero every JIT counter + arming state — lets one session measure distinct
+/// workloads without double-counting the previous run.
+pub fn vJitSessionReset() {
+    S["jitExecs"] = 0
+    S["jitCompiled"] = 0
+    S["jitBackEdges"] = 0
+    S["jitSteps"] = 0
+    S["jitCountLoops"] = 0
+    S["jitOsrExecs"] = 0
+    S["jitOsrMisses"] = 0
+    S["jitOsrMissShapes"] = {}
+    S["jitOsrArmIps"] = []
+    S["jitOsrArmed"] = {}
+    S["jitLoopHits"] = {}
+    return
+}
+
 /// Diagnostics/stress hook: override the nursery cap. Same machinery, denser
 /// cadence — the way a VM stress test runs many cycles against a small
 /// nursery instead of waiting minutes of interpreter time per collect.

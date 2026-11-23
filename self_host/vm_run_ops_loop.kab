@@ -127,6 +127,11 @@ pub fn runOpsStepRawS(S, ops, pool, globals, functions) {
 
 // --- vm_run_ops_step ---
 pub fn runOpsStepS(S, ops, pool, globals, functions) {
+    let stN = S["jitSteps"]
+    if typeof(stN) != "number" {
+        stN = 0
+    }
+    S["jitSteps"] = stN + 1
     let ipBefore = S["ip"]
     let st = runOpsStepRawS(S, ops, pool, globals, functions)
     if st == 0 {
@@ -187,9 +192,13 @@ pub fn runOpsS(S, ops, pool, globals, functions) {
         let ipNow = S["ip"]
         if ipNow + 3 < len(ops) {
             let opNow = ops[ipNow]
-            if opNow["op"] == "load_local" && ops[ipNow + 1]["op"] == "const" && ops[ipNow + 2]["op"] == "lt" && ops[ipNow + 3]["op"] == "jump_if_false" {
-                if vJitCountLoopS(S, ops, pool) == 1 {
-                    continue
+            let hname = opNow["op"]
+            if hname == "load_local" || hname == "load_global" {
+                let bop = ops[ipNow + 1]["op"]
+                if (bop == "const" || bop == "load_local" || bop == "len_local" || bop == "load_global" || bop == "len_global") && ops[ipNow + 2]["op"] == "lt" && ops[ipNow + 3]["op"] == "jump_if_false" {
+                    if vJitCountLoopS(S, ops, pool) == 1 {
+                        continue
+                    }
                 }
             }
         }

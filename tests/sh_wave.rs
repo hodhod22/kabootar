@@ -25408,6 +25408,80 @@ fn sh17_jit_osr_loop_smoke() {
         .expect("join");
 }
 
+/// SH17 deepen: count-loop bound generalization — `while i < len(a)` and
+/// `while i < n` (59+48 of 248 DAG seed loops vs 4 const-bound) now run
+/// closed-form; len_local OSR header operands fuse via vOsrOperandVal.
+#[test]
+fn sh17_jit_count_loop_bounds_smoke() {
+    let path = format!(
+        "{}/examples/sh17/sh17_jit_count_loop_bounds_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-count-loop-bounds".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit count loop bounds smoke");
+            let value = eval_program(&program, &mut env).expect("run jit count loop bounds smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17 deepen: jitBind operand binding — template const-slots accept
+/// load_local args (in param order) OR `const` pool immediates baked via
+/// jitBind. `return a < 5`, `a + 5`, `5 - a`, `a ** 2`, `a*2+7`, `a+b+5`,
+/// `return -5` fuse; out-of-order args and non-number binds stay cold.
+#[test]
+fn sh17_jit_bind_operand_smoke() {
+    let path = format!(
+        "{}/examples/sh17/sh17_jit_bind_operand_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-bind-operand".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit bind operand smoke");
+            let value = eval_program(&program, &mut env).expect("run jit bind operand smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
+/// SH17: JIT diagnostics channel — singleton-session counters
+/// (armed/osrExecs/osrMisses/countLoops/compiled/execs) readable via
+/// vJitSessionStats; trace-gated miss-shape histogram records WHY armed
+/// headers fall through (operand vs exec-shape). Dynamic coverage evidence.
+#[test]
+fn sh17_jit_stats_smoke() {
+    let path = format!(
+        "{}/examples/sh17/sh17_jit_stats_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-jit-stats".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile jit stats smoke");
+            let value = eval_program(&program, &mut env).expect("run jit stats smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// KT2 real: kabtest evals test sources through the Kab VM itself
 /// (evalSourceKabVm) — discover via os_list, run via os_read + eval,
 /// TAP report. Not the Rust test_runner; not a string-match stub.
@@ -81401,15 +81475,65 @@ fn sh28_noll_cranelift_host_dual_bind_in_kab() {
     );
 }
 
-/// SH28 deepen: product JIT is not Kab yet — leaf lives off noll_cranelift.kab.
+/// SH28 deepen: product JIT is Kab — leaf lives off noll_cranelift.kab.
 #[test]
 fn sh28_noll_jit_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_jit.kab")).expect("noll_jit.kab");
     assert!(
-        i.contains("pub fn nollJitIsKab") && i.contains("return false"),
+        i.contains("pub fn nollJitIsKab") && i.contains("return true"),
         "SH28 Kab nollJitIsKab"
     );
+}
+
+/// SH28: the product JIT IS Kab — a hot typed-i64 fn is emitted by
+/// lib/kab/jit/jit_x64_emit.kab (jitX64Emit) and runs on a native_exec page.
+/// jit_kab_execs only counts executions through Kab-emitted bytes.
+#[test]
+fn sh28_jit_kab_emit_gate() {
+    use kabootar_lib::bytecode::{
+        jit_kab_execs, jit_reset_for_tests, jit_set_call_threshold_for_tests, jit_stats,
+    };
+    use kabootar_lib::evaluator::eval_source;
+    use kabootar_lib::value::Value;
+    std::env::set_var("KABOOTAR_VM", "host");
+    jit_reset_for_tests();
+    jit_set_call_threshold_for_tests(1);
+    let ok = sh8_spawn("sh28-jitkab", || {
+        let mut env = create_global_env();
+        let v = eval_source(
+            r#"
+            fn jk_sum(n) {
+                let s = 0
+                let i = 0
+                while i < n {
+                    s = s + i
+                    i = i + 1
+                }
+                return s
+            }
+            jk_sum(10)
+            "#,
+            &mut env,
+        )
+        .expect("jk_sum eval");
+        matches!(v, Value::Number(45))
+    });
+    assert!(ok, "jk_sum(10) == 45 through the jit path");
+    let (hits, compiled, fails) = jit_stats();
+    let kab = jit_kab_execs();
+    eprintln!("SH28 jit kab hits={hits} compiled={compiled} fails={fails} kab_execs={kab}");
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        assert!(
+            compiled > 0,
+            "jitX64Emit should compile jk_sum, hits={hits} compiled={compiled} fails={fails}"
+        );
+        assert!(
+            kab > 0,
+            "Kab-emitted code should execute, kab_execs={kab}"
+        );
+    }
 }
 
 /// SH28 deepen: JIT-is-Kab dual-bind to Cranelift-gone, AOT false, and host delete gate.
@@ -85925,7 +86049,7 @@ fn sh8_tiny_self_host_compile() {
     eprintln!("SH9 self-host compile() jit hits={hits} compiled={compiled} fails={fails}");
     // The compile pipeline is object-dominated — tiny/medium sources do not
     // drive any typed-i64 JIT-eligible loop, so hits/compiled are legitimately
-    // 0 here. Cranelift evidence lives in the dedicated sh9_*_jit_hits tests
+    // 0 here. JIT evidence lives in the dedicated sh9_*_jit_hits tests
     // (accCount/serCount/idxSum with threshold=1). What must hold for the
     // toolchain run is that no JIT attempt *failed*.
     #[cfg(not(target_arch = "wasm32"))]
@@ -85985,7 +86109,7 @@ fn sh10_stability_budget() {
     );
 }
 
-/// SH9: host Cranelift helper is available (P13 add-loop) while the toolchain runs on host-VM.
+/// SH9: host JIT helper is available (P13 add-loop) while the toolchain runs on host-VM.
 #[test]
 fn sh9_host_jit_add_loop() {
     let n = kabootar_lib::bytecode::jit_add_loop(8);
@@ -86022,7 +86146,7 @@ fn sh9_emit_acc_count_jit_hits() {
     #[cfg(not(target_arch = "wasm32"))]
     assert!(
         hits > 0 || compiled > 0,
-        "SH9: expected Cranelift on accCount, hits={hits} compiled={compiled} fails={fails}"
+        "SH9: expected Kab JIT on accCount, hits={hits} compiled={compiled} fails={fails}"
     );
 }
 
@@ -86053,7 +86177,7 @@ fn sh9_serialize_ser_count_jit_hits() {
     #[cfg(not(target_arch = "wasm32"))]
     assert!(
         hits > 0 || compiled > 0,
-        "SH9: expected Cranelift on serCount, hits={hits} compiled={compiled} fails={fails}"
+        "SH9: expected Kab JIT on serCount, hits={hits} compiled={compiled} fails={fails}"
     );
 }
 
@@ -86084,11 +86208,11 @@ fn sh9_emit_idx_sum_jit_hits() {
     #[cfg(not(target_arch = "wasm32"))]
     assert!(
         hits > 0 || compiled > 0,
-        "SH9: expected Cranelift on idxSum, hits={hits} compiled={compiled} fails={fails}"
+        "SH9: expected Kab JIT on idxSum, hits={hits} compiled={compiled} fails={fails}"
     );
 }
 
-/// SH9: `idxSumArr` is a LenLocal + IndexGetLocal i64 loop (Cranelift loads flattened i64[]).
+/// SH9: `idxSumArr` is a LenLocal + IndexGetLocal i64 loop (the Kab JIT loads flattened i64[]).
 #[test]
 fn sh9_emit_idx_sum_arr_jit_hits() {
     use kabootar_lib::bytecode::{
@@ -86120,11 +86244,11 @@ fn sh9_emit_idx_sum_arr_jit_hits() {
     #[cfg(not(target_arch = "wasm32"))]
     assert!(
         hits > 0 || compiled > 0,
-        "SH9: expected Cranelift on idxSumArr, hits={hits} compiled={compiled} fails={fails}"
+        "SH9: expected Kab JIT on idxSumArr, hits={hits} compiled={compiled} fails={fails}"
     );
 }
 
-/// SH9: `strCount` is a LenLocal-loop over a string (Cranelift gets `len`, no char IndexGet).
+/// SH9: `strCount` is a LenLocal-loop over a string (the Kab JIT gets `len`, no char IndexGet).
 #[test]
 fn sh9_emit_str_count_jit_hits() {
     use kabootar_lib::bytecode::{
@@ -86159,7 +86283,7 @@ fn sh9_emit_str_count_jit_hits() {
     #[cfg(not(target_arch = "wasm32"))]
     assert!(
         hits > 0 || compiled > 0,
-        "SH9: expected Cranelift on strCount, hits={hits} compiled={compiled} fails={fails}"
+        "SH9: expected Kab JIT on strCount, hits={hits} compiled={compiled} fails={fails}"
     );
 }
 

@@ -133,20 +133,71 @@ pub fn vJitSitePct(site) {
     return (site["hits"] * 100) / site["calls"]
 }
 
-/// Extraction: fn body ops → jitOps descriptor for a fused template.
-/// Shapes (params must bind to locals 0..N in order so load_local i is
-/// call arg i; anything else → null, the site stays on the frame path):
-///   A arith    — `return ((p0 + p1 - p2) * p3 / p4) % p5`:
-///                load_local 0..5 + add,sub,mul,div,mod + return (12 ops)
-///                → ["const","add","sub","mul","div","mod","ret"] arity 6
-///   B cmp      — `return p0 <cmp> p1`:
-///                load_local 0,1 + eq/ne/lt/gt/le/ge/test + return (4 ops)
-///                → ["const","const",cmp,"jump_if_true","ret"] arity 2
-///   C cmp+not  — `return not (p0 <cmp> p1)`:
-///                same + a `not` op before return (5 ops)
-///                → ["const","const",cmp,"jump_if_false","ret"] arity 2
-///                (jump_if_false folds the negation into the predicate)
-pub fn vJitOpsOfFn(f) {
+/// Operand for a template const-slot: `load_local i` takes call arg i (must
+/// be the next param in order — locals[i] names params[i]), `const c` bakes
+/// a number pool value as a jitBind immediate. Returns {"arg":1} for an arg
+/// slot, {"bind": v} for a baked immediate, else null (stays cold).
+fn vJitSlotOf(ops, oi, pool, params, locals, argIdx) {
+    let op = ops[oi]
+    let name = op["op"]
+    if name == "load_local" {
+        let i = op["arg"]
+        if i == argIdx && i < len(params) && i < len(locals) && locals[i] == params[i] {
+            return { "arg": 1 }
+        }
+        return null
+    }
+    if name == "const" {
+        let ci = op["arg"]
+        if ci >= 0 && ci < len(pool) {
+            let v = pool[ci]
+            if typeof(v) == "number" {
+                return { "bind": v }
+            }
+        }
+        return null
+    }
+    return null
+}
+
+/// Assemble the extraction record: descriptor + unbound-arg arity + a
+/// jitBind array parallel to the descriptor's const positions (undefined =
+/// consume call arg). bind is omitted when no immediate was baked.
+fn vJitDescOf(desc, slots) {
+    let bind = []
+    let arity = 0
+    let anyBind = false
+    let i = 0
+    while i < len(slots) {
+        let bv = vObjGet(slots[i], "bind")
+        if bv == undefined {
+            arity = arity + 1
+            bind = push(bind, undefined)
+        } else {
+            anyBind = true
+            bind = push(bind, bv)
+        }
+        i = i + 1
+    }
+    let out = { "ops": desc, "arity": arity }
+    if anyBind {
+        out["bind"] = bind
+    }
+    return out
+}
+
+/// Extraction: fn body ops → {ops, arity, bind?} for a fused template.
+/// Every template const-slot is one operand: a `load_local i` call arg
+/// (params must bind to locals 0..N in order) or a `const c` baked immediate
+/// — `return a < 5`, `a + 5`, `a ** 2`, `5 - a`, `a * 2 + 7` all fuse now,
+/// where only all-load_local operands matched before. null = frame path.
+///   U  unary   — operand; bit_not|neg; ret              → ["const",u,"ret"]
+///   C  cmp     — operand; operand; cmp; [not;] ret      → [c,c,cmp,jcc,ret]
+///   A2 arith   — operand; operand; op; ret (f64/bits/mod/pow) → [c,c,op,ret]
+///   A3 arith3  — operand; operand; o1; operand; o2; ret → [c,c,c,o1,o2,ret]
+///   A4 arith4  — operand×4 interleaved o1,o2,o3; ret    → [c,c,c,c,o1,o2,o3,ret]
+///   A6 arith   — operand×6 interleaved add,sub,mul,div,mod → fixed L-desc
+pub fn vJitOpsOfFn(f, pool) {
     if f == null || f == undefined || typeof(f) != "object" {
         return null
     }
@@ -156,110 +207,104 @@ pub fn vJitOpsOfFn(f) {
     if typeof(ops) != "array" || typeof(params) != "array" || typeof(locals) != "array" {
         return null
     }
-    let nOps = len(ops)
-    // Unary chain: `return -a` / `return ~a` — one param, three ops — lowers
-    // to the guest unary template (83 bit_not / 84 neg).
-    if nOps == 3 && len(params) >= 1 && len(locals) >= 1 {
-        if locals[0] == params[0] {
-            if ops[0]["op"] == "load_local" && ops[0]["arg"] == 0 {
-                let um = jitBitsMagic(ops[1]["op"])
-                if um != 0 {
-                    if jitBitsUnary(um) == true {
-                        let rop2 = ops[2]["op"]
-                        if rop2 == "return" || rop2 == "ret" {
-                            return ["const", ops[1]["op"], "ret"]
-                        }
-                    }
-                }
-            }
-        }
+    if typeof(pool) != "array" {
+        pool = []
     }
-    if (nOps == 4 || nOps == 5) && len(params) >= 2 && len(locals) >= 2 {
-        if locals[0] != params[0] || locals[1] != params[1] {
+    let nOps = len(ops)
+    // U chain: `return -a` / `return ~a` / `return -5` — unary template
+    // (83 bit_not / 84 neg); a bound operand gives arity 0.
+    if nOps == 3 {
+        let s0 = vJitSlotOf(ops, 0, pool, params, locals, 0)
+        if s0 == null {
             return null
         }
-        if ops[0]["op"] != "load_local" || ops[0]["arg"] != 0 {
+        let um = jitBitsMagic(ops[1]["op"])
+        if um == 0 || jitBitsUnary(um) == false {
             return null
         }
-        if ops[1]["op"] != "load_local" || ops[1]["arg"] != 1 {
+        let rop2 = ops[2]["op"]
+        if rop2 != "return" && rop2 != "ret" {
+            return null
+        }
+        return vJitDescOf(["const", ops[1]["op"], "ret"], [s0])
+    }
+    // C/A2 chains: operand; operand; X; [not;] ret.
+    if nOps == 4 || nOps == 5 {
+        let s0 = vJitSlotOf(ops, 0, pool, params, locals, 0)
+        if s0 == null {
+            return null
+        }
+        let ai = 0
+        if vObjGet(s0, "arg") != undefined {
+            ai = 1
+        }
+        let s1 = vJitSlotOf(ops, 1, pool, params, locals, ai)
+        if s1 == null {
             return null
         }
         let cm = ops[2]["op"]
-        if jitCmpMagic(cm) == 0 {
-            // f64 chain: `return a OP b` (add/sub/mul/div) lowers to the
-            // guest f64 template — exact for the 1..=64 operand domain
-            // (fdiv truncates = integer div). `mod` has no f64 template;
-            // anything else stays cold.
-            if nOps == 4 {
-                if jitF64Magic("f" + cm) != 0 {
-                    let rop4 = ops[3]["op"]
-                    if rop4 == "return" || rop4 == "ret" {
-                        return ["const", "const", "f" + cm, "ret"]
-                    }
+        if jitCmpMagic(cm) != 0 {
+            let jcc = "jump_if_true"
+            let ri = 3
+            if nOps == 5 {
+                if ops[3]["op"] != "not" {
+                    return null
                 }
-                // bits chain: `return a OP b` for bit_and/bit_or/bit_xor/
-                // shl/shr/ushr lowers to the guest bits template (77-82).
-                let bm = jitBitsMagic(cm)
-                if bm != 0 {
-                    if jitBitsUnary(bm) == false {
-                        let rop4b = ops[3]["op"]
-                        if rop4b == "return" || rop4b == "ret" {
-                            return ["const", "const", cm, "ret"]
-                        }
-                    }
-                }
-                // mod chain: `return a % b` lowers to the loop-mod L-template
-                // (magic 76, n%r — kind 8). Rejected divisor/base domains
-                // stay cold and deopt to the interpreter.
-                if cm == "mod" {
-                    let rop4c = ops[3]["op"]
-                    if rop4c == "return" || rop4c == "ret" {
-                        return ["const", "const", "mod", "ret"]
-                    }
-                }
-                // pow chain: `return a ** b` lowers to the pow template
-                // (magic 109, checked_pow — kind 9). BigInt/Float/overflow
-                // operands stay cold: the interpreter answers those.
-                if cm == "pow" {
-                    let rop4d = ops[3]["op"]
-                    if rop4d == "return" || rop4d == "ret" {
-                        return ["const", "const", "pow", "ret"]
-                    }
-                }
+                jcc = "jump_if_false"
+                ri = 4
             }
-            return null
-        }
-        let neg = false
-        let ri = 3
-        if nOps == 5 {
-            if ops[3]["op"] != "not" {
+            let rop = ops[ri]["op"]
+            if rop != "return" && rop != "ret" {
                 return null
             }
-            neg = true
-            ri = 4
+            return vJitDescOf(["const", "const", cm, jcc, "ret"], [s0, s1])
         }
-        let rop = ops[ri]["op"]
-        if rop != "return" && rop != "ret" {
+        if nOps != 4 {
             return null
         }
-        if neg {
-            return ["const", "const", cm, "jump_if_false", "ret"]
+        // A2: `return a OP b` — f64 template for add/sub/mul/div (exact in
+        // the 1..=64 domain), bits for bit ops, dedicated mod/pow chains.
+        let emit = undefined
+        if jitF64Magic("f" + cm) != 0 {
+            emit = "f" + cm
         }
-        return ["const", "const", cm, "jump_if_true", "ret"]
+        if emit == undefined {
+            let bm = jitBitsMagic(cm)
+            if bm != 0 && jitBitsUnary(bm) == false {
+                emit = cm
+            }
+        }
+        if emit == undefined && (cm == "mod" || cm == "pow") {
+            emit = cm
+        }
+        if emit == undefined {
+            return null
+        }
+        let rop4 = ops[3]["op"]
+        if rop4 != "return" && rop4 != "ret" {
+            return null
+        }
+        return vJitDescOf(["const", "const", emit, "ret"], [s0, s1])
     }
-    // Arith3 chain: `return a OP1 b OP2 c` left-assoc — load0, load1, OP1,
-    // load2, OP2, ret (6 ops, 3 params) → kind 6 via the arith3 template.
-    if nOps == 6 && len(params) >= 3 && len(locals) >= 3 {
-        if locals[0] != params[0] || locals[1] != params[1] || locals[2] != params[2] {
+    // A3 chain: `return a OP1 b OP2 c` left-assoc (6 ops) — kind 6.
+    if nOps == 6 {
+        let s0 = vJitSlotOf(ops, 0, pool, params, locals, 0)
+        if s0 == null {
             return null
         }
-        if ops[0]["op"] != "load_local" || ops[0]["arg"] != 0 {
+        let ai = 0
+        if vObjGet(s0, "arg") != undefined {
+            ai = 1
+        }
+        let s1 = vJitSlotOf(ops, 1, pool, params, locals, ai)
+        if s1 == null {
             return null
         }
-        if ops[1]["op"] != "load_local" || ops[1]["arg"] != 1 {
-            return null
+        if vObjGet(s1, "arg") != undefined {
+            ai = ai + 1
         }
-        if ops[3]["op"] != "load_local" || ops[3]["arg"] != 2 {
+        let s2 = vJitSlotOf(ops, 3, pool, params, locals, ai)
+        if s2 == null {
             return null
         }
         let o1 = ops[2]["op"]
@@ -271,72 +316,67 @@ pub fn vJitOpsOfFn(f) {
         if rop3 != "return" && rop3 != "ret" {
             return null
         }
-        return ["const", "const", "const", o1, o2, "ret"]
+        return vJitDescOf(["const", "const", "const", o1, o2, "ret"], [s0, s1, s2])
     }
-    // Arith4 chain: `return a OP1 b OP2 c OP3 d` left-assoc — load0, load1,
-    // OP1, load2, OP2, load3, OP3, ret (8 ops, 4 params) → kind 7 via the
-    // arith4 template.
-    if nOps == 8 && len(params) >= 4 && len(locals) >= 4 {
-        if locals[0] != params[0] || locals[1] != params[1] || locals[2] != params[2] || locals[3] != params[3] {
-            return null
+    // A4 chain: `return a OP1 b OP2 c OP3 d` left-assoc (8 ops) — kind 7.
+    if nOps == 8 {
+        let sls = []
+        let ai = 0
+        let posL = [0, 1, 3, 5]
+        let li = 0
+        while li < 4 {
+            let sl = vJitSlotOf(ops, posL[li], pool, params, locals, ai)
+            if sl == null {
+                return null
+            }
+            if vObjGet(sl, "arg") != undefined {
+                ai = ai + 1
+            }
+            sls = push(sls, sl)
+            li = li + 1
         }
-        if ops[0]["op"] != "load_local" || ops[0]["arg"] != 0 {
-            return null
-        }
-        if ops[1]["op"] != "load_local" || ops[1]["arg"] != 1 {
-            return null
-        }
-        if ops[3]["op"] != "load_local" || ops[3]["arg"] != 2 {
-            return null
-        }
-        if ops[5]["op"] != "load_local" || ops[5]["arg"] != 3 {
-            return null
-        }
-        let p1 = jitArith4Code(ops[2]["op"])
-        let p2 = jitArith4Code(ops[4]["op"])
-        let p3 = jitArith4Code(ops[6]["op"])
-        if p1 == 0 || p2 == 0 || p3 == 0 {
+        if jitArith4Code(ops[2]["op"]) == 0 || jitArith4Code(ops[4]["op"]) == 0 || jitArith4Code(ops[6]["op"]) == 0 {
             return null
         }
         let rop4 = ops[7]["op"]
         if rop4 != "return" && rop4 != "ret" {
             return null
         }
-        return ["const", "const", "const", "const", ops[2]["op"], ops[4]["op"], ops[6]["op"], "ret"]
+        return vJitDescOf(["const", "const", "const", "const", ops[2]["op"], ops[4]["op"], ops[6]["op"], "ret"], sls)
     }
-    if nOps != 12 || len(params) < 6 || len(locals) < 6 {
-        return null
-    }
-    let pi = 0
-    while pi < 6 {
-        if locals[pi] != params[pi] {
+    // A6 chain: the 6-operand L-template — any mix of args and binds.
+    if nOps == 12 {
+        let sls = []
+        let ai = 0
+        let posL = [0, 1, 3, 5, 7, 9]
+        let li = 0
+        while li < 6 {
+            let sl = vJitSlotOf(ops, posL[li], pool, params, locals, ai)
+            if sl == null {
+                return null
+            }
+            if vObjGet(sl, "arg") != undefined {
+                ai = ai + 1
+            }
+            sls = push(sls, sl)
+            li = li + 1
+        }
+        let posA = [2, 4, 6, 8, 10]
+        let names = ["add", "sub", "mul", "div", "mod"]
+        let ai2 = 0
+        while ai2 < 5 {
+            if ops[posA[ai2]]["op"] != names[ai2] {
+                return null
+            }
+            ai2 = ai2 + 1
+        }
+        let rop = ops[11]["op"]
+        if rop != "return" && rop != "ret" {
             return null
         }
-        pi = pi + 1
+        return vJitDescOf(["const", "add", "sub", "mul", "div", "mod", "ret"], sls)
     }
-    let posL = [0, 1, 3, 5, 7, 9]
-    let li = 0
-    while li < 6 {
-        let op = ops[posL[li]]
-        if op["op"] != "load_local" || op["arg"] != li {
-            return null
-        }
-        li = li + 1
-    }
-    let posA = [2, 4, 6, 8, 10]
-    let names = ["add", "sub", "mul", "div", "mod"]
-    let ai = 0
-    while ai < 5 {
-        if ops[posA[ai]]["op"] != names[ai] {
-            return null
-        }
-        ai = ai + 1
-    }
-    let rop = ops[11]["op"]
-    if rop != "return" && rop != "ret" {
-        return null
-    }
-    return ["const", "add", "sub", "mul", "div", "mod", "ret"]
+    return null
 }
 
 /// Numeric-arg requirement of a site-compiled callee — the fused template
@@ -376,14 +416,16 @@ pub fn vJitOpsArity(jitOps) {
     return 0
 }
 
-/// Resolve a cached classify rec's fn ops to a jitOps descriptor — fn recs
-/// read functions[idx], arrows read their arrowDef (or S["arrows"][idx]).
-/// Method/host/generator kinds return null: their bodies are not fusible.
+/// Resolve a cached classify rec's fn ops to an extraction {ops,arity,bind?}
+/// — fn recs read functions[idx], arrows read their arrowDef (or
+/// S["arrows"][idx]). Method/host/generator kinds return null: their bodies
+/// are not fusible. S["bcPool"] feeds const-operand binds.
 pub fn vJitOpsOfRec(S, rec, functions) {
+    let pool = S["bcPool"]
     let k = rec["kind"]
     if k == "fn" {
         if typeof(functions) == "array" {
-            return vJitOpsOfFn(functions[rec["idx"]])
+            return vJitOpsOfFn(functions[rec["idx"]], pool)
         }
         return null
     }
@@ -395,7 +437,7 @@ pub fn vJitOpsOfRec(S, rec, functions) {
                 ad = arrs[rec["idx"]]
             }
         }
-        return vJitOpsOfFn(ad)
+        return vJitOpsOfFn(ad, pool)
     }
     return null
 }
@@ -413,11 +455,22 @@ pub fn vJitMaybeCompileS(S, site, key, rec, i, functions) {
         return null
     }
     rec["jitChecked"] = 1
-    let jitOps = vJitOpsOfRec(S, rec, functions)
-    if jitOps == null {
+    let d = vJitOpsOfRec(S, rec, functions)
+    if d == null {
         return null
     }
-    rec["jitCallee"] = { "vmJit": 1, "jitId": "c" + key + "." + i, "jitOps": jitOps, "jitArity": vJitOpsArity(jitOps) }
+    rec["jitCallee"] = { "vmJit": 1, "jitId": "c" + key + "." + i, "jitOps": d["ops"], "jitArity": d["arity"] }
+    // jitBind: baked immediates parallel to the descriptor's const slots —
+    // undefined entries consume call args in order (vJitExecOk merges).
+    let bind = vObjGet(d, "bind")
+    if typeof(bind) == "array" {
+        rec["jitCallee"]["jitBind"] = bind
+    }
+    let comp = S["jitCompiled"]
+    if typeof(comp) != "number" {
+        comp = 0
+    }
+    S["jitCompiled"] = comp + 1
     return rec["jitCallee"]
 }
 
@@ -523,15 +576,63 @@ pub fn vJitExecOk(S, c, ordered) {
             return { "ok": 0 }
         }
         let outSlot = jitPicFind(slots, shape)
+        let e0 = S["jitExecs"]
+        if typeof(e0) != "number" {
+            e0 = 0
+        }
+        S["jitExecs"] = e0 + 1
         return { "ok": 1, "out": jitFromOpsAnyVal(slotOps[outSlot], n, k, s, m, d, r) }
     }
     let ops = vObjGet(callee, "jitOps")
     if typeof(ops) != "array" {
         return { "ok": 0 }
     }
+    // jitBind: const slots marked undefined consume call args in order;
+    // defined slots are baked immediates — `return a < 5` execs as a<5
+    // without a second arg. Absent = all slots consume args (old path).
+    let bind = vObjGet(callee, "jitBind")
+    if typeof(bind) == "array" {
+        let imm = []
+        let ai = 0
+        let oi = 0
+        while oi < len(ops) {
+            if ops[oi] == "const" {
+                let bv = undefined
+                if len(imm) < len(bind) {
+                    bv = bind[len(imm)]
+                }
+                if bv == undefined {
+                    if ai >= len(ordered) {
+                        return { "ok": 0 }
+                    }
+                    bv = ordered[ai]
+                    ai = ai + 1
+                }
+                imm = push(imm, bv)
+            }
+            oi = oi + 1
+        }
+        n = 0
+        k = 0
+        s = 0
+        m = 0
+        d = 0
+        r = 0
+        if len(imm) > 0 { n = imm[0] }
+        if len(imm) > 1 { k = imm[1] }
+        if len(imm) > 2 { s = imm[2] }
+        if len(imm) > 3 { m = imm[3] }
+        if len(imm) > 4 { d = imm[4] }
+        if len(imm) > 5 { r = imm[5] }
+    }
     if jitFromOpsAnyExecOk(ops, n, k, s, m, d, r) == false {
         return { "ok": 0 }
     }
+    let e1 = S["jitExecs"]
+    if typeof(e1) != "number" {
+        e1 = 0
+    }
+    S["jitExecs"] = e1 + 1
     return { "ok": 1, "out": jitFromOpsAnyVal(ops, n, k, s, m, d, r) }
 }
 
@@ -540,6 +641,11 @@ pub fn vJitExecOk(S, c, ordered) {
 /// S["jitLoopHits"][" "+ip]; once jitOsrOk says the header is hot, mark it
 /// armed in S["jitOsrArmIps"] so vJitOsrStepS may run the fused header.
 pub fn vJitBackEdgeS(S, ip) {
+    let be = S["jitBackEdges"]
+    if typeof(be) != "number" {
+        be = 0
+    }
+    S["jitBackEdges"] = be + 1
     let hits = S["jitLoopHits"]
     if hits == undefined {
         hits = {}
@@ -603,12 +709,50 @@ fn vOsrOperandVal(S, op, pool) {
         }
         return undefined
     }
+    // `while i < len(a)` headers — the dominant DAG loop shape (59 of 248
+    // seed loops vs 4 for `const` bounds): len_local resolves to the local's
+    // element count; anything else stays interpreted.
+    if name == "len_local" {
+        let i = op["arg"]
+        if i >= 0 && i < len(S["locals"]) {
+            let v = S["locals"][i]
+            if typeof(v) == "array" || typeof(v) == "string" {
+                return len(v)
+            }
+        }
+        return undefined
+    }
+    // Global operands — `while i < gN` / `while gI < gN` / `while i < len(gArr)`:
+    // module-level lets are globals (~114+ DAG headers compare a local or
+    // global against a global number, e.g. `pI < pToksLen` in the parser).
+    if name == "load_global" {
+        let i = op["arg"]
+        if i >= 0 && i < len(S["globals"]) {
+            return S["globals"][i]
+        }
+        return undefined
+    }
+    if name == "len_global" {
+        let i = op["arg"]
+        if i >= 0 && i < len(S["globals"]) {
+            let v = S["globals"][i]
+            if typeof(v) == "array" || typeof(v) == "string" {
+                return len(v)
+            }
+        }
+        return undefined
+    }
     return undefined
 }
 
 /// Counted loop the compiler emits for `while slot < bound { x = x + k }`.
-/// The whole trip count runs as arithmetic on the locals, then ip moves to
-/// the exit. No mmap and no per-iteration dispatch. Returns 1 when applied.
+/// The whole trip count runs as arithmetic on the locals/globals, then ip
+/// moves to the exit. No mmap and no per-iteration dispatch. Returns 1 when
+/// applied. Counter is `load_local`/`load_global`; bound resolves from
+/// `const`, a numeric `load_local`/`load_global`, or `len_local`/`len_global`
+/// of an array/string — `while i < n`, `while i < len(a)` and the global
+/// forms dominate the DAG seed loops. The bound must stay invariant across
+/// trips: its source slot may not be an acc_add target in the same space.
 pub fn vJitCountLoopS(S, ops, pool) {
     let ip = S["ip"]
     if ip + 4 >= len(ops) {
@@ -618,33 +762,73 @@ pub fn vJitCountLoopS(S, ops, pool) {
     let h1 = ops[ip + 1]
     let h2 = ops[ip + 2]
     let h3 = ops[ip + 3]
-    if h0["op"] != "load_local" || h1["op"] != "const" || h2["op"] != "lt" || h3["op"] != "jump_if_false" {
+    let bop = h1["op"]
+    let cSpace = ""
+    if h0["op"] == "load_local" {
+        cSpace = "locals"
+    }
+    if h0["op"] == "load_global" {
+        cSpace = "globals"
+    }
+    let bSpace = ""
+    if bop == "load_local" || bop == "len_local" {
+        bSpace = "locals"
+    }
+    if bop == "load_global" || bop == "len_global" {
+        bSpace = "globals"
+    }
+    if cSpace == "" || (bop != "const" && bSpace == "") || h2["op"] != "lt" || h3["op"] != "jump_if_false" {
         return 0
     }
     let counter = h0["arg"]
-    let bi = h1["arg"]
-    if bi < 0 || bi >= len(pool) {
-        return 0
+    let boundSlot = -1
+    let bound = undefined
+    if bop == "const" {
+        let bi = h1["arg"]
+        if bi < 0 || bi >= len(pool) {
+            return 0
+        }
+        bound = pool[bi]
     }
-    let bound = pool[bi]
+    if bSpace != "" {
+        boundSlot = h1["arg"]
+        if boundSlot >= 0 && boundSlot < len(S[bSpace]) {
+            let bv = S[bSpace][boundSlot]
+            if bop == "len_local" || bop == "len_global" {
+                if typeof(bv) == "array" || typeof(bv) == "string" {
+                    bound = len(bv)
+                }
+            } else {
+                bound = bv
+            }
+        }
+    }
     if typeof(bound) != "number" {
         return 0
     }
-    if counter < 0 || counter >= len(S["locals"]) {
+    if counter < 0 || counter >= len(S[cSpace]) {
         return 0
     }
-    let cur = S["locals"][counter]
+    let cur = S[cSpace][counter]
     if typeof(cur) != "number" || cur >= bound {
         return 0
     }
     let cursor = ip + 4
+    let spaces = []
     let slots = []
     let steps = []
     let counterStep = 0
     while cursor + 1 < len(ops) {
         let constOp = ops[cursor]
         let addOp = ops[cursor + 1]
-        if constOp["op"] != "const" || addOp["op"] != "acc_add_local" {
+        let aSpace = ""
+        if addOp["op"] == "acc_add_local" {
+            aSpace = "locals"
+        }
+        if addOp["op"] == "acc_add_global" {
+            aSpace = "globals"
+        }
+        if constOp["op"] != "const" || aSpace == "" {
             break
         }
         let ci = constOp["arg"]
@@ -656,15 +840,22 @@ pub fn vJitCountLoopS(S, ops, pool) {
             return 0
         }
         let slot = addOp["arg"]
-        if slot < 0 || slot >= len(S["locals"]) {
+        if slot < 0 || slot >= len(S[aSpace]) {
             return 0
         }
-        if typeof(S["locals"][slot]) != "number" {
+        if typeof(S[aSpace][slot]) != "number" {
             return 0
         }
-        if slot == counter {
+        // Bound invariance: a load/len bound must not drift — an acc_add
+        // target in the SAME space at the bound's source slot would change
+        // it mid-loop, so the closed form no longer matches interpretation.
+        if aSpace == bSpace && slot == boundSlot {
+            return 0
+        }
+        if aSpace == cSpace && slot == counter {
             counterStep = step
         }
+        spaces = push(spaces, aSpace)
         slots = push(slots, slot)
         steps = push(steps, step)
         cursor = cursor + 2
@@ -687,18 +878,23 @@ pub fn vJitCountLoopS(S, ops, pool) {
     let i = 0
     while i < len(slots) {
         let slot = slots[i]
-        S["locals"][slot] = S["locals"][slot] + steps[i] * trips
+        S[spaces[i]][slot] = S[spaces[i]][slot] + steps[i] * trips
         i = i + 1
     }
     S["ip"] = ip + 4 + h3["arg"]
+    let cl = S["jitCountLoops"]
+    if cl == undefined {
+        cl = 0
+    }
+    S["jitCountLoops"] = cl + 1
     return 1
 }
 
 /// Armed fall-through body the compiler actually emits for `x = x + k`:
 /// one or more `const k; acc_add_local i` groups, then `jump` back to this
 /// header. Returns 1 when that body ran.
-fn vJitOsrAccBodyS(S, ops, pool, ip) {
-    let cursor = ip + 4
+fn vJitOsrAccBodyS(S, ops, pool, ip, bodyIp) {
+    let cursor = bodyIp
     let slots = []
     let steps = []
     while cursor + 1 < len(ops) {
@@ -753,8 +949,8 @@ fn vJitOsrAccBodyS(S, ops, pool, ip) {
 /// replaces the whole body. The back-edge is counted here because the
 /// jump opcode itself does not run. Returns 1 when the body ran; 0 leaves
 /// the caller to interpret from ip+4.
-fn vJitOsrIncBodyS(S, ops, pool, ip) {
-    let cursor = ip + 4
+fn vJitOsrIncBodyS(S, ops, pool, ip, bodyIp) {
+    let cursor = bodyIp
     let slots = []
     let steps = []
     while cursor + 3 < len(ops) {
@@ -819,6 +1015,217 @@ fn vJitOsrIncBodyS(S, ops, pool, ip) {
 /// operand values are baked as the const,const immediates of a kind-2 chain
 /// (jump_if_false folds the negated predicate, so a fused 1 means "take").
 /// Returns 0 when unarmed/shape-mismatched/domain-rejected → interpreted.
+/// Count one armed-header rejection — the header was hot enough to arm but
+/// its shape/operands fell outside the fused form, so the step interprets.
+/// When S["jitOsrMissTrace"] is set (diagnostics only — key concat is not
+/// free on a hot miss path), the 4-op header shape feeds a histogram map.
+fn vJitOsrMissS(S, key) {
+    let ms = S["jitOsrMisses"]
+    if typeof(ms) != "number" {
+        ms = 0
+    }
+    S["jitOsrMisses"] = ms + 1
+    if S["jitOsrMissTrace"] == true {
+        let shapes = S["jitOsrMissShapes"]
+        if shapes == undefined {
+            shapes = {}
+            S["jitOsrMissShapes"] = shapes
+        }
+        let c = vObjGet(shapes, key)
+        if typeof(c) != "number" {
+            c = 0
+        }
+        shapes[key] = c + 1
+    }
+    return 0
+}
+
+/// Compound-expression header eval — armed headers can start with a pure
+/// stack expression (`while xs[i] + k < n` emits pushes/arith before the
+/// cmp), and the jump target can even land mid-expression (the first ops
+/// then consume values pushed before the header). Simulate pure ops on a
+/// small overlay stack: pops read the real S["stack"] top-down when the
+/// overlay is empty. `sim` = {st: leftover pushes, base: stack depth at
+/// entry, used: pre-header values consumed}. Impure ops (call/store/jump),
+/// non-number arith operands, out-of-range index reads and budget
+/// exhaustion keep the header interpreted. Returns {a,b,cmp,jcc,jip,jarg,
+/// used,tail} or undefined — the caller syncs the real stack before fusing.
+fn vJitOsrSimHas(S, sim) {
+    if len(sim["st"]) > 0 {
+        return true
+    }
+    return sim["used"] < sim["base"]
+}
+
+fn vJitOsrSimPop(S, sim) {
+    if len(sim["st"]) > 0 {
+        let v = sim["st"][len(sim["st"]) - 1]
+        sim["st"] = pop(sim["st"])
+        return v
+    }
+    let v = S["stack"][sim["base"] - 1 - sim["used"]]
+    sim["used"] = sim["used"] + 1
+    return v
+}
+
+fn vJitOsrHeaderVals(S, ops, pool, ip) {
+    let sim = { "st": [], "base": len(S["stack"]), "used": 0 }
+    let j = ip
+    let budget = 16
+    while j < len(ops) && budget > 0 {
+        budget = budget - 1
+        let op = ops[j]
+        let name = op["op"]
+        if name == "eq" || name == "ne" || name == "lt" || name == "le" || name == "gt" || name == "ge" {
+            if j + 1 >= len(ops) {
+                return { "failOp": name, "failIp": j }
+            }
+            let jn = ops[j + 1]["op"]
+            if jn != "jump_if_false" && jn != "jump_if_true" {
+                return { "failOp": name, "failIp": j }
+            }
+            if vJitOsrSimHas(S, sim) == false {
+                return { "failOp": name, "failIp": j }
+            }
+            let b = vJitOsrSimPop(S, sim)
+            if vJitOsrSimHas(S, sim) == false {
+                return { "failOp": name, "failIp": j }
+            }
+            let a = vJitOsrSimPop(S, sim)
+            if typeof(a) != "number" || typeof(b) != "number" {
+                return { "failOp": name, "failIp": j }
+            }
+            return { "a": a, "b": b, "cmp": name, "jcc": jn, "jip": j + 1, "jarg": ops[j + 1]["arg"], "used": sim["used"], "tail": sim["st"] }
+        }
+        let arg = op["arg"]
+        let bad = false
+        if name == "const" {
+            if arg < 0 || arg >= len(pool) {
+                return { "failOp": name, "failIp": j }
+            }
+            sim["st"] = push(sim["st"], pool[arg])
+        } else {
+            if name == "load_local" || name == "load_global" {
+                let arr = S["locals"]
+                if name == "load_global" {
+                    arr = S["globals"]
+                }
+                if arg < 0 || arg >= len(arr) {
+                    return { "failOp": name, "failIp": j }
+                }
+                sim["st"] = push(sim["st"], arr[arg])
+            } else {
+                if name == "len_local" || name == "len_global" {
+                    let arr = S["locals"]
+                    if name == "len_global" {
+                        arr = S["globals"]
+                    }
+                    if arg < 0 || arg >= len(arr) {
+                        return { "failOp": name, "failIp": j }
+                    }
+                    let v = arr[arg]
+                    if typeof(v) != "array" && typeof(v) != "string" {
+                        return { "failOp": name, "failIp": j }
+                    }
+                    sim["st"] = push(sim["st"], len(v))
+                } else {
+                    if name == "index_get_local" || name == "index_get_global" {
+                        if vJitOsrSimHas(S, sim) == false {
+                            return { "failOp": name, "failIp": j }
+                        }
+                        let idx = vJitOsrSimPop(S, sim)
+                        let arr = undefined
+                        if name == "index_get_local" {
+                            if arg < 0 || arg >= len(S["locals"]) {
+                                return { "failOp": name, "failIp": j }
+                            }
+                            arr = S["locals"][arg]
+                        } else {
+                            arr = vResolveGlobalS(S, S["globalNames"], arg)
+                        }
+                        if typeof(arr) != "array" || typeof(idx) != "number" || idx < 0 || idx >= len(arr) {
+                            return { "failOp": name, "failIp": j }
+                        }
+                        sim["st"] = push(sim["st"], arr[idx])
+                    } else {
+                        if name == "add" || name == "sub" || name == "mul" || name == "bit_and" || name == "bit_or" || name == "bit_xor" || name == "shl" || name == "shr" || name == "ushr" {
+                            if vJitOsrSimHas(S, sim) == false {
+                                return { "failOp": name, "failIp": j }
+                            }
+                            let rb = vJitOsrSimPop(S, sim)
+                            if vJitOsrSimHas(S, sim) == false {
+                                return { "failOp": name, "failIp": j }
+                            }
+                            let ra = vJitOsrSimPop(S, sim)
+                            if typeof(ra) != "number" || typeof(rb) != "number" {
+                                return { "failOp": name, "failIp": j }
+                            }
+                            if name == "add" {
+                                sim["st"] = push(sim["st"], ra + rb)
+                            } else {
+                                if name == "sub" {
+                                    sim["st"] = push(sim["st"], ra - rb)
+                                } else {
+                                    if name == "mul" {
+                                        sim["st"] = push(sim["st"], ra * rb)
+                                    } else {
+                                        if name == "bit_and" {
+                                            sim["st"] = push(sim["st"], ra & rb)
+                                        } else {
+                                            if name == "bit_or" {
+                                                sim["st"] = push(sim["st"], ra | rb)
+                                            } else {
+                                                if name == "bit_xor" {
+                                                    sim["st"] = push(sim["st"], ra ^ rb)
+                                                } else {
+                                                    if name == "shl" {
+                                                        sim["st"] = push(sim["st"], ra << rb)
+                                                    } else {
+                                                        if name == "shr" {
+                                                            sim["st"] = push(sim["st"], ra >> rb)
+                                                        } else {
+                                                            sim["st"] = push(sim["st"], ra >>> rb)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            if name == "neg" {
+                                if vJitOsrSimHas(S, sim) == false {
+                                    return { "failOp": name, "failIp": j }
+                                }
+                                let rv = vJitOsrSimPop(S, sim)
+                                if typeof(rv) != "number" {
+                                    return { "failOp": name, "failIp": j }
+                                }
+                                sim["st"] = push(sim["st"], 0 - rv)
+                            } else {
+                                return { "failOp": name, "failIp": j }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        j = j + 1
+    }
+    return { "failOp": "budget", "failIp": ip }
+}
+
+/// Miss with a lazily-built header key — the op-name concat only runs when
+/// S["jitOsrMissTrace"] is on, so the production miss path stays a counter.
+fn vJitOsrMissKeyS(S, ops, ip, suffix) {
+    let key = ""
+    if S["jitOsrMissTrace"] == true {
+        key = ops[ip]["op"] + "|" + ops[ip + 1]["op"] + "|" + ops[ip + 2]["op"] + "|" + ops[ip + 3]["op"] + suffix
+    }
+    return vJitOsrMissS(S, key)
+}
+
 pub fn vJitOsrStepS(S, ops, pool) {
     let ip = S["ip"]
     if ip <= 0 {
@@ -841,30 +1248,52 @@ pub fn vJitOsrStepS(S, ops, pool) {
     if hit == false {
         return 0
     }
+    // Armed-but-rejected outcomes feed S["jitOsrMisses"] — the honest
+    // fused-vs-interpreted share on hot headers (vJitSessionStats reads it).
     if ip + 3 >= len(ops) {
-        return 0
+        return vJitOsrMissS(S, "short")
     }
-    let a = vOsrOperandVal(S, ops[ip], pool)
-    let b = vOsrOperandVal(S, ops[ip + 1], pool)
-    if a == undefined || b == undefined {
-        return 0
+    let hv = vJitOsrHeaderVals(S, ops, pool, ip)
+    if hv["a"] == undefined {
+        if S["jitOsrMissTrace"] == true {
+            S["jitOsrMissLastFail"] = hv["failOp"] + "@" + hv["failIp"]
+        }
+        return vJitOsrMissKeyS(S, ops, ip, ">header")
     }
-    if typeof(a) != "number" || typeof(b) != "number" {
-        return 0
-    }
-    let chain = ["const", "const", ops[ip + 2]["op"], ops[ip + 3]["op"], "ret"]
+    let a = hv["a"]
+    let b = hv["b"]
+    let chain = ["const", "const", hv["cmp"], hv["jcc"], "ret"]
     if jitFromOpsAnyExecOk(chain, a, b, 0, 0, 0, 0) == false {
-        return 0
+        return vJitOsrMissKeyS(S, ops, ip, ">exec")
     }
     let r = jitFromOpsAnyVal(chain, a, b, 0, 0, 0, 0)
-    // The jcc target is relative to the jump op itself (ip + 3), not the
-    // header start — taken = (ip + 3) + 1 + arg, fallthrough = ip + 4.
+    // Sync the real stack: the fused header consumed `used` pre-header
+    // values and left `tail` pushed values — mirror that before jumping.
+    let used = hv["used"]
+    let tail = hv["tail"]
+    if used > 0 || len(tail) > 0 {
+        let s2 = S["stack"]
+        let ui = 0
+        while ui < used {
+            s2 = pop(s2)
+            ui = ui + 1
+        }
+        let ti = 0
+        while ti < len(tail) {
+            s2 = push(s2, tail[ti])
+            ti = ti + 1
+        }
+        S["stack"] = s2
+    }
+    // The jcc target is relative to the jump op itself (hv["jip"]), not the
+    // header start — taken = jip + 1 + arg, fallthrough/body start = jip + 1.
+    let jip = hv["jip"]
     if r == 1 {
-        S["ip"] = ip + 4 + ops[ip + 3]["arg"]
+        S["ip"] = jip + 1 + hv["jarg"]
     } else {
-        if vJitOsrAccBodyS(S, ops, pool, ip) == 0 {
-            if vJitOsrIncBodyS(S, ops, pool, ip) == 0 {
-                S["ip"] = ip + 4
+        if vJitOsrAccBodyS(S, ops, pool, ip, jip + 1) == 0 {
+            if vJitOsrIncBodyS(S, ops, pool, ip, jip + 1) == 0 {
+                S["ip"] = jip + 1
             }
         }
     }

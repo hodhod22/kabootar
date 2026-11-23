@@ -1,6 +1,8 @@
-// SH28: product JIT is not Kab yet. import "kab/noll/noll_jit"
+// SH28: product JIT IS Kab — src/bytecode/jit.rs emits via
+// lib/kab/jit/jit_x64_emit.kab (jitX64Emit -> aot_fn_x64 -> native_exec).
+// import "kab/noll/noll_jit"
 // Do not grow noll_cranelift.kab. Do not delete src/. nollAotReady stays false.
 
 pub fn nollJitIsKab() {
-    return false
+    return true
 }
