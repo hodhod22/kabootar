@@ -164,8 +164,8 @@ pub fn create_global_env() -> Environment {
         Value::NativeFunction(bytecode_host_import_native),
     );
     env.set(
-        "bytecode_host_module_kbcb".to_string(),
-        Value::NativeFunction(bytecode_host_module_kbcb_native),
+        "bytecode_host_module_record".to_string(),
+        Value::NativeFunction(bytecode_host_module_record_native),
     );
     env.set(
         "bytecode_iterator_step_in_place".to_string(),
@@ -731,13 +731,13 @@ fn bytecode_host_import_native(args: &[Value], env: &mut Environment) -> Result<
     Ok(Value::from_array(pairs))
 }
 
-/// H6e/SH17: `bytecode_host_module_kbcb(name)` — compile a file-backed module
-/// to its `.kbcb` bytes so the Kab VM can `deserializeKbcb` + run it on its
-/// own session instead of binding host fns (the import boundary that keeps
-/// self-host work invisible to the Kab JIT). Null for anything not a plain
-/// file module (builtins, npm:/node:, registry) — callers fall back to
-/// `bytecode_host_import`.
-fn bytecode_host_module_kbcb_native(
+/// H6e/SH17: `bytecode_host_module_record(name)` — compile a file-backed
+/// module and return its `deserializeKbcb`-shape record directly, so the Kab
+/// VM can `vModRunCaptureS` + run it on its own session instead of binding
+/// host fns (the import boundary that keeps self-host work invisible to the
+/// Kab JIT). Null for anything not a plain file module (builtins,
+/// npm:/node:, registry) — callers fall back to `bytecode_host_import`.
+fn bytecode_host_module_record_native(
     args: &[Value],
     _env: &mut Environment,
 ) -> Result<Value, String> {
@@ -760,10 +760,7 @@ fn bytecode_host_module_kbcb_native(
     let Some(bc) = program.bytecode else {
         return Ok(Value::Null);
     };
-    let bytes = crate::bytecode::serialize_kbcb(&bc);
-    Ok(Value::from_array(
-        bytes.into_iter().map(|b| Value::Number(b as i64)).collect(),
-    ))
+    Ok(crate::bytecode::module_record(&bc))
 }
 
 /// H6e Kab VM: `iterator_step_in_place` — returns `[it, { value, done }]`.

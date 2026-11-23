@@ -2,7 +2,6 @@ import "self_host/vm_run_norm_bc"
 import "self_host/vm_run_restore_mod"
 import "self_host/vm_run_session"
 import "self_host/vm_s_stack"
-import "self_host/deserialize_kbcb"
 
 // --- vm_run_mod_enter_a ---
 pub fn vModEnterA(S, bc) {
@@ -68,7 +67,7 @@ pub fn vModRun(S, bc) {
 
 // --- vm_run_simport ---
 // SH17: S-resident import binding. With S["simports"]==1, module imports
-// resolve through bytecode_host_module_kbcb + vModRunCaptureS and exports bind
+// resolve through bytecode_host_module_record + vModRunCaptureS and exports bind
 // as {vmModFn} values whose calls run their module's ops on S — visible to
 // the S-resident JIT — instead of via the host bytecode bridge.
 
@@ -92,6 +91,7 @@ pub fn vModRunCaptureS(S, bc) {
     }
     let bad = S["unsupported"]
     let m = {
+        "exports": n["exports"],
         "functions": S["bcFns"],
         "pool": S["bcPool"],
         "gNames": S["globalNames"],
@@ -138,19 +138,19 @@ pub fn vTryBindImportSK(S, globals, name) {
         m = S["vmMods"][name]
     }
     if m == undefined || m == null {
-        let bytes = null
+        let bc = null
         try {
-            bytes = bytecode_host_module_kbcb("" + name)
+            bc = bytecode_host_module_record("" + name)
         } catch (e) {
-            bytes = null
+            bc = null
         }
-        if typeof(bytes) != "array" {
+        if typeof(bc) != "object" || bc == null {
             return 0
         }
         loading[name] = 1
         let merr = null
         try {
-            m = vModRunCaptureS(S, deserializeKbcb(bytes))
+            m = vModRunCaptureS(S, bc)
         } catch (e) {
             merr = e
         }
@@ -168,29 +168,52 @@ pub fn vTryBindImportSK(S, globals, name) {
     }
     let gNames = m["gNames"]
     let gVals = m["gVals"]
+    let exports = m["exports"]
+    let mFns = m["functions"]
     let gi = 0
     while gi < len(globals) {
         let want = globals[gi]
-        let mj = 0
-        while mj < len(gNames) {
-            if gNames[mj] == want {
-                let v = gVals[mj]
-                if v != undefined {
-                    let fi = vObjGet(v, "vmFn")
-                    if fi != undefined {
-                        S["globals"][gi] = { "vmModFn": 1, "fn": fi, "mod": m }
+        let ei = 0
+        let isExp = 0
+        while ei < len(exports) {
+            if exports[ei] == want {
+                isExp = 1
+                ei = len(exports)
+            }
+            ei = ei + 1
+        }
+        if isExp == 1 {
+            let v = undefined
+            let mj = 0
+            while mj < len(gNames) {
+                if gNames[mj] == want {
+                    v = gVals[mj]
+                    mj = len(gNames)
+                }
+                mj = mj + 1
+            }
+            if v != undefined {
+                let fi = vObjGet(v, "vmFn")
+                if fi != undefined {
+                    S["globals"][gi] = { "vmModFn": 1, "fn": fi, "mod": m }
+                } else {
+                    let ai = vObjGet(v, "vmArrow")
+                    if ai != undefined {
+                        S["globals"][gi] = { "vmModFn": 1, "arrow": ai, "caps": vObjGet(v, "caps"), "mod": m }
                     } else {
-                        let ai = vObjGet(v, "vmArrow")
-                        if ai != undefined {
-                            S["globals"][gi] = { "vmModFn": 1, "arrow": ai, "caps": vObjGet(v, "caps"), "mod": m }
-                        } else {
-                            S["globals"][gi] = v
-                        }
+                        S["globals"][gi] = v
                     }
                 }
-                mj = len(gNames)
+            } else {
+                let fj = 0
+                while fj < len(mFns) {
+                    if mFns[fj]["sym"] == want {
+                        S["globals"][gi] = { "vmModFn": 1, "fn": fj, "mod": m }
+                        fj = len(mFns)
+                    }
+                    fj = fj + 1
+                }
             }
-            mj = mj + 1
         }
         gi = gi + 1
     }

@@ -4,6 +4,7 @@ mod classes;
 mod compiler;
 mod jit;
 mod kbcb;
+mod module_record;
 mod optimize;
 mod typed;
 mod types;
@@ -19,6 +20,7 @@ pub use jit::{
     jit_add_loop, jit_call_threshold, jit_kab_execs, jit_reset_for_tests,
     jit_set_call_threshold_for_tests, jit_stats, JIT_CALL_THRESHOLD_DEFAULT,
 };
+pub use module_record::module_record;
 pub use typed::{fn_is_typed_i64, typed_i64_reset_for_tests, typed_i64_stats};
 pub use types::{
     deserialize, serialize, BytecodeFnDef, BytecodeModule, Constant, GeneratorTryRegion,
