@@ -164,6 +164,10 @@ pub fn create_global_env() -> Environment {
         Value::NativeFunction(bytecode_host_import_native),
     );
     env.set(
+        "bytecode_host_module_kbcb".to_string(),
+        Value::NativeFunction(bytecode_host_module_kbcb_native),
+    );
+    env.set(
         "bytecode_iterator_step_in_place".to_string(),
         Value::NativeFunction(bytecode_iterator_step_in_place_native),
     );
@@ -725,6 +729,41 @@ fn bytecode_host_import_native(args: &[Value], env: &mut Environment) -> Result<
         }
     }
     Ok(Value::from_array(pairs))
+}
+
+/// H6e/SH17: `bytecode_host_module_kbcb(name)` — compile a file-backed module
+/// to its `.kbcb` bytes so the Kab VM can `deserializeKbcb` + run it on its
+/// own session instead of binding host fns (the import boundary that keeps
+/// self-host work invisible to the Kab JIT). Null for anything not a plain
+/// file module (builtins, npm:/node:, registry) — callers fall back to
+/// `bytecode_host_import`.
+fn bytecode_host_module_kbcb_native(
+    args: &[Value],
+    _env: &mut Environment,
+) -> Result<Value, String> {
+    let name = match args.first() {
+        Some(Value::String(s)) => s.as_str(),
+        _ => return Ok(Value::Null),
+    };
+    let Some(path) = modules::module_path(name) else {
+        return Ok(Value::Null);
+    };
+    let Ok(raw) = std::fs::read_to_string(&path) else {
+        return Ok(Value::Null);
+    };
+    let (_, source) = crate::project::version::strip_version_directive(&raw);
+    let cache_key = path.to_string_lossy().replace('\\', "/");
+    let program = match crate::compile::load_program_for_file(&cache_key, &source) {
+        Ok(p) => p,
+        Err(_) => return Ok(Value::Null),
+    };
+    let Some(bc) = program.bytecode else {
+        return Ok(Value::Null);
+    };
+    let bytes = crate::bytecode::serialize_kbcb(&bc);
+    Ok(Value::from_array(
+        bytes.into_iter().map(|b| Value::Number(b as i64)).collect(),
+    ))
 }
 
 /// H6e Kab VM: `iterator_step_in_place` — returns `[it, { value, done }]`.

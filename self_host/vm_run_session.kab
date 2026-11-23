@@ -291,9 +291,17 @@ pub fn vWireExec(S, runOps, runFnBody, runMethodBody) {
 pub fn vBindImports(S, globals, imports) {
     let ii = 0
     while ii < len(imports) {
-        let pairs = bytecode_host_import("" + imports[ii])
-        if pairs != null && pairs != undefined {
-            vBindImportPairs(S, globals, pairs)
+        let nm = "" + imports[ii]
+        let done = 0
+        let sf = S["simportFn"]
+        if sf != undefined && sf != null {
+            done = sf(S, globals, nm)
+        }
+        if done == 0 {
+            let pairs = bytecode_host_import(nm)
+            if pairs != null && pairs != undefined {
+                vBindImportPairs(S, globals, pairs)
+            }
         }
         ii = ii + 1
     }

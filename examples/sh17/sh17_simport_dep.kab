@@ -1,0 +1,18 @@
+// SH17 probe dep: module imported by sh17_simport_probe.kab. With
+// KAB_VM_SIMPORT=1 its top-level runs on the Kab VM session and exports bind
+// as {vmModFn} — calls re-enter this module's frame on S, so its loop
+// back-edges are visible to the S-resident JIT counters.
+
+pub fn depSum(n) {
+    let i = 0
+    let acc = 0
+    while i < n {
+        acc = acc + i
+        i = i + 1
+    }
+    return acc
+}
+
+pub fn depMul(a, b) {
+    return a * b
+}

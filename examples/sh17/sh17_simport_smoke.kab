@@ -1,0 +1,26 @@
+// SH17 gate smoke: S-resident import binding. With KAB_VM_SIMPORT=1 +
+// KAB_VM_SIMPORT_MATCH=examples/sh17/sh17_simport_dep the dep module's
+// exports bind as {vmModFn} — calls re-enter the dep's captured module
+// frame on this session, so its loop back-edges arm OSR headers and feed
+// the JIT counters. Returns 42 only when value AND JIT evidence hold.
+
+import "self_host/vm_run_exec_core"
+import "kab/vm"
+
+vJitSessionReset()
+
+let src = "import \"examples/sh17/sh17_simport_dep\"\nreturn depSum(50) + depMul(2, 3)"
+let out = evalSourceKabVm(src)
+if out != 1231 {
+    throw "simport value mismatch: " + out
+}
+
+let st = vJitSessionStats()
+if st["backEdges"] < 40 {
+    throw "simport: imported loop back-edges not visible on S"
+}
+if st["osrExecs"] < 1 {
+    throw "simport: imported loop did not reach OSR fusion"
+}
+
+return 42

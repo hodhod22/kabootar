@@ -1,5 +1,6 @@
 import "self_host/vm_s_stack"
 import "self_host/vm_run_session"
+import "self_host/vm_run_restore_mod"
 import "self_host/vm_run_jit"
 // SH6: g.next(v) send.
 
@@ -290,6 +291,40 @@ pub fn vApplyCalleeS(S, c, ordered, pool, globals, functions) {
         }
         return j["out"]
     }
+    if kind == "modFn" {
+        // SH17: imported module fn — swap S into the module's captured frame,
+        // run the body on S (JIT-visible), then restore the caller's frame.
+        let m = c["mod"]
+        let old = vSaveModuleFrame(S)
+        S["globals"] = m["gVals"]
+        S["classes"] = m["classes"]
+        S["arrows"] = m["arrows"]
+        S["tryRegions"] = m["tryRegions"]
+        S["localNames"] = m["localNames"]
+        S["globalNames"] = m["gNames"]
+        S["localGMap"] = m["localGMap"]
+        S["bcFns"] = m["functions"]
+        S["bcPool"] = m["pool"]
+        S["bcGlobals"] = m["gNames"]
+        let def = null
+        if c["arrow"] != undefined {
+            def = m["arrows"][c["arrow"]]
+        } else {
+            def = m["functions"][c["fn"]]
+        }
+        let out = null
+        let err = null
+        try {
+            out = runFnBodyS(S, def, m["pool"], m["gNames"], m["functions"], ordered, c["caps"])
+        } catch (e) {
+            err = e
+        }
+        vRestoreModuleFrame(S, old)
+        if err != null {
+            throw err
+        }
+        return out
+    }
     if kind == "fn" || kind == "arrow" {
         return vApplyFnArrowS(S, c, ordered, pool, globals, functions)
     }
@@ -321,6 +356,15 @@ pub fn vClassifyCallee(callee) {
     }
     if vObjGet(callee, "vmIterClose") == true {
         return { "kind": "iterClose" }
+    }
+    if vObjGet(callee, "vmModFn") != undefined {
+        return {
+            "kind": "modFn",
+            "mod": callee["mod"],
+            "fn": vObjGet(callee, "fn"),
+            "arrow": vObjGet(callee, "arrow"),
+            "caps": vObjGet(callee, "caps")
+        }
     }
     let c = vClassifyFnArrow(callee)
     if c["kind"] != null {

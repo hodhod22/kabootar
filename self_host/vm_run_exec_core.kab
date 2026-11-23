@@ -17,6 +17,22 @@ S["runOps"] = tramp
 S["runFnBody"] = tramp
 S["runMethodBody"] = tramp
 
+// SH17: S-resident import binding — opt-in via KAB_VM_SIMPORT=1. When on,
+// vBindImports resolves module files itself and binds exports as {vmModFn}
+// values that run the imported module's ops on this session (JIT-visible).
+S["simportFn"] = vTryBindImportSK
+S["simports"] = 0
+if env_get("KAB_VM_SIMPORT") == "1" {
+    S["simports"] = 1
+}
+S["simportMatch"] = ""
+let smatch = env_get("KAB_VM_SIMPORT_MATCH")
+if smatch != undefined && smatch != null {
+    S["simportMatch"] = "" + smatch
+}
+S["vmMods"] = {}
+S["modLoading"] = {}
+
 pub fn runModuleImplBodyCore(bc) {
     return vModRun(S, bc)
 }

@@ -1,6 +1,8 @@
 import "self_host/vm_run_norm_bc"
 import "self_host/vm_run_restore_mod"
 import "self_host/vm_run_session"
+import "self_host/vm_s_stack"
+import "self_host/deserialize_kbcb"
 
 // --- vm_run_mod_enter_a ---
 pub fn vModEnterA(S, bc) {
@@ -62,4 +64,135 @@ pub fn vModRun(S, bc) {
     let ctx = vModEnter(S, bc)
     vCallRunOps(S, ctx["ops"], ctx["pool"], ctx["globals"], ctx["functions"])
     return vModLeave(S, ctx["old"])
+}
+
+// --- vm_run_simport ---
+// SH17: S-resident import binding. With S["simports"]==1, module imports
+// resolve through bytecode_host_module_kbcb + vModRunCaptureS and exports bind
+// as {vmModFn} values whose calls run their module's ops on S — visible to
+// the S-resident JIT — instead of via the host bytecode bridge.
+
+/// Run a module record's top-level on S in a nested module frame, then capture
+/// its bound context for later modFn calls.
+pub fn vModRunCaptureS(S, bc) {
+    let n = vNormBc(bc)
+    let old = vSaveModuleFrame(S)
+    vAllocGlobals(S, len(n["globals"]))
+    vBindImports(S, n["globals"], n["imports"])
+    let pi = n["pub_imports"]
+    if pi != undefined && pi != null {
+        vBindImports(S, n["globals"], pi)
+    }
+    vModEnterB(S, n)
+    let runErr = null
+    try {
+        vCallRunOps(S, n["ops"], n["pool"], n["globals"], n["functions"])
+    } catch (e) {
+        runErr = e
+    }
+    let bad = S["unsupported"]
+    let m = {
+        "functions": S["bcFns"],
+        "pool": S["bcPool"],
+        "gNames": S["globalNames"],
+        "gVals": S["globals"],
+        "classes": S["classes"],
+        "arrows": S["arrows"],
+        "tryRegions": S["tryRegions"],
+        "localNames": S["localNames"],
+        "localGMap": S["localGMap"]
+    }
+    vRestoreModuleFrame(S, old)
+    if runErr != null {
+        throw runErr
+    }
+    if bad {
+        throw "vm unsupported opcode in import"
+    }
+    return m
+}
+
+/// Try to resolve `name` as an S-resident module and bind its exports into the
+/// caller's globals. Returns 1 when binding happened, 0 to fall back to the
+/// host import bridge.
+pub fn vTryBindImportSK(S, globals, name) {
+    if S["simports"] != 1 {
+        return 0
+    }
+    let matchPat = S["simportMatch"]
+    if matchPat != undefined && matchPat != "" {
+        if starts_with("" + name, "" + matchPat) == false {
+            return 0
+        }
+    }
+    let loading = S["modLoading"]
+    if loading == undefined {
+        loading = {}
+        S["modLoading"] = loading
+    }
+    if loading[name] == 1 {
+        return 0
+    }
+    let m = null
+    if S["vmMods"] != undefined {
+        m = S["vmMods"][name]
+    }
+    if m == undefined || m == null {
+        let bytes = null
+        try {
+            bytes = bytecode_host_module_kbcb("" + name)
+        } catch (e) {
+            bytes = null
+        }
+        if typeof(bytes) != "array" {
+            return 0
+        }
+        loading[name] = 1
+        let merr = null
+        try {
+            m = vModRunCaptureS(S, deserializeKbcb(bytes))
+        } catch (e) {
+            merr = e
+        }
+        loading[name] = 0
+        if m == null {
+            if merr != null {
+                throw merr
+            }
+            return 0
+        }
+        if S["vmMods"] == undefined {
+            S["vmMods"] = {}
+        }
+        S["vmMods"][name] = m
+    }
+    let gNames = m["gNames"]
+    let gVals = m["gVals"]
+    let gi = 0
+    while gi < len(globals) {
+        let want = globals[gi]
+        let mj = 0
+        while mj < len(gNames) {
+            if gNames[mj] == want {
+                let v = gVals[mj]
+                if v != undefined {
+                    let fi = vObjGet(v, "vmFn")
+                    if fi != undefined {
+                        S["globals"][gi] = { "vmModFn": 1, "fn": fi, "mod": m }
+                    } else {
+                        let ai = vObjGet(v, "vmArrow")
+                        if ai != undefined {
+                            S["globals"][gi] = { "vmModFn": 1, "arrow": ai, "caps": vObjGet(v, "caps"), "mod": m }
+                        } else {
+                            S["globals"][gi] = v
+                        }
+                    }
+                }
+                mj = len(gNames)
+            }
+            mj = mj + 1
+        }
+        gi = gi + 1
+    }
+    return 1
 }

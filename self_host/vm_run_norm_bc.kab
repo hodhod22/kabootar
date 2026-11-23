@@ -43,6 +43,15 @@ pub fn vNormImports(bc) {
     return imports
 }
 
+// --- vm_run_norm_pub_imports ---
+pub fn vNormPubImports(bc) {
+    let pi = bc["pub_imports"]
+    if pi == null || pi == undefined {
+        return []
+    }
+    return pi
+}
+
 // --- vm_run_norm_locals ---
 pub fn vNormLocals(bc) {
     let localNames = bc["locals"]
@@ -87,6 +96,7 @@ pub fn vNormBc(bc) {
         "functions": vNormFunctions(bc),
         "classes": vNormClasses(bc),
         "imports": vNormImports(bc),
+        "pub_imports": vNormPubImports(bc),
         "arrows": vNormArrows(bc),
         "tryRegions": vNormTries(bc),
         "localNames": vNormLocals(bc),

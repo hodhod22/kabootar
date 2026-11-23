@@ -25482,6 +25482,36 @@ fn sh17_jit_stats_smoke() {
         .expect("join");
 }
 
+/// SH17: S-resident import binding — with KAB_VM_SIMPORT the dep module's
+/// exports bind as {vmModFn} and its loops run on the Kab VM session, so
+/// backEdges + osrExecs are counted by vJitSessionStats (the import
+/// boundary that previously kept imported work invisible to the JIT).
+#[test]
+fn sh17_simport_jit_visibility_smoke() {
+    let path = format!(
+        "{}/examples/sh17/sh17_simport_smoke.kab",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::thread::Builder::new()
+        .name("sh17-simport".into())
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || {
+            use kabootar_lib::compile::{compile_file_cached, eval_program};
+            std::env::set_var("KAB_VM_SIMPORT", "1");
+            std::env::set_var(
+                "KAB_VM_SIMPORT_MATCH",
+                "examples/sh17/sh17_simport_dep",
+            );
+            let mut env = create_global_env();
+            let program = compile_file_cached(&path).expect("compile simport smoke");
+            let value = eval_program(&program, &mut env).expect("run simport smoke");
+            assert!(matches!(value, kabootar_lib::value::Value::Number(42)));
+        })
+        .expect("spawn")
+        .join()
+        .expect("join");
+}
+
 /// KT2 real: kabtest evals test sources through the Kab VM itself
 /// (evalSourceKabVm) — discover via os_list, run via os_read + eval,
 /// TAP report. Not the Rust test_runner; not a string-match stub.
