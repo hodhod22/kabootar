@@ -9,7 +9,7 @@ if nollHostDeleteOk() != false {
 if nollAotReady() {
     return false
 }
-if nollCraneliftGone() != false {
+if nollCraneliftGone() != true {
     return false
 }
 if nollJitIsKab() != true {

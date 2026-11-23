@@ -12,7 +12,7 @@ if nollAotReady() {
 if nollAllGatesClosedOk() != true {
     return false
 }
-if nollCraneliftGone() != false {
+if nollCraneliftGone() != true {
     return false
 }
 return nollHostDeleteOk() == false

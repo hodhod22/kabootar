@@ -81449,14 +81449,19 @@ fn sh28_noll_host_rollup_in_kab() {
     );
 }
 
-/// SH28 deepen: Cranelift/JIT still host — leaf lives off noll_gates.kab.
+/// SH28 deepen: Cranelift is gone — leaf lives off noll_gates.kab.
 #[test]
 fn sh28_noll_cranelift_in_kab() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let i = std::fs::read_to_string(root.join("lib/kab/noll/noll_cranelift.kab")).expect("noll_cranelift.kab");
     assert!(
-        i.contains("pub fn nollCraneliftGone") && i.contains("return false"),
+        i.contains("pub fn nollCraneliftGone") && i.contains("return true"),
         "SH28 Kab nollCraneliftGone"
+    );
+    let toml = std::fs::read_to_string(root.join("Cargo.toml")).expect("Cargo.toml");
+    assert!(
+        !toml.contains("cranelift"),
+        "SH28: Cargo.toml must not carry cranelift deps once nollCraneliftGone=true"
     );
 }
 
