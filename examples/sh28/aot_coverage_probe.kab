@@ -1,0 +1,78 @@
+// AOT-0 coverage probe (manual): lower self_host shards through
+// aotFnLowerModuleTv1 and report per-file ok/reason. Rejects tell us exactly
+// which ops/builtins still block the self-host graph from compiling natively.
+// Usage: KAB_AOT_COV_FILE=<module-name> for one file (default: tiny module) or
+// KAB_AOT_COV_ALL=1 for the full self_host inventory.
+
+import "kab/aot/aot_fn_lower"
+
+fn lowerOne(name) {
+    let bc = null
+    try {
+        bc = bytecode_host_module_record(name)
+    } catch (e) {
+        bc = null
+    }
+    if typeof(bc) != "object" || bc == null {
+        return "MISS " + name
+    }
+    let r = null
+    try {
+        r = aotFnLowerModuleTv1(bc, 1048576)
+    } catch (e) {
+        return "THROW " + name + " :: " + e
+    }
+    if r["ok"] == true {
+        return "OK   " + name + " fns=" + len(r["fns"])
+    }
+    return "REJ  " + name + " :: " + r["reason"]
+}
+
+let oneFile = env_get("KAB_AOT_COV_FILE")
+let files = null
+if typeof(oneFile) == "string" && oneFile != "" {
+    files = [oneFile]
+}
+if env_get("KAB_AOT_COV_ALL") == "1" {
+    files = [
+        "self_host/compile",
+        "self_host/lexer_scan",
+        "self_host/lexer_tokenize",
+        "self_host/parser_stmt",
+        "self_host/parser_exec",
+        "self_host/emit_expr_body",
+        "self_host/emit_stmt_body",
+        "self_host/serialize_defs",
+        "self_host/deserialize",
+        "self_host/deserialize_kbcb",
+        "self_host/vm",
+        "self_host/vm_run_exec_core",
+        "self_host/vm_run_session",
+        "self_host/vm_run_mod_run",
+        "self_host/vm_run_call",
+        "self_host/vm_run_ops_loop",
+        "self_host/vm_run_tramp",
+        "self_host/vm_run_jit",
+        "kab/boot",
+        "kab/vm",
+        "kab/gc",
+        "kab/jit"
+    ]
+}
+if files == null {
+    files = ["examples/sh28/aot_cov_tiny"]
+}
+
+let okN = 0
+let i = 0
+while i < len(files) {
+    let t0 = date_now_ms()
+    let line = lowerOne(files[i])
+    println(line + "  [" + (date_now_ms() - t0) + "ms]")
+    if starts_with(line, "OK") {
+        okN = okN + 1
+    }
+    i = i + 1
+}
+println("== " + okN + " / " + len(files) + " ok ==")
+return 0

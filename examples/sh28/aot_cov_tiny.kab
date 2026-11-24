@@ -1,0 +1,14 @@
+// Tiny module for AOT-0 plumbing validation.
+fn add(a, b) {
+    return a + b
+}
+fn loopN(n) {
+    let s = 0
+    let i = 0
+    while i < n {
+        s = s + i
+        i = i + 1
+    }
+    return s
+}
+return 0

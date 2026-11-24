@@ -1,0 +1,8 @@
+// AOT-0 helper: dump a module record to JSON on stdout.
+// Usage: KAB_AOT_COV_FILE=<module-name> kabootar run aot_bc_dump.kab > bc.json
+let oneFile = env_get("KAB_AOT_COV_FILE")
+if typeof(oneFile) != "string" || oneFile == "" {
+    oneFile = "examples/sh28/aot_cov_tiny"
+}
+println(json_stringify(bytecode_host_module_record(oneFile)))
+return 0
