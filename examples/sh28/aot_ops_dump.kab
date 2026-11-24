@@ -1,0 +1,21 @@
+// Dump lowered main-fn ops for `return 3 + 4` to see what the mirror/exec
+// actually runs.
+import "self_host/compile"
+import "kab/aot/aot_fn_lower"
+
+let bc = compileIr("return 3 + 4")
+let lo = aotFnLowerModuleTv1(bc, 4096)
+if lo["ok"] != true {
+    println("REJ " + lo["reason"])
+    return 1
+}
+let f0 = lo["fns"][0]
+println("name=" + f0["name"] + " locals=" + f0["locals"] + " arity=" + f0["arity"])
+let ops = f0["ops"]
+println("nops=" + len(ops))
+let i = 0
+while i < len(ops) {
+    println(i + ": " + json_stringify(ops[i]))
+    i = i + 1
+}
+return 0

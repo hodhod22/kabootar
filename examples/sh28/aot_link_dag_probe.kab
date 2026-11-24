@@ -1,0 +1,34 @@
+// AOT-7 scale probe (manual): link the real self_host compile DAG
+// (lexer_scan → parser_stmt → parser_exec → emit_* → compile) with
+// aotLinkModules and lower the merged program through tv1.
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_link"
+
+let names = [
+    "self_host/lexer_scan",
+    "self_host/parser_stmt",
+    "self_host/parser_exec",
+    "self_host/emit_expr_body",
+    "self_host/emit_stmt_body",
+    "self_host/compile"
+]
+let mods = []
+let i = 0
+while i < len(names) {
+    let t0 = date_now_ms()
+    let bc = bytecode_host_module_record(names[i])
+    println("bc " + names[i] + " fns=" + len(bc["functions"]) + " [" + (date_now_ms() - t0) + "ms]")
+    mods = push(mods, { "name": names[i], "bc": bc })
+    i = i + 1
+}
+let t0 = date_now_ms()
+let merged = aotLinkModules(mods)
+println("LINK " + (date_now_ms() - t0) + "ms fns=" + len(merged["functions"]) + " globals=" + len(merged["globals"]))
+t0 = date_now_ms()
+let r = aotFnLowerModuleTv1(merged, 1048576)
+if r["ok"] == true {
+    println("LOWER OK fns=" + len(r["fns"]) + " [" + (date_now_ms() - t0) + "ms]")
+} else {
+    println("LOWER REJ :: " + r["reason"] + " [" + (date_now_ms() - t0) + "ms]")
+}
+return 0

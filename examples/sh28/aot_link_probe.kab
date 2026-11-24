@@ -1,0 +1,71 @@
+// AOT-7 link-scale probe (manual): link a module + its dep with
+// aotLinkModules, lower the merged record with tv1, then emit to x64 and
+// exec via os_native_exec when possible.
+// Usage: KAB_AOT_LINK_MAIN=<module> KAB_AOT_LINK_DEPS=<comma list>
+
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_link"
+
+fn modsOf(names, out) {
+    let i = 0
+    while i < len(names) {
+        let bc = bytecode_host_module_record(names[i])
+        out = push(out, { "name": names[i], "bc": bc })
+        i = i + 1
+    }
+    return out
+}
+
+let main = env_get("KAB_AOT_LINK_MAIN")
+if typeof(main) != "string" || main == "" {
+    main = "examples/sh28/aot_link_main"
+}
+let deps = env_get("KAB_AOT_LINK_DEPS")
+if typeof(deps) != "string" || deps == "" {
+    deps = "examples/sh28/aot_link_dep"
+}
+let depList = split(deps, ",")
+
+let mods = modsOf(depList, [])
+mods = push(mods, { "name": main, "bc": bytecode_host_module_record(main) })
+
+let merged = aotLinkModules(mods)
+println("link ok=" + (merged != null && typeof(merged) == "object")
+        + " fns=" + len(merged["functions"]) + " globals=" + len(merged["globals"]))
+
+let r = aotFnLowerModuleTv1(merged, 1048576)
+if r["ok"] != true {
+    println("lower REJ :: " + r["reason"])
+    return 1
+}
+println("lower ok fns=" + len(r["fns"]) + " ng=" + r["nglobals"])
+
+// Emit to x64 and run natively: depSum(10)+depMul(3,4) = 67 → tagged 134.
+let fns = r["fns"]
+let ng = r["nglobals"]
+let data = []
+while len(data) < ng + 2 + 2048 {
+    data = push(data, 0)
+}
+let fi = 0
+while fi < len(fns) {
+    println("  fn " + fi + " " + fns[fi]["name"])
+    fi = fi + 1
+}
+let er = aotX64EmitFns(fns, aotNativeHostAbi())
+println("emitted " + len(er["code"]) + " bytes")
+if len(er["code"]) == 0 {
+    return 2
+}
+let rax = os_native_exec(er["code"], 0, data)
+println("native rax=" + rax)
+let mir = aotFnMirrorH(fns, 0, ng, 64)
+println("mirror=" + mir)
+if mir != rax {
+    println("MISMATCH mirror != native")
+    return 3
+}
+return 0

@@ -1,0 +1,8 @@
+// Minimal aotFnMirrorH check: hand-made ops, no lowering involved.
+import "kab/aot/aot_fn_exec"
+
+let fns = [{"name": "main", "locals": 2, "arity": 0, "ops": [
+    ["tconst", 3], ["tconst", 4], ["tadd"], ["ret"]
+]}]
+println("mirror=" + aotFnMirrorH(fns, 0, 0, 16))
+return 0

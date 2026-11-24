@@ -1,0 +1,7 @@
+// AOT-7 link test — app module importing depMul/depSum from aot_link_dep.
+import "examples/sh28/aot_link_dep"
+
+fn run() {
+    return depSum(10) + depMul(3, 4)
+}
+return run()

@@ -1,0 +1,8 @@
+let t0 = date_now_ms()
+let d = []
+println("innan loop")
+while len(d) < 260 {
+    d = push(d, 0)
+}
+println("260: " + (date_now_ms() - t0) + "ms len=" + len(d))
+return 0
