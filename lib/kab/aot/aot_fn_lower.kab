@@ -4456,6 +4456,31 @@ fn aotBuiltinSeq(name, n, bump, limit, s, bc) {
         }
         return null
     }
+    if name == "starts_with" {
+        // str_index_of(str, prefix) == 0 — the tagged find result
+        // compares equal to tagged 0 via raw eq.
+        if n == 2 {
+            return aotSeqCat(aotStrFindSeq(2, s), [["tconst", 0], ["eq"]], aotRaw2BoolSeq())
+        }
+        return null
+    }
+    if name == "array_slice" {
+        if n == 2 {
+            return aotArrSliceDynSeq(0, bump, limit, s)
+        }
+        if n == 3 {
+            return aotArrSliceDynSeq(1, bump, limit, s)
+        }
+        return null
+    }
+    if name == "pow" {
+        // tpow pops [base, exp] (tagged): args arrive a then b on the
+        // stack → stow b in s+1, a in s, then load base-first.
+        if n == 2 {
+            return [["store", s + 1], ["store", s], ["load", s], ["load", s + 1], ["tpow"]]
+        }
+        return null
+    }
     if name == "str_slice" || name == "substring" {
         if n == 2 {
             return aotStrSliceSeq(0, bump, limit, s)

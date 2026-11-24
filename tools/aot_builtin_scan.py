@@ -17,6 +17,8 @@ COVERED = {
     "object_array_clear", "object_array_truncate", "str_index_of",
     "str_includes", "replace_all", "comptime_fold", "is_float", "env_get",
     "date_now_ms", "json_stringify", "instanceof",
+    # added for the AOT-5 self_host worklist:
+    "starts_with", "array_slice", "pow",
 }
 
 
