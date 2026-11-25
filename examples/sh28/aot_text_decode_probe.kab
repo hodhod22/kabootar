@@ -1,0 +1,45 @@
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"] + " :: " + s)
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 128 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d, (lo["nglobals"] + 512 + 1) * 8)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 128)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr + " :: " + s)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect + " :: " + s)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+acc = acc + srcOk("return len(text_decode([104, 105]))", 4)
+acc = acc + srcOk("return text_decode([104, 105]) == \"hi\"", 27)
+acc = acc + srcOk("return len(text_decode([195, 164]))", 2)
+acc = acc + srcOk("return text_decode([195, 164]) == \"ä\"", 27)
+acc = acc + srcOk("return len(text_decode([104, 105, 226, 130, 172]))", 6)
+acc = acc + srcOk("return char_code_at(text_decode([226, 130, 172]), 0)", 344)
+acc = acc + srcOk("return len(text_decode([]))", 0)
+acc = acc + srcOk("return len(text_decode([240, 159, 152, 128]))", 2)
+println("acc " + acc)
+if acc == 8 {
+    return 42
+}
+return 1
