@@ -578,7 +578,9 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp, xs) {
                 fres = flv * frv
             }
             if name == "fdiv" {
-                fres = flv / frv
+                // Kab `/` is truncating unless an operand is Float —
+                // * 1.0 promotes so mirror division matches native f64.
+                fres = flv * 1.0 / frv
             }
             if name == "fmod" {
                 fres = flv % frv
@@ -630,6 +632,40 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp, xs) {
                 }
             }
             st = push(st, cres)
+        }
+        if name == "hcall" {
+            // ["hcall", off, n] — mirror of the host-print trampoline:
+            // args arrive a1..an on the stack; the native side calls the
+            // planted pointer through the data page. The only modelled
+            // ABI is host_print(byteoff, len) — read len bytes out of the
+            // simulated heap page (byte-serial qwords), print + newline,
+            // push the trampoline's i64 result (0).
+            let hargs = []
+            let hk = 0
+            while hk < op[2] {
+                hargs = push(hargs, st[len(st) - 1 - hk])
+                hk = hk + 1
+            }
+            st = slice(st, 0, len(st) - op[2])
+            if op[2] == 2 {
+                // hargs is top-first: [a2=len, a1=byteoff]
+                let htxt = ""
+                let hbi = 0
+                while hbi < hargs[0] {
+                    let hq2 = hp[(hargs[1] + hbi) / 8]
+                    let hlane = (hargs[1] + hbi) % 8
+                    let hsh = 1
+                    let hk2 = 0
+                    while hk2 < hlane {
+                        hsh = hsh * 256
+                        hk2 = hk2 + 1
+                    }
+                    htxt = htxt + from_char_code((hq2 / hsh) % 256)
+                    hbi = hbi + 1
+                }
+                println(htxt)
+            }
+            st = push(st, 0)
         }
         if name == "trap" {
             throw "aot-tv1 trap: operands out of domain"

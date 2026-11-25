@@ -317,6 +317,27 @@ pub fn aotFnOpLen(op, nl, fa) {
             return -1
         }
     }
+    if name == "hcall" {
+        // ["hcall", byteoff, n] — indirect host call through the data
+        // page. Fixed 25 bytes + arg pops (rcx/rdx 1B, r8/r9 2B).
+        if olen < 3 || op[2] < 0 || op[2] > 4 {
+            return -1
+        }
+        if op[1] < 0 || op[1] > 2147483640 {
+            return -1
+        }
+        let popb = 0
+        if op[2] == 1 || op[2] == 2 {
+            popb = op[2]
+        }
+        if op[2] == 3 {
+            popb = 4
+        }
+        if op[2] == 4 {
+            popb = 6
+        }
+        return 25 + popb
+    }
     if name == "load" || name == "store" || name == "acc_add" || name == "gload" || name == "gstore" || name == "acc_add_g" || name == "hbase" || name == "hlimit" || name == "hload" || name == "hstore" {
         if olen < 2 {
             return -1
@@ -1222,7 +1243,7 @@ let AOT_EMIT_CODE = {
     "fcast": 56, "fadd": 57, "fsub": 57, "fmul": 57, "fdiv": 57,
     "fmod": 58, "feq": 59, "fne": 59, "flt": 59, "fle": 59,
     "fgt": 59, "fge": 59, "mkclo": 60, "callv": 61, "trap": 62,
-    "gcollect": 63, "hcalloc": 64, "ret": 65
+    "gcollect": 63, "hcalloc": 64, "ret": 65, "hcall": 66
 }
 
 // i0..i1 lets a driver emit an op range into a fresh byte buffer (chunked
@@ -3063,6 +3084,52 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             b.push(65)
             b.push(92)
             b.push(195)
+        } else if ek == 66 {
+            // ["hcall", off, n] — host trampoline through the data page.
+            // Pop n stack args into the private arg regs (reverse order
+            // so arg1 lands in rcx); rbx holds the pre-align rsp across
+            // the call (callee-saved — the host trampoline preserves it);
+            // and+sub give the ABI's 16-byte alignment and win64's
+            // 32-byte shadow space; call [r12+off] reaches the planted
+            // trampoline pointer; rax result returns on the VM stack.
+            let hn = op[2]
+            if hn >= 4 {
+                b.push(65)
+                b.push(89)
+            }
+            if hn >= 3 {
+                b.push(65)
+                b.push(88)
+            }
+            if hn >= 2 {
+                b.push(90)
+            }
+            if hn >= 1 {
+                b.push(89)
+            }
+            b.push(83)
+            b.push(72)
+            b.push(137)
+            b.push(227)
+            b.push(72)
+            b.push(131)
+            b.push(228)
+            b.push(240)
+            b.push(72)
+            b.push(131)
+            b.push(236)
+            b.push(32)
+            // 41 FF 94 24 disp32 = call qword [r12 + disp32].
+            b.push(65)
+            b.push(255)
+            b.push(148)
+            b.push(36)
+            b = x64PushSImm32(b, op[1])
+            b.push(72)
+            b.push(137)
+            b.push(220)
+            b.push(91)
+            b.push(80)
         }
         // Length audit: emitted bytes for this op must equal the declared
         // aotFnOpLen — a drift here shifts every later op so jump rel32s
@@ -3089,7 +3156,8 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
 let AOT_NEED_R12 = {
     "gload": 1, "gstore": 1, "acc_add_g": 1, "hbase": 1, "hlimit": 1,
     "halloc": 1, "mkclo": 1, "fmk": 1, "fadd": 1, "fsub": 1, "fmul": 1,
-    "fdiv": 1, "fcast": 1, "fmod": 1, "smk": 1, "gcollect": 1, "hcalloc": 1
+    "fdiv": 1, "fcast": 1, "fmod": 1, "smk": 1, "gcollect": 1, "hcalloc": 1,
+    "hcall": 1
 }
 
 // aotFnOk per-op check tables — name → code replaces a ~15-deep
@@ -3288,6 +3356,7 @@ pub fn aotX64EmitFns(fns, abi) {
     // synthesized __gc_collect fn (emitted by the same op language).
     let needR12 = false
     let needGc = false
+    let hasHcall = false
     let gi = 0
     while gi < len(fns) {
         let gops = fns[gi]["ops"]
@@ -3300,9 +3369,19 @@ pub fn aotX64EmitFns(fns, abi) {
             if gn == "gcollect" || gn == "hcalloc" {
                 needGc = true
             }
+            if gn == "hcall" {
+                hasHcall = true
+            }
             gj = gj + 1
         }
         gi = gi + 1
+    }
+    // hcall passes host args in the private rcx/rdx/r8/r9 registers —
+    // that IS the win64 ABI; sysv would need an rdi/rsi normalization
+    // the op doesn't carry. Reject rather than emit a wrong-ABI call.
+    if hasHcall && abi != "win64" {
+        println("emit reject: hcall needs win64 trampoline ABI")
+        return { "code": [] }
     }
     let gcIdx = -1
     if needGc {

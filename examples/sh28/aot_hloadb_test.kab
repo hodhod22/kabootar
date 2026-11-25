@@ -1,0 +1,27 @@
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+
+// Direct hloadb parity: smk "0.5" then read bytes 0..2.
+let fns = [{"name": "main", "locals": 8, "arity": 0, "ops": [
+    ["hbase", 3], ["gstore", 1], ["hlimit", 515], ["gstore", 2],
+    ["smk", 1, 2, "0.5", 12345],
+    ["store", 0],
+    ["load", 0], ["const", 0], ["hloadb"], ["store", 1],
+    ["load", 0], ["const", 1], ["hloadb"], ["store", 2],
+    ["load", 0], ["const", 2], ["hloadb"], ["store", 3],
+    ["load", 1], ["tconst", 65536], ["mul"],
+    ["load", 2], ["const", 256], ["mul"], ["add"],
+    ["load", 3], ["add"],
+    ["tag"],
+    ["ret"]
+]}]
+println("mirror " + aotFnMirrorH(fns, 0, 4, 64))
+let r = aotX64EmitFns(fns, aotNativeHostAbi())
+println("code " + len(r["code"]))
+let d = []
+while len(d) < 4 + 2 + 64 {
+    d = push(d, 0)
+}
+println("native " + os_native_exec(r["code"], 0, d))
+return 0

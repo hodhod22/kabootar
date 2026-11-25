@@ -1,0 +1,27 @@
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+println("compile")
+let bc = compileIr("return len(object_keys({alpha: 1, beta: 2})[0])")
+println("lower")
+let lo = aotFnLowerModuleTv1(bc, 512)
+println("ok=" + lo["ok"])
+println("emit")
+let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+println("code " + len(r["code"]))
+let d = []
+let ng = lo["nglobals"] + 2 + 128
+println("data " + ng)
+while len(d) < ng {
+    d = push(d, 0)
+}
+println("exec")
+let nr = os_native_exec(r["code"], 0, d)
+println("native " + nr)
+println("mirror")
+let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 128)
+println("mirror " + mr)
+return 0

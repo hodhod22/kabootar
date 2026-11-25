@@ -1,0 +1,28 @@
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+// println lowering: str arg → byte ptr + len → hcall → host_print
+// trampoline planted at (limit+1)*8-8 = limit*8 by os_native_exec.
+let bc = compileIr("println(\"hej aot\")\nreturn 42")
+let lo = aotFnLowerModuleTv1(bc, 512)
+println("ok=" + lo["ok"])
+if !lo["ok"] {
+    return 1
+}
+let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+let d = []
+let ng = lo["nglobals"] + 2 + 128
+while len(d) < ng {
+    d = push(d, 0)
+}
+// map_len = (nglobals+heapQ+1)*8 — lo["nglobals"] already counts the
+// bump/limit slots, so the planted qword lands at exactly (ng+heapQ)*8,
+// the hlimit qword index the hcall op encodes.
+let nr = os_native_exec(r["code"], 0, d, (lo["nglobals"] + 512 + 1) * 8)
+println("native " + nr)
+let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 128)
+println("mirror " + mr)
+return 0

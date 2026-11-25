@@ -84,10 +84,37 @@ fn cached_exec_ptr(bytes: &[u8]) -> Result<*const u8, String> {
     })
 }
 
+/// Host-print trampoline for the aot-tv1 `hcall` op: the image's last data
+/// qword holds this function's address — the emitted `call qword [r12+off]`
+/// lands here with (ptr, len) in the host ABI's first two arg registers.
+/// Prints the byte slice plus a newline (the `println` contract) and returns
+/// 0 in rax.
+#[cfg(not(target_arch = "wasm32"))]
+extern "C" fn kab_host_print(ptr: *const u8, len: usize) -> i64 {
+    use std::io::Write;
+    if ptr.is_null() && len > 0 {
+        return -1;
+    }
+    let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
+    let s = String::from_utf8_lossy(bytes);
+    let out = io::stdout();
+    let mut h = out.lock();
+    let _ = h.write_all(s.as_bytes());
+    let _ = h.write_all(b"\n");
+    let _ = h.flush();
+    0
+}
+
 /// `exec_bytes_data` with an explicit data-mapping size: `data_len` may
 /// exceed `data.len()` — the anonymous mapping is zero-filled past the
 /// copied payload, which is how large mostly-zero data pages (aot-tv1
 /// globals + bump heap) get mapped without materializing every byte.
+///
+/// aot-tv1 `hcall` convention: when the mapping is ≥8 bytes the LAST qword
+/// is overwritten with the `kab_host_print` trampoline address. The image
+/// reserves that qword (heap `limit` + 1) so `call [r12+off]` with
+/// off = mapLen-8 reaches the host; images that never emit `hcall` are
+/// unaffected (their heap bound sits below the reserved slot).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn exec_bytes_data_sized(
     bytes: &[u8],
@@ -112,6 +139,10 @@ pub fn exec_bytes_data_sized(
             .map_anon()
             .map_err(|e: io::Error| format!("native_exec: data map: {e}"))?;
         m[..data.len()].copy_from_slice(data);
+        if map_len >= 8 {
+            let a = (kab_host_print as *const () as usize).to_le_bytes();
+            m[map_len - 8..map_len].copy_from_slice(&a);
+        }
         Some(m)
     };
     let data_ptr = data_mm.as_ref().map(|m| m.as_ptr() as i64).unwrap_or(0);

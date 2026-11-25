@@ -1,0 +1,63 @@
+// SH28: parse_float builtin lowering — digit accumulation into tagged
+// i64 (num/scale/exp) then fcast+fdiv/fmul. Prefix-parse like the host;
+// NaN for digit-less input; sign + e/E exponent.
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"])
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    if len(r["code"]) == 0 {
+        return -2
+    }
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 128 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 128)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr + " :: " + s)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect + " :: " + s)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+// integer fraction / fraction / sign / exponent via float == (feq).
+acc = acc + srcOk("return parse_float(\"1.5\") == 1.5", 27)
+acc = acc + srcOk("return parse_float(\"42\") == 42.0", 27)
+acc = acc + srcOk("return parse_float(\"-2.5\") == -2.5", 27)
+acc = acc + srcOk("return parse_float(\"+7.25\") == 7.25", 27)
+acc = acc + srcOk("return parse_float(\"1e3\") == 1000.0", 27)
+acc = acc + srcOk("return parse_float(\"1.5e-2\") == 0.015", 27)
+acc = acc + srcOk("return parse_float(\"2E1\") == 20.0", 27)
+// prefix-parse: stops at first non-digit like the host.
+acc = acc + srcOk("return parse_float(\"3.25x\") == 3.25", 27)
+acc = acc + srcOk("return parse_float(\"9abc\") == 9.0", 27)
+// no digits → NaN (fmk 0 / fmk 0 fdiv — host parity).
+acc = acc + srcOk("return is_nan(parse_float(\"abc\"))", 27)
+acc = acc + srcOk("return is_nan(parse_float(\"\"))", 27)
+acc = acc + srcOk("return is_nan(parse_float(\"e5\"))", 27)
+// exponent with no digits is dropped (host gives the mantissa).
+acc = acc + srcOk("return parse_float(\"1e\") == 1.0", 27)
+// floats compose with float arithmetic.
+acc = acc + srcOk("return parse_float(\"7\") + parse_float(\"0.5\") == 7.5", 27)
+acc = acc + srcOk("return parse_float(\"3\") * parse_float(\"4\") == 12.0", 27)
+println("acc " + acc)
+if acc == 15 {
+    return 42
+}
+return acc

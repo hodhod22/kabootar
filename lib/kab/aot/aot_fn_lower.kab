@@ -3721,6 +3721,707 @@ fn aotParseIntSeq(n, bump, limit, s) {
     return sq
 }
 
+/// split(str, sep) → tag-5 array of tag-4 str cells. Host parity:
+/// sep=="" splits into 1-char cells; otherwise every occurrence,
+/// including empty parts. Two passes — count (aotStrFindSeq with a
+/// running offset) sizes the array, then a fill pass slices each part.
+/// Own slots s..s+8; find subseq scratch s+10..s+17, slice s+20..s+29.
+fn aotSplitSeq(bump, limit, s) {
+    // find(str, sep, tagged pos) → tagged idx | -1, into s+6
+    let findAt = aotSeqTag(aotStrFindSeq(3, s + 10), "fA")
+    let findAt2 = aotSeqTag(aotStrFindSeq(3, s + 10), "fB")
+    // slice(str, tagged a, tagged b) → str cell on stack
+    let sliceAt = aotSeqTag(aotStrSliceSeq(1, bump, limit, s + 20), "sA")
+    let sliceAt2 = aotSeqTag(aotStrSliceSeq(1, bump, limit, s + 20), "sB")
+    let sq = [
+        ["store", s + 1],
+        ["store", s]
+    ]
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s], 4), "t"))
+    sq = aotSeqCat(sq, [["jz", "@trap"]])
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s + 1], 4), "u"))
+    sq = aotSeqCat(sq, [
+        ["jz", "@trap"],
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 2],
+        ["load", s + 1],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 3],
+        ["load", s + 3],
+        ["jz", "@chars"],
+        // count pass: s+4 = occurrences of sep at pos ≥ s+5
+        ["const", 0],
+        ["store", s + 4],
+        ["const", 0],
+        ["store", s + 5],
+        ["label", "cl"],
+        ["load", s],
+        ["load", s + 1],
+        ["load", s + 5],
+        ["tag"]
+    ])
+    sq = aotSeqCat(sq, findAt)
+    sq = aotSeqCat(sq, [
+        ["store", s + 6],
+        ["load", s + 6],
+        ["tconst", -1],
+        ["eq"],
+        ["jnz", "@cnt"],
+        ["load", s + 4],
+        ["const", 1],
+        ["add"],
+        ["store", s + 4],
+        ["load", s + 6],
+        ["untag"],
+        ["load", s + 3],
+        ["add"],
+        ["store", s + 5],
+        ["jmp", "@cl"],
+        ["label", "cnt"],
+        ["load", s + 4],
+        ["const", 1],
+        ["add"],
+        ["store", s + 4],
+        ["jmp", "@alloc"],
+        // char mode: one cell per byte
+        ["label", "chars"],
+        ["load", s + 2],
+        ["store", s + 4],
+        ["label", "alloc"]
+    ])
+    sq = aotSeqCat(sq, aotArrAllocSeq(s + 4, s + 7, bump, limit))
+    sq = aotSeqCat(sq, [
+        ["const", 0],
+        ["store", s + 8],
+        ["const", 0],
+        ["store", s + 5],
+        ["load", s + 3],
+        ["jz", "@cmode"],
+        // find-mode fill: i < n_parts slices [pos, idx)
+        ["label", "fl"],
+        ["load", s + 8],
+        ["load", s + 4],
+        ["ge"],
+        ["jnz", "@ret"],
+        ["load", s],
+        ["load", s + 1],
+        ["load", s + 5],
+        ["tag"]
+    ])
+    sq = aotSeqCat(sq, findAt2)
+    sq = aotSeqCat(sq, [
+        ["store", s + 6],
+        ["load", s + 6],
+        ["tconst", -1],
+        ["eq"],
+        ["jz", "@hv"],
+        ["load", s + 2],
+        ["tag"],
+        ["store", s + 6],
+        ["label", "hv"],
+        ["load", s],
+        ["load", s + 5],
+        ["tag"],
+        ["load", s + 6]
+    ])
+    sq = aotSeqCat(sq, sliceAt)
+    sq = aotSeqCat(sq, [
+        ["load", s + 7],
+        ["swap"],
+        ["load", s + 8],
+        ["const", 1],
+        ["add"],
+        ["swap"],
+        ["hstorex"],
+        ["load", s + 8],
+        ["const", 1],
+        ["add"],
+        ["store", s + 8],
+        ["load", s + 6],
+        ["untag"],
+        ["load", s + 3],
+        ["add"],
+        ["store", s + 5],
+        ["jmp", "@fl"],
+        // char-mode fill: i < len → slice [i, i+1)
+        ["label", "cmode"],
+        ["load", s + 8],
+        ["load", s + 4],
+        ["ge"],
+        ["jnz", "@ret"],
+        ["load", s],
+        ["load", s + 8],
+        ["tag"],
+        ["load", s + 8],
+        ["const", 1],
+        ["add"],
+        ["tag"]
+    ])
+    sq = aotSeqCat(sq, sliceAt2)
+    sq = aotSeqCat(sq, [
+        ["load", s + 7],
+        ["swap"],
+        ["load", s + 8],
+        ["const", 1],
+        ["add"],
+        ["swap"],
+        ["hstorex"],
+        ["load", s + 8],
+        ["const", 1],
+        ["add"],
+        ["store", s + 8],
+        ["jmp", "@cmode"],
+        ["label", "ret"],
+        ["load", s + 7],
+        ["jmp", "@e"],
+        ["label", "trap"],
+        ["trap"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
+/// println(v) → undefined. Prints the value's text form + newline via
+/// the host-print trampoline: hcall reaches the pointer the exec driver
+/// plants at byte offset hbound*8 (the first qword past the heap bound
+/// — the qword index the hlimit operand names). Covered: tag-4 str
+/// cells (byte ptr + len), SMI (itoa), null/undef/bools (constant
+/// cells). Records/arrays/floats trap honestly — full repr formatting
+/// is a wider seq. itoa scratch s+10..s+21.
+fn aotPrintlnSeq(bump, limit, s, hbound) {
+    let sq = [
+        ["store", s]
+    ]
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s], 4), "t"))
+    sq = aotSeqCat(sq, [
+        ["jz", "@nstr"],
+        ["load", s],
+        ["store", s + 1],
+        ["jmp", "@emit"],
+        ["label", "nstr"],
+        ["load", s],
+        ["is_smi"],
+        ["jz", "@nsmi"]
+    ])
+    sq = aotSeqCat(sq, aotSeqTag(aotItoaSeq(s + 10, s, bump, limit), "i"))
+    sq = aotSeqCat(sq, [
+        ["store", s + 1],
+        ["jmp", "@emit"],
+        ["label", "nsmi"],
+        ["load", s],
+        ["const", 3],
+        ["eq"],
+        ["jz", "@nul2"],
+        ["smk", bump, limit, "null", aotStrKid("null")],
+        ["store", s + 1],
+        ["jmp", "@emit"],
+        ["label", "nul2"],
+        ["load", s],
+        ["const", 11],
+        ["eq"],
+        ["jz", "@nudf"],
+        ["smk", bump, limit, "undefined", aotStrKid("undefined")],
+        ["store", s + 1],
+        ["jmp", "@emit"],
+        ["label", "nudf"],
+        ["load", s],
+        ["const", 27],
+        ["eq"],
+        ["jz", "@ntru"],
+        ["smk", bump, limit, "true", aotStrKid("true")],
+        ["store", s + 1],
+        ["jmp", "@emit"],
+        ["label", "ntru"],
+        ["load", s],
+        ["const", 19],
+        ["eq"],
+        ["jz", "@trap"],
+        ["smk", bump, limit, "false", aotStrKid("false")],
+        ["store", s + 1],
+        ["jmp", "@emit"],
+        ["label", "emit"],
+        ["load", s + 1],
+        ["const", 7],
+        ["add"],
+        ["load", s + 1],
+        ["hlen"],
+        ["untag"],
+        ["hcall", hbound * 8, 2],
+        ["pop"],
+        ["tundef"],
+        ["jmp", "@e"],
+        ["label", "trap"],
+        ["trap"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
+/// object_keys(v) → tag-5 array of key str cells. Record (tag 10):
+/// slots kids are DJB2 hashes — names are recovered from a kid→str
+/// table materialised at lowering time out of the module's string
+/// constants (every interned member name lives there). A kid absent
+/// from the table means a runtime-interned key → honest trap. Array
+/// (tag 5): index strings via itoa, matching the host. Other → trap.
+/// Own slots s..s+9; itoa scratch s+10..s+21.
+fn aotObjectKeysSeq(bump, limit, s, bc) {
+    // Deduped (kid, name) pairs from the module string constants —
+    // every compile-time member name flows through this pool.
+    let pairs = []
+    let seen = []
+    if bc != null && bc["constants"] != undefined {
+        let ci = 0
+        while ci < len(bc["constants"]) {
+            let cc = bc["constants"][ci]
+            if typeof(cc) == "string" {
+                let ck = aotStrKid(cc)
+                let dup = false
+                let di = 0
+                while di < len(seen) {
+                    if seen[di] == ck {
+                        dup = true
+                    }
+                    di = di + 1
+                }
+                if dup == false {
+                    seen = push(seen, ck)
+                    pairs = push(pairs, [ck, cc])
+                }
+            }
+            ci = ci + 1
+        }
+    }
+    let m = len(pairs)
+    let sq = [
+        ["store", s]
+    ]
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s], 10), "r"))
+    sq = aotSeqCat(sq, [["jnz", "@rec"]])
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s], 5), "a"))
+    sq = aotSeqCat(sq, [
+        ["jnz", "@arr"],
+        ["jmp", "@trap"],
+        // ── record path ────────────────────────────────────────
+        ["label", "rec"],
+        ["load", s],
+        ["hload", 8],
+        ["store", s + 1],
+        ["load", s + 1],
+        ["hlen"],
+        ["untag"],
+        ["const", 2],
+        ["div"],
+        ["store", s + 2],
+        // kid→str table: array cell of 2m pairs [kid, strcell]*
+        ["const", 0],
+        ["store", s + 6]
+    ])
+    if m > 0 {
+        sq = aotSeqCat(sq, [["const", m * 2], ["store", s + 6]])
+        sq = aotSeqCat(sq, aotArrAllocSeq(s + 6, s + 5, bump, limit))
+        let ki = 0
+        while ki < m {
+            sq = aotSeqCat(sq, [
+                ["load", s + 5],
+                ["const", 1 + ki * 2],
+                ["tconst", pairs[ki][0]],
+                ["hstorex"],
+                ["load", s + 5],
+                ["const", 2 + ki * 2],
+                ["smk", bump, limit, pairs[ki][1], pairs[ki][0]],
+                ["hstorex"]
+            ])
+            ki = ki + 1
+        }
+    }
+    sq = aotSeqCat(sq, aotArrAllocSeq(s + 2, s + 4, bump, limit))
+    sq = aotSeqCat(sq, [
+        ["const", 0],
+        ["store", s + 3],
+        ["label", "jl"],
+        ["load", s + 3],
+        ["load", s + 2],
+        ["ge"],
+        ["jnz", "@done"],
+        // kid = slots[1 + 2j] (tagged)
+        ["load", s + 1],
+        ["load", s + 3],
+        ["const", 2],
+        ["mul"],
+        ["const", 1],
+        ["add"],
+        ["hloadx"],
+        ["store", s + 6],
+        // scan the kid table for a matching name
+        ["const", 0],
+        ["store", s + 7],
+        ["label", "tl"],
+        ["load", s + 7],
+        ["const", m],
+        ["ge"],
+        ["jnz", "@trap"],
+        ["load", s + 5],
+        ["load", s + 7],
+        ["const", 2],
+        ["mul"],
+        ["const", 1],
+        ["add"],
+        ["hloadx"],
+        ["load", s + 6],
+        ["eq"],
+        ["jnz", "@th"],
+        ["load", s + 7],
+        ["const", 1],
+        ["add"],
+        ["store", s + 7],
+        ["jmp", "@tl"],
+        ["label", "th"],
+        ["load", s + 5],
+        ["load", s + 7],
+        ["const", 2],
+        ["mul"],
+        ["const", 2],
+        ["add"],
+        ["hloadx"],
+        // stack: [cell] → res[j+1] = cell
+        ["load", s + 4],
+        ["swap"],
+        ["load", s + 3],
+        ["const", 1],
+        ["add"],
+        ["swap"],
+        ["hstorex"],
+        ["load", s + 3],
+        ["const", 1],
+        ["add"],
+        ["store", s + 3],
+        ["jmp", "@jl"],
+        // ── array path: index strings via itoa ─────────────────
+        ["label", "arr"],
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 2]
+    ])
+    sq = aotSeqCat(sq, aotArrAllocSeq(s + 2, s + 4, bump, limit))
+    sq = aotSeqCat(sq, [
+        ["const", 0],
+        ["store", s + 3],
+        ["label", "al"],
+        ["load", s + 3],
+        ["load", s + 2],
+        ["ge"],
+        ["jnz", "@done"],
+        ["load", s + 3],
+        ["tag"],
+        ["store", s + 6]
+    ])
+    sq = aotSeqCat(sq, aotSeqTag(aotItoaSeq(s + 10, s + 6, bump, limit), "i"))
+    sq = aotSeqCat(sq, [
+        ["load", s + 4],
+        ["swap"],
+        ["load", s + 3],
+        ["const", 1],
+        ["add"],
+        ["swap"],
+        ["hstorex"],
+        ["load", s + 3],
+        ["const", 1],
+        ["add"],
+        ["store", s + 3],
+        ["jmp", "@al"],
+        ["label", "done"],
+        ["load", s + 4],
+        ["jmp", "@e"],
+        ["label", "trap"],
+        ["trap"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
+/// parse_float(str) → tagged float cell. Accumulates digits into tagged
+/// i64 `num`/`scale`/`exp` (prefix-parse like the host: first non-digit
+/// stops intake), then builds the value with fcast+fdiv/fmul. Sign and
+/// e/E exponent handled; a string with no digits yields NaN (0/0 fdiv —
+/// same NaN the parse_int lowering emits). Non-string → trap. s..s+8.
+fn aotParseFloatSeq(bump, limit, s) {
+    let sq = [
+        ["store", s],
+        ["load", s],
+        ["is_smi"],
+        ["jnz", "@trap"]
+    ]
+    sq = aotSeqCat(sq, aotSeqTag(aotTagIsSeq(["load", s], 4), "t"))
+    sq = aotSeqCat(sq, [
+        ["jz", "@trap"],
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 1],
+        ["const", 0],
+        ["store", s + 2],
+        ["tconst", 0],
+        ["store", s + 3],
+        ["tconst", 1],
+        ["store", s + 4],
+        ["const", 0],
+        ["store", s + 6],
+        ["tconst", 0],
+        ["store", s + 7],
+        ["tconst", 1],
+        ["store", s + 8],
+        ["const", 0],
+        ["store", s + 9],
+        // sign: '-' (45) or '+' (43)
+        ["load", s + 2],
+        ["load", s + 1],
+        ["lt"],
+        ["jz", "@int"],
+        ["load", s],
+        ["load", s + 2],
+        ["hloadb"],
+        ["store", s + 5],
+        ["load", s + 5],
+        ["const", 45],
+        ["eq"],
+        ["jz", "@pls"],
+        ["const", 1],
+        ["store", s + 6],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["jmp", "@int"],
+        ["label", "pls"],
+        ["load", s + 5],
+        ["const", 43],
+        ["eq"],
+        ["jz", "@int"],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        // integer digits: num = num*10 + (b - 48)
+        ["label", "int"],
+        ["load", s + 2],
+        ["load", s + 1],
+        ["lt"],
+        ["jz", "@frac"],
+        ["load", s],
+        ["load", s + 2],
+        ["hloadb"],
+        ["store", s + 5],
+        ["load", s + 5],
+        ["const", 48],
+        ["lt"],
+        ["jnz", "@frac"],
+        ["load", s + 5],
+        ["const", 58],
+        ["ge"],
+        ["jnz", "@frac"],
+        ["load", s + 3],
+        ["tconst", 10],
+        ["tmul"],
+        ["load", s + 5],
+        ["const", 48],
+        ["sub"],
+        ["tag"],
+        ["tadd"],
+        ["store", s + 3],
+        ["const", 1],
+        ["store", s + 9],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["jmp", "@int"],
+        // fraction: '.' then digits — num accumulates, scale *= 10
+        ["label", "frac"],
+        ["load", s + 2],
+        ["load", s + 1],
+        ["lt"],
+        ["jz", "@exp"],
+        ["load", s],
+        ["load", s + 2],
+        ["hloadb"],
+        ["const", 46],
+        ["eq"],
+        ["jz", "@exp"],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["label", "fl"],
+        ["load", s + 2],
+        ["load", s + 1],
+        ["lt"],
+        ["jz", "@exp"],
+        ["load", s],
+        ["load", s + 2],
+        ["hloadb"],
+        ["store", s + 5],
+        ["load", s + 5],
+        ["const", 48],
+        ["lt"],
+        ["jnz", "@exp"],
+        ["load", s + 5],
+        ["const", 58],
+        ["ge"],
+        ["jnz", "@exp"],
+        ["load", s + 3],
+        ["tconst", 10],
+        ["tmul"],
+        ["load", s + 5],
+        ["const", 48],
+        ["sub"],
+        ["tag"],
+        ["tadd"],
+        ["store", s + 3],
+        ["load", s + 4],
+        ["tconst", 10],
+        ["tmul"],
+        ["store", s + 4],
+        ["const", 1],
+        ["store", s + 9],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["jmp", "@fl"],
+        // exponent: 'e'/'E' → optional sign → digits
+        ["label", "exp"],
+        ["load", s + 2],
+        ["load", s + 1],
+        ["lt"],
+        ["jz", "@fin"],
+        ["load", s],
+        ["load", s + 2],
+        ["hloadb"],
+        ["store", s + 5],
+        ["load", s + 5],
+        ["const", 101],
+        ["eq"],
+        ["load", s + 5],
+        ["const", 69],
+        ["eq"],
+        ["add"],
+        ["jz", "@fin"],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["load", s],
+        ["load", s + 2],
+        ["hloadb"],
+        ["store", s + 5],
+        ["load", s + 5],
+        ["const", 45],
+        ["eq"],
+        ["jz", "@xpl"],
+        ["tconst", -1],
+        ["store", s + 8],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["jmp", "@xdl"],
+        ["label", "xpl"],
+        ["load", s + 5],
+        ["const", 43],
+        ["eq"],
+        ["jz", "@xdl"],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["label", "xdl"],
+        ["load", s + 2],
+        ["load", s + 1],
+        ["lt"],
+        ["jz", "@fin"],
+        ["load", s],
+        ["load", s + 2],
+        ["hloadb"],
+        ["store", s + 5],
+        ["load", s + 5],
+        ["const", 48],
+        ["lt"],
+        ["jnz", "@fin"],
+        ["load", s + 5],
+        ["const", 58],
+        ["ge"],
+        ["jnz", "@fin"],
+        ["load", s + 7],
+        ["tconst", 10],
+        ["tmul"],
+        ["load", s + 5],
+        ["const", 48],
+        ["sub"],
+        ["tag"],
+        ["tadd"],
+        ["store", s + 7],
+        ["load", s + 2],
+        ["const", 1],
+        ["add"],
+        ["store", s + 2],
+        ["jmp", "@xdl"],
+        // value = (±num / scale) * 10^(±exp)  — fcast turns tagged SMI
+        // into a float cell; exp multiplier reuses tpow's tagged-i64 pow.
+        ["label", "fin"],
+        ["load", s + 9],
+        ["jz", "@nan"],
+        ["load", s + 3],
+        ["load", s + 6],
+        ["jz", "@nng"],
+        ["tneg"],
+        ["label", "nng"],
+        ["fcast", bump, limit],
+        ["load", s + 4],
+        ["fcast", bump, limit],
+        ["fdiv", bump, limit],
+        ["load", s + 7],
+        ["load", s + 8],
+        ["tmul"],
+        ["store", s + 7],
+        ["load", s + 7],
+        ["jz", "@done"],
+        ["tconst", 10],
+        ["load", s + 7],
+        ["load", s + 7],
+        ["const", 0],
+        ["ge"],
+        ["jnz", "@xp2"],
+        ["tneg"],
+        ["label", "xp2"],
+        ["tpow"],
+        ["fcast", bump, limit],
+        ["load", s + 7],
+        ["const", 0],
+        ["ge"],
+        ["jnz", "@xmul"],
+        ["fdiv", bump, limit],
+        ["jmp", "@done"],
+        ["label", "xmul"],
+        ["fmul", bump, limit],
+        ["jmp", "@done"],
+        ["label", "nan"],
+        ["fmk", bump, limit, 0, 0.0],
+        ["fmk", bump, limit, 0, 0.0],
+        ["fdiv", bump, limit],
+        ["jmp", "@e"],
+        ["label", "done"],
+        ["jmp", "@e"],
+        ["label", "trap"],
+        ["trap"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
 /// object_has_own(obj, key): [obj,key] → tagged bool. Record: str-cell
 /// key scans the slots cell by kid. Array: SMI key → bounds check.
 /// Anything else → false (host property_key_from_value miss). s..s+11.
@@ -4409,7 +5110,7 @@ fn aotIsFloatSeq(s) {
 /// (same convention as the __opt_* intercepts). Returns the lowered-op
 /// seq or null when the name/arity isn't covered → caller falls back to
 /// gload+callv (which traps honestly on the uninitialised slot).
-fn aotBuiltinSeq(name, n, bump, limit, s, bc) {
+fn aotBuiltinSeq(name, n, bump, limit, s, bc, hbound) {
     if name == "len" {
         if n == 1 {
             return aotLenBodySeq(s)
@@ -4478,6 +5179,24 @@ fn aotBuiltinSeq(name, n, bump, limit, s, bc) {
         // stack → stow b in s+1, a in s, then load base-first.
         if n == 2 {
             return [["store", s + 1], ["store", s], ["load", s], ["load", s + 1], ["tpow"]]
+        }
+        return null
+    }
+    if name == "parse_float" {
+        if n == 1 {
+            return aotParseFloatSeq(bump, limit, s)
+        }
+        return null
+    }
+    if name == "split" {
+        if n == 2 {
+            return aotSplitSeq(bump, limit, s)
+        }
+        return null
+    }
+    if name == "object_keys" {
+        if n == 1 {
+            return aotObjectKeysSeq(bump, limit, s, bc)
         }
         return null
     }
@@ -4793,11 +5512,15 @@ fn aotBuiltinSeq(name, n, bump, limit, s, bc) {
         }
         return null
     }
-    if name == "println" || name == "parse_float" || name == "json_stringify" {
-        // println: no stdout in the native ABI. parse_float: no f64
-        // parser (float literals are the only caller). json_stringify:
-        // only the parser's throw path. All three trap instead of
-        // inventing a result.
+    if name == "println" {
+        if n == 1 {
+            return aotPrintlnSeq(bump, limit, s, hbound)
+        }
+        return null
+    }
+    if name == "json_stringify" {
+        // json_stringify: only the parser's throw path. Traps instead
+        // of inventing a result.
         return [["trap"]]
     }
     if name == "instanceof" {
@@ -6138,7 +6861,7 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
                         // materialises); uncovered names fall through
                         // to gload+callv which traps on the uninit slot.
                         let ncv0 = ops[i + 1]["arg"]
-                        let bsq = aotBuiltinSeq(gname, ncv0, bump, limit, scratch, bc)
+                        let bsq = aotBuiltinSeq(gname, ncv0, bump, limit, scratch, bc, bump + 2 + heapQ)
                         if bsq != null {
                             i = i + 1
                             ipMap = push(ipMap, len(out))
