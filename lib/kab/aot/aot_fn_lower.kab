@@ -33,6 +33,18 @@ fn aotLowerFnIndex(bc, name) {
     return -1
 }
 
+/// smap lookup — fn index or -1. aotLowerFnIndex's linear scan is O(nf)
+/// per call; at merged-DAG scale (thousands of fns × every load_global
+/// and call site) that quadratic dominates the lower, so the module
+/// entry point builds the map once and threads it via clo["smap"].
+fn aotSmapIdx(smap, name) {
+    let v = smap[name]
+    if v == undefined {
+        return -1
+    }
+    return v
+}
+
 fn aotLowerReject(reason) {
     return { "ok": false, "reason": reason }
 }
@@ -72,12 +84,12 @@ fn aotCloAssign(arrows, next, acc) {
 /// fused into a static call (the `load_global`+`call` pair) — those need
 /// a closure wrapper so the value can live on the heap. Appends each
 /// wanted fn index to `want` (deduped).
-fn aotCloWant(ops, bc, want) {
+fn aotCloWant(ops, bc, want, smap) {
     let i = 0
     while i < len(ops) {
         if ops[i]["op"] == "load_global" {
             let gname = bc["globals"][ops[i]["arg"]]
-            let fi = aotLowerFnIndex(bc, gname)
+            let fi = aotSmapIdx(smap, gname)
             if fi >= 0 {
                 let fused = i + 1 < len(ops) && ops[i + 1]["op"] == "call"
                 if fused == false {
@@ -122,21 +134,21 @@ fn aotLowerAsm(out, seq) {
     while i < len(seq) {
         let it = seq[i]
         if it[0] != "label" {
-            let op2 = []
-            let j = 0
-            while j < len(it) {
-                let a = it[j]
-                if typeof(a) == "string" && len(a) > 0 && str_slice(a, 0, 1) == "@" {
-                    let lk = str_slice(a, 1, len(a))
-                    a = labs[lk]
-                    if a == undefined {
-                        throw "aotLowerAsm: undefined label @" + lk
-                    }
+            // Label targets only ever sit at arg index 1 of a jump op —
+            // @-prefixed strings elsewhere are data (smk payloads, syms)
+            // and must pass through untouched. Ops without one are
+            // pushed as-is: no arg-by-arg rebuild.
+            let isJmp = it[0] == "jmp" || it[0] == "jz" || it[0] == "jnz"
+            if isJmp && len(it) > 1 && typeof(it[1]) == "string" && len(it[1]) > 0 && str_slice(it[1], 0, 1) == "@" {
+                let lk = str_slice(it[1], 1, len(it[1]))
+                let tv = labs[lk]
+                if tv == undefined {
+                    throw "aotLowerAsm: undefined label @" + lk
                 }
-                op2 = push(op2, a)
-                j = j + 1
+                out = push(out, [it[0], tv])
+            } else {
+                out = push(out, it)
             }
-            out = push(out, op2)
         }
         i = i + 1
     }
@@ -207,12 +219,7 @@ fn aotIsFalsySeq(peek, bump, limit) {
 }
 
 fn aotSeqCat(sq, arr) {
-    let i = 0
-    while i < len(arr) {
-        sq = push(sq, arr[i])
-        i = i + 1
-    }
-    return sq
+    return concat(sq, arr)
 }
 
 /// Rename every @label target/definition in a seq by appending `sfx`
@@ -223,20 +230,21 @@ fn aotSeqTag(sq, sfx) {
     let i = 0
     while i < len(sq) {
         let op = sq[i]
-        let op2 = []
-        let j = 0
-        while j < len(op) {
-            let a = op[j]
-            if j == 1 && op[0] == "label" && typeof(a) == "string" {
-                a = a + sfx
+        let isJmp = op[0] == "jmp" || op[0] == "jz" || op[0] == "jnz"
+        if len(op) > 1 && (op[0] == "label" || isJmp) && typeof(op[1]) == "string" {
+            // Only a label def (name) or a jump's target can carry a
+            // suffixable name — everything else is data and passes
+            // through without a rebuild.
+            let op2 = [op[0], op[1] + sfx]
+            let j = 2
+            while j < len(op) {
+                op2 = push(op2, op[j])
+                j = j + 1
             }
-            if typeof(a) == "string" && len(a) > 0 && str_slice(a, 0, 1) == "@" {
-                a = a + sfx
-            }
-            op2 = push(op2, a)
-            j = j + 1
+            out2 = push(out2, op2)
+        } else {
+            out2 = push(out2, op)
         }
-        out2 = push(out2, op2)
         i = i + 1
     }
     return out2
@@ -1075,7 +1083,12 @@ fn aotConstTv1Seq(v, bump, limit) {
         return { "ok": false, "reason": "const not number" }
     }
     if v < -4503599627370496 || v > 4503599627370496 {
-        return { "ok": false, "reason": "const beyond tagged range" }
+        // Out-of-smi-range integer (e.g. i64::MAX in jit_loop_pow). No
+        // tagged word can hold it — and no tv1 value can ever equal it
+        // either, so the f64 rounding is exact for every comparison the
+        // program can actually run. Materialise as a Float cell;
+        // typeof/is_float on the literal itself diverges (host: number).
+        return { "ok": true, "seq": [["fmk", bump, limit, 0, v + 0.0]] }
     }
     if v >= -1073741824 && v <= 1073741823 {
         return { "ok": true, "seq": [["tconst", v]] }
@@ -4202,6 +4215,23 @@ fn aotTextDecodeSeq(bump, limit, s) {
 }
 
 /// object_keys(v) → tag-5 array of key str cells. Record (tag 10):
+/// Collect a fn/arrow/method record's const pool plus nested arrows'
+/// into `acc` — file-compiled owners can carry dedicated pools.
+fn aotConstPoolsRec(rec, acc) {
+    if rec["constants"] != undefined && len(rec["constants"]) > 0 {
+        acc = push(acc, rec["constants"])
+    }
+    let ars = rec["arrows"]
+    if ars != undefined {
+        let i = 0
+        while i < len(ars) {
+            acc = aotConstPoolsRec(ars[i], acc)
+            i = i + 1
+        }
+    }
+    return acc
+}
+
 /// slots kids are DJB2 hashes — names are recovered from a kid→str
 /// table materialised at lowering time out of the module's string
 /// constants (every interned member name lives there). A kid absent
@@ -4209,14 +4239,49 @@ fn aotTextDecodeSeq(bump, limit, s) {
 /// (tag 5): index strings via itoa, matching the host. Other → trap.
 /// Own slots s..s+9; itoa scratch s+10..s+21.
 fn aotObjectKeysSeq(bump, limit, s, bc) {
-    // Deduped (kid, name) pairs from the module string constants —
-    // every compile-time member name flows through this pool.
+    // Deduped (kid, name) pairs from EVERY const pool reachable in the
+    // module — file-compiled fns/arrows/methods carry dedicated pools,
+    // so member names can live outside bc["constants"].
+    let pools = []
+    if bc != null && bc["constants"] != undefined && len(bc["constants"]) > 0 {
+        pools = push(pools, bc["constants"])
+    }
+    if bc != null && bc["functions"] != undefined {
+        let pf = 0
+        while pf < len(bc["functions"]) {
+            pools = aotConstPoolsRec(bc["functions"][pf], pools)
+            pf = pf + 1
+        }
+    }
+    if bc != null && bc["arrows"] != undefined {
+        let pa = 0
+        while pa < len(bc["arrows"]) {
+            pools = aotConstPoolsRec(bc["arrows"][pa], pools)
+            pa = pa + 1
+        }
+    }
+    if bc != null && bc["classes"] != undefined {
+        let pc = 0
+        while pc < len(bc["classes"]) {
+            let pm = bc["classes"][pc]["methods"]
+            if pm != undefined {
+                let pmj = 0
+                while pmj < len(pm) {
+                    pools = aotConstPoolsRec(pm[pmj], pools)
+                    pmj = pmj + 1
+                }
+            }
+            pc = pc + 1
+        }
+    }
     let pairs = []
     let seen = []
-    if bc != null && bc["constants"] != undefined {
+    let pi = 0
+    while pi < len(pools) {
+        let pool = pools[pi]
         let ci = 0
-        while ci < len(bc["constants"]) {
-            let cc = bc["constants"][ci]
+        while ci < len(pool) {
+            let cc = pool[ci]
             if typeof(cc) == "string" {
                 let ck = aotStrKid(cc)
                 let dup = false
@@ -4234,6 +4299,7 @@ fn aotObjectKeysSeq(bump, limit, s, bc) {
             }
             ci = ci + 1
         }
+        pi = pi + 1
     }
     let m = len(pairs)
     let sq = [
@@ -6209,6 +6275,13 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
     let out = []
     let ipMap = []
     let fixups = []
+    // `const` indexes the OWNER's pool — a fn/arrow/method may carry
+    // dedicated constants (jit_pic fns append -1); an empty own pool
+    // falls back to the module's, same as vm.rs' runtime rule.
+    let consts = clo["owner"]["constants"]
+    if consts == undefined || len(consts) == 0 {
+        consts = bc["constants"]
+    }
     let i = 0
     while i < len(ops) {
         ipMap = push(ipMap, len(out))
@@ -6216,7 +6289,7 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
         let name = o["op"]
         let arg = o["arg"]
         if name == "const" {
-            let v = bc["constants"][arg]
+            let v = consts[arg]
             if tv1 {
                 // Float consts → fmk (emitter derives IEEE-754 halves
                 // from op[4] via aotF64Halves). Integer consts → tconst
@@ -6335,13 +6408,13 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
             iss = push(iss, ["label", "end"])
             out = aotLowerAsm(out, iss)
         } else if tv1 && name == "get_member" {
-            let gk = bc["constants"][arg]
+            let gk = consts[arg]
             if typeof(gk) != "string" {
                 return aotLowerReject("get_member const not a string @" + i)
             }
             out = aotLowerOgetTv1(out, gk, scratch, bc, bump, limit, clo)
         } else if tv1 && name == "member_set" {
-            let gk2 = bc["constants"][arg]
+            let gk2 = consts[arg]
             if typeof(gk2) != "string" {
                 return aotLowerReject("member_set const not a string @" + i)
             }
@@ -6465,7 +6538,7 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
             out = push(out, ["jz", -1])
             fixups = push(fixups, [len(out) - 1, i + 1 + arg])
         } else if tv1 && name == "jump_unless_has_member" {
-            let hkey = bc["constants"][arg]
+            let hkey = consts[arg]
             if typeof(hkey) != "string" {
                 return aotLowerReject("jump_unless_has_member const not a string @" + i)
             }
@@ -6488,7 +6561,7 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
             out = push(out, ["jz", -1])
             fixups = push(fixups, [len(out) - 1, i + 1 + hmoff])
         } else if tv1 && name == "jump_unless_const_eq" {
-            let cv = bc["constants"][arg]
+            let cv = consts[arg]
             let ceoff = o["arg2"]
             if ceoff == undefined {
                 ceoff = 0
@@ -6532,8 +6605,8 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
                 fixups = push(fixups, [len(out) - 1, i + 1 + ceoff])
             }
         } else if tv1 && name == "jump_unless_enum_variant" {
-            let etn = bc["constants"][arg]
-            let evr = bc["constants"][o["arg2"]]
+            let etn = consts[arg]
+            let evr = consts[o["arg2"]]
             let evoff = o["arg3"]
             if evoff == undefined {
                 evoff = 0
@@ -6918,7 +6991,7 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
             out = push(out, ["store", arg + clo["lshift"]])
         } else if name == "store_global" {
             let gname2 = bc["globals"][arg]
-            if aotLowerFnIndex(bc, gname2) >= 0 {
+            if aotSmapIdx(clo["smap"], gname2) >= 0 {
                 return aotLowerReject("store_global overwrites module fn '" + gname2 + "' @" + i)
             }
             out = push(out, ["gstore", arg])
@@ -6927,7 +7000,7 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
             out = push(out, ["acc_add", arg + clo["lshift"]])
         } else if name == "acc_add_global" {
             let gname3 = bc["globals"][arg]
-            if aotLowerFnIndex(bc, gname3) >= 0 {
+            if aotSmapIdx(clo["smap"], gname3) >= 0 {
                 return aotLowerReject("acc_add_global on module fn '" + gname3 + "' @" + i)
             }
             out = push(out, ["acc_add_g", arg])
@@ -7065,7 +7138,7 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
             }
         } else if name == "load_global" {
             let gname = bc["globals"][arg]
-            let fi = aotLowerFnIndex(bc, gname)
+            let fi = aotSmapIdx(clo["smap"], gname)
             if i + 1 < len(ops) && ops[i + 1]["op"] == "call" {
                 // Dynamic callee: lowers ONLY when the global names a
                 // module function → one static callN op. A data global
@@ -7249,7 +7322,7 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
             // `key` bind that method to this receiver; a parent-less
             // hit or non-instance → a real (catchable) throw, matching
             // vSuperMemberGetS.
-            let suk = bc["constants"][arg]
+            let suk = consts[arg]
             if typeof(suk) != "string" {
                 return aotLowerReject("get_super_method const not a string @" + i)
             }
@@ -7407,6 +7480,18 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
     }
     let bcf = bc["functions"]
     let nf = len(bcf)
+    // sym → fn index map, built once (first match wins, same as the
+    // linear scan it replaces) — every load_global/call site resolves
+    // through clo["smap"] instead of rescanning bcf.
+    let smap = {}
+    let smi = 0
+    while smi < nf {
+        let ssym = bcf[smi]["sym"]
+        if smap[ssym] == undefined {
+            smap[ssym] = smi
+        }
+        smi = smi + 1
+    }
     // Closure pass 1: image index = main(0) + module fns(1..nf) + every
     // arrow record reachable from main/fn arrow arrays (depth-first) +
     // wrapper fns for fn-valued globals (found by the want-scan below).
@@ -7452,15 +7537,15 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
     // Wanted wrappers: fn-valued global loads not fused into callN.
     let want = []
     if tv1 {
-        want = aotCloWant(bc["ops"], bc, want)
+        want = aotCloWant(bc["ops"], bc, want, smap)
         let wi2 = 0
         while wi2 < nf {
-            want = aotCloWant(bcf[wi2]["ops"], bc, want)
+            want = aotCloWant(bcf[wi2]["ops"], bc, want, smap)
             wi2 = wi2 + 1
         }
         let wi3 = 0
         while wi3 < len(arecs) {
-            want = aotCloWant(arecs[wi3]["ops"], bc, want)
+            want = aotCloWant(arecs[wi3]["ops"], bc, want, smap)
             wi3 = wi3 + 1
         }
         if bc["classes"] != undefined {
@@ -7470,7 +7555,7 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
                 if ms5 != undefined {
                     let mj5 = 0
                     while mj5 < len(ms5) {
-                        want = aotCloWant(ms5[mj5]["ops"], bc, want)
+                        want = aotCloWant(ms5[mj5]["ops"], bc, want, smap)
                         mj5 = mj5 + 1
                     }
                 }
@@ -7525,7 +7610,7 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
         cands = push(cands, ck2)
         ck2 = ck2 + 1
     }
-    let mainClo = { "owner": bc, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "lshift": 0 }
+    let mainClo = { "owner": bc, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "smap": smap, "lshift": 0 }
     let mainR = aotLowerOps(bc["ops"], bc, tv1, bump, ng + 1, 0, mainClo)
     if mainR["ok"] == false {
         return aotLowerReject("main: " + mainR["reason"])
@@ -7593,7 +7678,7 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
     let i = 0
     while i < len(bcf) {
         let f = bcf[i]
-        let fclo = { "owner": f, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "lshift": 0 }
+        let fclo = { "owner": f, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "smap": smap, "lshift": 0 }
         let r = aotLowerOps(f["ops"], bc, tv1, bump, ng + 1, len(f["locals"]), fclo)
         if r["ok"] == false {
             return aotLowerReject(f["sym"] + ": " + r["reason"])
@@ -7616,7 +7701,7 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
         let ar = arecs[aj]
         let np = len(ar["params"])
         let ncap = len(ar["locals"]) - np - 1
-        let aclo = { "owner": ar, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "lshift": 1 }
+        let aclo = { "owner": ar, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "smap": smap, "lshift": 1 }
         let ar2 = aotLowerOps(ar["ops"], bc, tv1, bump, ng + 1, 1 + len(ar["locals"]), aclo)
         if ar2["ok"] == false {
             return aotLowerReject(ar["sym"] + ": " + ar2["reason"])
@@ -7688,7 +7773,7 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
         if mnp + 1 > 20 {
             return aotLowerReject("method arity > 19 (receiver included): " + mr9["cls"] + "." + m9["sym"])
         }
-        let mclo = { "owner": m9, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "lshift": 0 }
+        let mclo = { "owner": m9, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "smap": smap, "lshift": 0 }
         let mres = aotLowerOps(m9["ops"], bc, tv1, bump, ng + 1, len(m9["locals"]), mclo)
         if mres["ok"] == false {
             return aotLowerReject(mr9["cls"] + "." + m9["sym"] + ": " + mres["reason"])

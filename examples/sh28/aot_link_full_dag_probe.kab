@@ -1,0 +1,60 @@
+// AOT-7 scale probe: walk the real import closure of the self_host
+// compile+vm DAG via bytecode_host_module_record, link all modules with
+// aotLinkModules, lower the merged program through tv1 and emit x64.
+import "kab/aot/aot_fn_lower"
+import "kab/aot/aot_link"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_native"
+
+let roots = [
+    "self_host/compile",
+    "self_host/vm",
+    "self_host/deserialize_kbcb"
+]
+let seen = {}
+let queue = []
+let i = 0
+while i < len(roots) {
+    queue = push(queue, roots[i])
+    i = i + 1
+}
+let mods = []
+let t0 = date_now_ms()
+while len(queue) > 0 {
+    let name = queue[0]
+    queue = array_slice(queue, 1, len(queue))
+    if seen[name] != 1 {
+        seen[name] = 1
+        let bc = bytecode_host_module_record(name)
+        mods = push(mods, { "name": name, "bc": bc })
+        let imps = bc["imports"]
+        let j = 0
+        while j < len(imps) {
+            queue = push(queue, imps[j])
+            j = j + 1
+        }
+        let pis = bc["pub_imports"]
+        j = 0
+        while j < len(pis) {
+            queue = push(queue, pis[j])
+            j = j + 1
+        }
+    }
+}
+println("MODS " + len(mods) + " [" + (date_now_ms() - t0) + "ms]")
+
+t0 = date_now_ms()
+let merged = aotLinkModules(mods)
+println("LINK " + (date_now_ms() - t0) + "ms fns=" + len(merged["functions"]) + " globals=" + len(merged["globals"]))
+
+t0 = date_now_ms()
+let r = aotFnLowerModuleTv1(merged, 4194304)
+if r["ok"] == true {
+    println("LOWER OK fns=" + len(r["fns"]) + " nglobals=" + r["nglobals"] + " [" + (date_now_ms() - t0) + "ms]")
+    t0 = date_now_ms()
+    let e = aotX64EmitFns(r["fns"], aotNativeHostAbi())
+    println("EMIT " + (date_now_ms() - t0) + "ms code=" + len(e["code"]))
+} else {
+    println("LOWER REJ " + r["reason"] + " [" + (date_now_ms() - t0) + "ms]")
+}
+return 0

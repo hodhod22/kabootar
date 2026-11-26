@@ -47,7 +47,9 @@ fn aotLinkConstOps() {
 // Rewrite one op array: global args → slotmap, const args → +cbase,
 // class args → +clbase. Ops whose args need no remap pass through
 // unchanged — rebuilding every record dominated interpreted link time.
-fn aotLinkOps(ops, slotmap, cbase, clbase) {
+// `ownPool` marks ops whose const args index the fn's own pool — those
+// stay un-rebased because the fn's constants travel with its record.
+fn aotLinkOps(ops, slotmap, cbase, clbase, ownPool) {
     let gops = aotLinkGlobalOps()
     let cops = aotLinkConstOps()
     let out = []
@@ -61,12 +63,16 @@ fn aotLinkOps(ops, slotmap, cbase, clbase) {
         if gops[nm] == 1 {
             narg = slotmap[arg]
         } else if cops[nm] == 1 {
-            narg = arg + cbase
+            if ownPool == 0 {
+                narg = arg + cbase
+            }
         } else if nm == "new_instance" || nm == "new_instance_from_array" {
             narg = arg + clbase
         }
         if nm == "jump_unless_enum_variant" {
-            narg2 = narg2 + cbase
+            if ownPool == 0 {
+                narg2 = narg2 + cbase
+            }
         }
         if narg == arg && narg2 == o["arg2"] {
             out = push(out, o)
@@ -95,7 +101,15 @@ fn aotLinkFnList(fns, slotmap, cbase, clbase, prefix) {
         nf["sym"] = prefix + f["sym"]
         nf["params"] = f["params"]
         nf["locals"] = f["locals"]
-        nf["ops"] = aotLinkOps(f["ops"], slotmap, cbase, clbase)
+        // Dedicated const pool → carry it verbatim and leave the fn's
+        // const-family args indexing it; empty pool → module-pool args
+        // get the cbase rebase (same rule as the VM's load-time fill).
+        let ownPool = 0
+        if f["constants"] != undefined && len(f["constants"]) > 0 {
+            ownPool = 1
+            nf["constants"] = f["constants"]
+        }
+        nf["ops"] = aotLinkOps(f["ops"], slotmap, cbase, clbase, ownPool)
         nf["tryRegions"] = f["tryRegions"]
         nf["globals"] = f["globals"]
         nf["isAsync"] = f["isAsync"]
