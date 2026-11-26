@@ -6,6 +6,17 @@ import "kab/aot/aot_link"
 import "kab/aot/aot_fn_x64"
 import "kab/aot/aot_native"
 
+// KAB_AOT_CACHE=/host/<file> enables the lowerer's per-owner persist
+// cache (JSON on real disk via this mount) — second runs skip
+// re-lowering unchanged owners.
+fn mnt() {
+    try {
+        os_mount("/host", ".")
+    } catch (e) {
+    }
+}
+mnt()
+
 let roots = [
     "self_host/compile",
     "self_host/vm",

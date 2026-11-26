@@ -7461,7 +7461,90 @@ fn aotLowerOps(ops, bc, tv1, bump, limit, scratch, clo) {
 /// `tv1` selects the tagged domain — one extra global slot (bump pointer)
 /// is reserved at index nglobals, main gets a hbase/gstore prologue, and
 /// every fn reserves two scratch locals for index/make_array lowering.
+/// djb2 over codepoints — cache-key fingerprinting only.
+fn aotCacheHash(s) {
+    let h = 5381
+    let i = 0
+    let n = len(s)
+    while i < n {
+        h = (h * 33 + char_code_at(s, i)) % 4294967296
+        i = i + 1
+    }
+    return h
+}
+
+/// aotLowerOps behind the persist-cache. cacheMap maps key →
+/// json_stringify(ops-output); hits return a fresh json_parse copy so
+/// caller-side jump-target shifts never corrupt the stored entry.
+/// key = sym + "$" + lshift + "$" + hash(ops + owner const-pool) —
+/// the dedicated const-pool matters: same sym+ops with different
+/// constants lowers differently.
+fn aotLowerOpsC(ops, bc, tv1, bump, limit, nloc, clo, cacheMap, owner, sym) {
+    if cacheMap == null {
+        return aotLowerOps(ops, bc, tv1, bump, limit, nloc, clo)
+    }
+    let key = sym + "$" + clo["lshift"] + "$" + aotCacheHash(json_stringify([ops, owner["constants"]]))
+    let hit = cacheMap[key]
+    if hit != undefined {
+        return { "ok": true, "ops": json_parse(hit) }
+    }
+    let r = aotLowerOps(ops, bc, tv1, bump, limit, nloc, clo)
+    if r["ok"] {
+        cacheMap[key] = json_stringify(r["ops"])
+    }
+    return r
+}
+
+/// Persist-cache wrapper: KAB_AOT_CACHE=<path> enables a JSON cache of
+/// per-owner lowered ops on disk. Lowering is deterministic per
+/// (module record, heapQ, tv1) — the ctx fingerprint hashes the whole
+/// bc record so any source change invalidates the entire file. Cache
+/// flushes even on reject so partial progress survives.
 fn aotLowerModuleMode(bc, tv1, heapQ) {
+    let cacheMap = null
+    let cachePath = undefined
+    let cacheCtx = ""
+    if tv1 {
+        cachePath = env_get("KAB_AOT_CACHE")
+        if cachePath != undefined && typeof(cachePath) == "string" && len(cachePath) > 0 && typeof(bc) == "object" && bc != null {
+            cacheMap = {}
+            try {
+                cacheCtx = "" + aotCacheHash(json_stringify([bc["globals"], bc["functions"], bc["constants"], bc["classes"], bc["enums"], bc["arrows"], bc["ops"], heapQ]))
+            } catch (ce) {
+                cacheMap = null
+            }
+            // file IO goes through the VFS — for real-disk persistence
+            // the driver mounts a host dir first (os_mount) and passes a
+            // path under it; a plain VFS path still works in-process.
+            if cacheMap != null && exists(cachePath) {
+                let pc = json_parse(text_decode(read_file(cachePath)))
+                if pc != undefined && pc["ctx"] == cacheCtx && typeof(pc["e"]) == "object" && pc["e"] != null {
+                    cacheMap = pc["e"]
+                }
+            }
+        }
+    }
+    let r = aotLowerModuleModeRun(bc, tv1, heapQ, cacheMap, cachePath, cacheCtx)
+    if cacheMap != null {
+        try {
+            write_file(cachePath, json_stringify({ "ctx": cacheCtx, "e": cacheMap }))
+        } catch (we) {
+        }
+    }
+    return r
+}
+
+/// Periodic flush so a killed run keeps the entries computed so far.
+fn aotCacheFlush(cacheMap, cachePath, cacheCtx) {
+    if cacheMap != null {
+        try {
+            write_file(cachePath, json_stringify({ "ctx": cacheCtx, "e": cacheMap }))
+        } catch (fe) {
+        }
+    }
+}
+
+fn aotLowerModuleModeRun(bc, tv1, heapQ, cacheMap, cachePath, cacheCtx) {
     if typeof(bc) != "object" || bc == null || bc["ops"] == undefined || bc["functions"] == undefined {
         return aotLowerReject("not a compileIr module record")
     }
@@ -7611,7 +7694,7 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
         ck2 = ck2 + 1
     }
     let mainClo = { "owner": bc, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "smap": smap, "lshift": 0 }
-    let mainR = aotLowerOps(bc["ops"], bc, tv1, bump, ng + 1, 0, mainClo)
+    let mainR = aotLowerOpsC(bc["ops"], bc, tv1, bump, ng + 1, 0, mainClo, cacheMap, bc, "main")
     if mainR["ok"] == false {
         return aotLowerReject("main: " + mainR["reason"])
     }
@@ -7679,7 +7762,7 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
     while i < len(bcf) {
         let f = bcf[i]
         let fclo = { "owner": f, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "smap": smap, "lshift": 0 }
-        let r = aotLowerOps(f["ops"], bc, tv1, bump, ng + 1, len(f["locals"]), fclo)
+        let r = aotLowerOpsC(f["ops"], bc, tv1, bump, ng + 1, len(f["locals"]), fclo, cacheMap, f, f["sym"])
         if r["ok"] == false {
             return aotLowerReject(f["sym"] + ": " + r["reason"])
         }
@@ -7690,6 +7773,9 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
             "ops": r["ops"]
         })
         i = i + 1
+        if i % 32 == 0 {
+            aotCacheFlush(cacheMap, cachePath, cacheCtx)
+        }
     }
     // Arrow bodies: lowered with the cell convention — local 0 = the
     // closure cell (rcx), params shifted +1, `this` seeded with the
@@ -7702,7 +7788,7 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
         let np = len(ar["params"])
         let ncap = len(ar["locals"]) - np - 1
         let aclo = { "owner": ar, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "smap": smap, "lshift": 1 }
-        let ar2 = aotLowerOps(ar["ops"], bc, tv1, bump, ng + 1, 1 + len(ar["locals"]), aclo)
+        let ar2 = aotLowerOpsC(ar["ops"], bc, tv1, bump, ng + 1, 1 + len(ar["locals"]), aclo, cacheMap, ar, ar["sym"])
         if ar2["ok"] == false {
             return aotLowerReject(ar["sym"] + ": " + ar2["reason"])
         }
@@ -7736,6 +7822,9 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
             "ops": pro
         })
         aj = aj + 1
+        if aj % 32 == 0 {
+            aotCacheFlush(cacheMap, cachePath, cacheCtx)
+        }
     }
     // Wrappers for fn-valued globals: cell convention, ignore the cell —
     // reload the real params and tail-call the module fn directly.
@@ -7774,7 +7863,7 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
             return aotLowerReject("method arity > 19 (receiver included): " + mr9["cls"] + "." + m9["sym"])
         }
         let mclo = { "owner": m9, "cands": cands, "wmap": wmap, "mmeth": mmeth, "mwrap": mwrap, "smap": smap, "lshift": 0 }
-        let mres = aotLowerOps(m9["ops"], bc, tv1, bump, ng + 1, len(m9["locals"]), mclo)
+        let mres = aotLowerOpsC(m9["ops"], bc, tv1, bump, ng + 1, len(m9["locals"]), mclo, cacheMap, m9, mr9["cls"] + "." + m9["sym"])
         if mres["ok"] == false {
             return aotLowerReject(mr9["cls"] + "." + m9["sym"] + ": " + mres["reason"])
         }
@@ -7785,6 +7874,9 @@ fn aotLowerModuleMode(bc, tv1, heapQ) {
             "ops": mres["ops"]
         })
         mi3 = mi3 + 1
+        if mi3 % 32 == 0 {
+            aotCacheFlush(cacheMap, cachePath, cacheCtx)
+        }
     }
     // Bound-method wrappers: arg0 = the tag-6 cell → cap0 (receiver) at
     // +16, then the real params — tail-call the method image.

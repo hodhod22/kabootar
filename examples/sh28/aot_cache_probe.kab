@@ -1,0 +1,33 @@
+// AOT-perf probe: KAB_AOT_CACHE persist-cache for per-owner lowered
+// ops. Mounts cwd at /host so the file reaches real disk; same source
+// lowered twice — second call must hit the cache and return identical ops.
+import "self_host/compile"
+import "kab/aot/aot_fn_lower"
+
+fn mnt() {
+    try {
+        os_mount("/host", ".")
+    } catch (e) {
+    }
+}
+mnt()
+
+let src = "fn fib(n) { if n < 2 { return n } return fib(n - 1) + fib(n - 2) } return fib(10)"
+let bc = compileIr(src)
+
+let t0 = date_now_ms()
+let lo1 = aotFnLowerModuleTv1(bc, 512)
+let c1 = date_now_ms() - t0
+t0 = date_now_ms()
+let lo2 = aotFnLowerModuleTv1(bc, 512)
+let c2 = date_now_ms() - t0
+
+println("cold=" + c1 + "ms warm=" + c2 + "ms")
+println("ok=" + lo1["ok"] + " same_fns=" + (len(lo1["fns"]) == len(lo2["fns"])))
+let sameOps = json_stringify(lo1["fns"]) == json_stringify(lo2["fns"])
+println("same_ops=" + sameOps)
+println("file=" + exists("/host/.aot_cache_probe.json"))
+if lo1["ok"] && lo2["ok"] && sameOps && c2 < c1 {
+    return 42
+}
+return 1

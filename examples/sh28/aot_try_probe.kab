@@ -1,0 +1,60 @@
+// AOT-3 probe: try/catch through compileIr -> tv1 lower -> x64 emit ->
+// native exec, parity vs aotFnMirrorH. (finally is a compile-time
+// reject in compileIr — out of the language surface, not a lowering gap.)
+import "self_host/compile"
+import "kab/aot/aot_fn_x64"
+import "kab/aot/aot_fn_exec"
+import "kab/aot/aot_native"
+import "kab/aot/aot_fn_lower"
+
+fn srcOk(s, expect) {
+    let bc = compileIr(s)
+    let lo = aotFnLowerModuleTv1(bc, 512)
+    if lo["ok"] == false {
+        println("REJECT " + lo["reason"] + " :: " + s)
+        return -1
+    }
+    let r = aotX64EmitFns(lo["fns"], aotNativeHostAbi())
+    let d = []
+    while len(d) < lo["nglobals"] + 2 + 128 {
+        d = push(d, 0)
+    }
+    let nr = os_native_exec(r["code"], 0, d, (lo["nglobals"] + 512 + 1) * 8)
+    let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 128)
+    if mr != nr {
+        println("PARITY " + nr + " vs " + mr + " :: " + s)
+        return -3
+    }
+    if nr != expect {
+        println("GOT " + nr + " want " + expect + " :: " + s)
+        return -4
+    }
+    return 1
+}
+
+let acc = 0
+// in-frame catch: reason bound to e
+acc = acc + srcOk("fn t() { try { throw 5 } catch (e) { return e } return 0 } return t()", 10)
+// normal body, catch not taken
+acc = acc + srcOk("fn t() { try { return 7 } catch (e) { return 0 } } return t()", 14)
+// catch then fall through past the try
+acc = acc + srcOk("fn t() { let x = 0 try { throw 3 } catch (e) { x = e } return x + 1 } return t()", 8)
+// cross-frame: throw inside a called fn unwinds to caller's catch
+acc = acc + srcOk("fn f() { throw 9 } fn t() { try { f() } catch (e) { return e } return 0 } return t()", 18)
+// two frames: g calls f, f throws, g has no catch, outer catches
+acc = acc + srcOk("fn f() { throw 11 } fn g() { return f() } fn t() { try { g() } catch (e) { return e } return 0 } return t()", 22)
+// nested try: inner catches, outer continues normally
+acc = acc + srcOk("fn t() { let x = 1 try { try { throw 4 } catch (e) { x = x + e } } catch (e2) { x = 99 } return x } return t()", 198)
+// rethrow: inner catch throws to outer catch
+acc = acc + srcOk("fn t() { try { try { throw 6 } catch (e) { throw e + 1 } } catch (e2) { return e2 } return 0 } return t()", 12)
+// string reason survives the marker round-trip
+acc = acc + srcOk("fn t() { try { throw \"oops\" } catch (e) { return len(e) } return 0 } return t()", 8)
+// thrown value through a call inside try that returns normally first
+acc = acc + srcOk("fn f() { return 5 } fn t() { try { let a = f() throw a } catch (e) { return e + 2 } return 0 } return t()", 14)
+// throw in loop body caught outside
+acc = acc + srcOk("fn t() { let i = 0 try { while i < 10 { if i == 3 { throw i } i = i + 1 } } catch (e) { return e } return 0 } return t()", 6)
+println("acc " + acc)
+if acc == 10 {
+    return 42
+}
+return 1
