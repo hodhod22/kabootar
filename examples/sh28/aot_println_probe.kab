@@ -21,7 +21,7 @@ while len(d) < ng {
 // map_len = (nglobals+heapQ+1)*8 — lo["nglobals"] already counts the
 // bump/limit slots, so the planted qword lands at exactly (ng+heapQ)*8,
 // the hlimit qword index the hcall op encodes.
-let nr = os_native_exec(r["code"], 0, d, (lo["nglobals"] + 512 + 1) * 8)
+let nr = os_native_exec(r["code"], 0, d, (lo["nglobals"] + 512 + 2) * 8)
 println("native " + nr)
 let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 128)
 println("mirror " + mr)

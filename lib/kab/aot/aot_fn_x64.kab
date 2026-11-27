@@ -164,6 +164,7 @@ let AOT_LEN_FIXED = {
     "tshl": 20, "tshr": 20, "tushr": 20, "tpow": 49,
     "hloadx": 15, "hstorex": 15, "hlen": 17, "htag": 21,
     "hloadb": 12, "hstoreb": 11, "aget": 16, "aset": 22,
+    "xloadq": 7, "xloadb": 7,
     "const64": 11, "hkid": 16,
     "feq": 28, "flt": 28, "fle": 28, "fne": 35, "fgt": 26, "fge": 26,
     "trap": 2, "ret": 5
@@ -1243,7 +1244,8 @@ let AOT_EMIT_CODE = {
     "fcast": 56, "fadd": 57, "fsub": 57, "fmul": 57, "fdiv": 57,
     "fmod": 58, "feq": 59, "fne": 59, "flt": 59, "fle": 59,
     "fgt": 59, "fge": 59, "mkclo": 60, "callv": 61, "trap": 62,
-    "gcollect": 63, "hcalloc": 64, "ret": 65, "hcall": 66
+    "gcollect": 63, "hcalloc": 64, "ret": 65, "hcall": 66,
+    "xloadq": 67, "xloadb": 68
 }
 
 // i0..i1 lets a driver emit an op range into a fresh byte buffer (chunked
@@ -3129,6 +3131,29 @@ pub fn aotFnEmitOps(b, ops, offs, fnOffs, nl, gcIdx, fa, i0, i1, bOff) {
             b.push(137)
             b.push(220)
             b.push(91)
+            b.push(80)
+        } else if ek == 67 {
+            // ["xloadq"] — RAW qword load for foreign memory (argv blk,
+            // OS structures): stack [ptr, qidx] → 58 pop rax (qidx);
+            // 5A pop rdx (ptr — raw address, NOT tag-stripped);
+            // 48 8B 04 C2 mov rax,[rdx+rax*8]; 50 push rax. = 7B.
+            b.push(88)
+            b.push(90)
+            b.push(72)
+            b.push(139)
+            b.push(4)
+            b.push(194)
+            b.push(80)
+        } else if ek == 68 {
+            // ["xloadb"] — RAW byte load for foreign memory: stack
+            // [ptr, bidx] → 58 pop rax (bidx); 5A pop rdx (ptr);
+            // 0F B6 04 02 movzx eax, byte [rdx+rax]; 50 push rax. = 7B.
+            b.push(88)
+            b.push(90)
+            b.push(15)
+            b.push(182)
+            b.push(4)
+            b.push(2)
             b.push(80)
         }
         // Length audit: emitted bytes for this op must equal the declared

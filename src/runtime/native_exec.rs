@@ -105,6 +105,34 @@ extern "C" fn kab_host_print(ptr: *const u8, len: usize) -> i64 {
     0
 }
 
+/// Build the aot-tv1 argv block in a leaked anonymous mapping:
+/// `[argc][argv0..][0][envp0..][0]` of raw pointers into one shared
+/// NUL-terminated string pool. The image's `os_args`/`env_get` seqs walk
+/// it via `xloadq`/`xloadb`. Layout mirrors the ELF `_start` stack so the
+/// same block works for in-process exec and bare-metal images.
+#[cfg(not(target_arch = "wasm32"))]
+fn build_argv_block() -> Result<*mut u8, String> {
+    let strs: Vec<String> = std::env::args().collect();
+    let envs: Vec<String> = std::env::vars().map(|(k, v)| format!("{k}={v}")).collect();
+    let pool_bytes: usize = strs.iter().chain(envs.iter()).map(|s| s.len() + 1).sum();
+    let nq = 1 + strs.len() + 1 + envs.len() + 1;
+    let mut m = memmap2::MmapOptions::new()
+        .len(nq * 8 + pool_bytes)
+        .map_anon()
+        .map_err(|e| format!("native_exec: argv map: {e}"))?;
+    let mut pool = nq * 8;
+    let argc = (strs.len() as u64).to_le_bytes();
+    m[0..8].copy_from_slice(&argc);
+    for (i, s) in strs.iter().chain(envs.iter()).enumerate() {
+        let idx = if i < strs.len() { 1 + i } else { 1 + strs.len() + 1 + (i - strs.len()) };
+        let q = (m.as_ptr() as usize + pool).to_le_bytes();
+        m[idx * 8..idx * 8 + 8].copy_from_slice(&q);
+        m[pool..pool + s.len()].copy_from_slice(s.as_bytes());
+        pool += s.len() + 1;
+    }
+    Ok(Box::leak(Box::new(m)).as_mut_ptr())
+}
+
 /// `exec_bytes_data` with an explicit data-mapping size: `data_len` may
 /// exceed `data.len()` — the anonymous mapping is zero-filled past the
 /// copied payload, which is how large mostly-zero data pages (aot-tv1
@@ -115,6 +143,13 @@ extern "C" fn kab_host_print(ptr: *const u8, len: usize) -> i64 {
 /// reserves that qword (heap `limit` + 1) so `call [r12+off]` with
 /// off = mapLen-8 reaches the host; images that never emit `hcall` are
 /// unaffected (their heap bound sits below the reserved slot).
+///
+/// aot-tv1 argv convention: when the mapping is ≥16 bytes the SECOND-TO-LAST
+/// qword (map_len-16) is overwritten with a pointer to a real argv block
+/// ([argc][argv0..][0][envp0..][0]). Images that reserve that slot (first
+/// qword past the heap bound) get real process argv via `os_args`; others
+/// either leave it unreachable above the heap bound or fail the seq's
+/// sanity check and see an empty argv.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn exec_bytes_data_sized(
     bytes: &[u8],
@@ -139,6 +174,10 @@ pub fn exec_bytes_data_sized(
             .map_anon()
             .map_err(|e: io::Error| format!("native_exec: data map: {e}"))?;
         m[..data.len()].copy_from_slice(data);
+        if map_len >= 16 {
+            let a = (build_argv_block()? as usize).to_le_bytes();
+            m[map_len - 16..map_len - 8].copy_from_slice(&a);
+        }
         if map_len >= 8 {
             let a = (kab_host_print as *const () as usize).to_le_bytes();
             m[map_len - 8..map_len].copy_from_slice(&a);

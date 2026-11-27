@@ -3962,12 +3962,142 @@ fn aotPrintlnSeq(bump, limit, s, hbound) {
         ["load", s + 1],
         ["hlen"],
         ["untag"],
-        ["hcall", hbound * 8, 2],
+        ["hcall", (hbound + 1) * 8, 2],
         ["pop"],
         ["tundef"],
         ["jmp", "@e"],
         ["label", "trap"],
         ["trap"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
+/// `os_args()` — materialize process argv as a tag-5 array of str cells.
+/// `ab` is the reserved data slot index (first qword past the heap
+/// bound) holding the argv-block pointer: ELF `_start` plants its rsp
+/// there ([rsp]=argc, argv0.., 0, envp.., 0); the in-process exec driver
+/// plants a host-built block at map_len-16, which is the same slot when
+/// the data page is exactly limit+2 qwords. blk==0 / insane argc /
+/// missing terminator → empty array (native side of the PE-image bound
+/// where no args are wired). Temps: s blk, s+1 argc, s+2 arr, s+3 i,
+/// s+4 p, s+5 k, s+6 strc, s+7 j.
+fn aotOsArgsSeq(bump, limit, s, ab) {
+    let sq = [
+        ["gload", ab],
+        ["store", s],
+        ["load", s],
+        ["jz", "@empty"],
+        // argc = blk[0]; sanity: 1 <= argc < 65536 and blk[argc+1] == 0
+        ["load", s],
+        ["const", 0],
+        ["xloadq"],
+        ["store", s + 1],
+        ["load", s + 1],
+        ["const", 1],
+        ["lt"],
+        ["jnz", "@empty"],
+        ["load", s + 1],
+        ["const", 65536],
+        ["lt"],
+        ["jz", "@empty"],
+        ["load", s],
+        ["load", s + 1],
+        ["const", 1],
+        ["add"],
+        ["xloadq"],
+        ["jnz", "@empty"]
+    ]
+    // arr = tag-5 cell of argc elems
+    sq = aotSeqCat(sq, aotArrAllocSeq(s + 1, s + 2, bump, limit))
+    sq = aotSeqCat(sq, [
+        ["const", 0],
+        ["store", s + 3],
+        ["label", "al"],
+        ["load", s + 3],
+        ["load", s + 1],
+        ["lt"],
+        ["jz", "@aldone"],
+        // p = blk[i + 1]
+        ["load", s],
+        ["load", s + 3],
+        ["const", 1],
+        ["add"],
+        ["xloadq"],
+        ["store", s + 4],
+        // k = strlen(p)
+        ["const", 0],
+        ["store", s + 5],
+        ["label", "sl"],
+        ["load", s + 4],
+        ["load", s + 5],
+        ["xloadb"],
+        ["jz", "@sldone"],
+        ["load", s + 5],
+        ["const", 1],
+        ["add"],
+        ["store", s + 5],
+        ["jmp", "@sl"],
+        ["label", "sldone"],
+        // strc = halloc(1 + ceil(k/8)); hdr = 4<<16 | k
+        ["load", s + 5],
+        ["const", 7],
+        ["add"],
+        ["const", 8],
+        ["div"],
+        ["const", 1],
+        ["add"],
+        ["halloc", bump, limit],
+        ["store", s + 6],
+        ["load", s + 6],
+        ["const", 262144],
+        ["load", s + 5],
+        ["add"],
+        ["hstore", 0],
+        // copy k bytes: strc[j] = p[j]
+        ["const", 0],
+        ["store", s + 7],
+        ["label", "cb"],
+        ["load", s + 7],
+        ["load", s + 5],
+        ["lt"],
+        ["jz", "@cbdone"],
+        ["load", s + 6],
+        ["load", s + 7],
+        ["load", s + 4],
+        ["load", s + 7],
+        ["xloadb"],
+        ["hstoreb"],
+        ["load", s + 7],
+        ["const", 1],
+        ["add"],
+        ["store", s + 7],
+        ["jmp", "@cb"],
+        ["label", "cbdone"],
+        // arr[i] = strc (field i + 1 — slot 0 is the header)
+        ["load", s + 2],
+        ["load", s + 3],
+        ["const", 1],
+        ["add"],
+        ["load", s + 6],
+        ["hstorex"],
+        ["load", s + 3],
+        ["const", 1],
+        ["add"],
+        ["store", s + 3],
+        ["jmp", "@al"],
+        ["label", "aldone"],
+        ["load", s + 2],
+        ["jmp", "@e"],
+        ["label", "empty"],
+        // empty tag-5 array: halloc(1), hdr = 5<<16 | 0
+        ["const", 1],
+        ["halloc", bump, limit],
+        ["store", s + 2],
+        ["load", s + 2],
+        ["const", 327680],
+        ["hstore", 0],
+        ["load", s + 2],
         ["label", "e"]
     ])
     return sq
@@ -5811,6 +5941,17 @@ fn aotBuiltinSeq(name, n, bump, limit, s, bc, hbound) {
         // which is also what the host returns for an unset variable.
         if n == 1 {
             return [["store", s], ["tundef"]]
+        }
+        return null
+    }
+    if name == "os_args" {
+        // argv from the OS: the exec driver / exe _start plants an argv
+        // block pointer in the reserved data slot (first qword past the
+        // heap bound); the seq validates it, walks the C-style argv and
+        // materializes a tag-5 array of str cells. blk==0 or a malformed
+        // block (argc out of range, missing 0 terminator) → empty array.
+        if n == 0 {
+            return aotOsArgsSeq(bump, limit, s, hbound)
         }
         return null
     }

@@ -61,7 +61,7 @@ pub fn aotExeEmitElf(code, data) {
     }
     let B = 4194304
     let entryOff = 176
-    let stubLen = 27
+    let stubLen = 34
     let codeOff = entryOff + stubLen
     let textEnd = codeOff + len(code)
     let dataFile = 4096
@@ -107,13 +107,23 @@ pub fn aotExeEmitElf(code, data) {
     e = aotExeU64(e, dsz)
     e = aotExeU64(e, dsz)
     e = aotExeU64(e, 4096)
-    // --- entry stub (27B): xor edi,edi; lea rsi,[rip+data]; call code;
-    //     mov rdi,rax; mov rax,60; syscall ---
+    // --- entry stub (34B): xor edi,edi; lea rsi,[rip+data];
+    //     mov [rsi+dsz-16],rsp (argvblk slot: [rsp]=argc,argv0..,0,envp..,
+    //     0 — same layout the in-process exec driver plants at map_len-16);
+    //     call code; mov rdi,rax; mov rax,60; syscall ---
     e = aotExeBytes(e, [72, 49, 255])
     e = aotExeBytes(e, [72, 141, 53])
     e = x64PushSImm32(e, dataVa - (entryVa + 3 + 7))
+    if dsz >= 16 {
+        e = aotExeBytes(e, [72, 137, 166])
+        e = x64PushSImm32(e, dsz - 16)
+    } else {
+        // No argv slot in a <2-qword data page: zero-fill the stub space
+        // so stubLen stays fixed (nops — falls through to call).
+        e = aotExeBytes(e, [144, 144, 144, 144, 144, 144, 144])
+    }
     e = push(e, 232)
-    e = x64PushSImm32(e, codeVa - (entryVa + 15))
+    e = x64PushSImm32(e, codeVa - (entryVa + 22))
     e = aotExeBytes(e, [72, 137, 199])
     e = aotExeBytes(e, [72, 199, 192, 60, 0, 0, 0])
     e = aotExeBytes(e, [15, 5])

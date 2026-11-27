@@ -473,6 +473,33 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp, xs) {
             let oldq = hp[qi]
             hp[qi] = oldq - ((oldq / bsh2) % 256) * bsh2 + (bv % 256) * bsh2
         }
+        if name == "xloadq" {
+            // [ptr, qidx] → qword qidx of a RAW block. In the mirror the
+            // block is a fabricated cell whose field i holds blk[i]
+            // verbatim (raw argc, tagged argv ptrs, 0 terminators), so
+            // the read is a plain field access — same as native's
+            // [ptr + qidx*8] on a real machine pointer.
+            let xq = st[len(st) - 1]
+            let xp = st[len(st) - 2]
+            st = slice(st, 0, len(st) - 2)
+            st = push(st, hp[(xp - 1) / 8 + xq])
+        }
+        if name == "xloadb" {
+            // [ptr, bidx] → byte bidx of a raw C string. Mirror side the
+            // "C string" is a real str cell, so the byte read is exactly
+            // the hloadb payload formula.
+            let xbi = st[len(st) - 1]
+            let xbp = st[len(st) - 2]
+            st = slice(st, 0, len(st) - 2)
+            let xqw = hp[(xbp - 1) / 8 + 1 + xbi / 8]
+            let xsh = 1
+            let xk = 0
+            while xk < xbi % 8 {
+                xsh = xsh * 256
+                xk = xk + 1
+            }
+            st = push(st, (xqw / xsh) % 256)
+        }
         if name == "hkid" {
             // [strptr] → tagged kid (hdr >> 32, tagged). The str cell
             // header carries the interned member-key id in bits 32+.

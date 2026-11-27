@@ -16,7 +16,7 @@ fn srcOk(s, expect) {
     while len(d) < lo["nglobals"] + 2 + 128 {
         d = push(d, 0)
     }
-    let nr = os_native_exec(r["code"], 0, d, (lo["nglobals"] + 512 + 1) * 8)
+    let nr = os_native_exec(r["code"], 0, d, (lo["nglobals"] + 512 + 2) * 8)
     let mr = aotFnMirrorH(lo["fns"], 0, lo["nglobals"], 128)
     if mr != nr {
         println("PARITY " + nr + " vs " + mr + " :: " + s)
