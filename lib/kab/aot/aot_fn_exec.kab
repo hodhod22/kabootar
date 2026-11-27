@@ -485,16 +485,19 @@ pub fn aotFnRunG(fns, fi, a1, a2, a3, a4, gl, hp, xs) {
             st = push(st, hp[(xp - 1) / 8 + xq])
         }
         if name == "xloadb" {
-            // [ptr, bidx] → byte bidx of a raw C string. Mirror side the
-            // "C string" is a real str cell, so the byte read is exactly
-            // the hloadb payload formula.
+            // [ptr, bidx] → byte bidx of a raw C string. Mirror models
+            // foreign memory as byte-addressed qwords: tagged ptr =
+            // byte_offset + 1, so the byte address is (xbp - 1) + xbi —
+            // env values (p + keylen + 1) are NOT qword-aligned, hence
+            // the single flat address, never an hdr skip.
             let xbi = st[len(st) - 1]
             let xbp = st[len(st) - 2]
             st = slice(st, 0, len(st) - 2)
-            let xqw = hp[(xbp - 1) / 8 + 1 + xbi / 8]
+            let xba = (xbp - 1) + xbi
+            let xqw = hp[xba / 8]
             let xsh = 1
             let xk = 0
-            while xk < xbi % 8 {
+            while xk < xba % 8 {
                 xsh = xsh * 256
                 xk = xk + 1
             }

@@ -11,6 +11,30 @@ import "kab/aot/aot_fn_lower"
 // mirror-side fabricated blk: hp cell at qword H holds [argc][p0..][0]
 // where pN are tagged ptrs to real str cells built by a tiny seq fn.
 // Simpler: run the lowered ops under aotFnRunG with gl/hp prebuilt.
+// NOTE: `hp[i] = v` inside a fn is copy-on-write — writes never reach
+// the caller's array. Fabrication helpers return the modified array;
+// the ptr convention (qword_index * 8 + 1) is computed at the call site.
+fn mkCstr(hp, at, s) {
+    // raw NUL-terminated bytes (no cell hdr) — argv/envp entries are
+    // plain C strings, not tv1 str cells.
+    let L = len(s)
+    let i = 0
+    while i <= L {
+        let sh = 1
+        let k = 0
+        while k < i % 8 {
+            sh = sh * 256
+            k = k + 1
+        }
+        let b = 0
+        if i < L {
+            b = char_code_at(s, i) % 256
+        }
+        hp[at + i / 8] = hp[at + i / 8] + b * sh
+        i = i + 1
+    }
+    return hp
+}
 fn mkStr(hp, at, s) {
     // str cell: hdr = 4<<16|len, packed LE cp&255 bytes from qword at+1
     let L = len(s)
@@ -26,12 +50,12 @@ fn mkStr(hp, at, s) {
         hp[at + 1 + i / 8] = hp[at + 1 + i / 8] + (char_code_at(s, i) % 256) * sh
         i = i + 1
     }
-    return at * 8 + 1
+    return hp
 }
 
 fn probe() {
-    let heapQ = 256
-    let bc = compileIr("let a = os_args() if len(a) < 1 { return 7 } return len(a) * 1000 + len(a[0]) * 10 + char_code_at(a[0], 0)")
+    let heapQ = 8192
+    let bc = compileIr("let a = os_args() if len(a) < 1 { return 7 } let p = env_get(\"PATH\") if p == undefined { return 8 } if len(p) < 1 { return 9 } return len(a) * 1000 + len(a[0]) * 10 + char_code_at(p, 0)")
     let lo = aotFnLowerModuleTv1(bc, heapQ)
     if lo["ok"] == false {
         println("REJECT " + lo["reason"])
@@ -63,18 +87,22 @@ fn probe() {
     }
     let hp = []
     i = 0
-    while i < 64 {
+    while i < 80 {
         hp = push(hp, 0)
         i = i + 1
     }
     // fabricated cells live high — mirror halloc bumps from index 0.
-    // blk at qword 48: [2][p0][p1][0]; str cells at 52 / 56.
-    let p0 = mkStr(hp, 52, "hi")
-    let p1 = mkStr(hp, 56, "yo")
+    // blk at qword 48: [2][p0][p1][0][e0][0] (argv + envp sections);
+    // raw cstrs at 56 / 60 / 64 ("PATH=zz" feeds env_get("PATH") → "zz").
+    hp = mkCstr(hp, 56, "hi")
+    hp = mkCstr(hp, 60, "yo")
+    hp = mkCstr(hp, 64, "PATH=zz")
     hp[48] = 2
-    hp[49] = p0
-    hp[50] = p1
+    hp[49] = 56 * 8 + 1
+    hp[50] = 60 * 8 + 1
     hp[51] = 0
+    hp[52] = 64 * 8 + 1
+    hp[53] = 0
     gl[ab] = 48 * 8 + 1 // blk cell ptr (qword index 48, tagged)
     println("ab " + ab + " gl " + len(gl) + " hp " + len(hp))
     let mr = 0
@@ -85,12 +113,11 @@ fn probe() {
         return -9
     }
     println("mirror " + mr)
-    // Mirror-side fabricated blk exercises the same xload/arr ops; its
-    // content parity is bounded (the fabricated cell convention can't
-    // model raw foreign memory exactly) — the native run above is the
-    // content-verified path. Here we only require the seq to complete.
-    if mr == 0 {
-        println("mirror argv wrong")
+    // Content-verified: a = ["hi","yo"] → len 2 + len(a[0]) 2, env hit
+    // "zz" → char_code_at('z') = 122 → 2*1000+2*10+122 = 2142, mirror
+    // ret is smi-tagged (×2) → 4284.
+    if mr != 4284 {
+        println("mirror argv/env wrong")
         return -3
     }
     return 1

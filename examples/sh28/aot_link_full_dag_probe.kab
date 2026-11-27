@@ -63,7 +63,7 @@ let r = aotFnLowerModuleTv1(merged, 4194304)
 if r["ok"] == true {
     println("LOWER OK fns=" + len(r["fns"]) + " nglobals=" + r["nglobals"] + " [" + (date_now_ms() - t0) + "ms]")
     t0 = date_now_ms()
-    let e = aotX64EmitFns(r["fns"], aotNativeHostAbi())
+    let e = aotX64EmitFns(r["fns"], aotNativeHostAbi(), true)
     println("EMIT " + (date_now_ms() - t0) + "ms code=" + len(e["code"]))
 } else {
     println("LOWER REJ " + r["reason"] + " [" + (date_now_ms() - t0) + "ms]")

@@ -4103,6 +4103,169 @@ fn aotOsArgsSeq(bump, limit, s, ab) {
     return sq
 }
 
+/// Build a str cell from a NUL-terminated C string at `p` (slot) — strlen
+/// into `k`, halloc + 4<<16|k hdr + hstoreb copy into `dst`. Shares the
+/// argv/envp walk helpers. Temps used: k, j (copy idx).
+fn aotSeqStrFromCstr(p, k, j, dst, bump, limit) {
+    return [
+        ["const", 0],
+        ["store", k],
+        ["label", "sl"],
+        ["load", p],
+        ["load", k],
+        ["xloadb"],
+        ["jz", "@sldone"],
+        ["load", k],
+        ["const", 1],
+        ["add"],
+        ["store", k],
+        ["jmp", "@sl"],
+        ["label", "sldone"],
+        ["load", k],
+        ["const", 7],
+        ["add"],
+        ["const", 8],
+        ["div"],
+        ["const", 1],
+        ["add"],
+        ["halloc", bump, limit],
+        ["store", dst],
+        ["load", dst],
+        ["const", 262144],
+        ["load", k],
+        ["add"],
+        ["hstore", 0],
+        ["const", 0],
+        ["store", j],
+        ["label", "cb"],
+        ["load", j],
+        ["load", k],
+        ["lt"],
+        ["jz", "@cbdone"],
+        ["load", dst],
+        ["load", j],
+        ["load", p],
+        ["load", j],
+        ["xloadb"],
+        ["hstoreb"],
+        ["load", j],
+        ["const", 1],
+        ["add"],
+        ["store", j],
+        ["jmp", "@cb"],
+        ["label", "cbdone"]
+    ]
+}
+
+/// `env_get(key)` — envp walk over the argv block (`ab` slot):
+/// entries are "KEY=value" C strings; prefix-compare key bytes + '=',
+/// hit → value str cell, miss/insane blk → tundef.
+/// Temps: s key, s+1 keylen, s+2 blk, s+3 argc, s+4 envp, s+5 i,
+/// s+6 p, s+7 j, s+8 k, s+9 strc.
+fn aotEnvGetSeq(bump, limit, s, ab) {
+    let sq = [
+        ["store", s],
+        ["gload", ab],
+        ["store", s + 2],
+        ["load", s + 2],
+        ["jz", "@undef"],
+        // argc sanity (same contract as os_args)
+        ["load", s + 2],
+        ["const", 0],
+        ["xloadq"],
+        ["store", s + 3],
+        ["load", s + 3],
+        ["const", 0],
+        ["lt"],
+        ["jnz", "@undef"],
+        ["load", s + 3],
+        ["const", 65536],
+        ["lt"],
+        ["jz", "@undef"],
+        ["load", s + 2],
+        ["load", s + 3],
+        ["const", 1],
+        ["add"],
+        ["xloadq"],
+        ["jnz", "@undef"],
+        // keylen = hlen(key) untagged
+        ["load", s],
+        ["hlen"],
+        ["untag"],
+        ["store", s + 1],
+        // envp base = blk + (argc + 2) * 8
+        ["load", s + 2],
+        ["load", s + 3],
+        ["const", 2],
+        ["add"],
+        ["const", 8],
+        ["mul"],
+        ["add"],
+        ["store", s + 4],
+        ["const", 0],
+        ["store", s + 5],
+        // i loop: p = envp[i]; p == 0 → undef
+        ["label", "el"],
+        ["load", s + 4],
+        ["load", s + 5],
+        ["xloadq"],
+        ["store", s + 6],
+        ["load", s + 6],
+        ["jz", "@undef"],
+        // j < keylen: p[j] != key[j] → next
+        ["const", 0],
+        ["store", s + 7],
+        ["label", "ml"],
+        ["load", s + 7],
+        ["load", s + 1],
+        ["lt"],
+        ["jz", "@mldone"],
+        ["load", s + 6],
+        ["load", s + 7],
+        ["xloadb"],
+        ["load", s],
+        ["load", s + 7],
+        ["hloadb"],
+        ["sub"],
+        ["jnz", "@next"],
+        ["load", s + 7],
+        ["const", 1],
+        ["add"],
+        ["store", s + 7],
+        ["jmp", "@ml"],
+        ["label", "mldone"],
+        // p[keylen] must be '=' (61) else next
+        ["load", s + 6],
+        ["load", s + 1],
+        ["xloadb"],
+        ["const", 61],
+        ["sub"],
+        ["jnz", "@next"],
+        // value = p + keylen + 1 → str cell
+        ["load", s + 6],
+        ["load", s + 1],
+        ["add"],
+        ["const", 1],
+        ["add"],
+        ["store", s + 6]
+    ]
+    sq = aotSeqCat(sq, aotSeqStrFromCstr(s + 6, s + 8, s + 7, s + 9, bump, limit))
+    sq = aotSeqCat(sq, [
+        ["load", s + 9],
+        ["jmp", "@e"],
+        ["label", "next"],
+        ["load", s + 5],
+        ["const", 1],
+        ["add"],
+        ["store", s + 5],
+        ["jmp", "@el"],
+        ["label", "undef"],
+        ["tundef"],
+        ["label", "e"]
+    ])
+    return sq
+}
+
 /// text_decode(array) → tag-4 str cell. Number-array of SMI bytes →
 /// str; strict UTF-8 like the host (from_utf8, not lossy): non-array
 /// arg, non-SMI element, byte outside 0..255, truncated sequence, or
@@ -5937,10 +6100,13 @@ fn aotBuiltinSeq(name, n, bump, limit, s, bc, hbound) {
         return null
     }
     if name == "env_get" {
-        // The image has no process environment. Every key is undefined,
-        // which is also what the host returns for an unset variable.
+        // Real process env via the argv block's envp section:
+        // envp = blk + (argc + 2) * 8, entries are "KEY=value" C strings
+        // ending in a 0 pointer. Walk + prefix-compare "KEY=" against
+        // the arg str cell; hit → value str cell; miss/blk==0/insane →
+        // tundef (also what the host returns for an unset variable).
         if n == 1 {
-            return [["store", s], ["tundef"]]
+            return aotEnvGetSeq(bump, limit, s, hbound)
         }
         return null
     }

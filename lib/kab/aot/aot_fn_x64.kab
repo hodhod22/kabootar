@@ -3368,7 +3368,11 @@ pub fn aotFnOk(f, fa) {
 /// host abi tag ("win64"/"sysv") — it only changes the entry prologue.
 /// Returns {code, fnOffs, total} or []-equivalent {} on domain miss…
 /// honestly: returns {"code": []} when any fn fails validation.
-pub fn aotX64EmitFns(fns, abi) {
+/// `dropOps` frees each fn's ops + offset row right after it emits —
+/// halves peak memory on giant merged images (self-host DAG ~340k ops),
+/// but destroys the caller's `fns` array for any post-emit use (mirror,
+/// re-emit). Pass false/omit for the non-destructive default.
+pub fn aotX64EmitFns(fns, abi, dropOps) {
     if abi != "win64" && abi != "sysv" {
         return { "code": [] }
     }
@@ -3517,13 +3521,23 @@ pub fn aotX64EmitFns(fns, abi) {
         }
         fi2 = fi2 + 1
     }
-    // Pass 2: emit.
+    // Pass 2: emit — one fn at a time, freeing its ops and offset row
+    // right after (the merged self-host DAG peaks at all-ops + growing
+    // byte image; dropping each fn's arrays as it emits keeps the peak
+    // at the already-proven ops-only level instead of ops + full code).
     let b = []
     let fi3 = 0
     while fi3 < len(fns) {
         let f = fns[fi3]
         b = aotFnPro(b, f["locals"], f["arity"], fi3 == 0, abi, needR12)
         b = aotFnEmitOps(b, f["ops"], allOffs[fi3], fnOffs, f["locals"], gcIdx, fa, 0, len(f["ops"]), 0)
+        if dropOps {
+            // Swap the element for an ops-free record — the only
+            // definite release (field-assign COWs on shared records).
+            // Callers that mirror the fns AFTER emit must not set this.
+            fns[fi3] = { "name": f["name"], "locals": f["locals"], "arity": f["arity"], "ops": [] }
+            allOffs[fi3] = []
+        }
         fi3 = fi3 + 1
     }
     return { "code": b, "fnOffs": fnOffs, "total": cur }
